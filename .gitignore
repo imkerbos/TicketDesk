@@ -1,0 +1,58 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+build-errors.log
+
+# Config
+configs/config.yaml
+configs/*.local.yaml
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+
+# Build
+build/
+
+# Air hot reload
+tmp/
+
+# Claude.md - AI 开发规范文档（不提交到远程仓库）
+Claude.md
+CLAUDE.md

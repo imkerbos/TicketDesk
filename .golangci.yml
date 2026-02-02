@@ -1,0 +1,107 @@
+# golangci-lint 配置文件
+# 参考: https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck       # 检查未处理的错误
+    - gosimple       # 简化代码建议
+    - govet          # 报告可疑的构造
+    - ineffassign    # 检测无效赋值
+    - staticcheck    # 静态分析
+    - typecheck      # 类型检查
+    - unused         # 检查未使用的代码
+    - gofmt          # 检查代码格式
+    - goimports      # 检查 import 格式
+    - misspell       # 拼写检查
+    - unconvert      # 检查不必要的类型转换
+    - unparam        # 检查未使用的函数参数
+    - nakedret       # 检查裸返回
+    - prealloc       # 检查可以预分配的切片
+    - exportloopref  # 检查循环变量引用
+    - gocritic       # 代码审查建议
+    - revive         # 代码风格检查
+    - gosec          # 安全检查
+
+  disable:
+    - depguard       # 依赖检查（需要额外配置）
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  govet:
+    check-shadowing: true
+
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: github.com/kerbos/ticketdesk
+
+  misspell:
+    locale: US
+
+  nakedret:
+    max-func-lines: 30
+
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: true
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - hugeParam
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+
+  gosec:
+    excludes:
+      - G104  # 忽略未检查的错误（errcheck 已覆盖）
+
+issues:
+  exclude-rules:
+    # 测试文件可以有更宽松的规则
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - gocritic
+
+    # main 函数可以使用 os.Exit
+    - path: main\.go
+      linters:
+        - gocritic
+      text: "exitAfterDefer"
+
+  max-issues-per-linter: 50
+  max-same-issues: 10
