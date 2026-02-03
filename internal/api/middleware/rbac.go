@@ -1,0 +1,116 @@
+// Package middleware 提供 RBAC 权限中间件
+package middleware
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/kerbos/ticketdesk/internal/api/response"
+	"github.com/kerbos/ticketdesk/internal/core-user/repository"
+)
+
+// RBACMiddleware RBAC 权限中间件
+type RBACMiddleware struct {
+	userRoleRepo repository.UserRoleRepository
+}
+
+// NewRBACMiddleware 创建 RBAC 中间件实例
+func NewRBACMiddleware(userRoleRepo repository.UserRoleRepository) *RBACMiddleware {
+	return &RBACMiddleware{userRoleRepo: userRoleRepo}
+}
+
+// RequireRoles 要求用户具有指定角色之一
+func (m *RBACMiddleware) RequireRoles(roles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetUint64("user_id")
+		if userID == 0 {
+			response.Unauthorized(c, "未获取到用户信息")
+			c.Abort()
+			return
+		}
+
+		// 获取用户角色
+		userRoles, err := m.userRoleRepo.GetUserRoleNames(c.Request.Context(), userID)
+		if err != nil {
+			response.InternalError(c, "获取用户角色失败")
+			c.Abort()
+			return
+		}
+
+		// 检查是否拥有所需角色之一
+		hasRole := false
+		for _, requiredRole := range roles {
+			for _, userRole := range userRoles {
+				if userRole == requiredRole {
+					hasRole = true
+					break
+				}
+			}
+			if hasRole {
+				break
+			}
+		}
+
+		if !hasRole {
+			response.Forbidden(c, "权限不足")
+			c.Abort()
+			return
+		}
+
+		// 将用户角色存入上下文
+		c.Set("user_roles", userRoles)
+		c.Next()
+	}
+}
+
+// RequireAdmin 要求管理员权限
+func (m *RBACMiddleware) RequireAdmin() gin.HandlerFunc {
+	return m.RequireRoles("admin")
+}
+
+// RequireProjectAdmin 要求项目管理员或系统管理员权限
+func (m *RBACMiddleware) RequireProjectAdmin() gin.HandlerFunc {
+	return m.RequireRoles("admin", "project_admin")
+}
+
+// LoadUserRoles 加载用户角色到上下文（不做权限检查）
+func (m *RBACMiddleware) LoadUserRoles() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetUint64("user_id")
+		if userID == 0 {
+			c.Next()
+			return
+		}
+
+		// 获取用户角色
+		userRoles, err := m.userRoleRepo.GetUserRoleNames(c.Request.Context(), userID)
+		if err == nil {
+			c.Set("user_roles", userRoles)
+		}
+
+		c.Next()
+	}
+}
+
+// HasRole 检查上下文中的用户是否拥有指定角色
+func HasRole(c *gin.Context, role string) bool {
+	roles, exists := c.Get("user_roles")
+	if !exists {
+		return false
+	}
+
+	userRoles, ok := roles.([]string)
+	if !ok {
+		return false
+	}
+
+	for _, r := range userRoles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+// IsAdmin 检查上下文中的用户是否是管理员
+func IsAdmin(c *gin.Context) bool {
+	return HasRole(c, "admin")
+}

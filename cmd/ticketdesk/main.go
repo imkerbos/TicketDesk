@@ -87,7 +87,7 @@ func main() {
 	jwtManager := jwt.NewManager(&cfg.JWT)
 
 	// 设置路由
-	r := router.Setup(cfg, jwtManager)
+	r := router.NewRouter(cfg, jwtManager, database.GetDB()).Setup()
 
 	// 创建 HTTP 服务器
 	srv := &http.Server{

@@ -1,0 +1,322 @@
+// Package handler 提供用户模块的 HTTP 处理器
+package handler
+
+import (
+	"errors"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/kerbos/ticketdesk/internal/api/response"
+	"github.com/kerbos/ticketdesk/internal/core-user/dto"
+	"github.com/kerbos/ticketdesk/internal/core-user/service"
+)
+
+// UserHandler 用户处理器
+type UserHandler struct {
+	userService service.UserService
+}
+
+// NewUserHandler 创建用户处理器实例
+func NewUserHandler(userService service.UserService) *UserHandler {
+	return &UserHandler{userService: userService}
+}
+
+// HandleLogin 处理登录请求
+// @Summary 用户登录
+// @Description 使用用户名和密码登录
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.LoginRequest true "登录请求"
+// @Success 200 {object} dto.LoginResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Router /api/v1/auth/login [post]
+func (h *UserHandler) HandleLogin(c *gin.Context) {
+	var req dto.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.userService.Login(c.Request.Context(), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidCredentials):
+			response.Unauthorized(c, err.Error())
+		case errors.Is(err, service.ErrUserDisabled):
+			response.Forbidden(c, err.Error())
+		default:
+			response.InternalError(c, "登录失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleRegister 处理注册请求
+// @Summary 用户注册
+// @Description 注册新用户
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.RegisterRequest true "注册请求"
+// @Success 201 {object} dto.UserResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/auth/register [post]
+func (h *UserHandler) HandleRegister(c *gin.Context) {
+	var req dto.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.userService.Register(c.Request.Context(), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUsernameExists):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrEmailExists):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "注册失败")
+		}
+		return
+	}
+
+	response.Created(c, result)
+}
+
+// HandleRefreshToken 处理刷新 Token 请求
+// @Summary 刷新 Token
+// @Description 使用 Refresh Token 获取新的 Access Token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.RefreshTokenRequest true "刷新 Token 请求"
+// @Success 200 {object} dto.LoginResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Router /api/v1/auth/refresh [post]
+func (h *UserHandler) HandleRefreshToken(c *gin.Context) {
+	var req dto.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.userService.RefreshToken(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUserNotFound):
+			response.Unauthorized(c, "用户不存在")
+		case errors.Is(err, service.ErrUserDisabled):
+			response.Forbidden(c, err.Error())
+		default:
+			response.Unauthorized(c, "Token 无效或已过期")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleGetCurrentUser 获取当前用户信息
+// @Summary 获取当前用户信息
+// @Description 获取当前登录用户的详细信息
+// @Tags User
+// @Produce json
+// @Success 200 {object} dto.UserResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Router /api/v1/users/me [get]
+// @Security BearerAuth
+func (h *UserHandler) HandleGetCurrentUser(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	if userID == 0 {
+		response.Unauthorized(c, "未获取到用户信息")
+		return
+	}
+
+	result, err := h.userService.GetCurrentUser(c.Request.Context(), userID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取用户信息失败")
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleGetUser 获取用户详情
+// @Summary 获取用户详情
+// @Description 根据用户 ID 获取用户详细信息
+// @Tags User
+// @Produce json
+// @Param id path int true "用户 ID"
+// @Success 200 {object} dto.UserResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/users/{id} [get]
+// @Security BearerAuth
+func (h *UserHandler) HandleGetUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	result, err := h.userService.GetUser(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取用户信息失败")
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleUpdateUser 更新用户信息
+// @Summary 更新用户信息
+// @Description 更新指定用户的信息
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param id path int true "用户 ID"
+// @Param request body dto.UpdateUserRequest true "更新用户请求"
+// @Success 200 {object} dto.UserResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/users/{id} [put]
+// @Security BearerAuth
+func (h *UserHandler) HandleUpdateUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	var req dto.UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.userService.UpdateUser(c.Request.Context(), id, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUserNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrEmailExists):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "更新用户失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleUpdatePassword 修改密码
+// @Summary 修改密码
+// @Description 修改当前用户的密码
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param request body dto.UpdatePasswordRequest true "修改密码请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/users/me/password [put]
+// @Security BearerAuth
+func (h *UserHandler) HandleUpdatePassword(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	if userID == 0 {
+		response.Unauthorized(c, "未获取到用户信息")
+		return
+	}
+
+	var req dto.UpdatePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err := h.userService.UpdatePassword(c.Request.Context(), userID, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidOldPassword):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrUserNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "修改密码失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "密码修改成功"})
+}
+
+// HandleDeleteUser 删除用户
+// @Summary 删除用户
+// @Description 删除指定用户（软删除）
+// @Tags User
+// @Produce json
+// @Param id path int true "用户 ID"
+// @Success 200 {object} response.Response
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/users/{id} [delete]
+// @Security BearerAuth
+func (h *UserHandler) HandleDeleteUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	err = h.userService.DeleteUser(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "删除用户失败")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "用户删除成功"})
+}
+
+// HandleListUsers 获取用户列表
+// @Summary 获取用户列表
+// @Description 分页获取用户列表
+// @Tags User
+// @Produce json
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Param keyword query string false "搜索关键字"
+// @Param status query int false "用户状态 (0-禁用, 1-启用)"
+// @Success 200 {object} response.PageData
+// @Router /api/v1/users [get]
+// @Security BearerAuth
+func (h *UserHandler) HandleListUsers(c *gin.Context) {
+	var req dto.ListUsersRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	users, total, err := h.userService.ListUsers(c.Request.Context(), &req)
+	if err != nil {
+		response.InternalError(c, "获取用户列表失败")
+		return
+	}
+
+	response.SuccessWithPage(c, users, total, req.GetDefaultPage(), req.GetDefaultPageSize())
+}

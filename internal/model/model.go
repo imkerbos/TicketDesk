@@ -72,6 +72,21 @@ func (Project) TableName() string {
 	return "projects"
 }
 
+// ProjectMember 项目成员模型
+type ProjectMember struct {
+	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ProjectID uint64    `gorm:"uniqueIndex:uk_project_member;index;not null" json:"project_id"`
+	UserID    uint64    `gorm:"uniqueIndex:uk_project_member;index;not null" json:"user_id"`
+	Role      string    `gorm:"size:20;default:member;index" json:"role"` // owner, admin, member
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+// TableName 指定表名
+func (ProjectMember) TableName() string {
+	return "project_members"
+}
+
 // IssueType 工单类型模型
 type IssueType struct {
 	BaseModel
@@ -194,9 +209,51 @@ type Alert struct {
 	StartsAt    time.Time  `gorm:"index;not null" json:"starts_at"`
 	EndsAt      *time.Time `json:"ends_at"`
 	IssueID     *uint64    `gorm:"index" json:"issue_id"`
+	AckAt       *time.Time `json:"ack_at"`       // 确认时间
+	AckBy       *uint64    `gorm:"index" json:"ack_by"` // 确认人
+	ResolvedAt  *time.Time `json:"resolved_at"`  // 解决时间
+	ResolvedBy  *uint64    `gorm:"index" json:"resolved_by"` // 解决人
 }
 
 // TableName 指定表名
 func (Alert) TableName() string {
 	return "alerts"
+}
+
+// AlertRule 告警规则模型（自动建单规则）
+type AlertRule struct {
+	BaseModel
+	Name          string  `gorm:"size:100;not null" json:"name"`
+	Description   string  `gorm:"type:text" json:"description"`
+	ProjectID     uint64  `gorm:"index;not null" json:"project_id"`
+	IssueTypeID   uint64  `gorm:"index;not null" json:"issue_type_id"`
+	LabelMatchers string  `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则
+	Priority      string  `gorm:"size:10;default:P2" json:"priority"`
+	AssigneeID    *uint64 `gorm:"index" json:"assignee_id"` // 默认指派人
+	AutoResolve   bool    `gorm:"default:true" json:"auto_resolve"` // 告警恢复时自动解决工单
+	MergeWindow   int     `gorm:"default:3600" json:"merge_window"` // 告警合并时间窗口（秒），0表示不合并
+	Status        int8    `gorm:"default:1;index" json:"status"` // 0-禁用, 1-启用
+}
+
+// TableName 指定表名
+func (AlertRule) TableName() string {
+	return "alert_rules"
+}
+
+// AlertSilence 告警静默模型
+type AlertSilence struct {
+	BaseModel
+	Name          string     `gorm:"size:100;not null" json:"name"`
+	Description   string     `gorm:"type:text" json:"description"`
+	LabelMatchers string     `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则
+	StartsAt      time.Time  `gorm:"index;not null" json:"starts_at"` // 静默开始时间
+	EndsAt        time.Time  `gorm:"index;not null" json:"ends_at"`   // 静默结束时间
+	CreatedBy     uint64     `gorm:"index;not null" json:"created_by"` // 创建人
+	Comment       string     `gorm:"type:text" json:"comment"` // 静默原因
+	Status        int8       `gorm:"default:1;index" json:"status"` // 0-已取消, 1-生效中, 2-已过期
+}
+
+// TableName 指定表名
+func (AlertSilence) TableName() string {
+	return "alert_silences"
 }

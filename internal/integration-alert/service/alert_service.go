@@ -1,0 +1,750 @@
+// Package service 提供告警业务逻辑层
+package service
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+
+	issueRepo "github.com/kerbos/ticketdesk/internal/core-issue/repository"
+	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
+	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
+	"github.com/kerbos/ticketdesk/internal/integration-alert/repository"
+	"github.com/kerbos/ticketdesk/internal/model"
+	"github.com/kerbos/ticketdesk/pkg/logger"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+)
+
+// AlertService 告警服务接口
+type AlertService interface {
+	// Webhook 处理
+	HandleWebhook(ctx context.Context, req *dto.AlertWebhookRequest) error
+
+	// 告警查询
+	GetAlert(ctx context.Context, id uint64) (*dto.AlertResponse, error)
+	ListAlerts(ctx context.Context, req *dto.AlertListRequest) (*dto.AlertListResponse, error)
+	GroupAlerts(ctx context.Context, req *dto.AlertGroupRequest) (*dto.AlertGroupResponse, error)
+
+	// 告警操作
+	AckAlert(ctx context.Context, id uint64, userID uint64, req *dto.AlertAckRequest) error
+	ResolveAlert(ctx context.Context, id uint64, userID uint64, req *dto.AlertResolveRequest) error
+
+	// 告警规则管理
+	CreateAlertRule(ctx context.Context, req *dto.CreateAlertRuleRequest) (*dto.AlertRuleResponse, error)
+	GetAlertRule(ctx context.Context, id uint64) (*dto.AlertRuleResponse, error)
+	UpdateAlertRule(ctx context.Context, id uint64, req *dto.UpdateAlertRuleRequest) (*dto.AlertRuleResponse, error)
+	DeleteAlertRule(ctx context.Context, id uint64) error
+	ListAlertRules(ctx context.Context, req *dto.AlertRuleListRequest) (*dto.AlertRuleListResponse, error)
+
+	// 告警静默管理
+	CreateAlertSilence(ctx context.Context, req *dto.CreateAlertSilenceRequest, userID uint64) (*dto.AlertSilenceResponse, error)
+	GetAlertSilence(ctx context.Context, id uint64) (*dto.AlertSilenceResponse, error)
+	UpdateAlertSilence(ctx context.Context, id uint64, req *dto.UpdateAlertSilenceRequest) (*dto.AlertSilenceResponse, error)
+	DeleteAlertSilence(ctx context.Context, id uint64) error
+	CancelAlertSilence(ctx context.Context, id uint64) error
+	ListAlertSilences(ctx context.Context, req *dto.AlertSilenceListRequest) (*dto.AlertSilenceListResponse, error)
+
+	// 工单状态同步
+	SyncIssueStatus(ctx context.Context, issueID uint64, issueStatus string) error
+}
+
+// alertService 告警服务实现
+type alertService struct {
+	alertRepo        repository.AlertRepository
+	alertRuleRepo    repository.AlertRuleRepository
+	alertSilenceRepo repository.AlertSilenceRepository
+	issueRepo        issueRepo.IssueRepository
+	projectRepo      projectRepo.ProjectRepository
+	issueTypeRepo    projectRepo.IssueTypeRepository
+	db               *gorm.DB
+}
+
+// NewAlertService 创建告警服务
+func NewAlertService(
+	alertRepo repository.AlertRepository,
+	alertRuleRepo repository.AlertRuleRepository,
+	alertSilenceRepo repository.AlertSilenceRepository,
+	issueRepo issueRepo.IssueRepository,
+	projectRepo projectRepo.ProjectRepository,
+	issueTypeRepo projectRepo.IssueTypeRepository,
+	db *gorm.DB,
+) AlertService {
+	return &alertService{
+		alertRepo:        alertRepo,
+		alertRuleRepo:    alertRuleRepo,
+		alertSilenceRepo: alertSilenceRepo,
+		issueRepo:        issueRepo,
+		projectRepo:      projectRepo,
+		issueTypeRepo:    issueTypeRepo,
+		db:               db,
+	}
+}
+
+// HandleWebhook 处理 Webhook 告警
+func (s *alertService) HandleWebhook(ctx context.Context, req *dto.AlertWebhookRequest) error {
+	logger.Info("received alert webhook",
+		zap.String("status", req.Status),
+		zap.Int("alert_count", len(req.Alerts)),
+	)
+
+	for _, alertItem := range req.Alerts {
+		if err := s.processAlert(ctx, &alertItem); err != nil {
+			logger.Error("failed to process alert",
+				zap.String("fingerprint", alertItem.Fingerprint),
+				zap.Error(err),
+			)
+			// 继续处理其他告警，不中断
+			continue
+		}
+	}
+
+	return nil
+}
+
+// processAlert 处理单个告警
+func (s *alertService) processAlert(ctx context.Context, alertItem *dto.AlertWebhookAlertItem) error {
+	// 1. 检查告警是否被静默
+	if silenced, err := s.isAlertSilenced(ctx, alertItem.Labels); err != nil {
+		logger.Error("failed to check alert silence", zap.Error(err))
+	} else if silenced {
+		logger.Info("alert is silenced, skipping",
+			zap.String("alert_name", alertItem.Labels["alertname"]),
+		)
+		return nil
+	}
+
+	// 2. 计算告警指纹（如果 Webhook 没有提供）
+	fingerprint := alertItem.Fingerprint
+	if fingerprint == "" {
+		fingerprint = s.calculateFingerprint(alertItem.Labels)
+	}
+
+	// 3. 查询是否已存在该告警
+	existingAlert, err := s.alertRepo.GetByFingerprint(ctx, fingerprint)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return fmt.Errorf("failed to get alert by fingerprint: %w", err)
+	}
+
+	// 4. 如果告警已存在，更新状态
+	if existingAlert != nil {
+		return s.updateExistingAlert(ctx, existingAlert, alertItem)
+	}
+
+	// 5. 创建新告警
+	return s.createNewAlert(ctx, fingerprint, alertItem)
+}
+
+// calculateFingerprint 计算告警指纹
+func (s *alertService) calculateFingerprint(labels map[string]string) string {
+	// 排序标签键
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// 构建指纹字符串
+	var parts []string
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, labels[k]))
+	}
+	fingerprintStr := strings.Join(parts, ";")
+
+	// 计算 SHA256
+	hash := sha256.Sum256([]byte(fingerprintStr))
+	return fmt.Sprintf("%x", hash)
+}
+
+// updateExistingAlert 更新已存在的告警
+func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Alert, alertItem *dto.AlertWebhookAlertItem) error {
+	// 更新告警状态
+	oldStatus := alert.Status
+	alert.Status = alertItem.Status
+	alert.EndsAt = &alertItem.EndsAt
+
+	// 如果告警恢复，自动解决关联的工单
+	if alertItem.Status == "resolved" && oldStatus != "resolved" && alert.IssueID != nil {
+		logger.Info("alert resolved, auto-resolving issue",
+			zap.Uint64("alert_id", alert.ID),
+			zap.Uint64("issue_id", *alert.IssueID),
+		)
+
+		// 获取告警规则，检查是否启用自动解决
+		rule, err := s.getMatchedRule(ctx, alert)
+		if err != nil {
+			logger.Error("failed to get matched rule", zap.Error(err))
+		} else if rule != nil && rule.AutoResolve {
+			// 自动解决工单
+			if err := s.autoResolveIssue(ctx, *alert.IssueID); err != nil {
+				logger.Error("failed to auto resolve issue",
+					zap.Uint64("issue_id", *alert.IssueID),
+					zap.Error(err),
+				)
+			}
+		}
+	}
+
+	return s.alertRepo.Update(ctx, alert)
+}
+
+// createNewAlert 创建新告警
+func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, alertItem *dto.AlertWebhookAlertItem) error {
+	// 提取告警名称和严重程度
+	alertName := alertItem.Labels["alertname"]
+	severity := alertItem.Labels["severity"]
+	if severity == "" {
+		severity = "warning"
+	}
+
+	// 序列化标签和注解
+	labelsJSON := repository.LabelsToJSON(alertItem.Labels)
+	annotationsJSON := repository.LabelsToJSON(alertItem.Annotations)
+
+	// 创建告警记录
+	alert := &model.Alert{
+		Fingerprint: fingerprint,
+		Source:      "prometheus", // 默认来源
+		AlertName:   alertName,
+		Severity:    severity,
+		Status:      alertItem.Status,
+		Labels:      labelsJSON,
+		Annotations: annotationsJSON,
+		StartsAt:    alertItem.StartsAt,
+		EndsAt:      &alertItem.EndsAt,
+	}
+
+	if err := s.alertRepo.Create(ctx, alert); err != nil {
+		return fmt.Errorf("failed to create alert: %w", err)
+	}
+
+	// 尝试自动建单
+	if err := s.tryAutoCreateIssue(ctx, alert); err != nil {
+		logger.Error("failed to auto create issue",
+			zap.Uint64("alert_id", alert.ID),
+			zap.Error(err),
+		)
+		// 不中断告警创建流程
+	}
+
+	return nil
+}
+
+// tryAutoCreateIssue 尝试自动建单
+func (s *alertService) tryAutoCreateIssue(ctx context.Context, alert *model.Alert) error {
+	// 获取所有启用的告警规则
+	rules, err := s.alertRuleRepo.ListEnabled(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list enabled rules: %w", err)
+	}
+
+	// 解析告警标签
+	labels := repository.JSONToLabels(alert.Labels)
+	annotations := repository.JSONToLabels(alert.Annotations)
+
+	// 匹配规则
+	for _, rule := range rules {
+		if s.matchRule(rule, labels) {
+			logger.Info("matched alert rule",
+				zap.Uint64("alert_id", alert.ID),
+				zap.Uint64("rule_id", rule.ID),
+			)
+
+			// 检查是否需要合并到现有工单
+			if rule.MergeWindow > 0 {
+				existingIssueID, err := s.findMergeableIssue(ctx, rule, alert)
+				if err != nil {
+					logger.Error("failed to find mergeable issue", zap.Error(err))
+				} else if existingIssueID > 0 {
+					// 合并到现有工单
+					logger.Info("merging alert to existing issue",
+						zap.Uint64("alert_id", alert.ID),
+						zap.Uint64("issue_id", existingIssueID),
+					)
+					alert.IssueID = &existingIssueID
+					if err := s.alertRepo.Update(ctx, alert); err != nil {
+						return fmt.Errorf("failed to update alert with issue_id: %w", err)
+					}
+					return nil
+				}
+			}
+
+			// 创建新工单
+			issueID, err := s.createIssueFromAlert(ctx, alert, rule, labels, annotations)
+			if err != nil {
+				return fmt.Errorf("failed to create issue: %w", err)
+			}
+
+			// 更新告警关联的工单 ID
+			alert.IssueID = &issueID
+			if err := s.alertRepo.Update(ctx, alert); err != nil {
+				return fmt.Errorf("failed to update alert with issue_id: %w", err)
+			}
+
+			logger.Info("issue created from alert",
+				zap.Uint64("alert_id", alert.ID),
+				zap.Uint64("issue_id", issueID),
+			)
+
+			break
+		}
+	}
+
+	return nil
+}
+
+// createIssueFromAlert 从告警创建工单
+func (s *alertService) createIssueFromAlert(
+	ctx context.Context,
+	alert *model.Alert,
+	rule *model.AlertRule,
+	labels map[string]string,
+	annotations map[string]string,
+) (uint64, error) {
+	// 获取项目信息
+	project, err := s.projectRepo.GetByID(ctx, rule.ProjectID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	// 获取工单类型（用于验证）
+	_, err = s.issueTypeRepo.GetByID(ctx, rule.IssueTypeID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get issue type: %w", err)
+	}
+
+	// 构建工单标题和描述
+	title := fmt.Sprintf("[告警] %s", alert.AlertName)
+	if summary, ok := annotations["summary"]; ok {
+		title = fmt.Sprintf("[告警] %s", summary)
+	}
+
+	description := s.buildIssueDescription(alert, labels, annotations)
+
+	// 生成工单 Key
+	issueKey, err := s.generateIssueKey(ctx, project.ProjectKey)
+	if err != nil {
+		return 0, fmt.Errorf("failed to generate issue key: %w", err)
+	}
+
+	// 创建工单
+	issue := &model.Issue{
+		IssueKey:    issueKey,
+		ProjectID:   rule.ProjectID,
+		IssueTypeID: rule.IssueTypeID,
+		Title:       title,
+		Description: description,
+		Priority:    rule.Priority,
+		Status:      "open",
+		ReporterID:  1, // 系统用户 ID，可以配置
+		AssigneeID:  rule.AssigneeID,
+	}
+
+	if err := s.issueRepo.Create(ctx, issue); err != nil {
+		return 0, fmt.Errorf("failed to create issue: %w", err)
+	}
+
+	return issue.ID, nil
+}
+
+// buildIssueDescription 构建工单描述
+func (s *alertService) buildIssueDescription(
+	alert *model.Alert,
+	labels map[string]string,
+	annotations map[string]string,
+) string {
+	var desc strings.Builder
+
+	// 告警基本信息
+	desc.WriteString("## 告警信息\n\n")
+	desc.WriteString(fmt.Sprintf("- **告警名称**: %s\n", alert.AlertName))
+	desc.WriteString(fmt.Sprintf("- **严重程度**: %s\n", alert.Severity))
+	desc.WriteString(fmt.Sprintf("- **告警状态**: %s\n", alert.Status))
+	desc.WriteString(fmt.Sprintf("- **开始时间**: %s\n", alert.StartsAt.Format("2006-01-02 15:04:05")))
+	desc.WriteString(fmt.Sprintf("- **告警指纹**: %s\n", alert.Fingerprint))
+
+	// 告警描述
+	if description, ok := annotations["description"]; ok {
+		desc.WriteString(fmt.Sprintf("\n**描述**: %s\n", description))
+	}
+
+	// 告警标签
+	if len(labels) > 0 {
+		desc.WriteString("\n## 标签\n\n")
+		for k, v := range labels {
+			desc.WriteString(fmt.Sprintf("- **%s**: %s\n", k, v))
+		}
+	}
+
+	// 其他注解
+	if len(annotations) > 0 {
+		desc.WriteString("\n## 详细信息\n\n")
+		for k, v := range annotations {
+			if k != "summary" && k != "description" {
+				desc.WriteString(fmt.Sprintf("- **%s**: %s\n", k, v))
+			}
+		}
+	}
+
+	desc.WriteString("\n---\n")
+	desc.WriteString("*此工单由告警系统自动创建*\n")
+
+	return desc.String()
+}
+
+// generateIssueKey 生成工单 Key
+func (s *alertService) generateIssueKey(ctx context.Context, projectKey string) (string, error) {
+	// 查询该项目下最新的工单序号
+	var maxSeq int
+	err := s.db.WithContext(ctx).
+		Model(&model.Issue{}).
+		Where("issue_key LIKE ?", projectKey+"-%").
+		Select("COALESCE(MAX(CAST(SUBSTRING(issue_key, LENGTH(?) + 2) AS UNSIGNED)), 0)", projectKey).
+		Scan(&maxSeq).Error
+
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s-%d", projectKey, maxSeq+1), nil
+}
+
+// autoResolveIssue 自动解决工单
+func (s *alertService) autoResolveIssue(ctx context.Context, issueID uint64) error {
+	// 获取工单
+	issue, err := s.issueRepo.GetByID(ctx, issueID)
+	if err != nil {
+		return fmt.Errorf("failed to get issue: %w", err)
+	}
+
+	// 如果工单已经是 resolved 或 closed 状态，不需要处理
+	if issue.Status == "resolved" || issue.Status == "closed" {
+		return nil
+	}
+
+	// 更新工单状态为 resolved
+	now := time.Now()
+	issue.Status = "resolved"
+	issue.ResolvedAt = &now
+
+	if err := s.issueRepo.Update(ctx, issue); err != nil {
+		return fmt.Errorf("failed to update issue status: %w", err)
+	}
+
+	logger.Info("issue auto-resolved by alert",
+		zap.Uint64("issue_id", issueID),
+	)
+
+	return nil
+}
+
+// getMatchedRule 获取匹配的告警规则
+func (s *alertService) getMatchedRule(ctx context.Context, alert *model.Alert) (*model.AlertRule, error) {
+	rules, err := s.alertRuleRepo.ListEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	labels := repository.JSONToLabels(alert.Labels)
+	for _, rule := range rules {
+		if s.matchRule(rule, labels) {
+			return rule, nil
+		}
+	}
+
+	return nil, nil
+}
+
+
+// matchRule 匹配告警规则
+func (s *alertService) matchRule(rule *model.AlertRule, labels map[string]string) bool {
+	// 解析规则的标签匹配器
+	var matchers []dto.LabelMatcher
+	if err := json.Unmarshal([]byte(rule.LabelMatchers), &matchers); err != nil {
+		logger.Error("failed to unmarshal label matchers", zap.Error(err))
+		return false
+	}
+
+	// 检查所有匹配器
+	for _, matcher := range matchers {
+		labelValue, exists := labels[matcher.Key]
+
+		switch matcher.Operator {
+		case "==":
+			if !exists || labelValue != matcher.Value {
+				return false
+			}
+		case "!=":
+			if exists && labelValue == matcher.Value {
+				return false
+			}
+		case "=~":
+			if !exists {
+				return false
+			}
+			matched, err := regexp.MatchString(matcher.Value, labelValue)
+			if err != nil || !matched {
+				return false
+			}
+		case "!~":
+			if !exists {
+				continue
+			}
+			matched, err := regexp.MatchString(matcher.Value, labelValue)
+			if err != nil || matched {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// GetAlert 获取告警详情
+func (s *alertService) GetAlert(ctx context.Context, id uint64) (*dto.AlertResponse, error) {
+	alert, err := s.alertRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toAlertResponse(alert), nil
+}
+
+// ListAlerts 获取告警列表
+func (s *alertService) ListAlerts(ctx context.Context, req *dto.AlertListRequest) (*dto.AlertListResponse, error) {
+	alerts, total, err := s.alertRepo.List(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.AlertResponse, 0, len(alerts))
+	for _, alert := range alerts {
+		items = append(items, *s.toAlertResponse(alert))
+	}
+
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	return &dto.AlertListResponse{
+		Items:    items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+// AckAlert 确认告警
+func (s *alertService) AckAlert(ctx context.Context, id uint64, userID uint64, req *dto.AlertAckRequest) error {
+	// 检查告警是否存在
+	alert, err := s.alertRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 检查是否已确认
+	if alert.AckAt != nil {
+		return fmt.Errorf("alert already acknowledged")
+	}
+
+	// 确认告警
+	now := time.Now()
+	return s.alertRepo.Ack(ctx, id, userID, now)
+}
+
+// ResolveAlert 解决告警
+func (s *alertService) ResolveAlert(ctx context.Context, id uint64, userID uint64, req *dto.AlertResolveRequest) error {
+	// 检查告警是否存在
+	alert, err := s.alertRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 检查是否已解决
+	if alert.Status == "resolved" {
+		return fmt.Errorf("alert already resolved")
+	}
+
+	// 解决告警
+	now := time.Now()
+	return s.alertRepo.Resolve(ctx, id, userID, now)
+}
+
+// toAlertResponse 转换为告警响应
+func (s *alertService) toAlertResponse(alert *model.Alert) *dto.AlertResponse {
+	return &dto.AlertResponse{
+		ID:          alert.ID,
+		Fingerprint: alert.Fingerprint,
+		Source:      alert.Source,
+		AlertName:   alert.AlertName,
+		Severity:    alert.Severity,
+		Status:      alert.Status,
+		Labels:      repository.JSONToLabels(alert.Labels),
+		Annotations: repository.JSONToLabels(alert.Annotations),
+		StartsAt:    alert.StartsAt,
+		EndsAt:      alert.EndsAt,
+		IssueID:     alert.IssueID,
+		AckAt:       alert.AckAt,
+		AckBy:       alert.AckBy,
+		ResolvedAt:  alert.ResolvedAt,
+		ResolvedBy:  alert.ResolvedBy,
+		CreatedAt:   alert.CreatedAt,
+		UpdatedAt:   alert.UpdatedAt,
+	}
+}
+
+// ============ 告警规则管理 ============
+
+// CreateAlertRule 创建告警规则
+func (s *alertService) CreateAlertRule(ctx context.Context, req *dto.CreateAlertRuleRequest) (*dto.AlertRuleResponse, error) {
+	// 序列化标签匹配器
+	matchersJSON, err := json.Marshal(req.LabelMatchers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal label matchers: %w", err)
+	}
+
+	mergeWindow := req.MergeWindow
+	if mergeWindow == 0 {
+		mergeWindow = 3600 // 默认 1 小时
+	}
+
+	rule := &model.AlertRule{
+		Name:          req.Name,
+		Description:   req.Description,
+		ProjectID:     req.ProjectID,
+		IssueTypeID:   req.IssueTypeID,
+		LabelMatchers: string(matchersJSON),
+		Priority:      req.Priority,
+		AssigneeID:    req.AssigneeID,
+		AutoResolve:   req.AutoResolve,
+		MergeWindow:   mergeWindow,
+		Status:        1, // 默认启用
+	}
+
+	if err := s.alertRuleRepo.Create(ctx, rule); err != nil {
+		return nil, err
+	}
+
+	return s.GetAlertRule(ctx, rule.ID)
+}
+
+// GetAlertRule 获取告警规则详情
+func (s *alertService) GetAlertRule(ctx context.Context, id uint64) (*dto.AlertRuleResponse, error) {
+	rule, err := s.alertRuleRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toAlertRuleResponse(rule), nil
+}
+
+// UpdateAlertRule 更新告警规则
+func (s *alertService) UpdateAlertRule(ctx context.Context, id uint64, req *dto.UpdateAlertRuleRequest) (*dto.AlertRuleResponse, error) {
+	rule, err := s.alertRuleRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新字段
+	if req.Name != nil {
+		rule.Name = *req.Name
+	}
+	if req.Description != nil {
+		rule.Description = *req.Description
+	}
+	if req.LabelMatchers != nil {
+		matchersJSON, err := json.Marshal(req.LabelMatchers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal label matchers: %w", err)
+		}
+		rule.LabelMatchers = string(matchersJSON)
+	}
+	if req.Priority != nil {
+		rule.Priority = *req.Priority
+	}
+	if req.AssigneeID != nil {
+		rule.AssigneeID = req.AssigneeID
+	}
+	if req.AutoResolve != nil {
+		rule.AutoResolve = *req.AutoResolve
+	}
+	if req.MergeWindow != nil {
+		rule.MergeWindow = *req.MergeWindow
+	}
+	if req.Status != nil {
+		rule.Status = *req.Status
+	}
+
+	if err := s.alertRuleRepo.Update(ctx, rule); err != nil {
+		return nil, err
+	}
+
+	return s.GetAlertRule(ctx, id)
+}
+
+// DeleteAlertRule 删除告警规则
+func (s *alertService) DeleteAlertRule(ctx context.Context, id uint64) error {
+	return s.alertRuleRepo.Delete(ctx, id)
+}
+
+// ListAlertRules 获取告警规则列表
+func (s *alertService) ListAlertRules(ctx context.Context, req *dto.AlertRuleListRequest) (*dto.AlertRuleListResponse, error) {
+	rules, total, err := s.alertRuleRepo.List(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.AlertRuleResponse, 0, len(rules))
+	for _, rule := range rules {
+		items = append(items, *s.toAlertRuleResponse(rule))
+	}
+
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	return &dto.AlertRuleListResponse{
+		Items:    items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+// toAlertRuleResponse 转换为告警规则响应
+func (s *alertService) toAlertRuleResponse(rule *model.AlertRule) *dto.AlertRuleResponse {
+	var matchers []dto.LabelMatcher
+	json.Unmarshal([]byte(rule.LabelMatchers), &matchers)
+
+	return &dto.AlertRuleResponse{
+		ID:            rule.ID,
+		Name:          rule.Name,
+		Description:   rule.Description,
+		ProjectID:     rule.ProjectID,
+		IssueTypeID:   rule.IssueTypeID,
+		LabelMatchers: matchers,
+		Priority:      rule.Priority,
+		AssigneeID:    rule.AssigneeID,
+		AutoResolve:   rule.AutoResolve,
+		MergeWindow:   rule.MergeWindow,
+		Status:        rule.Status,
+		CreatedAt:     rule.CreatedAt,
+		UpdatedAt:     rule.UpdatedAt,
+	}
+}
+

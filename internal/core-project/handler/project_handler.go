@@ -1,0 +1,452 @@
+// Package handler 提供项目模块的 HTTP 处理器
+package handler
+
+import (
+	"errors"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/kerbos/ticketdesk/internal/api/middleware"
+	"github.com/kerbos/ticketdesk/internal/api/response"
+	"github.com/kerbos/ticketdesk/internal/core-project/dto"
+	"github.com/kerbos/ticketdesk/internal/core-project/service"
+)
+
+// ProjectHandler 项目处理器
+type ProjectHandler struct {
+	projectService service.ProjectService
+}
+
+// NewProjectHandler 创建项目处理器实例
+func NewProjectHandler(projectService service.ProjectService) *ProjectHandler {
+	return &ProjectHandler{projectService: projectService}
+}
+
+// HandleCreateProject 创建项目
+// @Summary 创建项目
+// @Description 创建一个新项目
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateProjectRequest true "创建项目请求"
+// @Success 201 {object} dto.ProjectResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/projects [post]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleCreateProject(c *gin.Context) {
+	var req dto.CreateProjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+	result, err := h.projectService.CreateProject(c.Request.Context(), &req, userID)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectKeyExists) {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		response.InternalError(c, "创建项目失败")
+		return
+	}
+
+	response.Created(c, result)
+}
+
+// HandleGetProject 获取项目详情
+// @Summary 获取项目详情
+// @Description 根据项目 Key 获取项目详细信息
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Success 200 {object} dto.ProjectResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key} [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleGetProject(c *gin.Context) {
+	key := c.Param("key")
+
+	result, err := h.projectService.GetProject(c.Request.Context(), key)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取项目失败")
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleUpdateProject 更新项目
+// @Summary 更新项目
+// @Description 更新项目信息
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param request body dto.UpdateProjectRequest true "更新项目请求"
+// @Success 200 {object} dto.ProjectResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key} [put]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleUpdateProject(c *gin.Context) {
+	key := c.Param("key")
+
+	var req dto.UpdateProjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.UpdateProject(c.Request.Context(), key, &req)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "更新项目失败")
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleDeleteProject 删除项目
+// @Summary 删除项目
+// @Description 删除项目（软删除）
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Success 200 {object} response.Response
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key} [delete]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleDeleteProject(c *gin.Context) {
+	key := c.Param("key")
+
+	err := h.projectService.DeleteProject(c.Request.Context(), key)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "删除项目失败")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "项目删除成功"})
+}
+
+// HandleListProjects 获取项目列表
+// @Summary 获取项目列表
+// @Description 分页获取项目列表
+// @Tags Project
+// @Produce json
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Param keyword query string false "搜索关键字"
+// @Param status query int false "项目状态 (0-归档, 1-活跃)"
+// @Success 200 {object} response.PageData
+// @Router /api/v1/projects [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleListProjects(c *gin.Context) {
+	var req dto.ListProjectsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+	isAdmin := middleware.IsAdmin(c)
+
+	projects, total, err := h.projectService.ListProjects(c.Request.Context(), &req, userID, isAdmin)
+	if err != nil {
+		response.InternalError(c, "获取项目列表失败")
+		return
+	}
+
+	response.SuccessWithPage(c, projects, total, req.GetDefaultPage(), req.GetDefaultPageSize())
+}
+
+// HandleAddMember 添加项目成员
+// @Summary 添加项目成员
+// @Description 向项目添加新成员
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param request body dto.AddMemberRequest true "添加成员请求"
+// @Success 201 {object} dto.ProjectMemberResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/members [post]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleAddMember(c *gin.Context) {
+	key := c.Param("key")
+
+	var req dto.AddMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.AddMember(c.Request.Context(), key, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrMemberAlreadyExists):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "添加成员失败")
+		}
+		return
+	}
+
+	response.Created(c, result)
+}
+
+// HandleUpdateMember 更新项目成员
+// @Summary 更新项目成员
+// @Description 更新项目成员角色
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param user_id path int true "用户 ID"
+// @Param request body dto.UpdateMemberRequest true "更新成员请求"
+// @Success 200 {object} dto.ProjectMemberResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/members/{user_id} [put]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleUpdateMember(c *gin.Context) {
+	key := c.Param("key")
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	var req dto.UpdateMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.UpdateMember(c.Request.Context(), key, userID, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrMemberNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "更新成员失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleRemoveMember 移除项目成员
+// @Summary 移除项目成员
+// @Description 从项目中移除成员
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param user_id path int true "用户 ID"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/members/{user_id} [delete]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleRemoveMember(c *gin.Context) {
+	key := c.Param("key")
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	err = h.projectService.RemoveMember(c.Request.Context(), key, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrMemberNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrCannotRemoveOwner):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "移除成员失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "成员移除成功"})
+}
+
+// HandleListMembers 获取项目成员列表
+// @Summary 获取项目成员列表
+// @Description 获取项目的所有成员
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Success 200 {array} dto.ProjectMemberResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/members [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleListMembers(c *gin.Context) {
+	key := c.Param("key")
+
+	members, err := h.projectService.ListMembers(c.Request.Context(), key)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取成员列表失败")
+		return
+	}
+
+	response.Success(c, members)
+}
+
+// HandleCreateIssueType 创建工单类型
+// @Summary 创建工单类型
+// @Description 为项目创建自定义工单类型
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param request body dto.CreateIssueTypeRequest true "创建工单类型请求"
+// @Success 201 {object} dto.IssueTypeResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/issue-types [post]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleCreateIssueType(c *gin.Context) {
+	key := c.Param("key")
+
+	var req dto.CreateIssueTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.CreateIssueType(c.Request.Context(), key, &req)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "创建工单类型失败")
+		return
+	}
+
+	response.Created(c, result)
+}
+
+// HandleUpdateIssueType 更新工单类型
+// @Summary 更新工单类型
+// @Description 更新工单类型信息
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param id path int true "工单类型 ID"
+// @Param request body dto.UpdateIssueTypeRequest true "更新工单类型请求"
+// @Success 200 {object} dto.IssueTypeResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/issue-types/{id} [put]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleUpdateIssueType(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的工单类型 ID")
+		return
+	}
+
+	var req dto.UpdateIssueTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.UpdateIssueType(c.Request.Context(), id, &req)
+	if err != nil {
+		if errors.Is(err, service.ErrIssueTypeNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "更新工单类型失败")
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleDeleteIssueType 删除工单类型
+// @Summary 删除工单类型
+// @Description 删除项目自定义的工单类型
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param id path int true "工单类型 ID"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/issue-types/{id} [delete]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleDeleteIssueType(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的工单类型 ID")
+		return
+	}
+
+	err = h.projectService.DeleteIssueType(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, service.ErrIssueTypeNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"message": "工单类型删除成功"})
+}
+
+// HandleListIssueTypes 获取项目工单类型列表
+// @Summary 获取项目工单类型列表
+// @Description 获取项目可用的所有工单类型（包括全局和项目自定义）
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Success 200 {array} dto.IssueTypeResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/issue-types [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleListIssueTypes(c *gin.Context) {
+	key := c.Param("key")
+
+	issueTypes, err := h.projectService.ListIssueTypes(c.Request.Context(), key)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取工单类型列表失败")
+		return
+	}
+
+	response.Success(c, issueTypes)
+}

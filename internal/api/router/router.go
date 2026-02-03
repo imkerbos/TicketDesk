@@ -5,40 +5,151 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	alertHandler "github.com/kerbos/ticketdesk/internal/integration-alert/handler"
+	alertRepo "github.com/kerbos/ticketdesk/internal/integration-alert/repository"
+	alertService "github.com/kerbos/ticketdesk/internal/integration-alert/service"
 	"github.com/kerbos/ticketdesk/internal/api/middleware"
 	"github.com/kerbos/ticketdesk/internal/api/response"
+	issueHandler "github.com/kerbos/ticketdesk/internal/core-issue/handler"
+	issueRepo "github.com/kerbos/ticketdesk/internal/core-issue/repository"
+	issueService "github.com/kerbos/ticketdesk/internal/core-issue/service"
+	projectHandler "github.com/kerbos/ticketdesk/internal/core-project/handler"
+	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
+	projectService "github.com/kerbos/ticketdesk/internal/core-project/service"
+	userHandler "github.com/kerbos/ticketdesk/internal/core-user/handler"
+	userRepo "github.com/kerbos/ticketdesk/internal/core-user/repository"
+	userService "github.com/kerbos/ticketdesk/internal/core-user/service"
+	workflowHandler "github.com/kerbos/ticketdesk/internal/core-workflow/handler"
+	workflowRepo "github.com/kerbos/ticketdesk/internal/core-workflow/repository"
+	workflowService "github.com/kerbos/ticketdesk/internal/core-workflow/service"
 	"github.com/kerbos/ticketdesk/pkg/config"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
+	"gorm.io/gorm"
 )
 
+// Router 路由管理器
+type Router struct {
+	config          *config.Config
+	jwtManager      *jwt.Manager
+	db              *gorm.DB
+	userHandler     *userHandler.UserHandler
+	projectHandler  *projectHandler.ProjectHandler
+	issueHandler    *issueHandler.IssueHandler
+	workflowHandler *workflowHandler.WorkflowHandler
+	alertHandler    *alertHandler.AlertHandler
+	rbac            *middleware.RBACMiddleware
+}
+
+// NewRouter 创建路由管理器
+func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router {
+	// ============ 初始化 User 模块 ============
+	userRepository := userRepo.NewUserRepository(db)
+	userRoleRepository := userRepo.NewUserRoleRepository(db)
+	userSvc := userService.NewUserService(userRepository, userRoleRepository, jwtManager)
+	userHdl := userHandler.NewUserHandler(userSvc)
+
+	// ============ 初始化 Project 模块 ============
+	projectRepository := projectRepo.NewProjectRepository(db)
+	projectMemberRepository := projectRepo.NewProjectMemberRepository(db)
+	issueTypeRepository := projectRepo.NewIssueTypeRepository(db)
+	projectSvc := projectService.NewProjectService(
+		projectRepository,
+		projectMemberRepository,
+		issueTypeRepository,
+		userRepository,
+	)
+	projectHdl := projectHandler.NewProjectHandler(projectSvc)
+
+	// ============ 初始化 Issue 模块 ============
+	issueRepository := issueRepo.NewIssueRepository(db)
+	commentRepository := issueRepo.NewCommentRepository(db)
+	watcherRepository := issueRepo.NewWatcherRepository(db)
+	issueSvc := issueService.NewIssueService(
+		issueRepository,
+		commentRepository,
+		watcherRepository,
+		projectRepository,
+		issueTypeRepository,
+		userRepository,
+	)
+	issueHdl := issueHandler.NewIssueHandler(issueSvc)
+
+	// ============ 初始化 Workflow 模块 ============
+	workflowRepository := workflowRepo.NewWorkflowRepository(db)
+	nodeRepository := workflowRepo.NewNodeRepository(db)
+	edgeRepository := workflowRepo.NewEdgeRepository(db)
+	workflowSvc := workflowService.NewWorkflowService(
+		workflowRepository,
+		nodeRepository,
+		edgeRepository,
+	)
+	workflowHdl := workflowHandler.NewWorkflowHandler(workflowSvc)
+
+	// ============ 初始化 Alert 模块 ============
+	alertRepository := alertRepo.NewAlertRepository(db)
+	alertRuleRepository := alertRepo.NewAlertRuleRepository(db)
+	alertSilenceRepository := alertRepo.NewAlertSilenceRepository(db)
+	alertSvc := alertService.NewAlertService(
+		alertRepository,
+		alertRuleRepository,
+		alertSilenceRepository,
+		issueRepository,
+		projectRepository,
+		issueTypeRepository,
+		db,
+	)
+	alertHdl := alertHandler.NewAlertHandler(alertSvc)
+
+	// ============ 设置告警同步服务（避免循环依赖）============
+	// 将 issueSvc 转换为具体类型以调用 SetAlertSyncService
+	if issueServiceImpl, ok := issueSvc.(interface{ SetAlertSyncService(issueService.AlertSyncService) }); ok {
+		issueServiceImpl.SetAlertSyncService(alertSvc)
+	}
+
+	// ============ 初始化 RBAC 中间件 ============
+	rbac := middleware.NewRBACMiddleware(userRoleRepository)
+
+	return &Router{
+		config:          cfg,
+		jwtManager:      jwtManager,
+		db:              db,
+		userHandler:     userHdl,
+		projectHandler:  projectHdl,
+		issueHandler:    issueHdl,
+		workflowHandler: workflowHdl,
+		alertHandler:    alertHdl,
+		rbac:            rbac,
+	}
+}
+
 // Setup 设置路由
-func Setup(cfg *config.Config, jwtManager *jwt.Manager) *gin.Engine {
+func (r *Router) Setup() *gin.Engine {
 	// 设置 Gin 模式
-	if cfg.IsProduction() {
+	if r.config.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	router := gin.New()
+	engine := gin.New()
 
 	// 全局中间件
-	router.Use(middleware.RecoveryMiddleware())
-	router.Use(middleware.LoggerMiddleware())
-	router.Use(middleware.CORSMiddleware())
+	engine.Use(middleware.RecoveryMiddleware())
+	engine.Use(middleware.LoggerMiddleware())
+	engine.Use(middleware.CORSMiddleware())
 
 	// 健康检查
-	router.GET("/health", healthCheck)
+	engine.GET("/health", healthCheck)
 
 	// API v1 路由组
-	v1 := router.Group("/api/v1")
+	v1 := engine.Group("/api/v1")
 	{
 		// 注册公开路由
-		registerPublicRoutes(v1)
+		r.registerPublicRoutes(v1)
 
 		// 注册需要认证的路由
-		registerProtectedRoutes(v1, jwtManager)
+		r.registerProtectedRoutes(v1)
 	}
 
-	return router
+	return engine
 }
 
 // healthCheck 健康检查处理器
@@ -50,103 +161,181 @@ func healthCheck(c *gin.Context) {
 }
 
 // registerPublicRoutes 注册公开路由（无需认证）
-func registerPublicRoutes(rg *gin.RouterGroup) {
+func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 	auth := rg.Group("/auth")
 	{
-		auth.POST("/login", handleLogin)
-		auth.POST("/register", handleRegister)
-		auth.POST("/refresh", handleRefreshToken)
+		auth.POST("/login", r.userHandler.HandleLogin)
+		auth.POST("/register", r.userHandler.HandleRegister)
+		auth.POST("/refresh", r.userHandler.HandleRefreshToken)
+	}
+
+	// 告警 Webhook（无需认证）
+	alerts := rg.Group("/alerts")
+	{
+		alerts.POST("/webhook", r.alertHandler.HandleWebhook)
 	}
 }
 
 // registerProtectedRoutes 注册需要认证的路由
-func registerProtectedRoutes(rg *gin.RouterGroup, jwtManager *jwt.Manager) {
+func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 	protected := rg.Group("")
-	protected.Use(middleware.AuthMiddleware(jwtManager))
+	protected.Use(middleware.AuthMiddleware(r.jwtManager))
+	protected.Use(r.rbac.LoadUserRoles())
 	{
 		// 用户相关
-		registerUserRoutes(protected)
+		r.registerUserRoutes(protected)
 
 		// 项目相关
-		registerProjectRoutes(protected)
+		r.registerProjectRoutes(protected)
 
 		// 工单相关
-		registerIssueRoutes(protected)
+		r.registerIssueRoutes(protected)
 
 		// 工作流相关
-		registerWorkflowRoutes(protected)
+		r.registerWorkflowRoutes(protected)
 
 		// 告警相关
-		registerAlertRoutes(protected)
+		r.registerAlertRoutes(protected)
 	}
 }
 
 // registerUserRoutes 注册用户路由
-func registerUserRoutes(rg *gin.RouterGroup) {
+func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
 	{
-		users.GET("/me", handleGetCurrentUser)
-		users.GET("", handleListUsers)
-		users.GET("/:id", handleGetUser)
-		users.PUT("/:id", handleUpdateUser)
-		users.DELETE("/:id", handleDeleteUser)
+		// 当前用户相关
+		users.GET("/me", r.userHandler.HandleGetCurrentUser)
+		users.PUT("/me/password", r.userHandler.HandleUpdatePassword)
+
+		// 用户管理（需要管理员权限）
+		users.GET("", r.userHandler.HandleListUsers)
+		users.GET("/:id", r.userHandler.HandleGetUser)
+		users.PUT("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleUpdateUser)
+		users.DELETE("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleDeleteUser)
 	}
 }
 
 // registerProjectRoutes 注册项目路由
-func registerProjectRoutes(rg *gin.RouterGroup) {
+func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 	projects := rg.Group("/projects")
 	{
-		projects.GET("", handleListProjects)
-		projects.POST("", handleCreateProject)
-		projects.GET("/:key", handleGetProject)
-		projects.PUT("/:key", handleUpdateProject)
-		projects.DELETE("/:key", handleDeleteProject)
-		projects.GET("/:key/members", handleListProjectMembers)
-		projects.POST("/:key/members", handleAddProjectMember)
-		projects.DELETE("/:key/members/:user_id", handleRemoveProjectMember)
+		// 项目 CRUD
+		projects.GET("", r.projectHandler.HandleListProjects)
+		projects.POST("", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateProject)
+		projects.GET("/:key", r.projectHandler.HandleGetProject)
+		projects.PUT("/:key", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateProject)
+		projects.DELETE("/:key", r.rbac.RequireAdmin(), r.projectHandler.HandleDeleteProject)
+
+		// 项目成员管理
+		projects.GET("/:key/members", r.projectHandler.HandleListMembers)
+		projects.POST("/:key/members", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleAddMember)
+		projects.PUT("/:key/members/:user_id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateMember)
+		projects.DELETE("/:key/members/:user_id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleRemoveMember)
+
+		// 工单类型管理
+		projects.GET("/:key/issue-types", r.projectHandler.HandleListIssueTypes)
+		projects.POST("/:key/issue-types", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateIssueType)
+		projects.PUT("/:key/issue-types/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateIssueType)
+		projects.DELETE("/:key/issue-types/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleDeleteIssueType)
 	}
 }
 
 // registerIssueRoutes 注册工单路由
-func registerIssueRoutes(rg *gin.RouterGroup) {
+func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 	issues := rg.Group("/issues")
 	{
-		issues.GET("", handleListIssues)
-		issues.POST("", handleCreateIssue)
-		issues.GET("/:key", handleGetIssue)
-		issues.PUT("/:key", handleUpdateIssue)
-		issues.DELETE("/:key", handleDeleteIssue)
-		issues.POST("/:key/comments", handleAddComment)
-		issues.GET("/:key/comments", handleListComments)
-		issues.POST("/:key/watchers", handleAddWatcher)
-		issues.DELETE("/:key/watchers/:user_id", handleRemoveWatcher)
-		issues.POST("/:key/transition", handleTransitionIssue)
+		// 工单 CRUD
+		issues.GET("", r.issueHandler.HandleListIssues)
+		issues.POST("", r.issueHandler.HandleCreateIssue)
+		issues.GET("/:key", r.issueHandler.HandleGetIssue)
+		issues.PUT("/:key", r.issueHandler.HandleUpdateIssue)
+		issues.DELETE("/:key", r.issueHandler.HandleDeleteIssue)
+
+		// 工单操作
+		issues.POST("/:key/transition", r.issueHandler.HandleTransitionIssue)
+		issues.POST("/:key/assign", r.issueHandler.HandleAssignIssue)
+
+		// 评论管理
+		issues.GET("/:key/comments", r.issueHandler.HandleListComments)
+		issues.POST("/:key/comments", r.issueHandler.HandleAddComment)
+		issues.DELETE("/:key/comments/:comment_id", r.issueHandler.HandleDeleteComment)
+
+		// 关注人管理
+		issues.GET("/:key/watchers", r.issueHandler.HandleListWatchers)
+		issues.POST("/:key/watchers", r.issueHandler.HandleAddWatcher)
+		issues.DELETE("/:key/watchers/:user_id", r.issueHandler.HandleRemoveWatcher)
 	}
 }
 
 // registerWorkflowRoutes 注册工作流路由
-func registerWorkflowRoutes(rg *gin.RouterGroup) {
+func (r *Router) registerWorkflowRoutes(rg *gin.RouterGroup) {
 	workflows := rg.Group("/workflows")
 	{
-		workflows.GET("", handleListWorkflows)
-		workflows.POST("", handleCreateWorkflow)
-		workflows.GET("/:id", handleGetWorkflow)
-		workflows.PUT("/:id", handleUpdateWorkflow)
-		workflows.DELETE("/:id", handleDeleteWorkflow)
-		workflows.GET("/:id/nodes", handleListWorkflowNodes)
-		workflows.POST("/:id/nodes", handleCreateWorkflowNode)
+		// 工作流 CRUD
+		workflows.GET("", r.workflowHandler.HandleListWorkflows)
+		workflows.POST("", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateWorkflow)
+		workflows.GET("/:id", r.workflowHandler.HandleGetWorkflow)
+		workflows.PUT("/:id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleUpdateWorkflow)
+		workflows.DELETE("/:id", r.rbac.RequireAdmin(), r.workflowHandler.HandleDeleteWorkflow)
+
+		// 节点管理
+		workflows.GET("/:id/nodes", r.workflowHandler.HandleListNodes)
+		workflows.POST("/:id/nodes", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateNode)
+		workflows.GET("/:id/nodes/:node_id", r.workflowHandler.HandleGetNode)
+		workflows.PUT("/:id/nodes/:node_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleUpdateNode)
+		workflows.DELETE("/:id/nodes/:node_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleDeleteNode)
+
+		// 边管理
+		workflows.GET("/:id/edges", r.workflowHandler.HandleListEdges)
+		workflows.POST("/:id/edges", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateEdge)
+		workflows.GET("/:id/edges/:edge_id", r.workflowHandler.HandleGetEdge)
+		workflows.PUT("/:id/edges/:edge_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleUpdateEdge)
+		workflows.DELETE("/:id/edges/:edge_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleDeleteEdge)
 	}
 }
 
 // registerAlertRoutes 注册告警路由
-func registerAlertRoutes(rg *gin.RouterGroup) {
+func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 	alerts := rg.Group("/alerts")
 	{
-		alerts.GET("", handleListAlerts)
-		alerts.POST("/webhook", handleAlertWebhook)
-		alerts.GET("/:id", handleGetAlert)
-		alerts.POST("/:id/ack", handleAckAlert)
-		alerts.POST("/:id/resolve", handleResolveAlert)
+		// 告警查询
+		alerts.GET("", r.alertHandler.HandleListAlerts)
+		alerts.GET("/:id", r.alertHandler.HandleGetAlert)
+		alerts.GET("/group", r.alertHandler.HandleGroupAlerts)
+
+		// 告警操作
+		alerts.POST("/:id/ack", r.alertHandler.HandleAckAlert)
+		alerts.POST("/:id/resolve", r.alertHandler.HandleResolveAlert)
+
+		// Webhook（无需认证，但需要在公开路由中注册）
+		// 这里暂时放在受保护路由中，实际使用时可能需要移到公开路由
 	}
+
+	// 告警规则管理
+	alertRules := rg.Group("/alert-rules")
+	{
+		alertRules.GET("", r.alertHandler.HandleListAlertRules)
+		alertRules.POST("", r.rbac.RequireProjectAdmin(), r.alertHandler.HandleCreateAlertRule)
+		alertRules.GET("/:id", r.alertHandler.HandleGetAlertRule)
+		alertRules.PUT("/:id", r.rbac.RequireProjectAdmin(), r.alertHandler.HandleUpdateAlertRule)
+		alertRules.DELETE("/:id", r.rbac.RequireAdmin(), r.alertHandler.HandleDeleteAlertRule)
+	}
+
+	// 告警静默管理
+	alertSilences := rg.Group("/alert-silences")
+	{
+		alertSilences.GET("", r.alertHandler.HandleListAlertSilences)
+		alertSilences.POST("", r.alertHandler.HandleCreateAlertSilence)
+		alertSilences.GET("/:id", r.alertHandler.HandleGetAlertSilence)
+		alertSilences.PUT("/:id", r.alertHandler.HandleUpdateAlertSilence)
+		alertSilences.DELETE("/:id", r.rbac.RequireAdmin(), r.alertHandler.HandleDeleteAlertSilence)
+		alertSilences.POST("/:id/cancel", r.alertHandler.HandleCancelAlertSilence)
+	}
+}
+
+// ============ 兼容旧的 Setup 函数 ============
+
+// Setup 设置路由（兼容旧接口）
+func Setup(cfg *config.Config, jwtManager *jwt.Manager) *gin.Engine {
+	panic("请使用 NewRouter(cfg, jwtManager, db).Setup() 方式初始化路由")
 }

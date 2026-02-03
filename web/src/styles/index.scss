@@ -1,0 +1,141 @@
+// 全局样式
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+// 告警相关样式
+.alert-severity {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &.critical {
+    background-color: #fef0f0;
+    color: #f56c6c;
+    border: 1px solid #fde2e2;
+  }
+
+  &.warning {
+    background-color: #fdf6ec;
+    color: #e6a23c;
+    border: 1px solid #faecd8;
+  }
+
+  &.info {
+    background-color: #f4f4f5;
+    color: #909399;
+    border: 1px solid #e9e9eb;
+  }
+}
+
+.alert-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &.firing {
+    background-color: #fef0f0;
+    color: #f56c6c;
+    border: 1px solid #fde2e2;
+  }
+
+  &.resolved {
+    background-color: #f0f9ff;
+    color: #67c23a;
+    border: 1px solid #e1f3d8;
+  }
+}
+
+// 卡片样式
+.card-container {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+// 页面容器
+.page-container {
+  padding: 20px;
+  min-height: calc(100vh - 60px);
+}
+
+// 页面标题
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+
+  h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #303133;
+  }
+}
+
+// 统计卡片
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 24px;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+
+  &.critical {
+    background: linear-gradient(135deg, #f56c6c 0%, #c0392b 100%);
+  }
+
+  &.warning {
+    background: linear-gradient(135deg, #e6a23c 0%, #d68910 100%);
+  }
+
+  &.info {
+    background: linear-gradient(135deg, #409eff 0%, #2c7bd9 100%);
+  }
+
+  .stat-value {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    opacity: 0.9;
+  }
+}
+
+// 响应式
+@media (max-width: 768px) {
+  .page-container {
+    padding: 12px;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+  }
+}

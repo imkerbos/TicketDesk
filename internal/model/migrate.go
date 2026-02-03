@@ -4,6 +4,7 @@ package model
 import (
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -16,6 +17,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&Role{},
 		&UserRole{},
 		&Project{},
+		&ProjectMember{},
 		&IssueType{},
 		&Issue{},
 		&IssueComment{},
@@ -24,6 +26,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&WorkflowNode{},
 		&WorkflowEdge{},
 		&Alert{},
+		&AlertRule{},
+		&AlertSilence{},
 	}
 
 	for _, model := range models {
@@ -71,6 +75,50 @@ func SeedData(db *gorm.DB) error {
 		if result.Error != nil {
 			logger.Error("failed to seed issue type", zap.String("name", issueType.Name), zap.Error(result.Error))
 			return result.Error
+		}
+	}
+
+	// 初始化默认管理员用户
+	var adminUser User
+	adminResult := db.Where("username = ?", "admin").First(&adminUser)
+	if adminResult.Error != nil {
+		if adminResult.Error == gorm.ErrRecordNotFound {
+			// 创建默认管理员
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+			if err != nil {
+				logger.Error("failed to hash admin password", zap.Error(err))
+				return err
+			}
+
+			adminUser = User{
+				Username:     "admin",
+				Email:        "admin@ticketdesk.local",
+				PasswordHash: string(hashedPassword),
+				DisplayName:  "系统管理员",
+				Status:       1,
+			}
+
+			if err := db.Create(&adminUser).Error; err != nil {
+				logger.Error("failed to create admin user", zap.Error(err))
+				return err
+			}
+
+			// 分配管理员角色
+			var adminRole Role
+			if err := db.Where("name = ?", "admin").First(&adminRole).Error; err == nil {
+				userRole := UserRole{
+					UserID: adminUser.ID,
+					RoleID: adminRole.ID,
+				}
+				if err := db.Create(&userRole).Error; err != nil {
+					logger.Warn("failed to assign admin role", zap.Error(err))
+				}
+			}
+
+			logger.Info("default admin user created",
+				zap.String("username", "admin"),
+				zap.String("password", "admin123"),
+			)
 		}
 	}
 
