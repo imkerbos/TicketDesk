@@ -40,6 +40,10 @@ type IssueService interface {
 	TransitionIssue(ctx context.Context, key string, req *dto.TransitionIssueRequest, userID uint64) (*dto.IssueResponse, error)
 	AssignIssue(ctx context.Context, key string, assigneeID uint64) (*dto.IssueResponse, error)
 
+	// Dashboard 专用
+	ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error)
+	ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error)
+
 	// 评论
 	AddComment(ctx context.Context, issueKey string, req *dto.CreateCommentRequest, userID uint64) (*dto.CommentResponse, error)
 	ListComments(ctx context.Context, issueKey string) ([]*dto.CommentResponse, error)
@@ -338,6 +342,83 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 	if err != nil {
 		logger.Error("failed to list issues", zap.Error(err))
 		return nil, 0, fmt.Errorf("查询工单列表失败: %w", err)
+	}
+
+	// 缓存项目信息
+	projectCache := make(map[uint64]*model.Project)
+
+	responses := make([]*dto.IssueResponse, len(issues))
+	for i, issue := range issues {
+		projectKey := ""
+		if project, ok := projectCache[issue.ProjectID]; ok {
+			projectKey = project.ProjectKey
+		} else if project, err := s.projectRepo.GetByID(ctx, issue.ProjectID); err == nil {
+			projectCache[issue.ProjectID] = project
+			projectKey = project.ProjectKey
+		}
+		responses[i] = s.toIssueResponse(ctx, issue, projectKey)
+	}
+
+	return responses, total, nil
+}
+
+// ListMyTodoIssues 获取我的待办工单（指派给我的待处理/进行中工单）
+func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (page - 1) * pageSize
+
+	filter := &repository.IssueFilter{
+		AssigneeID:   &userID,
+		StatusNotIn:  []string{"closed", "resolved"},
+	}
+
+	issues, total, err := s.issueRepo.List(ctx, filter, offset, pageSize)
+	if err != nil {
+		logger.Error("failed to list my todo issues", zap.Error(err))
+		return nil, 0, fmt.Errorf("查询我的待办工单失败: %w", err)
+	}
+
+	// 缓存项目信息
+	projectCache := make(map[uint64]*model.Project)
+
+	responses := make([]*dto.IssueResponse, len(issues))
+	for i, issue := range issues {
+		projectKey := ""
+		if project, ok := projectCache[issue.ProjectID]; ok {
+			projectKey = project.ProjectKey
+		} else if project, err := s.projectRepo.GetByID(ctx, issue.ProjectID); err == nil {
+			projectCache[issue.ProjectID] = project
+			projectKey = project.ProjectKey
+		}
+		responses[i] = s.toIssueResponse(ctx, issue, projectKey)
+	}
+
+	return responses, total, nil
+}
+
+// ListMyCreatedIssues 获取我创建的工单
+func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (page - 1) * pageSize
+
+	filter := &repository.IssueFilter{
+		ReporterID: &userID,
+	}
+
+	issues, total, err := s.issueRepo.List(ctx, filter, offset, pageSize)
+	if err != nil {
+		logger.Error("failed to list my created issues", zap.Error(err))
+		return nil, 0, fmt.Errorf("查询我创建的工单失败: %w", err)
 	}
 
 	// 缓存项目信息

@@ -308,3 +308,35 @@ func (h *IssueHandler) HandleListWatchers(c *gin.Context) {
 
 	response.Success(c, watchers)
 }
+
+// HandleListMyTodoIssues 获取我的待办工单
+func (h *IssueHandler) HandleListMyTodoIssues(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	issues, total, err := h.issueService.ListMyTodoIssues(c.Request.Context(), userID, page, pageSize)
+	if err != nil {
+		response.InternalError(c, "获取我的待办工单失败")
+		return
+	}
+
+	response.SuccessWithPage(c, issues, total, page, pageSize)
+}
+
+// HandleListMyCreatedIssues 获取我创建的工单
+func (h *IssueHandler) HandleListMyCreatedIssues(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	issues, total, err := h.issueService.ListMyCreatedIssues(c.Request.Context(), userID, page, pageSize)
+	if err != nil {
+		response.InternalError(c, "获取我创建的工单失败")
+		return
+	}
+
+	response.SuccessWithPage(c, issues, total, page, pageSize)
+}

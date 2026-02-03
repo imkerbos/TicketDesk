@@ -58,11 +58,11 @@
     <el-card shadow="never">
       <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center">
         <el-radio-group v-model="viewMode" @change="handleViewModeChange">
-          <el-radio-button label="list">
+          <el-radio-button value="list">
             <el-icon><List /></el-icon>
             列表视图
           </el-radio-button>
-          <el-radio-button label="group">
+          <el-radio-button value="group">
             <el-icon><Grid /></el-icon>
             分组视图
           </el-radio-button>
@@ -280,8 +280,8 @@ const stats = reactive({
 const queryParams = reactive({
   page: 1,
   page_size: 20,
-  status: undefined as string | undefined,
-  severity: undefined as string | undefined,
+  status: undefined as 'firing' | 'resolved' | undefined,
+  severity: undefined as 'critical' | 'warning' | 'info' | undefined,
   alert_name: undefined as string | undefined,
 })
 

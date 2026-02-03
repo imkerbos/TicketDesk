@@ -28,6 +28,9 @@ func AutoMigrate(db *gorm.DB) error {
 		&Alert{},
 		&AlertRule{},
 		&AlertSilence{},
+		&SystemConfig{},
+		&Webhook{},
+		&WebhookLog{},
 	}
 
 	for _, model := range models {

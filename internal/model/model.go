@@ -18,12 +18,15 @@ type BaseModel struct {
 // User 用户模型
 type User struct {
 	BaseModel
-	Username     string `gorm:"size:50;uniqueIndex;not null" json:"username"`
-	Email        string `gorm:"size:100;uniqueIndex;not null" json:"email"`
-	PasswordHash string `gorm:"size:255;not null" json:"-"`
-	DisplayName  string `gorm:"size:100" json:"display_name"`
-	AvatarURL    string `gorm:"size:255" json:"avatar_url"`
-	Status       int8   `gorm:"default:1;index" json:"status"` // 0-禁用, 1-启用
+	Username      string  `gorm:"size:50;uniqueIndex;not null" json:"username"`
+	Email         string  `gorm:"size:100;uniqueIndex;not null" json:"email"`
+	PasswordHash  string  `gorm:"size:255;not null" json:"-"`
+	DisplayName   string  `gorm:"size:100" json:"display_name"`
+	AvatarURL     string  `gorm:"size:255" json:"avatar_url"`
+	Status        int8    `gorm:"default:1;index" json:"status"`      // 0-禁用, 1-启用
+	MFAEnabled    bool    `gorm:"default:false" json:"mfa_enabled"`   // 是否启用 MFA
+	MFASecret     string  `gorm:"size:64" json:"-"`                   // TOTP 密钥
+	MFAVerifiedAt *time.Time `json:"mfa_verified_at,omitempty"`       // MFA 验证时间
 }
 
 // TableName 指定表名
@@ -256,4 +259,58 @@ type AlertSilence struct {
 // TableName 指定表名
 func (AlertSilence) TableName() string {
 	return "alert_silences"
+}
+
+// SystemConfig 系统配置模型
+type SystemConfig struct {
+	BaseModel
+	ConfigKey   string  `gorm:"size:100;uniqueIndex;not null" json:"config_key"`  // 配置键
+	ConfigValue string  `gorm:"type:text" json:"config_value"`                     // 配置值
+	ConfigType  string  `gorm:"size:20;default:string" json:"config_type"`         // 类型: string, number, boolean, json
+	Category    string  `gorm:"size:50;index" json:"category"`                     // 分类: email, webhook, security, general
+	Description string  `gorm:"size:500" json:"description"`                       // 描述
+	IsSecret    bool    `gorm:"default:false" json:"is_secret"`                    // 是否为敏感配置（密码等）
+	UpdatedBy   *uint64 `gorm:"index" json:"updated_by"`                           // 最后修改人
+}
+
+// TableName 指定表名
+func (SystemConfig) TableName() string {
+	return "system_configs"
+}
+
+// Webhook 外发 Webhook 配置模型
+type Webhook struct {
+	BaseModel
+	Name        string `gorm:"size:100;not null" json:"name"`                      // Webhook 名称
+	URL         string `gorm:"size:500;not null" json:"url"`                       // Webhook URL
+	Secret      string `gorm:"size:255" json:"-"`                                  // HMAC 签名密钥
+	Events      string `gorm:"type:json;not null" json:"events"`                   // 订阅的事件类型 JSON 数组
+	Headers     string `gorm:"type:json" json:"headers"`                           // 自定义请求头 JSON 对象
+	Status      int8   `gorm:"default:1;index" json:"status"`                      // 0-禁用, 1-启用
+	Description string `gorm:"type:text" json:"description"`                       // 描述
+	CreatedBy   uint64 `gorm:"index;not null" json:"created_by"`                   // 创建人
+}
+
+// TableName 指定表名
+func (Webhook) TableName() string {
+	return "webhooks"
+}
+
+// WebhookLog Webhook 发送日志
+type WebhookLog struct {
+	ID           uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	WebhookID    uint64    `gorm:"index;not null" json:"webhook_id"`        // 关联的 Webhook
+	Event        string    `gorm:"size:50;index;not null" json:"event"`     // 事件类型
+	Payload      string    `gorm:"type:text" json:"payload"`                // 发送的数据
+	ResponseCode int       `gorm:"default:0" json:"response_code"`          // 响应状态码
+	ResponseBody string    `gorm:"type:text" json:"response_body"`          // 响应内容
+	Status       int8      `gorm:"default:0;index" json:"status"`           // 0-待发送, 1-成功, 2-失败
+	ErrorMessage string    `gorm:"type:text" json:"error_message"`          // 错误信息
+	RetryCount   int       `gorm:"default:0" json:"retry_count"`            // 重试次数
+	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+// TableName 指定表名
+func (WebhookLog) TableName() string {
+	return "webhook_logs"
 }

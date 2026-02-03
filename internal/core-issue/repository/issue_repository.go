@@ -24,6 +24,7 @@ type IssueRepository interface {
 type IssueFilter struct {
 	ProjectID   *uint64
 	Status      string
+	StatusNotIn []string // 排除的状态列表
 	Priority    string
 	AssigneeID  *uint64
 	ReporterID  *uint64
@@ -90,6 +91,9 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 		}
 		if filter.Status != "" {
 			query = query.Where("status = ?", filter.Status)
+		}
+		if len(filter.StatusNotIn) > 0 {
+			query = query.Where("status NOT IN ?", filter.StatusNotIn)
 		}
 		if filter.Priority != "" {
 			query = query.Where("priority = ?", filter.Priority)

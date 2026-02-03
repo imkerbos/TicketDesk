@@ -1,0 +1,47 @@
+services:
+  # 后端服务（开发模式 - 热更新）
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.backend.dev
+    container_name: ticketdesk-backend
+    restart: unless-stopped
+    ports:
+      - "10010:10010"
+    volumes:
+      # 挂载源码，实现热更新
+      - ..:/app
+      # 排除不需要同步的目录
+      - /app/tmp
+      - /app/web/node_modules
+    environment:
+      - TZ=Asia/Shanghai
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ticketdesk-network
+
+  # 前端服务（开发模式 - 热更新）
+  frontend:
+    build:
+      context: ../web
+      dockerfile: ../deploy/docker/Dockerfile.frontend.dev
+    container_name: ticketdesk-frontend
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      # 挂载前端源码
+      - ../web:/app
+      - /app/node_modules
+    environment:
+      - TZ=Asia/Shanghai
+    depends_on:
+      - backend
+    networks:
+      - ticketdesk-network
+
+networks:
+  ticketdesk-network:
+    name: ticketdesk-network
+    driver: bridge

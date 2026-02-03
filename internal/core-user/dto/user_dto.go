@@ -91,3 +91,37 @@ type RoleResponse struct {
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
 }
+
+// ============ MFA DTO ============
+
+// MFASetupResponse MFA 设置响应
+type MFASetupResponse struct {
+	Secret     string `json:"secret"`       // Base32 编码的密钥
+	OTPAuthURL string `json:"otp_auth_url"` // 用于生成二维码的 URL
+	Issuer     string `json:"issuer"`       // 发行者
+	Account    string `json:"account"`      // 账户名
+}
+
+// MFAStatusResponse MFA 状态响应
+type MFAStatusResponse struct {
+	Enabled    bool       `json:"enabled"`
+	VerifiedAt *time.Time `json:"verified_at,omitempty"`
+}
+
+// MFAVerifyRequest MFA 验证请求
+type MFAVerifyRequest struct {
+	Code string `json:"code" binding:"required,len=6"`
+}
+
+// MFALoginRequest MFA 登录验证请求
+type MFALoginRequest struct {
+	UserID uint64 `json:"user_id" binding:"required"`
+	Code   string `json:"code" binding:"required,len=6"`
+}
+
+// MFALoginResponse MFA 登录响应（需要 MFA 验证时返回）
+type MFALoginResponse struct {
+	RequiresMFA bool   `json:"requires_mfa"`
+	UserID      uint64 `json:"user_id,omitempty"`
+	Message     string `json:"message,omitempty"`
+}

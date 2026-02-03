@@ -14,11 +14,15 @@ import (
 // UserHandler 用户处理器
 type UserHandler struct {
 	userService service.UserService
+	mfaService  service.MFAService
 }
 
 // NewUserHandler 创建用户处理器实例
-func NewUserHandler(userService service.UserService) *UserHandler {
-	return &UserHandler{userService: userService}
+func NewUserHandler(userService service.UserService, mfaService service.MFAService) *UserHandler {
+	return &UserHandler{
+		userService: userService,
+		mfaService:  mfaService,
+	}
 }
 
 // HandleLogin 处理登录请求
@@ -319,4 +323,226 @@ func (h *UserHandler) HandleListUsers(c *gin.Context) {
 	}
 
 	response.SuccessWithPage(c, users, total, req.GetDefaultPage(), req.GetDefaultPageSize())
+}
+
+// HandleListAllUsers 获取所有用户（用于选择器）
+// @Summary 获取所有用户
+// @Description 获取所有启用的用户列表（不分页，用于选择器）
+// @Tags User
+// @Produce json
+// @Success 200 {array} dto.UserBrief
+// @Router /api/v1/users/all [get]
+// @Security BearerAuth
+func (h *UserHandler) HandleListAllUsers(c *gin.Context) {
+	// 获取所有启用的用户
+	statusEnabled := int8(1)
+	req := &dto.ListUsersRequest{
+		Page:     1,
+		PageSize: 1000, // 获取足够多的用户
+		Status:   &statusEnabled, // 只获取启用的用户
+	}
+
+	users, _, err := h.userService.ListUsers(c.Request.Context(), req)
+	if err != nil {
+		response.InternalError(c, "获取用户列表失败")
+		return
+	}
+
+	// 转换为简要信息
+	briefs := make([]map[string]interface{}, len(users))
+	for i, u := range users {
+		briefs[i] = map[string]interface{}{
+			"id":           u.ID,
+			"username":     u.Username,
+			"display_name": u.DisplayName,
+		}
+	}
+
+	response.Success(c, briefs)
+}
+
+// ============ MFA 相关处理器 ============
+
+// HandleGetMFAStatus 获取 MFA 状态
+// @Summary 获取 MFA 状态
+// @Description 获取当前用户的 MFA 状态
+// @Tags MFA
+// @Produce json
+// @Success 200 {object} dto.MFAStatusResponse
+// @Router /api/v1/users/me/mfa [get]
+// @Security BearerAuth
+func (h *UserHandler) HandleGetMFAStatus(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	if userID == 0 {
+		response.Unauthorized(c, "未获取到用户信息")
+		return
+	}
+
+	status, err := h.mfaService.GetMFAStatus(c.Request.Context(), userID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取 MFA 状态失败")
+		return
+	}
+
+	response.Success(c, status)
+}
+
+// HandleSetupMFA 开始 MFA 设置
+// @Summary 开始 MFA 设置
+// @Description 生成 MFA 密钥和二维码 URL
+// @Tags MFA
+// @Produce json
+// @Success 200 {object} dto.MFASetupResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/users/me/mfa/setup [post]
+// @Security BearerAuth
+func (h *UserHandler) HandleSetupMFA(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	if userID == 0 {
+		response.Unauthorized(c, "未获取到用户信息")
+		return
+	}
+
+	result, err := h.mfaService.SetupMFA(c.Request.Context(), userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMFAAlreadyEnabled):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrUserNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "设置 MFA 失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleEnableMFA 验证并启用 MFA
+// @Summary 验证并启用 MFA
+// @Description 验证 TOTP 码并启用 MFA
+// @Tags MFA
+// @Accept json
+// @Produce json
+// @Param request body dto.MFAVerifyRequest true "MFA 验证请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/users/me/mfa/enable [post]
+// @Security BearerAuth
+func (h *UserHandler) HandleEnableMFA(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	if userID == 0 {
+		response.Unauthorized(c, "未获取到用户信息")
+		return
+	}
+
+	var req dto.MFAVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err := h.mfaService.VerifyAndEnableMFA(c.Request.Context(), userID, req.Code)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMFAAlreadyEnabled):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrMFASetupNotStarted):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrMFAInvalidCode):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrUserNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "启用 MFA 失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "MFA 已启用"})
+}
+
+// HandleDisableMFA 禁用 MFA
+// @Summary 禁用 MFA
+// @Description 验证 TOTP 码并禁用 MFA
+// @Tags MFA
+// @Accept json
+// @Produce json
+// @Param request body dto.MFAVerifyRequest true "MFA 验证请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/users/me/mfa/disable [post]
+// @Security BearerAuth
+func (h *UserHandler) HandleDisableMFA(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	if userID == 0 {
+		response.Unauthorized(c, "未获取到用户信息")
+		return
+	}
+
+	var req dto.MFAVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err := h.mfaService.DisableMFA(c.Request.Context(), userID, req.Code)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMFANotEnabled):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrMFAInvalidCode):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrUserNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "禁用 MFA 失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "MFA 已禁用"})
+}
+
+// HandleVerifyMFA 验证 MFA 码（登录流程）
+// @Summary 验证 MFA 码
+// @Description 登录流程中验证 MFA 码
+// @Tags MFA
+// @Accept json
+// @Produce json
+// @Param request body dto.MFALoginRequest true "MFA 登录请求"
+// @Success 200 {object} dto.LoginResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/auth/mfa/verify [post]
+func (h *UserHandler) HandleVerifyMFA(c *gin.Context) {
+	var req dto.MFALoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err := h.mfaService.VerifyMFA(c.Request.Context(), req.UserID, req.Code)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrMFANotEnabled):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrMFAInvalidCode):
+			response.BadRequest(c, "验证码错误")
+		case errors.Is(err, service.ErrUserNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "验证 MFA 失败")
+		}
+		return
+	}
+
+	// 验证成功后，生成完整的登录 Token
+	// 这里需要调用 userService 来完成登录
+	// 暂时返回成功消息
+	response.Success(c, gin.H{"message": "MFA 验证成功"})
 }

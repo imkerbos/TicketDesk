@@ -22,6 +22,9 @@ import (
 	workflowHandler "github.com/kerbos/ticketdesk/internal/core-workflow/handler"
 	workflowRepo "github.com/kerbos/ticketdesk/internal/core-workflow/repository"
 	workflowService "github.com/kerbos/ticketdesk/internal/core-workflow/service"
+	configHandler "github.com/kerbos/ticketdesk/internal/system-config/handler"
+	configRepo "github.com/kerbos/ticketdesk/internal/system-config/repository"
+	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/config"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"gorm.io/gorm"
@@ -37,6 +40,7 @@ type Router struct {
 	issueHandler    *issueHandler.IssueHandler
 	workflowHandler *workflowHandler.WorkflowHandler
 	alertHandler    *alertHandler.AlertHandler
+	configHandler   *configHandler.ConfigHandler
 	rbac            *middleware.RBACMiddleware
 }
 
@@ -46,7 +50,8 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	userRepository := userRepo.NewUserRepository(db)
 	userRoleRepository := userRepo.NewUserRoleRepository(db)
 	userSvc := userService.NewUserService(userRepository, userRoleRepository, jwtManager)
-	userHdl := userHandler.NewUserHandler(userSvc)
+	mfaSvc := userService.NewMFAService(userRepository)
+	userHdl := userHandler.NewUserHandler(userSvc, mfaSvc)
 
 	// ============ 初始化 Project 模块 ============
 	projectRepository := projectRepo.NewProjectRepository(db)
@@ -106,6 +111,17 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		issueServiceImpl.SetAlertSyncService(alertSvc)
 	}
 
+	// ============ 初始化 System Config 模块 ============
+	configRepository := configRepo.NewConfigRepository(db)
+	webhookRepository := configRepo.NewWebhookRepository(db)
+	webhookLogRepository := configRepo.NewWebhookLogRepository(db)
+	configSvc := configService.NewConfigService(
+		configRepository,
+		webhookRepository,
+		webhookLogRepository,
+	)
+	configHdl := configHandler.NewConfigHandler(configSvc)
+
 	// ============ 初始化 RBAC 中间件 ============
 	rbac := middleware.NewRBACMiddleware(userRoleRepository)
 
@@ -118,6 +134,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		issueHandler:    issueHdl,
 		workflowHandler: workflowHdl,
 		alertHandler:    alertHdl,
+		configHandler:   configHdl,
 		rbac:            rbac,
 	}
 }
@@ -167,6 +184,7 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 		auth.POST("/login", r.userHandler.HandleLogin)
 		auth.POST("/register", r.userHandler.HandleRegister)
 		auth.POST("/refresh", r.userHandler.HandleRefreshToken)
+		auth.POST("/mfa/verify", r.userHandler.HandleVerifyMFA)
 	}
 
 	// 告警 Webhook（无需认证）
@@ -196,6 +214,9 @@ func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 
 		// 告警相关
 		r.registerAlertRoutes(protected)
+
+		// 系统配置相关
+		r.registerConfigRoutes(protected)
 	}
 }
 
@@ -206,6 +227,15 @@ func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 		// 当前用户相关
 		users.GET("/me", r.userHandler.HandleGetCurrentUser)
 		users.PUT("/me/password", r.userHandler.HandleUpdatePassword)
+
+		// MFA 相关
+		users.GET("/me/mfa", r.userHandler.HandleGetMFAStatus)
+		users.POST("/me/mfa/setup", r.userHandler.HandleSetupMFA)
+		users.POST("/me/mfa/enable", r.userHandler.HandleEnableMFA)
+		users.POST("/me/mfa/disable", r.userHandler.HandleDisableMFA)
+
+		// 获取所有用户（用于选择器，必须在 /:id 之前）
+		users.GET("/all", r.userHandler.HandleListAllUsers)
 
 		// 用户管理（需要管理员权限）
 		users.GET("", r.userHandler.HandleListUsers)
@@ -219,6 +249,9 @@ func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 	projects := rg.Group("/projects")
 	{
+		// 获取所有项目（用于选择器，必须在 /:key 之前）
+		projects.GET("/all", r.projectHandler.HandleListAllProjects)
+
 		// 项目 CRUD
 		projects.GET("", r.projectHandler.HandleListProjects)
 		projects.POST("", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateProject)
@@ -244,6 +277,10 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 	issues := rg.Group("/issues")
 	{
+		// Dashboard 专用（必须放在 /:key 路由之前，避免被匹配为 key）
+		issues.GET("/my-todo", r.issueHandler.HandleListMyTodoIssues)
+		issues.GET("/my-created", r.issueHandler.HandleListMyCreatedIssues)
+
 		// 工单 CRUD
 		issues.GET("", r.issueHandler.HandleListIssues)
 		issues.POST("", r.issueHandler.HandleCreateIssue)
@@ -330,6 +367,54 @@ func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 		alertSilences.PUT("/:id", r.alertHandler.HandleUpdateAlertSilence)
 		alertSilences.DELETE("/:id", r.rbac.RequireAdmin(), r.alertHandler.HandleDeleteAlertSilence)
 		alertSilences.POST("/:id/cancel", r.alertHandler.HandleCancelAlertSilence)
+	}
+}
+
+// registerConfigRoutes 注册系统配置路由
+func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
+	// 系统配置（需要管理员权限）
+	configs := rg.Group("/system/configs")
+	configs.Use(r.rbac.RequireAdmin())
+	{
+		configs.GET("", r.configHandler.HandleGetAllConfigs)
+		configs.GET("/category", r.configHandler.HandleGetConfigsByCategory)
+		configs.GET("/:key", r.configHandler.HandleGetConfig)
+		configs.PUT("/:key", r.configHandler.HandleUpdateConfig)
+		configs.PUT("", r.configHandler.HandleBatchUpdateConfigs)
+	}
+
+	// 邮件配置（需要管理员权限）
+	email := rg.Group("/system/email")
+	email.Use(r.rbac.RequireAdmin())
+	{
+		email.GET("", r.configHandler.HandleGetEmailConfig)
+		email.PUT("", r.configHandler.HandleUpdateEmailConfig)
+	}
+
+	// 安全配置（需要管理员权限）
+	security := rg.Group("/system/security")
+	security.Use(r.rbac.RequireAdmin())
+	{
+		security.GET("", r.configHandler.HandleGetSecurityConfig)
+		security.PUT("", r.configHandler.HandleUpdateSecurityConfig)
+	}
+
+	// Webhook 管理（需要管理员权限）
+	webhooks := rg.Group("/system/webhooks")
+	webhooks.Use(r.rbac.RequireAdmin())
+	{
+		webhooks.GET("", r.configHandler.HandleListWebhooks)
+		webhooks.POST("", r.configHandler.HandleCreateWebhook)
+		webhooks.GET("/:id", r.configHandler.HandleGetWebhook)
+		webhooks.PUT("/:id", r.configHandler.HandleUpdateWebhook)
+		webhooks.DELETE("/:id", r.configHandler.HandleDeleteWebhook)
+	}
+
+	// Webhook 日志（需要管理员权限）
+	webhookLogs := rg.Group("/system/webhook-logs")
+	webhookLogs.Use(r.rbac.RequireAdmin())
+	{
+		webhookLogs.GET("", r.configHandler.HandleListWebhookLogs)
 	}
 }
 

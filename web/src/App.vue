@@ -11,25 +11,62 @@
           <span class="logo-text">TicketDesk</span>
         </div>
         <el-menu
-          :default-active="$route.path"
+          :default-active="activeMenu"
+          :default-openeds="['alert-center', 'system']"
           router
           background-color="#1e1e2d"
           text-color="#9899ac"
           active-text-color="#fff"
           class="sidebar-menu"
         >
-          <el-menu-item index="/alerts">
-            <el-icon><Bell /></el-icon>
-            <span>告警列表</span>
+          <!-- 首页 -->
+          <el-menu-item index="/dashboard">
+            <el-icon><House /></el-icon>
+            <span>首页</span>
           </el-menu-item>
-          <el-menu-item index="/alert-rules">
-            <el-icon><Setting /></el-icon>
-            <span>告警规则</span>
+
+          <!-- 工单管理 -->
+          <el-menu-item index="/issues">
+            <el-icon><Tickets /></el-icon>
+            <span>工单管理</span>
           </el-menu-item>
-          <el-menu-item index="/alert-silences">
-            <el-icon><MuteNotification /></el-icon>
-            <span>告警静默</span>
+
+          <!-- 项目管理 -->
+          <el-menu-item index="/projects">
+            <el-icon><Folder /></el-icon>
+            <span>项目管理</span>
           </el-menu-item>
+
+          <!-- 告警中心 -->
+          <el-sub-menu index="alert-center">
+            <template #title>
+              <el-icon><Bell /></el-icon>
+              <span>告警中心</span>
+            </template>
+            <el-menu-item index="/alerts">
+              <span>告警列表</span>
+            </el-menu-item>
+            <el-menu-item index="/alert-rules">
+              <span>告警规则</span>
+            </el-menu-item>
+            <el-menu-item index="/alert-silences">
+              <span>告警静默</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 系统管理 -->
+          <el-sub-menu index="system">
+            <template #title>
+              <el-icon><Setting /></el-icon>
+              <span>系统管理</span>
+            </template>
+            <el-menu-item index="/users">
+              <span>用户管理</span>
+            </el-menu-item>
+            <el-menu-item index="/settings">
+              <span>系统设置</span>
+            </el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </el-aside>
       <el-container class="main-container">
@@ -45,8 +82,14 @@
                 </div>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item>个人设置</el-dropdown-item>
-                    <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
+                    <el-dropdown-item @click="router.push('/profile')">
+                      <el-icon><User /></el-icon>
+                      个人设置
+                    </el-dropdown-item>
+                    <el-dropdown-item divided @click="handleLogout">
+                      <el-icon><SwitchButton /></el-icon>
+                      退出登录
+                    </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -64,7 +107,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Bell, Setting, MuteNotification, ArrowDown } from '@element-plus/icons-vue'
+import { House, Tickets, Folder, Bell, Setting, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -72,6 +115,20 @@ const router = useRouter()
 // 判断是否为认证页面（登录/注册等）
 const isAuthPage = computed(() => {
   return route.path === '/login' || route.path === '/register'
+})
+
+// 计算当前激活的菜单
+const activeMenu = computed(() => {
+  const path = route.path
+  // 工单详情页面高亮工单列表
+  if (path.startsWith('/issues/')) {
+    return '/issues'
+  }
+  // 告警详情页面高亮告警列表
+  if (path.startsWith('/alerts/') && path !== '/alerts') {
+    return '/alerts'
+  }
+  return path
 })
 
 const handleLogout = () => {
@@ -93,6 +150,7 @@ const handleLogout = () => {
   background: linear-gradient(180deg, #1e1e2d 0%, #1a1a27 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   z-index: 100;
+  overflow-y: auto;
 }
 
 .logo {
@@ -142,6 +200,24 @@ const handleLogout = () => {
 .sidebar-menu .el-menu-item.is-active {
   background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%) !important;
   color: #fff;
+}
+
+.sidebar-menu :deep(.el-sub-menu__title) {
+  margin: 4px 0;
+  border-radius: 8px;
+  height: 44px;
+  line-height: 44px;
+}
+
+.sidebar-menu :deep(.el-sub-menu__title:hover) {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.sidebar-menu :deep(.el-sub-menu .el-menu-item) {
+  height: 40px;
+  line-height: 40px;
+  padding-left: 52px !important;
+  min-width: auto;
 }
 
 .main-container {

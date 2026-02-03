@@ -1,10 +1,7 @@
 # 构建阶段
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25 AS builder
 
 WORKDIR /app
-
-# 安装依赖
-RUN apk add --no-cache git
 
 # 复制 go.mod 和 go.sum
 COPY go.mod go.sum ./
@@ -17,12 +14,15 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/ticketdesk ./cmd/ticketdesk
 
 # 运行阶段
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
 # 安装必要的运行时依赖
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 # 设置时区
 ENV TZ=Asia/Shanghai

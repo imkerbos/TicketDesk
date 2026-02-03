@@ -1,0 +1,20 @@
+# 后端开发镜像（支持 Air 热更新）
+FROM golang:1.25
+
+WORKDIR /app
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+
+# 设置 Go 环境
+ENV GO111MODULE=on
+ENV GOPROXY=https://proxy.golang.org,direct
+
+# 安装 Air 热更新工具
+RUN go install github.com/air-verse/air@latest
+
+# 暴露端口
+EXPOSE 10010
+
+# 使用 Air 启动（热更新）- 使用 Docker 专用配置
+CMD ["air", "-c", ".air.docker.toml"]

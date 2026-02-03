@@ -111,7 +111,8 @@ import type { Alert } from '@/types/alert'
 import dayjs from 'dayjs'
 
 const route = useRoute()
-const router = useRouter()
+// useRouter is available globally in template as $router, but we call it to ensure Vue Router is setup
+useRouter()
 
 const loading = ref(false)
 const alert = ref<Alert>()

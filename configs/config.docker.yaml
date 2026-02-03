@@ -1,0 +1,46 @@
+# TicketDesk 配置文件 - Docker 开发环境
+# 使用 host.docker.internal 访问宿主机服务
+
+app:
+  name: ticketdesk
+  env: development  # development, staging, production
+  port: 10010
+  debug: true
+
+# 数据库配置（宿主机 MySQL）
+database:
+  host: host.docker.internal
+  port: 3306
+  user: root
+  password: 123456
+  name: ticketdesk
+  charset: utf8mb4
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600  # 秒
+
+# Redis 配置（宿主机 Redis）
+redis:
+  host: host.docker.internal
+  port: 6379
+  password: "123456"
+  db: 1
+  pool_size: 10
+
+# JWT 配置
+jwt:
+  secret: your-secret-key-change-in-production
+  access_expire: 7200      # Access Token 有效期（秒）- 2小时
+  refresh_expire: 604800   # Refresh Token 有效期（秒）- 7天
+  issuer: ticketdesk
+
+# 日志配置
+log:
+  level: info              # debug, info, warn, error
+  format: json             # json, console
+  output: stdout           # stdout, file
+  file_path: logs/app.log
+  max_size: 100            # MB
+  max_backups: 3
+  max_age: 7               # 天
+  compress: true

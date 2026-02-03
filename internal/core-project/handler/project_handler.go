@@ -450,3 +450,30 @@ func (h *ProjectHandler) HandleListIssueTypes(c *gin.Context) {
 
 	response.Success(c, issueTypes)
 }
+
+// HandleListAllProjects 获取所有项目（用于选择器）
+// @Summary 获取所有项目
+// @Description 获取所有项目列表（不分页，用于选择器）
+// @Tags Project
+// @Produce json
+// @Success 200 {array} dto.ProjectBrief
+// @Router /api/v1/projects/all [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleListAllProjects(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	isAdmin := middleware.IsAdmin(c)
+
+	// 使用大页面获取所有项目
+	req := &dto.ListProjectsRequest{
+		Page:     1,
+		PageSize: 1000, // 获取足够多的项目
+	}
+
+	projects, _, err := h.projectService.ListProjects(c.Request.Context(), req, userID, isAdmin)
+	if err != nil {
+		response.InternalError(c, "获取项目列表失败")
+		return
+	}
+
+	response.Success(c, projects)
+}

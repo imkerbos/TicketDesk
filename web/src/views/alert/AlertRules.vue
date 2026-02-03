@@ -259,7 +259,16 @@ const handleSubmit = async () => {
         await updateAlertRule(form.id, form)
         ElMessage.success('更新成功')
       } else {
-        await createAlertRule(form)
+        // Validate required fields before creating
+        if (!form.project_id || !form.issue_type_id) {
+          ElMessage.error('请选择项目和工单类型')
+          return
+        }
+        await createAlertRule({
+          ...form,
+          project_id: form.project_id,
+          issue_type_id: form.issue_type_id,
+        })
         ElMessage.success('创建成功')
       }
       dialogVisible.value = false
