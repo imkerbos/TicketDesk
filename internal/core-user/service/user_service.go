@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/kerbos/ticketdesk/internal/core-user/dto"
 	"github.com/kerbos/ticketdesk/internal/core-user/repository"
@@ -33,8 +34,12 @@ type UserService interface {
 	RefreshToken(ctx context.Context, refreshToken string) (*dto.LoginResponse, error)
 	GetCurrentUser(ctx context.Context, userID uint64) (*dto.UserResponse, error)
 	GetUser(ctx context.Context, id uint64) (*dto.UserResponse, error)
+	CreateUser(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error)
 	UpdateUser(ctx context.Context, id uint64, req *dto.UpdateUserRequest) (*dto.UserResponse, error)
 	UpdatePassword(ctx context.Context, userID uint64, req *dto.UpdatePasswordRequest) error
+	ResetPassword(ctx context.Context, id uint64, req *dto.ResetPasswordRequest) error
+	EnableUser(ctx context.Context, id uint64) error
+	DisableUser(ctx context.Context, id uint64) error
 	DeleteUser(ctx context.Context, id uint64) error
 	ListUsers(ctx context.Context, req *dto.ListUsersRequest) ([]*dto.UserResponse, int64, error)
 }
@@ -141,6 +146,14 @@ func (s *userService) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		return nil, ErrInvalidCredentials
 	}
 
+	// 更新最后登录时间
+	now := time.Now()
+	user.LastLoginAt = &now
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		logger.Warn("failed to update last login time", zap.Uint64("user_id", user.ID), zap.Error(err))
+		// 不影响登录流程，继续执行
+	}
+
 	// 生成 Token
 	accessToken, err := s.jwtManager.GenerateAccessToken(user.ID, user.Username)
 	if err != nil {
@@ -227,6 +240,85 @@ func (s *userService) GetUser(ctx context.Context, id uint64) (*dto.UserResponse
 	return s.toUserResponse(ctx, user), nil
 }
 
+// CreateUser 创建用户（管理员）
+func (s *userService) CreateUser(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error) {
+	// 检查用户名是否已存在
+	exists, err := s.userRepo.ExistsByUsername(ctx, req.Username)
+	if err != nil {
+		logger.Error("failed to check username existence", zap.Error(err))
+		return nil, fmt.Errorf("检查用户名失败: %w", err)
+	}
+	if exists {
+		return nil, ErrUsernameExists
+	}
+
+	// 检查邮箱是否已存在
+	exists, err = s.userRepo.ExistsByEmail(ctx, req.Email)
+	if err != nil {
+		logger.Error("failed to check email existence", zap.Error(err))
+		return nil, fmt.Errorf("检查邮箱失败: %w", err)
+	}
+	if exists {
+		return nil, ErrEmailExists
+	}
+
+	// 密码加密
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		logger.Error("failed to hash password", zap.Error(err))
+		return nil, fmt.Errorf("密码加密失败: %w", err)
+	}
+
+	// 设置默认状态
+	status := int8(1) // 默认启用
+	if req.Status != nil {
+		status = *req.Status
+	}
+
+	// 创建用户
+	user := &model.User{
+		Username:     req.Username,
+		Email:        req.Email,
+		PasswordHash: string(hashedPassword),
+		DisplayName:  req.DisplayName,
+		Status:       status,
+	}
+
+	if user.DisplayName == "" {
+		user.DisplayName = user.Username
+	}
+
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		logger.Error("failed to create user", zap.Error(err))
+		return nil, fmt.Errorf("创建用户失败: %w", err)
+	}
+
+	// 分配角色
+	if len(req.Roles) > 0 {
+		for _, roleName := range req.Roles {
+			if err := s.userRoleRepo.AssignRole(ctx, user.ID, roleName); err != nil {
+				logger.Warn("failed to assign role",
+					zap.Uint64("user_id", user.ID),
+					zap.String("role", roleName),
+					zap.Error(err),
+				)
+			}
+		}
+	} else {
+		// 如果没有指定角色，分配默认角色
+		if err := s.userRoleRepo.AssignRole(ctx, user.ID, "user"); err != nil {
+			logger.Warn("failed to assign default role", zap.Uint64("user_id", user.ID), zap.Error(err))
+		}
+	}
+
+	logger.Info("user created by admin",
+		zap.Uint64("user_id", user.ID),
+		zap.String("username", user.Username),
+	)
+
+	return s.toUserResponse(ctx, user), nil
+}
+
 // UpdateUser 更新用户信息
 func (s *userService) UpdateUser(ctx context.Context, id uint64, req *dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
@@ -297,6 +389,82 @@ func (s *userService) UpdatePassword(ctx context.Context, userID uint64, req *dt
 	return nil
 }
 
+// ResetPassword 重置密码（管理员）
+func (s *userService) ResetPassword(ctx context.Context, id uint64, req *dto.ResetPasswordRequest) error {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 加密新密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("密码加密失败: %w", err)
+	}
+
+	user.PasswordHash = string(hashedPassword)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("重置密码失败: %w", err)
+	}
+
+	logger.Info("user password reset by admin", zap.Uint64("user_id", id))
+
+	return nil
+}
+
+// EnableUser 启用用户
+func (s *userService) EnableUser(ctx context.Context, id uint64) error {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	if user.Status == 1 {
+		return nil // 已经是启用状态
+	}
+
+	user.Status = 1
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		logger.Error("failed to enable user", zap.Uint64("id", id), zap.Error(err))
+		return fmt.Errorf("启用用户失败: %w", err)
+	}
+
+	logger.Info("user enabled successfully", zap.Uint64("user_id", id))
+
+	return nil
+}
+
+// DisableUser 禁用用户
+func (s *userService) DisableUser(ctx context.Context, id uint64) error {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	if user.Status == 0 {
+		return nil // 已经是禁用状态
+	}
+
+	user.Status = 0
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		logger.Error("failed to disable user", zap.Uint64("id", id), zap.Error(err))
+		return fmt.Errorf("禁用用户失败: %w", err)
+	}
+
+	logger.Info("user disabled successfully", zap.Uint64("user_id", id))
+
+	return nil
+}
+
 // DeleteUser 删除用户
 func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 	// 检查用户是否存在
@@ -347,6 +515,8 @@ func (s *userService) toUserResponse(ctx context.Context, user *model.User) *dto
 		DisplayName: user.DisplayName,
 		AvatarURL:   user.AvatarURL,
 		Status:      user.Status,
+		MFAEnabled:  user.MFAEnabled,
+		LastLoginAt: user.LastLoginAt,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
 	}

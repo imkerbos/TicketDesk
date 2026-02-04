@@ -8,6 +8,14 @@ export interface ApiResponse<T = unknown> {
   data: T
 }
 
+// 分页响应结构
+export interface PageResponse<T = unknown> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+}
+
 // 创建 axios 实例
 const request: AxiosInstance = axios.create({
   baseURL: '/api/v1',

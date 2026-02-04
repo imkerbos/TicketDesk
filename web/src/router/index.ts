@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,7 +8,7 @@ const router = createRouter({
       path: '/login',
       name: 'Login',
       component: () => import('@/views/auth/Login.vue'),
-      meta: { title: '登录' },
+      meta: { title: '登录', public: true },
     },
     {
       path: '/',
@@ -65,12 +66,26 @@ const router = createRouter({
       component: () => import('@/views/alert/AlertSilences.vue'),
       meta: { title: '告警静默' },
     },
-    // 系统管理
+    // 通知中心
+    {
+      path: '/notifications',
+      name: 'NotificationList',
+      component: () => import('@/views/notification/NotificationList.vue'),
+      meta: { title: '通知中心' },
+    },
+    // 报表统计
+    {
+      path: '/reports',
+      name: 'Reports',
+      component: () => import('@/views/report/Reports.vue'),
+      meta: { title: '报表统计' },
+    },
+    // 系统管理（需要管理员权限）
     {
       path: '/users',
       name: 'UserList',
       component: () => import('@/views/user/UserList.vue'),
-      meta: { title: '用户管理' },
+      meta: { title: '用户管理', requiresAdmin: true },
     },
     // 个人设置
     {
@@ -79,18 +94,40 @@ const router = createRouter({
       component: () => import('@/views/user/Profile.vue'),
       meta: { title: '个人设置' },
     },
-    // 系统设置
+    // 系统设置（需要管理员权限）
     {
       path: '/settings',
       name: 'SystemSettings',
       component: () => import('@/views/system/SystemSettings.vue'),
-      meta: { title: '系统设置' },
+      meta: { title: '系统设置', requiresAdmin: true },
     },
   ],
 })
 
 router.beforeEach((to, _from, next) => {
   document.title = `${to.meta.title || 'TicketDesk'} - TicketDesk`
+
+  const userStore = useUserStore()
+
+  // 公开页面（如登录页）直接放行
+  if (to.meta.public) {
+    next()
+    return
+  }
+
+  // 检查是否已登录
+  if (!userStore.isLoggedIn) {
+    next('/login')
+    return
+  }
+
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin && !userStore.isAdmin) {
+    // 无权限，重定向到首页
+    next('/dashboard')
+    return
+  }
+
   next()
 })
 

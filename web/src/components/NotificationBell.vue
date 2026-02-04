@@ -1,0 +1,146 @@
+<template>
+  <el-popover
+    placement="bottom-end"
+    :width="380"
+    trigger="click"
+    @show="onPopoverShow"
+  >
+    <template #reference>
+      <div class="bell-wrapper">
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+          <el-icon :size="20" class="bell-icon"><Bell /></el-icon>
+        </el-badge>
+      </div>
+    </template>
+
+    <div class="notification-dropdown">
+      <div class="dropdown-header">
+        <span class="dropdown-title">通知</span>
+        <el-link
+          v-if="unreadCount > 0"
+          type="primary"
+          underline="never"
+          @click="handleMarkAllAsRead"
+        >
+          全部已读
+        </el-link>
+      </div>
+
+      <el-scrollbar max-height="400px">
+        <div v-if="recentNotifications.length === 0" class="empty-state">
+          <el-icon :size="40" color="#d1d5db"><BellFilled /></el-icon>
+          <p>暂无通知</p>
+        </div>
+        <NotificationItem
+          v-for="item in recentNotifications"
+          :key="item.id"
+          :notification="item"
+          @click="handleNotificationClick"
+        />
+      </el-scrollbar>
+
+      <div class="dropdown-footer">
+        <el-link type="primary" underline="never" @click="goToNotificationPage">
+          查看全部通知
+        </el-link>
+      </div>
+    </div>
+  </el-popover>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { Bell, BellFilled } from '@element-plus/icons-vue'
+import { useNotificationStore } from '@/stores/notification'
+import NotificationItem from '@/components/NotificationItem.vue'
+import type { NotificationItem as NotificationItemType } from '@/types/notification'
+
+const router = useRouter()
+const notificationStore = useNotificationStore()
+
+const unreadCount = computed(() => notificationStore.unreadCount)
+const recentNotifications = computed(() => notificationStore.recentNotifications)
+
+const onPopoverShow = () => {
+  notificationStore.fetchNotifications()
+}
+
+const handleNotificationClick = (notification: NotificationItemType) => {
+  // 标记为已读
+  if (!notification.is_read) {
+    notificationStore.markAsRead(notification.id)
+  }
+  // 跳转到对应实体
+  if (notification.entity_type === 'issue' && notification.entity_key) {
+    router.push(`/issues/${notification.entity_key}`)
+  }
+}
+
+const handleMarkAllAsRead = () => {
+  notificationStore.markAllAsRead()
+}
+
+const goToNotificationPage = () => {
+  router.push('/notifications')
+}
+</script>
+
+<style scoped>
+.bell-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.bell-wrapper:hover {
+  background-color: #f5f7fa;
+}
+
+.bell-icon {
+  color: #6b7280;
+}
+
+.notification-dropdown {
+  margin: -12px;
+}
+
+.dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdown-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  color: #9ca3af;
+}
+
+.empty-state p {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.dropdown-footer {
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+</style>

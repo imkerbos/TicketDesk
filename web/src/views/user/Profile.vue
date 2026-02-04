@@ -15,8 +15,8 @@
             </div>
             <h2 class="username">{{ profile?.display_name || profile?.username }}</h2>
             <p class="user-role">
-              <el-tag :type="profile?.role === 'admin' ? 'danger' : 'info'" size="small">
-                {{ profile?.role === 'admin' ? '管理员' : '普通用户' }}
+              <el-tag :type="profile?.roles?.includes('admin') ? 'danger' : 'info'" size="small">
+                {{ profile?.roles?.includes('admin') ? '管理员' : '普通用户' }}
               </el-tag>
             </p>
           </div>
@@ -443,8 +443,8 @@ const startMFASetup = async () => {
   try {
     const { data } = await setupMFA()
     mfaSetupData.value = data.data
-    // 生成二维码 URL（使用第三方服务或本地库）
-    qrCodeUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.data.otp_auth_url)}`
+    // 直接使用后端返回的 base64 编码的 QR 码图片
+    qrCodeUrl.value = data.data.qr_code_data
     mfaVerifyCode.value = ''
     mfaSetupDialogVisible.value = true
   } catch (error) {

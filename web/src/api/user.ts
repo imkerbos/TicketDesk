@@ -87,6 +87,7 @@ export interface MFAStatusResponse {
 export interface MFASetupResponse {
   secret: string
   otp_auth_url: string
+  qr_code_data: string
   issuer: string
   account: string
 }

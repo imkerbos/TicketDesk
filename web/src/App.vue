@@ -37,6 +37,18 @@
             <span>项目管理</span>
           </el-menu-item>
 
+          <!-- 通知中心 -->
+          <el-menu-item index="/notifications">
+            <el-icon><Message /></el-icon>
+            <span>通知中心</span>
+            <el-badge
+              v-if="notificationStore.unreadCount > 0"
+              :value="notificationStore.unreadCount"
+              :max="99"
+              class="menu-badge"
+            />
+          </el-menu-item>
+
           <!-- 告警中心 -->
           <el-sub-menu index="alert-center">
             <template #title>
@@ -54,8 +66,8 @@
             </el-menu-item>
           </el-sub-menu>
 
-          <!-- 系统管理 -->
-          <el-sub-menu index="system">
+          <!-- 系统管理（仅管理员可见） -->
+          <el-sub-menu v-if="userStore.isAdmin" index="system">
             <template #title>
               <el-icon><Setting /></el-icon>
               <span>系统管理</span>
@@ -74,10 +86,11 @@
           <div class="header-content">
             <div class="page-title">{{ $route.meta.title }}</div>
             <div class="header-right">
+              <NotificationBell />
               <el-dropdown trigger="click">
                 <div class="user-info">
-                  <el-avatar :size="32" class="user-avatar">管</el-avatar>
-                  <span class="user-name">管理员</span>
+                  <el-avatar :size="32" class="user-avatar">{{ userStore.displayName?.charAt(0) || 'U' }}</el-avatar>
+                  <span class="user-name">{{ userStore.displayName || '用户' }}</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
                 <template #dropdown>
@@ -105,12 +118,39 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { House, Tickets, Folder, Bell, Setting, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+import { useNotificationStore } from '@/stores/notification'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
+const notificationStore = useNotificationStore()
+
+// 初始化用户状态
+onMounted(() => {
+  userStore.initFromStorage()
+  // 登录后连接 WebSocket
+  if (userStore.isLoggedIn) {
+    notificationStore.connectWebSocket()
+  }
+})
+
+// 监听登录状态变化
+watch(() => userStore.isLoggedIn, (loggedIn) => {
+  if (loggedIn) {
+    notificationStore.connectWebSocket()
+  } else {
+    notificationStore.disconnectWebSocket()
+  }
+})
+
+onUnmounted(() => {
+  notificationStore.disconnectWebSocket()
+})
 
 // 判断是否为认证页面（登录/注册等）
 const isAuthPage = computed(() => {
@@ -132,7 +172,8 @@ const activeMenu = computed(() => {
 })
 
 const handleLogout = () => {
-  localStorage.removeItem('token')
+  notificationStore.disconnectWebSocket()
+  userStore.logout()
   router.push('/login')
 }
 </script>
@@ -191,6 +232,32 @@ const handleLogout = () => {
   border-radius: 8px;
   height: 44px;
   line-height: 44px;
+  position: relative;
+}
+
+.sidebar-menu .el-menu-item .menu-badge {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-menu .el-menu-item .menu-badge :deep(.el-badge__content) {
+  position: static;
+  transform: none;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  font-weight: 600;
+  font-size: 11px;
+  height: 18px;
+  line-height: 14px;
+  padding: 0 6px;
+  min-width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-menu .el-menu-item:hover {

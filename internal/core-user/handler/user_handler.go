@@ -185,6 +185,40 @@ func (h *UserHandler) HandleGetUser(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// HandleCreateUser 创建用户（管理员）
+// @Summary 创建用户
+// @Description 管理员创建新用户
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateUserRequest true "创建用户请求"
+// @Success 201 {object} dto.UserResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/users [post]
+// @Security BearerAuth
+func (h *UserHandler) HandleCreateUser(c *gin.Context) {
+	var req dto.CreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.userService.CreateUser(c.Request.Context(), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUsernameExists):
+			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrEmailExists):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "创建用户失败")
+		}
+		return
+	}
+
+	response.Created(c, result)
+}
+
 // HandleUpdateUser 更新用户信息
 // @Summary 更新用户信息
 // @Description 更新指定用户的信息
@@ -265,6 +299,105 @@ func (h *UserHandler) HandleUpdatePassword(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "密码修改成功"})
+}
+
+// HandleResetPassword 重置用户密码（管理员）
+// @Summary 重置用户密码
+// @Description 管理员重置指定用户的密码
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param id path int true "用户 ID"
+// @Param request body dto.ResetPasswordRequest true "重置密码请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/users/{id}/reset-password [post]
+// @Security BearerAuth
+func (h *UserHandler) HandleResetPassword(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err = h.userService.ResetPassword(c.Request.Context(), id, &req)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "重置密码失败")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "密码重置成功"})
+}
+
+// HandleEnableUser 启用用户
+// @Summary 启用用户
+// @Description 启用指定用户
+// @Tags User
+// @Produce json
+// @Param id path int true "用户 ID"
+// @Success 200 {object} response.Response
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/users/{id}/enable [post]
+// @Security BearerAuth
+func (h *UserHandler) HandleEnableUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	err = h.userService.EnableUser(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "启用用户失败")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "用户已启用"})
+}
+
+// HandleDisableUser 禁用用户
+// @Summary 禁用用户
+// @Description 禁用指定用户
+// @Tags User
+// @Produce json
+// @Param id path int true "用户 ID"
+// @Success 200 {object} response.Response
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/users/{id}/disable [post]
+// @Security BearerAuth
+func (h *UserHandler) HandleDisableUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	err = h.userService.DisableUser(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "禁用用户失败")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "用户已禁用"})
 }
 
 // HandleDeleteUser 删除用户

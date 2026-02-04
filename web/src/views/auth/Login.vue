@@ -116,8 +116,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Tickets, Bell, Connection } from '@element-plus/icons-vue'
 import { login } from '@/api/auth'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const rememberMe = ref(false)
@@ -150,11 +152,9 @@ const handleLogin = async () => {
         password: form.password,
       })
 
-      // 保存 token
+      // 使用 store 保存用户信息
       const { access_token, refresh_token, user } = res.data.data
-      localStorage.setItem('token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
-      localStorage.setItem('user', JSON.stringify(user))
+      userStore.login(access_token, refresh_token, user)
 
       ElMessage.success(`欢迎回来，${user.display_name || user.username}`)
       router.push('/')

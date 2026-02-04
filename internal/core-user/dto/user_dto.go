@@ -31,9 +31,24 @@ type UpdateUserRequest struct {
 	Email       *string `json:"email" binding:"omitempty,email,max=100"`
 }
 
+// CreateUserRequest 创建用户请求（管理员）
+type CreateUserRequest struct {
+	Username    string   `json:"username" binding:"required,min=3,max=50"`
+	Email       string   `json:"email" binding:"required,email,max=100"`
+	Password    string   `json:"password" binding:"required,min=6,max=50"`
+	DisplayName string   `json:"display_name" binding:"max=100"`
+	Status      *int8    `json:"status" binding:"omitempty,oneof=0 1"`
+	Roles       []string `json:"roles" binding:"omitempty"`
+}
+
 // UpdatePasswordRequest 修改密码请求
 type UpdatePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required,min=6,max=50"`
+	NewPassword string `json:"new_password" binding:"required,min=6,max=50"`
+}
+
+// ResetPasswordRequest 重置密码请求（管理员）
+type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=6,max=50"`
 }
 
@@ -73,15 +88,17 @@ type LoginResponse struct {
 
 // UserResponse 用户信息响应
 type UserResponse struct {
-	ID          uint64    `json:"id"`
-	Username    string    `json:"username"`
-	Email       string    `json:"email"`
-	DisplayName string    `json:"display_name"`
-	AvatarURL   string    `json:"avatar_url"`
-	Status      int8      `json:"status"`
-	Roles       []string  `json:"roles,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uint64     `json:"id"`
+	Username    string     `json:"username"`
+	Email       string     `json:"email"`
+	DisplayName string     `json:"display_name"`
+	AvatarURL   string     `json:"avatar_url"`
+	Status      int8       `json:"status"`
+	Roles       []string   `json:"roles,omitempty"`
+	MFAEnabled  bool       `json:"mfa_enabled"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // RoleResponse 角色信息响应
@@ -96,10 +113,11 @@ type RoleResponse struct {
 
 // MFASetupResponse MFA 设置响应
 type MFASetupResponse struct {
-	Secret     string `json:"secret"`       // Base32 编码的密钥
-	OTPAuthURL string `json:"otp_auth_url"` // 用于生成二维码的 URL
-	Issuer     string `json:"issuer"`       // 发行者
-	Account    string `json:"account"`      // 账户名
+	Secret     string `json:"secret"`        // Base32 编码的密钥
+	OTPAuthURL string `json:"otp_auth_url"`  // 用于生成二维码的 URL
+	QRCodeData string `json:"qr_code_data"`  // Base64 编码的 QR 码图片
+	Issuer     string `json:"issuer"`        // 发行者
+	Account    string `json:"account"`       // 账户名
 }
 
 // MFAStatusResponse MFA 状态响应

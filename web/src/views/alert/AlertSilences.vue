@@ -1,17 +1,29 @@
 <template>
   <div class="alert-silences-container">
-    <el-card shadow="never" style="margin-bottom: 20px">
-      <div style="display: flex; justify-content: space-between; align-items: center">
-        <h2 style="margin: 0">告警静默管理</h2>
-        <el-button type="primary" @click="handleCreate">
-          <el-icon><Plus /></el-icon>
-          创建静默
-        </el-button>
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-info">
+        <div class="header-icon">
+          <el-icon><BellFilled /></el-icon>
+        </div>
+        <div class="header-text">
+          <h1 class="header-title">告警静默</h1>
+          <p class="header-desc">管理告警静默规则，临时屏蔽特定告警通知</p>
+        </div>
       </div>
-    </el-card>
+      <el-button type="primary" class="header-btn" @click="handleCreate">
+        <el-icon><Plus /></el-icon>
+        创建静默
+      </el-button>
+    </div>
 
-    <el-card v-loading="loading" shadow="never">
-      <el-table :data="silenceList" stripe>
+    <!-- 静默列表 -->
+    <el-card shadow="never" class="table-card">
+      <el-table
+        v-loading="loading"
+        :data="silenceList"
+        style="width: 100%"
+      >
         <el-table-column prop="name" label="静默名称" min-width="150" />
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
         <el-table-column label="标签匹配器" min-width="200">
@@ -39,38 +51,46 @@
             {{ formatTime(row.ends_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
+            <div class="status-badge" :class="getStatusClass(row.status)">
+              <span class="status-dot"></span>
+              <span class="status-text">{{ getStatusText(row.status) }}</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button
-              v-if="row.status === 1"
-              link
-              type="warning"
-              size="small"
-              @click="handleCancel(row)"
-            >
-              取消
-            </el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <div class="action-buttons">
+              <el-tooltip content="编辑" placement="top">
+                <el-button link type="primary" @click="handleEdit(row)">
+                  <el-icon><Edit /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip v-if="row.status === 1" content="取消" placement="top">
+                <el-button link type="warning" @click="handleCancel(row)">
+                  <el-icon><CircleClose /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="删除" placement="top">
+                <el-button link type="danger" @click="handleDelete(row)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
 
-      <el-pagination
-        v-model:current-page="queryParams.page"
-        v-model:page-size="queryParams.page_size"
-        :total="total"
-        layout="total, prev, pager, next"
-        style="margin-top: 20px; justify-content: flex-end"
-        @current-change="loadData"
-      />
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="queryParams.page"
+          v-model:page-size="queryParams.page_size"
+          :total="total"
+          layout="total, prev, pager, next"
+          @current-change="loadData"
+        />
+      </div>
     </el-card>
 
     <!-- 创建/编辑对话框 -->
@@ -80,7 +100,7 @@
       width="600px"
       @close="handleDialogClose"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
         <el-form-item label="静默名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入静默名称" />
         </el-form-item>
@@ -92,7 +112,7 @@
             <div
               v-for="(matcher, index) in form.label_matchers"
               :key="index"
-              style="display: flex; gap: 8px; margin-bottom: 8px"
+              class="matcher-row"
             >
               <el-input v-model="matcher.key" placeholder="标签键" style="flex: 1" />
               <el-select v-model="matcher.operator" style="width: 100px">
@@ -115,22 +135,28 @@
             </el-button>
           </div>
         </el-form-item>
-        <el-form-item label="生效时间" prop="starts_at">
-          <el-date-picker
-            v-model="form.starts_at"
-            type="datetime"
-            placeholder="选择开始时间"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="结束时间" prop="ends_at">
-          <el-date-picker
-            v-model="form.ends_at"
-            type="datetime"
-            placeholder="选择结束时间"
-            style="width: 100%"
-          />
-        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="生效时间" prop="starts_at">
+              <el-date-picker
+                v-model="form.starts_at"
+                type="datetime"
+                placeholder="选择开始时间"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="结束时间" prop="ends_at">
+              <el-date-picker
+                v-model="form.ends_at"
+                type="datetime"
+                placeholder="选择结束时间"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="备注" prop="comment">
           <el-input v-model="form.comment" type="textarea" :rows="2" placeholder="请输入静默原因" />
         </el-form-item>
@@ -146,7 +172,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Edit, CircleClose, BellFilled } from '@element-plus/icons-vue'
 import {
   getAlertSilenceList,
   createAlertSilence,
@@ -285,13 +311,13 @@ const handleDialogClose = () => {
   formRef.value?.resetFields()
 }
 
-const getStatusType = (status: number) => {
-  const map: Record<number, any> = {
-    0: 'info',
-    1: 'success',
-    2: 'warning',
+const getStatusClass = (status: number) => {
+  const map: Record<number, string> = {
+    0: 'cancelled',
+    1: 'active',
+    2: 'expired',
   }
-  return map[status] || 'info'
+  return map[status] || 'cancelled'
 }
 
 const getStatusText = (status: number) => {
@@ -311,3 +337,165 @@ onMounted(() => {
   loadData()
 })
 </script>
+
+<style scoped lang="scss">
+.alert-silences-container {
+  width: 100%;
+}
+
+// 页面头部
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: #fff;
+
+  .header-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .header-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .header-text {
+    .header-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+    }
+
+    .header-desc {
+      font-size: 14px;
+      margin: 0;
+      opacity: 0.9;
+    }
+  }
+
+  .header-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
+}
+
+// 表格卡片
+.table-card {
+  border-radius: 12px;
+
+  :deep(.el-card__body) {
+    padding: 0;
+  }
+
+  :deep(.el-table) {
+    border-radius: 12px;
+
+    th.el-table__cell {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #374151;
+    }
+  }
+}
+
+// 状态徽章
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  &.active {
+    background: #ecfdf5;
+    color: #059669;
+
+    .status-dot {
+      background: #10b981;
+    }
+  }
+
+  &.cancelled {
+    background: #f3f4f6;
+    color: #6b7280;
+
+    .status-dot {
+      background: #9ca3af;
+    }
+  }
+
+  &.expired {
+    background: #fef3c7;
+    color: #d97706;
+
+    .status-dot {
+      background: #f59e0b;
+    }
+  }
+}
+
+// 操作按钮
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+
+  .el-button {
+    font-size: 16px;
+    padding: 4px;
+
+    &:hover {
+      background: #f3f4f6;
+      border-radius: 6px;
+    }
+  }
+}
+
+// 分页
+.pagination-wrapper {
+  padding: 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #f0f0f0;
+}
+
+// 匹配器行
+.matcher-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+// 响应式
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+}
+</style>

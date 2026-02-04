@@ -7,13 +7,16 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base32"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/kerbos/ticketdesk/internal/core-user/dto"
 	"github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/pkg/logger"
+	qrcode "github.com/skip2/go-qrcode"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -91,11 +94,22 @@ func (s *mfaService) SetupMFA(ctx context.Context, userID uint64) (*dto.MFASetup
 	// 生成二维码 URI
 	otpAuthURL := generateOTPAuthURL(user.Username, secret)
 
+	// 生成 QR 码图片（PNG 格式，200x200 像素）
+	qrCodePNG, err := qrcode.Encode(otpAuthURL, qrcode.Medium, 200)
+	if err != nil {
+		logger.Error("failed to generate QR code", zap.Error(err))
+		return nil, fmt.Errorf("生成二维码失败: %w", err)
+	}
+
+	// 将 QR 码转换为 base64
+	qrCodeData := base64.StdEncoding.EncodeToString(qrCodePNG)
+
 	logger.Info("MFA setup started", zap.Uint64("user_id", userID))
 
 	return &dto.MFASetupResponse{
 		Secret:     secret,
 		OTPAuthURL: otpAuthURL,
+		QRCodeData: "data:image/png;base64," + qrCodeData,
 		Issuer:     TOTPIssuer,
 		Account:    user.Username,
 	}, nil
@@ -231,10 +245,17 @@ func generateSecret() (string, error) {
 }
 
 // generateOTPAuthURL 生成 OTP Auth URL（用于二维码）
+// 格式: otpauth://totp/ISSUER:ACCOUNT?secret=SECRET&issuer=ISSUER&algorithm=SHA1&digits=6&period=30
 func generateOTPAuthURL(account, secret string) string {
+	// URL 编码 issuer 和 account
+	encodedIssuer := url.PathEscape(TOTPIssuer)
+	encodedAccount := url.PathEscape(account)
+
+	// 构建 URL，注意 label 部分的格式是 issuer:account
+	// secret 不需要 URL 编码因为它是 base32 字符
 	return fmt.Sprintf(
 		"otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=%d&period=%d",
-		TOTPIssuer, account, secret, TOTPIssuer, TOTPDigits, TOTPPeriod,
+		encodedIssuer, encodedAccount, secret, url.QueryEscape(TOTPIssuer), TOTPDigits, TOTPPeriod,
 	)
 }
 

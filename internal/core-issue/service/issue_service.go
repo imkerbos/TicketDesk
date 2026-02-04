@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -63,7 +64,32 @@ type issueService struct {
 	projectRepo    projectRepo.ProjectRepository
 	issueTypeRepo  projectRepo.IssueTypeRepository
 	userRepo       userRepo.UserRepository
-	alertSyncSvc   AlertSyncService // 告警同步服务（可选）
+	alertSyncSvc   AlertSyncService   // 告警同步服务（可选）
+	activityLogger ActivityLogger     // 活动日志记录器（可选）
+	notifSender    NotificationSender // 通知发送服务（可选）
+}
+
+// ActivityLogger 活动日志记录器接口（避免循环依赖）
+type ActivityLogger interface {
+	LogActivity(ctx context.Context, userID uint64, userName, action, entityType string, entityID uint64, entityKey, details string) error
+}
+
+// NotificationSender 通知发送接口（避免循环依赖）
+type NotificationSender interface {
+	CreateNotification(ctx context.Context, req *NotificationRequest) error
+}
+
+// NotificationRequest 通知请求（本地定义，避免依赖 notification-inbox/dto）
+type NotificationRequest struct {
+	UserID     uint64
+	Type       string
+	Title      string
+	Content    string
+	EntityType string
+	EntityID   uint64
+	EntityKey  string
+	ActorID    uint64
+	ActorName  string
 }
 
 // NewIssueService 创建工单服务实例
@@ -76,19 +102,83 @@ func NewIssueService(
 	userRepo userRepo.UserRepository,
 ) IssueService {
 	return &issueService{
-		issueRepo:     issueRepo,
-		commentRepo:   commentRepo,
-		watcherRepo:   watcherRepo,
-		projectRepo:   projectRepo,
-		issueTypeRepo: issueTypeRepo,
-		userRepo:      userRepo,
-		alertSyncSvc:  nil, // 默认为 nil，可通过 SetAlertSyncService 设置
+		issueRepo:      issueRepo,
+		commentRepo:    commentRepo,
+		watcherRepo:    watcherRepo,
+		projectRepo:    projectRepo,
+		issueTypeRepo:  issueTypeRepo,
+		userRepo:       userRepo,
+		alertSyncSvc:   nil, // 默认为 nil，可通过 SetAlertSyncService 设置
+		activityLogger: nil, // 默认为 nil，可通过 SetActivityLogger 设置
 	}
 }
 
 // SetAlertSyncService 设置告警同步服务（用于避免循环依赖）
 func (s *issueService) SetAlertSyncService(alertSyncSvc AlertSyncService) {
 	s.alertSyncSvc = alertSyncSvc
+}
+
+// SetActivityLogger 设置活动日志记录器（用于避免循环依赖）
+func (s *issueService) SetActivityLogger(activityLogger ActivityLogger) {
+	s.activityLogger = activityLogger
+}
+
+// SetNotificationService 设置通知发送服务（用于避免循环依赖）
+func (s *issueService) SetNotificationService(notifSender NotificationSender) {
+	s.notifSender = notifSender
+}
+
+// sendNotification 发送通知（内部辅助方法，异步不阻塞主流程）
+func (s *issueService) sendNotification(actorID uint64, actorName string, req *NotificationRequest) {
+	if s.notifSender == nil {
+		return
+	}
+	req.ActorID = actorID
+	req.ActorName = actorName
+	go func() {
+		if err := s.notifSender.CreateNotification(context.Background(), req); err != nil {
+			logger.Warn("failed to send notification", zap.Error(err))
+		}
+	}()
+}
+
+// notifyWatchers 通知所有关注者（排除指定用户）
+func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID uint64, actorID uint64, actorName, notifType, title, content string) {
+	if s.notifSender == nil {
+		return
+	}
+	watchers, err := s.watcherRepo.ListByIssue(context.Background(), issue.ID)
+	if err != nil {
+		logger.Warn("failed to list watchers for notification", zap.Error(err))
+		return
+	}
+	for _, w := range watchers {
+		if w.UserID == excludeUserID {
+			continue
+		}
+		s.sendNotification(actorID, actorName, &NotificationRequest{
+			UserID:     w.UserID,
+			Type:       notifType,
+			Title:      title,
+			Content:    content,
+			EntityType: "issue",
+			EntityID:   issue.ID,
+			EntityKey:  issue.IssueKey,
+		})
+	}
+}
+
+// logActivity 记录活动日志（内部辅助方法）
+func (s *issueService) logActivity(ctx context.Context, userID uint64, userName, action, entityKey, details string, entityID uint64) {
+	if s.activityLogger == nil {
+		return
+	}
+	// 异步记录，不阻塞主流程
+	go func() {
+		if err := s.activityLogger.LogActivity(context.Background(), userID, userName, action, "issue", entityID, entityKey, details); err != nil {
+			logger.Warn("failed to log activity", zap.Error(err))
+		}
+	}()
 }
 
 // CreateIssue 创建工单
@@ -171,6 +261,30 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		UserID:  reporterID,
 	}
 	_ = s.watcherRepo.Create(ctx, watcher)
+
+	// 记录活动日志
+	reporter, _ := s.userRepo.GetByID(ctx, reporterID)
+	reporterName := ""
+	if reporter != nil {
+		reporterName = reporter.DisplayName
+		if reporterName == "" {
+			reporterName = reporter.Username
+		}
+		s.logActivity(ctx, reporterID, reporter.Username, "创建了工单", issue.IssueKey, "", issue.ID)
+	}
+
+	// 通知：工单被指派
+	if issue.AssigneeID != nil && *issue.AssigneeID != reporterID {
+		s.sendNotification(reporterID, reporterName, &NotificationRequest{
+			UserID:     *issue.AssigneeID,
+			Type:       "issue_assigned",
+			Title:      fmt.Sprintf("工单 %s 被指派给您", issue.IssueKey),
+			Content:    issue.Title,
+			EntityType: "issue",
+			EntityID:   issue.ID,
+			EntityKey:  issue.IssueKey,
+		})
+	}
 
 	logger.Info("issue created successfully",
 		zap.String("issue_key", issue.IssueKey),
@@ -495,6 +609,36 @@ func (s *issueService) TransitionIssue(ctx context.Context, key string, req *dto
 		_ = s.commentRepo.Create(ctx, comment)
 	}
 
+	// 记录活动日志
+	user, _ := s.userRepo.GetByID(ctx, userID)
+	userName := ""
+	if user != nil {
+		userName = user.DisplayName
+		if userName == "" {
+			userName = user.Username
+		}
+		actionText := s.getStatusActionText(req.Status)
+		s.logActivity(ctx, userID, user.Username, actionText, issue.IssueKey, "", issue.ID)
+	}
+
+	// 通知：关注者和创建者
+	statusText := s.getStatusActionText(req.Status)
+	notifTitle := fmt.Sprintf("工单 %s %s", issue.IssueKey, statusText)
+	s.notifyWatchers(issue, userID, userID, userName, "issue_status_changed", notifTitle, issue.Title)
+
+	// 通知创建者（如果不是操作人且不在关注者中）
+	if issue.ReporterID != userID {
+		s.sendNotification(userID, userName, &NotificationRequest{
+			UserID:     issue.ReporterID,
+			Type:       "issue_status_changed",
+			Title:      fmt.Sprintf("您创建的工单 %s %s", issue.IssueKey, statusText),
+			Content:    issue.Title,
+			EntityType: "issue",
+			EntityID:   issue.ID,
+			EntityKey:  issue.IssueKey,
+		})
+	}
+
 	project, _ := s.projectRepo.GetByID(ctx, issue.ProjectID)
 	projectKey := ""
 	if project != nil {
@@ -528,9 +672,45 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 		return nil, fmt.Errorf("查询用户失败: %w", err)
 	}
 
+	oldAssigneeID := issue.AssigneeID
 	issue.AssigneeID = &assigneeID
 	if err := s.issueRepo.Update(ctx, issue); err != nil {
 		return nil, fmt.Errorf("指派工单失败: %w", err)
+	}
+
+	// 通知：新指派人（如果指派人有变化）
+	if oldAssigneeID == nil || *oldAssigneeID != assigneeID {
+		// 从上下文获取操作人信息
+		actorID, _ := ctx.Value("user_id").(uint64)
+		actorName := ""
+		if actor, err := s.userRepo.GetByID(ctx, actorID); err == nil {
+			actorName = actor.DisplayName
+			if actorName == "" {
+				actorName = actor.Username
+			}
+		}
+		s.sendNotification(actorID, actorName, &NotificationRequest{
+			UserID:     assigneeID,
+			Type:       "issue_assigned",
+			Title:      fmt.Sprintf("工单 %s 被指派给您", issue.IssueKey),
+			Content:    issue.Title,
+			EntityType: "issue",
+			EntityID:   issue.ID,
+			EntityKey:  issue.IssueKey,
+		})
+
+		// 通知创建者
+		if issue.ReporterID != actorID && issue.ReporterID != assigneeID {
+			s.sendNotification(actorID, actorName, &NotificationRequest{
+				UserID:     issue.ReporterID,
+				Type:       "issue_updated",
+				Title:      fmt.Sprintf("您创建的工单 %s 被重新指派", issue.IssueKey),
+				Content:    issue.Title,
+				EntityType: "issue",
+				EntityID:   issue.ID,
+				EntityKey:  issue.IssueKey,
+			})
+		}
 	}
 
 	project, _ := s.projectRepo.GetByID(ctx, issue.ProjectID)
@@ -560,6 +740,58 @@ func (s *issueService) AddComment(ctx context.Context, issueKey string, req *dto
 
 	if err := s.commentRepo.Create(ctx, comment); err != nil {
 		return nil, fmt.Errorf("添加评论失败: %w", err)
+	}
+
+	// 记录活动日志
+	user, _ := s.userRepo.GetByID(ctx, userID)
+	userName := ""
+	if user != nil {
+		userName = user.DisplayName
+		if userName == "" {
+			userName = user.Username
+		}
+		s.logActivity(ctx, userID, user.Username, "评论了工单", issue.IssueKey, "", issue.ID)
+	}
+
+	// 通知关注者
+	notifTitle := fmt.Sprintf("工单 %s 有新评论", issue.IssueKey)
+	s.notifyWatchers(issue, userID, userID, userName, "issue_commented", notifTitle, req.Content)
+
+	// 通知创建者（如果不是评论人）
+	if issue.ReporterID != userID {
+		s.sendNotification(userID, userName, &NotificationRequest{
+			UserID:     issue.ReporterID,
+			Type:       "issue_commented",
+			Title:      fmt.Sprintf("您创建的工单 %s 有新评论", issue.IssueKey),
+			Content:    req.Content,
+			EntityType: "issue",
+			EntityID:   issue.ID,
+			EntityKey:  issue.IssueKey,
+		})
+	}
+
+	// 解析 @提及
+	mentions := extractMentions(req.Content)
+	notifiedUsers := make(map[uint64]bool)
+	for _, username := range mentions {
+		mentionedUser, err := s.userRepo.GetByUsername(ctx, username)
+		if err != nil || mentionedUser == nil {
+			continue
+		}
+		// 不重复通知自己和已通知的用户
+		if mentionedUser.ID == userID || notifiedUsers[mentionedUser.ID] {
+			continue
+		}
+		notifiedUsers[mentionedUser.ID] = true
+		s.sendNotification(userID, userName, &NotificationRequest{
+			UserID:     mentionedUser.ID,
+			Type:       "mention",
+			Title:      fmt.Sprintf("%s 在工单 %s 中提及了您", userName, issue.IssueKey),
+			Content:    req.Content,
+			EntityType: "issue",
+			EntityID:   issue.ID,
+			EntityKey:  issue.IssueKey,
+		})
 	}
 
 	return s.toCommentResponse(ctx, comment), nil
@@ -696,6 +928,38 @@ func isValidTransition(from, to string) bool {
 		}
 	}
 	return false
+}
+
+// getStatusActionText 获取状态对应的动作文本
+func (s *issueService) getStatusActionText(status string) string {
+	statusActions := map[string]string{
+		"open":        "打开了工单",
+		"in_progress": "开始处理工单",
+		"resolved":    "解决了工单",
+		"closed":      "关闭了工单",
+		"reopened":    "重新打开了工单",
+	}
+	if action, ok := statusActions[status]; ok {
+		return action
+	}
+	return "更新了工单状态"
+}
+
+// mentionRegex 匹配 @username 格式的提及
+var mentionRegex = regexp.MustCompile(`@(\w+)`)
+
+// extractMentions 从文本中提取 @提及的用户名
+func extractMentions(content string) []string {
+	matches := mentionRegex.FindAllStringSubmatch(content, -1)
+	seen := make(map[string]bool)
+	var usernames []string
+	for _, match := range matches {
+		if len(match) >= 2 && !seen[match[1]] {
+			seen[match[1]] = true
+			usernames = append(usernames, match[1])
+		}
+	}
+	return usernames
 }
 
 // toIssueResponse 将工单模型转换为响应 DTO

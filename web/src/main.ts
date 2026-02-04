@@ -8,6 +8,7 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import App from './App.vue'
 import router from './router'
 import './styles/index.scss'
+import { useUserStore } from './stores/user'
 
 const app = createApp(App)
 
@@ -16,7 +17,13 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
 
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
+
+// 初始化用户状态（必须在 pinia 注册后）
+const userStore = useUserStore()
+userStore.initFromStorage()
+
 app.use(router)
 app.use(ElementPlus)
 

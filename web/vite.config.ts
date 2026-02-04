@@ -32,6 +32,7 @@ export default defineConfig({
         // Docker 环境使用服务名，本地使用 localhost
         target: process.env.DOCKER_ENV ? 'http://backend:10010' : 'http://localhost:10010',
         changeOrigin: true,
+        ws: true, // 启用 WebSocket 代理
       },
     },
     watch: {

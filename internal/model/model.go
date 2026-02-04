@@ -18,15 +18,16 @@ type BaseModel struct {
 // User 用户模型
 type User struct {
 	BaseModel
-	Username      string  `gorm:"size:50;uniqueIndex;not null" json:"username"`
-	Email         string  `gorm:"size:100;uniqueIndex;not null" json:"email"`
-	PasswordHash  string  `gorm:"size:255;not null" json:"-"`
-	DisplayName   string  `gorm:"size:100" json:"display_name"`
-	AvatarURL     string  `gorm:"size:255" json:"avatar_url"`
-	Status        int8    `gorm:"default:1;index" json:"status"`      // 0-禁用, 1-启用
-	MFAEnabled    bool    `gorm:"default:false" json:"mfa_enabled"`   // 是否启用 MFA
-	MFASecret     string  `gorm:"size:64" json:"-"`                   // TOTP 密钥
-	MFAVerifiedAt *time.Time `json:"mfa_verified_at,omitempty"`       // MFA 验证时间
+	Username      string     `gorm:"size:50;uniqueIndex;not null" json:"username"`
+	Email         string     `gorm:"size:100;uniqueIndex;not null" json:"email"`
+	PasswordHash  string     `gorm:"size:255;not null" json:"-"`
+	DisplayName   string     `gorm:"size:100" json:"display_name"`
+	AvatarURL     string     `gorm:"size:255" json:"avatar_url"`
+	Status        int8       `gorm:"default:1;index" json:"status"`           // 0-禁用, 1-启用
+	LastLoginAt   *time.Time `json:"last_login_at,omitempty"`                 // 最后登录时间
+	MFAEnabled    bool       `gorm:"default:false" json:"mfa_enabled"`        // 是否启用 MFA
+	MFASecret     string     `gorm:"size:64" json:"-"`                        // TOTP 密钥
+	MFAVerifiedAt *time.Time `json:"mfa_verified_at,omitempty"`               // MFA 验证时间
 }
 
 // TableName 指定表名
@@ -313,4 +314,52 @@ type WebhookLog struct {
 // TableName 指定表名
 func (WebhookLog) TableName() string {
 	return "webhook_logs"
+}
+
+// Notification 站内通知模型
+type Notification struct {
+	BaseModel
+	UserID     uint64     `gorm:"index:idx_notification_user_read,priority:1;not null" json:"user_id"`      // 接收通知的用户
+	Type       string     `gorm:"size:50;not null;index" json:"type"`                                       // 通知类型
+	Title      string     `gorm:"size:200;not null" json:"title"`                                           // 通知标题
+	Content    string     `gorm:"type:text" json:"content"`                                                 // 通知内容
+	EntityType string     `gorm:"size:30;not null" json:"entity_type"`                                      // 实体类型: issue, comment
+	EntityID   uint64     `gorm:"index;not null" json:"entity_id"`                                          // 实体ID
+	EntityKey  string     `gorm:"size:50;index" json:"entity_key"`                                          // 实体标识（工单编号）
+	ActorID    uint64     `gorm:"index" json:"actor_id"`                                                    // 触发者ID
+	ActorName  string     `gorm:"size:50" json:"actor_name"`                                                // 触发者名称（冗余）
+	IsRead     bool       `gorm:"default:false;index:idx_notification_user_read,priority:2" json:"is_read"` // 是否已读
+	ReadAt     *time.Time `json:"read_at,omitempty"`                                                        // 阅读时间
+}
+
+// TableName 指定表名
+func (Notification) TableName() string {
+	return "notifications"
+}
+
+// 通知类型常量
+const (
+	NotificationTypeIssueAssigned     = "issue_assigned"      // 工单被指派
+	NotificationTypeIssueUpdated      = "issue_updated"       // 工单更新
+	NotificationTypeIssueCommented    = "issue_commented"     // 工单评论
+	NotificationTypeMention           = "mention"             // @提及
+	NotificationTypeIssueStatusChanged = "issue_status_changed" // 状态变更
+)
+
+// ActivityLog 活动日志模型
+type ActivityLog struct {
+	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID     uint64    `gorm:"index;not null" json:"user_id"`           // 操作用户 ID
+	UserName   string    `gorm:"size:50;not null" json:"user_name"`       // 操作用户名（冗余字段，避免关联查询）
+	Action     string    `gorm:"size:50;not null;index" json:"action"`    // 操作类型：created, updated, closed, commented, assigned 等
+	EntityType string    `gorm:"size:30;not null;index" json:"entity_type"` // 实体类型：issue, alert, project 等
+	EntityID   uint64    `gorm:"index;not null" json:"entity_id"`         // 实体 ID
+	EntityKey  string    `gorm:"size:50;index" json:"entity_key"`         // 实体标识（如工单编号）
+	Details    string    `gorm:"type:text" json:"details"`                // 详细信息（JSON 格式）
+	CreatedAt  time.Time `gorm:"autoCreateTime;index" json:"created_at"`
+}
+
+// TableName 指定表名
+func (ActivityLog) TableName() string {
+	return "activity_logs"
 }

@@ -1,4 +1,4 @@
-import request, { type ApiResponse } from '@/utils/request'
+import request, { type ApiResponse, type PageResponse } from '@/utils/request'
 import type {
   Issue,
   IssueListRequest,
@@ -64,7 +64,14 @@ export const deleteIssueComment = (key: string, commentId: number) => {
 
 // 工单活动记录
 export const getIssueActivities = (key: string) => {
-  return request.get<ApiResponse<IssueActivity[]>>(`/issues/${key}/activities`)
+  return request.get<ApiResponse<PageResponse<IssueActivity>>>('/activities', {
+    params: {
+      entity_type: 'issue',
+      entity_key: key,
+      page: 1,
+      page_size: 100,
+    },
+  })
 }
 
 // 关注人列表

@@ -1,71 +1,109 @@
 <template>
   <div class="dashboard-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-info">
+        <div class="header-icon">
+          <el-icon><DataBoard /></el-icon>
+        </div>
+        <div class="header-text">
+          <h1 class="header-title">工作台</h1>
+          <p class="header-desc">欢迎回来，这里是你的工作概览</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <el-button @click="$router.push('/alerts')" class="header-btn">
+          <el-icon><Bell /></el-icon>
+          查看告警
+        </el-button>
+        <el-button @click="$router.push('/issues')" class="header-btn">
+          <el-icon><Tickets /></el-icon>
+          所有工单
+        </el-button>
+        <el-button type="primary" @click="handleCreateIssue" class="header-btn create-btn">
+          <el-icon><Plus /></el-icon>
+          创建工单
+        </el-button>
+      </div>
+    </div>
+
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stat-row">
-      <el-col :xs="24" :sm="12" :md="6">
-        <div class="stat-card todo">
-          <div class="stat-icon">
-            <el-icon :size="28"><Tickets /></el-icon>
+      <el-col :xs="12" :sm="6">
+        <div class="stat-card todo" @click="$router.push('/issues?filter=my-todo')">
+          <div class="stat-icon-wrapper">
+            <el-icon :size="26"><Tickets /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.myTodo }}</div>
             <div class="stat-label">我的待办</div>
           </div>
+          <div class="stat-bg-icon">
+            <el-icon><Tickets /></el-icon>
+          </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <div class="stat-card created">
-          <div class="stat-icon">
-            <el-icon :size="28"><Edit /></el-icon>
+      <el-col :xs="12" :sm="6">
+        <div class="stat-card created" @click="$router.push('/issues?filter=my-created')">
+          <div class="stat-icon-wrapper">
+            <el-icon :size="26"><Edit /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.myCreated }}</div>
             <div class="stat-label">我创建的</div>
           </div>
+          <div class="stat-bg-icon">
+            <el-icon><Edit /></el-icon>
+          </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <div class="stat-card alert">
-          <div class="stat-icon">
-            <el-icon :size="28"><Bell /></el-icon>
+      <el-col :xs="12" :sm="6">
+        <div class="stat-card alert" @click="$router.push('/alerts?status=firing')">
+          <div class="stat-icon-wrapper">
+            <el-icon :size="26"><Bell /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.pendingAlerts }}</div>
             <div class="stat-label">待确认告警</div>
           </div>
+          <div class="stat-bg-icon">
+            <el-icon><Bell /></el-icon>
+          </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="12" :sm="6">
         <div class="stat-card done">
-          <div class="stat-icon">
-            <el-icon :size="28"><CircleCheck /></el-icon>
+          <div class="stat-icon-wrapper">
+            <el-icon :size="26"><CircleCheck /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.weekDone }}</div>
             <div class="stat-label">本周已完成</div>
           </div>
+          <div class="stat-bg-icon">
+            <el-icon><CircleCheck /></el-icon>
+          </div>
         </div>
       </el-col>
     </el-row>
 
-    <!-- 快捷操作 -->
-    <div class="quick-actions">
-      <el-button type="primary" :icon="Plus" @click="handleCreateIssue">创建工单</el-button>
-      <el-button :icon="Tickets" @click="$router.push('/issues')">查看所有工单</el-button>
-      <el-button :icon="Bell" @click="$router.push('/alerts')">查看所有告警</el-button>
-    </div>
-
     <!-- 主内容区 -->
     <el-row :gutter="20">
-      <!-- 左侧：待办工单 -->
+      <!-- 左侧：工单列表 -->
       <el-col :xs="24" :lg="14">
+        <!-- 待办工单 -->
         <el-card shadow="never" class="content-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">
-                <el-icon><Tickets /></el-icon>
-                我的待办工单
-              </span>
+              <div class="card-title-group">
+                <div class="card-icon todo">
+                  <el-icon><Tickets /></el-icon>
+                </div>
+                <div>
+                  <span class="card-title">我的待办工单</span>
+                  <span class="card-count">{{ stats.myTodo }}</span>
+                </div>
+              </div>
               <el-button link type="primary" @click="$router.push('/issues?filter=my-todo')">
                 查看全部 <el-icon><ArrowRight /></el-icon>
               </el-button>
@@ -82,19 +120,23 @@
                 class="issue-item"
                 @click="$router.push(`/issues/${issue.issue_key}`)"
               >
-                <div class="issue-main">
-                  <span class="issue-key">{{ issue.issue_key }}</span>
-                  <span class="issue-title">{{ issue.title }}</span>
+                <div class="issue-left">
+                  <div class="priority-indicator" :class="issue.priority"></div>
+                  <div class="issue-info">
+                    <div class="issue-main">
+                      <span class="issue-key">{{ issue.issue_key }}</span>
+                      <span class="issue-title">{{ issue.title }}</span>
+                    </div>
+                    <div class="issue-meta">
+                      <el-tag size="small" type="info" effect="plain">{{ issue.project_key }}</el-tag>
+                      <span class="meta-divider">·</span>
+                      <span class="meta-text">{{ getStatusText(issue.status) }}</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="issue-meta">
-                  <el-tag :type="getPriorityType(issue.priority)" size="small">
-                    {{ issue.priority }}
-                  </el-tag>
-                  <el-tag :type="getStatusType(issue.status)" size="small">
-                    {{ getStatusText(issue.status) }}
-                  </el-tag>
-                  <span class="issue-project">{{ issue.project_key }}</span>
-                </div>
+                <el-tag :type="getPriorityType(issue.priority)" size="small" effect="dark">
+                  {{ issue.priority }}
+                </el-tag>
               </div>
             </div>
           </div>
@@ -104,10 +146,15 @@
         <el-card shadow="never" class="content-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">
-                <el-icon><Edit /></el-icon>
-                我创建的工单
-              </span>
+              <div class="card-title-group">
+                <div class="card-icon created">
+                  <el-icon><Edit /></el-icon>
+                </div>
+                <div>
+                  <span class="card-title">我创建的工单</span>
+                  <span class="card-count">{{ stats.myCreated }}</span>
+                </div>
+              </div>
               <el-button link type="primary" @click="$router.push('/issues?filter=my-created')">
                 查看全部 <el-icon><ArrowRight /></el-icon>
               </el-button>
@@ -124,22 +171,29 @@
                 class="issue-item"
                 @click="$router.push(`/issues/${issue.issue_key}`)"
               >
-                <div class="issue-main">
-                  <span class="issue-key">{{ issue.issue_key }}</span>
-                  <span class="issue-title">{{ issue.title }}</span>
+                <div class="issue-left">
+                  <div class="priority-indicator" :class="issue.priority"></div>
+                  <div class="issue-info">
+                    <div class="issue-main">
+                      <span class="issue-key">{{ issue.issue_key }}</span>
+                      <span class="issue-title">{{ issue.title }}</span>
+                    </div>
+                    <div class="issue-meta">
+                      <el-tag :type="getStatusType(issue.status)" size="small" effect="plain">
+                        {{ getStatusText(issue.status) }}
+                      </el-tag>
+                      <span class="meta-divider">·</span>
+                      <span v-if="issue.assignee" class="assignee-tag">
+                        <el-icon><User /></el-icon>
+                        {{ issue.assignee.display_name }}
+                      </span>
+                      <span v-else class="meta-text unassigned">未指派</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="issue-meta">
-                  <el-tag :type="getPriorityType(issue.priority)" size="small">
-                    {{ issue.priority }}
-                  </el-tag>
-                  <el-tag :type="getStatusType(issue.status)" size="small">
-                    {{ getStatusText(issue.status) }}
-                  </el-tag>
-                  <span v-if="issue.assignee" class="issue-assignee">
-                    → {{ issue.assignee.display_name }}
-                  </span>
-                  <span v-else class="issue-assignee unassigned">未指派</span>
-                </div>
+                <el-tag :type="getPriorityType(issue.priority)" size="small" effect="dark">
+                  {{ issue.priority }}
+                </el-tag>
               </div>
             </div>
           </div>
@@ -152,10 +206,15 @@
         <el-card shadow="never" class="content-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">
-                <el-icon><Bell /></el-icon>
-                待确认告警
-              </span>
+              <div class="card-title-group">
+                <div class="card-icon alert">
+                  <el-icon><Bell /></el-icon>
+                </div>
+                <div>
+                  <span class="card-title">待确认告警</span>
+                  <span class="card-count danger">{{ stats.pendingAlerts }}</span>
+                </div>
+              </div>
               <el-button link type="primary" @click="$router.push('/alerts?status=firing')">
                 查看全部 <el-icon><ArrowRight /></el-icon>
               </el-button>
@@ -172,12 +231,15 @@
                 class="alert-item"
                 @click="$router.push(`/alerts/${alert.id}`)"
               >
-                <div class="alert-severity" :class="alert.severity"></div>
+                <div class="alert-severity-bar" :class="alert.severity"></div>
                 <div class="alert-content">
                   <div class="alert-name">{{ alert.alert_name }}</div>
-                  <div class="alert-time">{{ formatTime(alert.starts_at) }}</div>
+                  <div class="alert-time">
+                    <el-icon><Clock /></el-icon>
+                    {{ formatTime(alert.starts_at) }}
+                  </div>
                 </div>
-                <el-tag :type="getSeverityTagType(alert.severity)" size="small">
+                <el-tag :type="getSeverityTagType(alert.severity)" size="small" effect="dark">
                   {{ getSeverityText(alert.severity) }}
                 </el-tag>
               </div>
@@ -189,10 +251,12 @@
         <el-card shadow="never" class="content-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">
-                <el-icon><Clock /></el-icon>
-                最近活动
-              </span>
+              <div class="card-title-group">
+                <div class="card-icon activity">
+                  <el-icon><Clock /></el-icon>
+                </div>
+                <span class="card-title">最近活动</span>
+              </div>
             </div>
           </template>
           <div v-loading="loadingActivities">
@@ -210,11 +274,11 @@
                   <span class="activity-user">{{ activity.user_name }}</span>
                   <span class="activity-action">{{ activity.action }}</span>
                   <el-link
-                    v-if="activity.issue_key"
+                    v-if="activity.entity_key"
                     type="primary"
-                    @click.stop="$router.push(`/issues/${activity.issue_key}`)"
+                    @click.stop="$router.push(`/issues/${activity.entity_key}`)"
                   >
-                    {{ activity.issue_key }}
+                    {{ activity.entity_key }}
                   </el-link>
                 </div>
               </el-timeline-item>
@@ -226,40 +290,55 @@
 
     <!-- 创建工单对话框 -->
     <el-dialog v-model="createDialogVisible" title="创建工单" width="600px" destroy-on-close>
-      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="80px">
-        <el-form-item label="项目" prop="project_key">
-          <el-select v-model="createForm.project_key" placeholder="请选择项目" style="width: 100%" @change="handleProjectChange">
-            <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="类型" prop="issue_type_id">
-          <el-select v-model="createForm.issue_type_id" placeholder="请选择类型" style="width: 100%" :disabled="!createForm.project_key">
-            <el-option v-for="t in issueTypes" :key="t.id" :label="t.display_name" :value="t.id" />
-          </el-select>
-        </el-form-item>
+      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-position="top">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="项目" prop="project_key">
+              <el-select v-model="createForm.project_key" placeholder="请选择项目" style="width: 100%" @change="handleProjectChange">
+                <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="类型" prop="issue_type_id">
+              <el-select v-model="createForm.issue_type_id" placeholder="请选择类型" style="width: 100%" :disabled="!createForm.project_key">
+                <el-option v-for="t in issueTypes" :key="t.id" :label="t.display_name" :value="t.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="标题" prop="title">
           <el-input v-model="createForm.title" placeholder="请输入工单标题" maxlength="200" show-word-limit />
         </el-form-item>
-        <el-form-item label="优先级" prop="priority">
-          <el-select v-model="createForm.priority" placeholder="请选择优先级" style="width: 100%">
-            <el-option label="P0 - 紧急" value="P0" />
-            <el-option label="P1 - 高" value="P1" />
-            <el-option label="P2 - 中" value="P2" />
-            <el-option label="P3 - 低" value="P3" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="指派人">
-          <el-select v-model="createForm.assignee_id" placeholder="请选择指派人" style="width: 100%" clearable filterable>
-            <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
-          </el-select>
-        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="优先级" prop="priority">
+              <el-select v-model="createForm.priority" placeholder="请选择优先级" style="width: 100%">
+                <el-option label="P0 - 紧急" value="P0" />
+                <el-option label="P1 - 高" value="P1" />
+                <el-option label="P2 - 中" value="P2" />
+                <el-option label="P3 - 低" value="P3" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="指派人">
+              <el-select v-model="createForm.assignee_id" placeholder="请选择指派人" style="width: 100%" clearable filterable>
+                <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="描述">
           <el-input v-model="createForm.description" type="textarea" :rows="4" placeholder="请输入工单描述" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="createLoading" @click="submitCreate">创建</el-button>
+        <el-button type="primary" :loading="createLoading" @click="submitCreate">
+          <el-icon><Check /></el-icon>
+          创建工单
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -270,20 +349,17 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
-  Tickets,
-  Edit,
-  Bell,
-  CircleCheck,
-  Plus,
-  ArrowRight,
-  Clock,
+  Tickets, Edit, Bell, CircleCheck, Plus, ArrowRight, Clock,
+  DataBoard, User, Check
 } from '@element-plus/icons-vue'
 import { getMyTodoIssues, getMyCreatedIssues, createIssue } from '@/api/issue'
 import { getAlertList } from '@/api/alert'
+import { getRecentActivities } from '@/api/activity'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import type { Issue, CreateIssueRequest } from '@/types/issue'
 import type { Alert } from '@/types/alert'
+import type { Activity } from '@/api/activity'
 import type { Project, ProjectIssueType } from '@/types/project'
 import type { UserOption } from '@/types/user'
 import dayjs from 'dayjs'
@@ -312,13 +388,7 @@ const pendingAlerts = ref<Alert[]>([])
 
 // 最近活动
 const loadingActivities = ref(false)
-const recentActivities = ref<Array<{
-  id: number
-  user_name: string
-  action: string
-  issue_key?: string
-  created_at: string
-}>>([])
+const recentActivities = ref<Activity[]>([])
 
 // 创建工单相关
 const createDialogVisible = ref(false)
@@ -386,16 +456,12 @@ const loadPendingAlerts = async () => {
   }
 }
 
-// 加载最近活动（模拟数据，实际需要后端支持）
+// 加载最近活动
 const loadRecentActivities = async () => {
   loadingActivities.value = true
   try {
-    // TODO: 替换为实际的 API 调用
-    // const { data } = await getRecentActivities({ page_size: 10 })
-    // recentActivities.value = data.data
-
-    // 暂时使用模拟数据
-    recentActivities.value = []
+    const { data } = await getRecentActivities(10)
+    recentActivities.value = data.data
   } catch (error) {
     console.error('Failed to load activities:', error)
   } finally {
@@ -405,7 +471,6 @@ const loadRecentActivities = async () => {
 
 // 打开创建工单对话框
 const handleCreateIssue = async () => {
-  // 重置表单
   Object.assign(createForm, {
     project_key: '',
     issue_type_id: 0,
@@ -415,7 +480,6 @@ const handleCreateIssue = async () => {
     assignee_id: undefined,
   })
 
-  // 加载项目和用户列表
   try {
     const [projectsRes, usersRes] = await Promise.all([
       getAllProjects(),
@@ -471,50 +535,27 @@ const submitCreate = async () => {
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 
 const getPriorityType = (priority: string): TagType => {
-  const map: Record<string, TagType> = {
-    P0: 'danger',
-    P1: 'warning',
-    P2: 'info',
-    P3: 'info',
-  }
+  const map: Record<string, TagType> = { P0: 'danger', P1: 'warning', P2: 'info', P3: 'info' }
   return map[priority] || 'info'
 }
 
 const getStatusType = (status: string): TagType => {
-  const map: Record<string, TagType> = {
-    open: 'info',
-    in_progress: 'warning',
-    resolved: 'success',
-    closed: 'info',
-  }
+  const map: Record<string, TagType> = { open: 'info', in_progress: 'warning', resolved: 'success', closed: 'info' }
   return map[status] || 'info'
 }
 
 const getStatusText = (status: string) => {
-  const map: Record<string, string> = {
-    open: '待处理',
-    in_progress: '进行中',
-    resolved: '已解决',
-    closed: '已关闭',
-  }
+  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已解决', closed: '已关闭' }
   return map[status] || status
 }
 
 const getSeverityTagType = (severity: string): TagType => {
-  const map: Record<string, TagType> = {
-    critical: 'danger',
-    warning: 'warning',
-    info: 'info',
-  }
+  const map: Record<string, TagType> = { critical: 'danger', warning: 'warning', info: 'info' }
   return map[severity] || 'info'
 }
 
 const getSeverityText = (severity: string) => {
-  const map: Record<string, string> = {
-    critical: '严重',
-    warning: '警告',
-    info: '信息',
-  }
+  const map: Record<string, string> = { critical: '严重', warning: '警告', info: '信息' }
   return map[severity] || severity
 }
 
@@ -533,239 +574,393 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .dashboard-container {
-  .stat-row {
-    margin-bottom: 24px;
-  }
+  width: 100%;
+}
 
-  .stat-card {
+// 页面头部
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 28px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: #fff;
+
+  .header-info {
     display: flex;
     align-items: center;
-    padding: 24px;
-    border-radius: 12px;
+    gap: 16px;
+  }
+
+  .header-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .header-text {
+    .header-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+    }
+    .header-desc {
+      font-size: 14px;
+      margin: 0;
+      opacity: 0.9;
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .header-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     color: #fff;
-    transition: transform 0.3s;
 
     &:hover {
-      transform: translateY(-4px);
+      background: rgba(255, 255, 255, 0.25);
     }
 
-    &.todo {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    &.create-btn {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.4);
+      font-weight: 600;
     }
+  }
+}
 
-    &.created {
-      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-      box-shadow: 0 4px 20px rgba(17, 153, 142, 0.3);
+// 统计卡片
+.stat-row {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 24px;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+
+  .stat-icon-wrapper {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    margin-right: 16px;
+    flex-shrink: 0;
+  }
+
+  .stat-content {
+    position: relative;
+    z-index: 1;
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1.2;
     }
-
-    &.alert {
-      background: linear-gradient(135deg, #f56c6c 0%, #c0392b 100%);
-      box-shadow: 0 4px 20px rgba(245, 108, 108, 0.3);
+    .stat-label {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 4px;
     }
+  }
 
-    &.done {
-      background: linear-gradient(135deg, #409eff 0%, #2c7bd9 100%);
-      box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
+  .stat-bg-icon {
+    position: absolute;
+    right: -8px;
+    bottom: -8px;
+    font-size: 80px;
+    opacity: 0.1;
+  }
+
+  &.todo {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+  }
+  &.created {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    box-shadow: 0 4px 20px rgba(17, 153, 142, 0.3);
+  }
+  &.alert {
+    background: linear-gradient(135deg, #f5576c 0%, #ff6b6b 100%);
+    box-shadow: 0 4px 20px rgba(245, 87, 108, 0.3);
+  }
+  &.done {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    box-shadow: 0 4px 20px rgba(79, 172, 254, 0.3);
+  }
+}
+
+// 内容卡片
+.content-card {
+  margin-bottom: 20px;
+  border-radius: 12px;
+  min-height: 200px;
+
+  :deep(.el-card__header) {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  :deep(.el-card__body) {
+    padding: 0;
+  }
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+
+    &.todo { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    &.created { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    &.alert { background: linear-gradient(135deg, #f5576c 0%, #ff6b6b 100%); }
+    &.activity { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .card-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: #e5e7eb;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+    margin-left: 8px;
+
+    &.danger {
+      background: #fef2f2;
+      color: #ef4444;
     }
+  }
+}
 
-    .stat-icon {
-      width: 56px;
-      height: 56px;
+.empty-state {
+  padding: 40px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 工单列表
+.issue-list {
+  .issue-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f5f5f5;
+
+    &:last-child { border-bottom: none; }
+    &:hover { background-color: #f9fafb; }
+
+    .issue-left {
       display: flex;
       align-items: center;
-      justify-content: center;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      margin-right: 16px;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
     }
 
-    .stat-content {
-      .stat-value {
-        font-size: 32px;
-        font-weight: 700;
-        line-height: 1.2;
-      }
+    .priority-indicator {
+      width: 4px;
+      height: 36px;
+      border-radius: 2px;
+      flex-shrink: 0;
 
-      .stat-label {
+      &.P0 { background: #ef4444; }
+      &.P1 { background: #f59e0b; }
+      &.P2 { background: #3b82f6; }
+      &.P3 { background: #9ca3af; }
+    }
+
+    .issue-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .issue-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+
+      .issue-key {
+        color: #667eea;
+        font-weight: 600;
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      .issue-title {
+        color: #1f2937;
+        font-weight: 500;
         font-size: 14px;
-        opacity: 0.9;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .issue-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+
+      .meta-divider { color: #d1d5db; }
+      .meta-text { color: #9ca3af; }
+      .assignee-tag {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #6b7280;
+      }
+      .unassigned { font-style: italic; }
+    }
+  }
+}
+
+// 告警列表
+.alert-list {
+  .alert-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f5f5f5;
+
+    &:last-child { border-bottom: none; }
+    &:hover { background-color: #fef2f2; }
+
+    .alert-severity-bar {
+      width: 4px;
+      height: 40px;
+      border-radius: 2px;
+      margin-right: 14px;
+      flex-shrink: 0;
+
+      &.critical { background: #ef4444; }
+      &.warning { background: #f59e0b; }
+      &.info { background: #6b7280; }
+    }
+
+    .alert-content {
+      flex: 1;
+      min-width: 0;
+
+      .alert-name {
+        font-weight: 500;
+        color: #1f2937;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .alert-time {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: #9ca3af;
         margin-top: 4px;
       }
     }
   }
+}
 
-  .quick-actions {
-    margin-bottom: 24px;
-    display: flex;
-    gap: 12px;
+// 活动时间线
+.activity-timeline {
+  padding: 20px;
+
+  :deep(.el-timeline-item__timestamp) {
+    font-size: 12px;
   }
 
-  .content-card {
-    margin-bottom: 20px;
-    min-height: 280px;
+  .activity-content {
+    font-size: 14px;
 
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      .card-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 16px;
-        font-weight: 600;
-      }
+    .activity-user {
+      font-weight: 600;
+      color: #1f2937;
     }
-
-    .empty-state {
-      padding: 40px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 180px;
+    .activity-action {
+      color: #6b7280;
+      margin: 0 4px;
     }
   }
+}
 
-  .issue-list {
-    .issue-item {
-      padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
-      cursor: pointer;
-      transition: background-color 0.2s;
+// 响应式
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
 
-      &:hover {
-        background-color: #fafafa;
-        margin: 0 -20px;
-        padding: 12px 20px;
-      }
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .issue-main {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 8px;
-
-        .issue-key {
-          color: #409eff;
-          font-weight: 500;
-          font-size: 13px;
-        }
-
-        .issue-title {
-          color: #1f2937;
-          font-weight: 500;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-
-      .issue-meta {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 12px;
-
-        .issue-project {
-          color: #909399;
-        }
-
-        .issue-assignee {
-          color: #67c23a;
-
-          &.unassigned {
-            color: #909399;
-            font-style: italic;
-          }
-        }
-      }
+    .header-actions {
+      flex-wrap: wrap;
     }
   }
 
-  .alert-list {
-    .alert-item {
-      display: flex;
-      align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
-      cursor: pointer;
-      transition: background-color 0.2s;
+  .stat-card {
+    padding: 16px;
+    margin-bottom: 12px;
 
-      &:hover {
-        background-color: #fafafa;
-        margin: 0 -20px;
-        padding: 12px 20px;
-      }
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .alert-severity {
-        width: 4px;
-        height: 40px;
-        border-radius: 2px;
-        margin-right: 12px;
-
-        &.critical {
-          background-color: #f56c6c;
-        }
-
-        &.warning {
-          background-color: #e6a23c;
-        }
-
-        &.info {
-          background-color: #909399;
-        }
-      }
-
-      .alert-content {
-        flex: 1;
-        overflow: hidden;
-
-        .alert-name {
-          font-weight: 500;
-          color: #1f2937;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .alert-time {
-          font-size: 12px;
-          color: #909399;
-          margin-top: 4px;
-        }
-      }
-    }
-  }
-
-  .activity-timeline {
-    padding-left: 0;
-
-    :deep(.el-timeline-item__timestamp) {
-      font-size: 12px;
-    }
-
-    .activity-content {
-      font-size: 14px;
-
-      .activity-user {
-        font-weight: 500;
-        color: #1f2937;
-      }
-
-      .activity-action {
-        color: #606266;
-        margin: 0 4px;
-      }
+    .stat-content .stat-value {
+      font-size: 24px;
     }
   }
 }

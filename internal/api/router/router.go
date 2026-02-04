@@ -2,10 +2,19 @@
 package router
 
 import (
+	"context"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	activityHandler "github.com/kerbos/ticketdesk/internal/activity/handler"
+	activityRepo "github.com/kerbos/ticketdesk/internal/activity/repository"
+	activityService "github.com/kerbos/ticketdesk/internal/activity/service"
 	alertHandler "github.com/kerbos/ticketdesk/internal/integration-alert/handler"
+	notifDto "github.com/kerbos/ticketdesk/internal/notification-inbox/dto"
+	notifHandler "github.com/kerbos/ticketdesk/internal/notification-inbox/handler"
+	notifRepo "github.com/kerbos/ticketdesk/internal/notification-inbox/repository"
+	notifService "github.com/kerbos/ticketdesk/internal/notification-inbox/service"
+	ws "github.com/kerbos/ticketdesk/internal/notification-inbox/websocket"
 	alertRepo "github.com/kerbos/ticketdesk/internal/integration-alert/repository"
 	alertService "github.com/kerbos/ticketdesk/internal/integration-alert/service"
 	"github.com/kerbos/ticketdesk/internal/api/middleware"
@@ -22,6 +31,9 @@ import (
 	workflowHandler "github.com/kerbos/ticketdesk/internal/core-workflow/handler"
 	workflowRepo "github.com/kerbos/ticketdesk/internal/core-workflow/repository"
 	workflowService "github.com/kerbos/ticketdesk/internal/core-workflow/service"
+	reportHandler "github.com/kerbos/ticketdesk/internal/reporting/handler"
+	reportRepo "github.com/kerbos/ticketdesk/internal/reporting/repository"
+	reportService "github.com/kerbos/ticketdesk/internal/reporting/service"
 	configHandler "github.com/kerbos/ticketdesk/internal/system-config/handler"
 	configRepo "github.com/kerbos/ticketdesk/internal/system-config/repository"
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
@@ -32,16 +44,20 @@ import (
 
 // Router 路由管理器
 type Router struct {
-	config          *config.Config
-	jwtManager      *jwt.Manager
-	db              *gorm.DB
-	userHandler     *userHandler.UserHandler
-	projectHandler  *projectHandler.ProjectHandler
-	issueHandler    *issueHandler.IssueHandler
-	workflowHandler *workflowHandler.WorkflowHandler
-	alertHandler    *alertHandler.AlertHandler
-	configHandler   *configHandler.ConfigHandler
-	rbac            *middleware.RBACMiddleware
+	config              *config.Config
+	jwtManager          *jwt.Manager
+	db                  *gorm.DB
+	userHandler         *userHandler.UserHandler
+	projectHandler      *projectHandler.ProjectHandler
+	issueHandler        *issueHandler.IssueHandler
+	workflowHandler     *workflowHandler.WorkflowHandler
+	alertHandler        *alertHandler.AlertHandler
+	configHandler       *configHandler.ConfigHandler
+	reportHandler       *reportHandler.ReportHandler
+	activityHandler     *activityHandler.ActivityHandler
+	notificationHandler *notifHandler.NotificationHandler
+	wsHandler           *notifHandler.WebSocketHandler
+	rbac                *middleware.RBACMiddleware
 }
 
 // NewRouter 创建路由管理器
@@ -122,20 +138,56 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	)
 	configHdl := configHandler.NewConfigHandler(configSvc)
 
+	// ============ 初始化 Report 模块 ============
+	reportRepository := reportRepo.NewReportRepository(db)
+	reportSvc := reportService.NewReportService(reportRepository, projectRepository)
+	reportHdl := reportHandler.NewReportHandler(reportSvc)
+
+	// ============ 初始化 Activity 模块 ============
+	activityRepository := activityRepo.NewActivityRepository(db)
+	activitySvc := activityService.NewActivityService(activityRepository)
+	activityHdl := activityHandler.NewActivityHandler(activitySvc)
+
+	// ============ 设置活动日志记录器（避免循环依赖）============
+	if issueServiceImpl, ok := issueSvc.(interface{ SetActivityLogger(issueService.ActivityLogger) }); ok {
+		issueServiceImpl.SetActivityLogger(activitySvc)
+	}
+
+	// ============ 初始化 Notification 模块 ============
+	wsManager := ws.NewManager()
+	go wsManager.Run()
+
+	notificationRepository := notifRepo.NewNotificationRepository(db)
+	notificationSvc := notifService.NewNotificationService(notificationRepository, wsManager)
+	notificationHdl := notifHandler.NewNotificationHandler(notificationSvc)
+	wsHdl := notifHandler.NewWebSocketHandler(wsManager, jwtManager)
+
+	// ============ 设置通知服务（避免循环依赖）============
+	notifAdapter := &notificationAdapter{svc: notificationSvc}
+	if issueServiceImpl, ok := issueSvc.(interface {
+		SetNotificationService(issueService.NotificationSender)
+	}); ok {
+		issueServiceImpl.SetNotificationService(notifAdapter)
+	}
+
 	// ============ 初始化 RBAC 中间件 ============
 	rbac := middleware.NewRBACMiddleware(userRoleRepository)
 
 	return &Router{
-		config:          cfg,
-		jwtManager:      jwtManager,
-		db:              db,
-		userHandler:     userHdl,
-		projectHandler:  projectHdl,
-		issueHandler:    issueHdl,
-		workflowHandler: workflowHdl,
-		alertHandler:    alertHdl,
-		configHandler:   configHdl,
-		rbac:            rbac,
+		config:              cfg,
+		jwtManager:          jwtManager,
+		db:                  db,
+		userHandler:         userHdl,
+		projectHandler:      projectHdl,
+		issueHandler:        issueHdl,
+		workflowHandler:     workflowHdl,
+		alertHandler:        alertHdl,
+		configHandler:       configHdl,
+		reportHandler:       reportHdl,
+		activityHandler:     activityHdl,
+		notificationHandler: notificationHdl,
+		wsHandler:           wsHdl,
+		rbac:                rbac,
 	}
 }
 
@@ -159,6 +211,9 @@ func (r *Router) Setup() *gin.Engine {
 	// API v1 路由组
 	v1 := engine.Group("/api/v1")
 	{
+		// WebSocket 连接（使用 query 参数认证，不走中间件）
+		v1.GET("/ws", r.wsHandler.HandleWebSocket)
+
 		// 注册公开路由
 		r.registerPublicRoutes(v1)
 
@@ -215,8 +270,17 @@ func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 		// 告警相关
 		r.registerAlertRoutes(protected)
 
+		// 报表相关
+		r.registerReportRoutes(protected)
+
+		// 活动日志相关
+		r.registerActivityRoutes(protected)
+
 		// 系统配置相关
 		r.registerConfigRoutes(protected)
+
+		// 通知相关
+		r.registerNotificationRoutes(protected)
 	}
 }
 
@@ -239,8 +303,12 @@ func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 
 		// 用户管理（需要管理员权限）
 		users.GET("", r.userHandler.HandleListUsers)
+		users.POST("", r.rbac.RequireAdmin(), r.userHandler.HandleCreateUser)
 		users.GET("/:id", r.userHandler.HandleGetUser)
 		users.PUT("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleUpdateUser)
+		users.POST("/:id/enable", r.rbac.RequireAdmin(), r.userHandler.HandleEnableUser)
+		users.POST("/:id/disable", r.rbac.RequireAdmin(), r.userHandler.HandleDisableUser)
+		users.POST("/:id/reset-password", r.rbac.RequireAdmin(), r.userHandler.HandleResetPassword)
 		users.DELETE("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleDeleteUser)
 	}
 }
@@ -370,6 +438,27 @@ func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 	}
 }
 
+// registerReportRoutes 注册报表路由
+func (r *Router) registerReportRoutes(rg *gin.RouterGroup) {
+	reports := rg.Group("/reports")
+	{
+		reports.GET("/dashboard", r.reportHandler.HandleGetDashboardStats)
+		reports.GET("/issues", r.reportHandler.HandleGetIssueStats)
+		reports.GET("/sla", r.reportHandler.HandleGetSLAReport)
+		reports.GET("/alerts", r.reportHandler.HandleGetAlertStats)
+		reports.GET("/user-performance", r.reportHandler.HandleGetUserPerformance)
+	}
+}
+
+// registerActivityRoutes 注册活动日志路由
+func (r *Router) registerActivityRoutes(rg *gin.RouterGroup) {
+	activities := rg.Group("/activities")
+	{
+		activities.GET("", r.activityHandler.HandleListActivities)
+		activities.GET("/recent", r.activityHandler.HandleGetRecentActivities)
+	}
+}
+
 // registerConfigRoutes 注册系统配置路由
 func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
 	// 系统配置（需要管理员权限）
@@ -416,6 +505,40 @@ func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
 	{
 		webhookLogs.GET("", r.configHandler.HandleListWebhookLogs)
 	}
+}
+
+// registerNotificationRoutes 注册通知路由
+func (r *Router) registerNotificationRoutes(rg *gin.RouterGroup) {
+	notifications := rg.Group("/notifications")
+	{
+		notifications.GET("", r.notificationHandler.HandleListNotifications)
+		notifications.GET("/unread-count", r.notificationHandler.HandleGetUnreadCount)
+		notifications.PUT("/:id/read", r.notificationHandler.HandleMarkAsRead)
+		notifications.PUT("/read-all", r.notificationHandler.HandleMarkAllAsRead)
+		notifications.DELETE("/:id", r.notificationHandler.HandleDeleteNotification)
+	}
+}
+
+// ============ 通知适配器（桥接 issue_service.NotificationSender 和 notifService.NotificationService）============
+
+// notificationAdapter 将 NotificationService 适配为 issue_service.NotificationSender
+type notificationAdapter struct {
+	svc notifService.NotificationService
+}
+
+// CreateNotification 适配创建通知调用
+func (a *notificationAdapter) CreateNotification(ctx context.Context, req *issueService.NotificationRequest) error {
+	return a.svc.CreateNotification(ctx, &notifDto.CreateNotificationRequest{
+		UserID:     req.UserID,
+		Type:       req.Type,
+		Title:      req.Title,
+		Content:    req.Content,
+		EntityType: req.EntityType,
+		EntityID:   req.EntityID,
+		EntityKey:  req.EntityKey,
+		ActorID:    req.ActorID,
+		ActorName:  req.ActorName,
+	})
 }
 
 // ============ 兼容旧的 Setup 函数 ============
