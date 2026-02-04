@@ -15,6 +15,7 @@ import (
 	notifRepo "github.com/kerbos/ticketdesk/internal/notification-inbox/repository"
 	notifService "github.com/kerbos/ticketdesk/internal/notification-inbox/service"
 	ws "github.com/kerbos/ticketdesk/internal/notification-inbox/websocket"
+	emailService "github.com/kerbos/ticketdesk/internal/notification/email"
 	alertRepo "github.com/kerbos/ticketdesk/internal/integration-alert/repository"
 	alertService "github.com/kerbos/ticketdesk/internal/integration-alert/service"
 	"github.com/kerbos/ticketdesk/internal/api/middleware"
@@ -62,10 +63,24 @@ type Router struct {
 
 // NewRouter 创建路由管理器
 func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router {
+	// ============ 初始化 System Config 模块（需要先初始化，因为邮件服务依赖它）============
+	configRepository := configRepo.NewConfigRepository(db)
+	webhookRepository := configRepo.NewWebhookRepository(db)
+	webhookLogRepository := configRepo.NewWebhookLogRepository(db)
+	configSvc := configService.NewConfigService(
+		configRepository,
+		webhookRepository,
+		webhookLogRepository,
+	)
+	configHdl := configHandler.NewConfigHandler(configSvc)
+
+	// ============ 初始化邮件服务 ============
+	emailSvc := emailService.NewEmailService(configSvc)
+
 	// ============ 初始化 User 模块 ============
 	userRepository := userRepo.NewUserRepository(db)
 	userRoleRepository := userRepo.NewUserRoleRepository(db)
-	userSvc := userService.NewUserService(userRepository, userRoleRepository, jwtManager)
+	userSvc := userService.NewUserService(userRepository, userRoleRepository, jwtManager, emailSvc, configSvc)
 	mfaSvc := userService.NewMFAService(userRepository)
 	userHdl := userHandler.NewUserHandler(userSvc, mfaSvc)
 
@@ -73,11 +88,16 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	projectRepository := projectRepo.NewProjectRepository(db)
 	projectMemberRepository := projectRepo.NewProjectMemberRepository(db)
 	issueTypeRepository := projectRepo.NewIssueTypeRepository(db)
+	projectRoleRepository := projectRepo.NewProjectRoleRepository(db)
+	projectRoleMemberRepository := projectRepo.NewProjectRoleMemberRepository(db)
 	projectSvc := projectService.NewProjectService(
 		projectRepository,
 		projectMemberRepository,
 		issueTypeRepository,
+		projectRoleRepository,
+		projectRoleMemberRepository,
 		userRepository,
+		db,
 	)
 	projectHdl := projectHandler.NewProjectHandler(projectSvc)
 
@@ -85,10 +105,12 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	issueRepository := issueRepo.NewIssueRepository(db)
 	commentRepository := issueRepo.NewCommentRepository(db)
 	watcherRepository := issueRepo.NewWatcherRepository(db)
+	worklogRepository := issueRepo.NewWorklogRepository(db)
 	issueSvc := issueService.NewIssueService(
 		issueRepository,
 		commentRepository,
 		watcherRepository,
+		worklogRepository,
 		projectRepository,
 		issueTypeRepository,
 		userRepository,
@@ -99,12 +121,31 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	workflowRepository := workflowRepo.NewWorkflowRepository(db)
 	nodeRepository := workflowRepo.NewNodeRepository(db)
 	edgeRepository := workflowRepo.NewEdgeRepository(db)
+	workflowInstanceRepository := workflowRepo.NewWorkflowInstanceRepository(db)
+	workflowHistoryRepository := workflowRepo.NewWorkflowHistoryRepository(db)
+	approvalRecordRepository := workflowRepo.NewApprovalRecordRepository(db)
+	workflowSchemeRepository := workflowRepo.NewWorkflowSchemeRepository(db)
+
 	workflowSvc := workflowService.NewWorkflowService(
 		workflowRepository,
 		nodeRepository,
 		edgeRepository,
+		workflowSchemeRepository,
 	)
-	workflowHdl := workflowHandler.NewWorkflowHandler(workflowSvc)
+
+	workflowEngine := workflowService.NewWorkflowEngine(
+		workflowInstanceRepository,
+		workflowHistoryRepository,
+		approvalRecordRepository,
+		workflowRepository,
+		nodeRepository,
+		edgeRepository,
+		projectRoleRepository,
+		userRepository,
+		db,
+	)
+
+	workflowHdl := workflowHandler.NewWorkflowHandler(workflowSvc, workflowEngine)
 
 	// ============ 初始化 Alert 模块 ============
 	alertRepository := alertRepo.NewAlertRepository(db)
@@ -126,17 +167,6 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	if issueServiceImpl, ok := issueSvc.(interface{ SetAlertSyncService(issueService.AlertSyncService) }); ok {
 		issueServiceImpl.SetAlertSyncService(alertSvc)
 	}
-
-	// ============ 初始化 System Config 模块 ============
-	configRepository := configRepo.NewConfigRepository(db)
-	webhookRepository := configRepo.NewWebhookRepository(db)
-	webhookLogRepository := configRepo.NewWebhookLogRepository(db)
-	configSvc := configService.NewConfigService(
-		configRepository,
-		webhookRepository,
-		webhookLogRepository,
-	)
-	configHdl := configHandler.NewConfigHandler(configSvc)
 
 	// ============ 初始化 Report 模块 ============
 	reportRepository := reportRepo.NewReportRepository(db)
@@ -168,6 +198,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		SetNotificationService(issueService.NotificationSender)
 	}); ok {
 		issueServiceImpl.SetNotificationService(notifAdapter)
+	}
+
+	// ============ 设置工作流引擎（避免循环依赖）============
+	if issueServiceImpl, ok := issueSvc.(interface{ SetWorkflowEngine(issueService.WorkflowEngine) }); ok {
+		issueServiceImpl.SetWorkflowEngine(workflowEngine)
 	}
 
 	// ============ 初始化 RBAC 中间件 ============
@@ -240,6 +275,10 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 		auth.POST("/register", r.userHandler.HandleRegister)
 		auth.POST("/refresh", r.userHandler.HandleRefreshToken)
 		auth.POST("/mfa/verify", r.userHandler.HandleVerifyMFA)
+		// 忘记密码相关路由
+		auth.POST("/forgot-password", r.userHandler.HandleForgotPassword)
+		auth.GET("/verify-reset-token", r.userHandler.HandleVerifyResetToken)
+		auth.POST("/reset-password", r.userHandler.HandleResetPasswordWithToken)
 	}
 
 	// 告警 Webhook（无需认证）
@@ -338,6 +377,20 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 		projects.POST("/:key/issue-types", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateIssueType)
 		projects.PUT("/:key/issue-types/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateIssueType)
 		projects.DELETE("/:key/issue-types/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleDeleteIssueType)
+
+		// 项目角色管理
+		projects.GET("/:key/roles", r.projectHandler.HandleListRoles)
+		projects.POST("/:key/roles", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateRole)
+		projects.PUT("/:key/roles/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateRole)
+		projects.DELETE("/:key/roles/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleDeleteRole)
+
+		// 角色成员管理
+		projects.GET("/:key/roles/:id/members", r.projectHandler.HandleListRoleMembers)
+		projects.POST("/:key/roles/:id/members", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleAddRoleMember)
+		projects.DELETE("/:key/roles/:id/members/:user_id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleRemoveRoleMember)
+
+		// 用户角色查询
+		projects.GET("/:key/users/:user_id/roles", r.projectHandler.HandleGetUserRoles)
 	}
 }
 
@@ -369,6 +422,12 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 		issues.GET("/:key/watchers", r.issueHandler.HandleListWatchers)
 		issues.POST("/:key/watchers", r.issueHandler.HandleAddWatcher)
 		issues.DELETE("/:key/watchers/:user_id", r.issueHandler.HandleRemoveWatcher)
+
+		// 工作日志管理
+		issues.GET("/:key/worklogs", r.issueHandler.HandleListWorklogs)
+		issues.POST("/:key/worklogs", r.issueHandler.HandleAddWorklog)
+		issues.PUT("/:key/worklogs/:worklog_id", r.issueHandler.HandleUpdateWorklog)
+		issues.DELETE("/:key/worklogs/:worklog_id", r.issueHandler.HandleDeleteWorklog)
 	}
 }
 

@@ -119,3 +119,48 @@ type IssueTypeResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
+
+// ============ 项目角色相关 DTO ============
+
+// CreateProjectRoleRequest 创建项目角色请求
+type CreateProjectRoleRequest struct {
+	RoleKey     string `json:"role_key" binding:"required,min=2,max=50"`
+	RoleName    string `json:"role_name" binding:"required,min=1,max=100"`
+	Description string `json:"description" binding:"max=500"`
+}
+
+// UpdateProjectRoleRequest 更新项目角色请求
+type UpdateProjectRoleRequest struct {
+	RoleName    *string `json:"role_name" binding:"omitempty,min=1,max=100"`
+	Description *string `json:"description" binding:"omitempty,max=500"`
+}
+
+// ProjectRoleResponse 项目角色响应
+type ProjectRoleResponse struct {
+	ID          uint64    `json:"id"`
+	ProjectID   uint64    `json:"project_id"`
+	RoleKey     string    `json:"role_key"`
+	RoleName    string    `json:"role_name"`
+	Description string    `json:"description"`
+	IsSystem    bool      `json:"is_system"`
+	SortOrder   int       `json:"sort_order"`
+	MemberCount int       `json:"member_count,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// AddRoleMemberRequest 添加角色成员请求
+type AddRoleMemberRequest struct {
+	UserID uint64 `json:"user_id" binding:"required"`
+}
+
+// ProjectRoleMemberResponse 项目角色成员响应
+type ProjectRoleMemberResponse struct {
+	ID        uint64     `json:"id"`
+	ProjectID uint64     `json:"project_id"`
+	RoleID    uint64     `json:"role_id"`
+	UserID    uint64     `json:"user_id"`
+	User      *UserBrief `json:"user,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+

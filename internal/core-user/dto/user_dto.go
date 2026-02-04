@@ -52,6 +52,22 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=6,max=50"`
 }
 
+// ForgotPasswordRequest 忘记密码请求
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email,max=100"`
+}
+
+// ResetPasswordWithTokenRequest 使用令牌重置密码请求
+type ResetPasswordWithTokenRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=6,max=50"`
+}
+
+// VerifyResetTokenRequest 验证重置令牌请求
+type VerifyResetTokenRequest struct {
+	Token string `form:"token" binding:"required"`
+}
+
 // ListUsersRequest 用户列表请求
 type ListUsersRequest struct {
 	Page     int    `form:"page" binding:"omitempty,min=1"`

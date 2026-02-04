@@ -477,3 +477,308 @@ func (h *ProjectHandler) HandleListAllProjects(c *gin.Context) {
 
 	response.Success(c, projects)
 }
+
+// ============ 项目角色管理 ============
+
+// HandleCreateRole 创建项目角色
+// @Summary 创建项目角色
+// @Description 为项目创建自定义角色
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param request body dto.CreateProjectRoleRequest true "创建角色请求"
+// @Success 201 {object} dto.ProjectRoleResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/roles [post]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleCreateRole(c *gin.Context) {
+	key := c.Param("key")
+
+	var req dto.CreateProjectRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.CreateRole(c.Request.Context(), key, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleKeyExists):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "创建角色失败")
+		}
+		return
+	}
+
+	response.Created(c, result)
+}
+
+// HandleUpdateRole 更新项目角色
+// @Summary 更新项目角色
+// @Description 更新项目角色信息
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param id path int true "角色 ID"
+// @Param request body dto.UpdateProjectRoleRequest true "更新角色请求"
+// @Success 200 {object} dto.ProjectRoleResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/roles/{id} [put]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleUpdateRole(c *gin.Context) {
+	key := c.Param("key")
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的角色 ID")
+		return
+	}
+
+	var req dto.UpdateProjectRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.UpdateRole(c.Request.Context(), key, roleID, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "更新角色失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleDeleteRole 删除项目角色
+// @Summary 删除项目角色
+// @Description 删除项目自定义角色
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param id path int true "角色 ID"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/roles/{id} [delete]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleDeleteRole(c *gin.Context) {
+	key := c.Param("key")
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的角色 ID")
+		return
+	}
+
+	err = h.projectService.DeleteRole(c.Request.Context(), key, roleID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrCannotDeleteSystemRole):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "删除角色失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "角色删除成功"})
+}
+
+// HandleListRoles 获取项目角色列表
+// @Summary 获取项目角色列表
+// @Description 获取项目的所有角色
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Success 200 {array} dto.ProjectRoleResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/roles [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleListRoles(c *gin.Context) {
+	key := c.Param("key")
+
+	roles, err := h.projectService.ListRoles(c.Request.Context(), key)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取角色列表失败")
+		return
+	}
+
+	response.Success(c, roles)
+}
+
+// HandleAddRoleMember 添加角色成员
+// @Summary 添加角色成员
+// @Description 向角色添加成员
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param id path int true "角色 ID"
+// @Param request body dto.AddRoleMemberRequest true "添加成员请求"
+// @Success 201 {object} dto.ProjectRoleMemberResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/roles/{id}/members [post]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleAddRoleMember(c *gin.Context) {
+	key := c.Param("key")
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的角色 ID")
+		return
+	}
+
+	var req dto.AddRoleMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.projectService.AddRoleMember(c.Request.Context(), key, roleID, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleMemberExists):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "添加角色成员失败")
+		}
+		return
+	}
+
+	response.Created(c, result)
+}
+
+// HandleRemoveRoleMember 移除角色成员
+// @Summary 移除角色成员
+// @Description 从角色中移除成员
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param id path int true "角色 ID"
+// @Param user_id path int true "用户 ID"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/roles/{id}/members/{user_id} [delete]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleRemoveRoleMember(c *gin.Context) {
+	key := c.Param("key")
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的角色 ID")
+		return
+	}
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	err = h.projectService.RemoveRoleMember(c.Request.Context(), key, roleID, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleMemberNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "移除角色成员失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "角色成员移除成功"})
+}
+
+// HandleListRoleMembers 获取角色成员列表
+// @Summary 获取角色成员列表
+// @Description 获取角色的所有成员
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param id path int true "角色 ID"
+// @Success 200 {array} dto.ProjectRoleMemberResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/roles/{id}/members [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleListRoleMembers(c *gin.Context) {
+	key := c.Param("key")
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的角色 ID")
+		return
+	}
+
+	members, err := h.projectService.ListRoleMembers(c.Request.Context(), key, roleID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "获取角色成员列表失败")
+		}
+		return
+	}
+
+	response.Success(c, members)
+}
+
+// HandleGetUserRoles 获取用户在项目中的角色
+// @Summary 获取用户角色
+// @Description 获取用户在项目中的所有角色
+// @Tags Project
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param user_id path int true "用户 ID"
+// @Success 200 {array} dto.ProjectRoleResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/users/{user_id}/roles [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleGetUserRoles(c *gin.Context) {
+	key := c.Param("key")
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	roles, err := h.projectService.GetUserRoles(c.Request.Context(), key, userID)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取用户角色失败")
+		return
+	}
+
+	response.Success(c, roles)
+}

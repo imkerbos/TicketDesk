@@ -157,3 +157,34 @@ export interface KanbanColumn {
   label: string
   issues: Issue[]
 }
+
+// 工作日志
+export interface Worklog {
+  id: number
+  issue_id: number
+  user_id: number
+  user?: UserBrief
+  description: string
+  time_spent: string
+  time_spent_sec: number
+  worked_at: string
+  work_type?: string
+  created_at: string
+  updated_at: string
+}
+
+// 创建工作日志请求
+export interface CreateWorklogRequest {
+  description: string
+  time_spent: string
+  worked_at: string
+  work_type?: string
+}
+
+// 更新工作日志请求
+export interface UpdateWorklogRequest {
+  description: string
+  time_spent: string
+  worked_at: string
+  work_type?: string
+}

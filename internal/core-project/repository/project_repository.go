@@ -287,3 +287,154 @@ func (r *issueTypeRepository) ListAvailableForProject(ctx context.Context, proje
 		Find(&issueTypes).Error
 	return issueTypes, err
 }
+
+// ProjectRoleRepository 项目角色数据访问接口
+type ProjectRoleRepository interface {
+	Create(ctx context.Context, role *model.ProjectRole) error
+	GetByID(ctx context.Context, id uint64) (*model.ProjectRole, error)
+	GetByProjectAndKey(ctx context.Context, projectID uint64, roleKey string) (*model.ProjectRole, error)
+	Update(ctx context.Context, role *model.ProjectRole) error
+	Delete(ctx context.Context, id uint64) error
+	ListByProject(ctx context.Context, projectID uint64) ([]*model.ProjectRole, error)
+	CountMembersByRole(ctx context.Context, roleID uint64) (int64, error)
+	GetUserIDsByRoleKey(ctx context.Context, projectID uint64, roleKey string) ([]uint64, error)
+}
+
+// projectRoleRepository 项目角色数据访问实现
+type projectRoleRepository struct {
+	db *gorm.DB
+}
+
+// NewProjectRoleRepository 创建项目角色数据访问实例
+func NewProjectRoleRepository(db *gorm.DB) ProjectRoleRepository {
+	return &projectRoleRepository{db: db}
+}
+
+// Create 创建项目角色
+func (r *projectRoleRepository) Create(ctx context.Context, role *model.ProjectRole) error {
+	return r.db.WithContext(ctx).Create(role).Error
+}
+
+// GetByID 根据 ID 获取项目角色
+func (r *projectRoleRepository) GetByID(ctx context.Context, id uint64) (*model.ProjectRole, error) {
+	var role model.ProjectRole
+	err := r.db.WithContext(ctx).First(&role, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &role, nil
+}
+
+// GetByProjectAndKey 根据项目和角色 Key 获取角色
+func (r *projectRoleRepository) GetByProjectAndKey(ctx context.Context, projectID uint64, roleKey string) (*model.ProjectRole, error) {
+	var role model.ProjectRole
+	err := r.db.WithContext(ctx).Where("project_id = ? AND role_key = ?", projectID, roleKey).First(&role).Error
+	if err != nil {
+		return nil, err
+	}
+	return &role, nil
+}
+
+// Update 更新项目角色
+func (r *projectRoleRepository) Update(ctx context.Context, role *model.ProjectRole) error {
+	return r.db.WithContext(ctx).Save(role).Error
+}
+
+// Delete 删除项目角色
+func (r *projectRoleRepository) Delete(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Delete(&model.ProjectRole{}, id).Error
+}
+
+// ListByProject 获取项目的所有角色
+func (r *projectRoleRepository) ListByProject(ctx context.Context, projectID uint64) ([]*model.ProjectRole, error) {
+	var roles []*model.ProjectRole
+	err := r.db.WithContext(ctx).Where("project_id = ?", projectID).Order("sort_order ASC, id ASC").Find(&roles).Error
+	return roles, err
+}
+
+// CountMembersByRole 统计角色成员数量
+func (r *projectRoleRepository) CountMembersByRole(ctx context.Context, roleID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.ProjectRoleMember{}).Where("role_id = ?", roleID).Count(&count).Error
+	return count, err
+}
+
+// GetUserIDsByRoleKey 根据角色 Key 获取用户 ID 列表
+func (r *projectRoleRepository) GetUserIDsByRoleKey(ctx context.Context, projectID uint64, roleKey string) ([]uint64, error) {
+	var userIDs []uint64
+	err := r.db.WithContext(ctx).
+		Model(&model.ProjectRoleMember{}).
+		Select("project_role_members.user_id").
+		Joins("JOIN project_roles ON project_roles.id = project_role_members.role_id").
+		Where("project_roles.project_id = ? AND project_roles.role_key = ?", projectID, roleKey).
+		Pluck("user_id", &userIDs).Error
+	return userIDs, err
+}
+
+// ProjectRoleMemberRepository 项目角色成员数据访问接口
+type ProjectRoleMemberRepository interface {
+	Create(ctx context.Context, member *model.ProjectRoleMember) error
+	Delete(ctx context.Context, id uint64) error
+	DeleteByRoleAndUser(ctx context.Context, roleID, userID uint64) error
+	ListByRole(ctx context.Context, roleID uint64) ([]*model.ProjectRoleMember, error)
+	ListByProjectAndUser(ctx context.Context, projectID, userID uint64) ([]*model.ProjectRoleMember, error)
+	Exists(ctx context.Context, roleID, userID uint64) (bool, error)
+	GetByRoleAndUser(ctx context.Context, roleID, userID uint64) (*model.ProjectRoleMember, error)
+}
+
+// projectRoleMemberRepository 项目角色成员数据访问实现
+type projectRoleMemberRepository struct {
+	db *gorm.DB
+}
+
+// NewProjectRoleMemberRepository 创建项目角色成员数据访问实例
+func NewProjectRoleMemberRepository(db *gorm.DB) ProjectRoleMemberRepository {
+	return &projectRoleMemberRepository{db: db}
+}
+
+// Create 创建项目角色成员
+func (r *projectRoleMemberRepository) Create(ctx context.Context, member *model.ProjectRoleMember) error {
+	return r.db.WithContext(ctx).Create(member).Error
+}
+
+// Delete 删除项目角色成员
+func (r *projectRoleMemberRepository) Delete(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Delete(&model.ProjectRoleMember{}, id).Error
+}
+
+// DeleteByRoleAndUser 根据角色和用户删除成员
+func (r *projectRoleMemberRepository) DeleteByRoleAndUser(ctx context.Context, roleID, userID uint64) error {
+	return r.db.WithContext(ctx).Where("role_id = ? AND user_id = ?", roleID, userID).Delete(&model.ProjectRoleMember{}).Error
+}
+
+// ListByRole 获取角色的所有成员
+func (r *projectRoleMemberRepository) ListByRole(ctx context.Context, roleID uint64) ([]*model.ProjectRoleMember, error) {
+	var members []*model.ProjectRoleMember
+	err := r.db.WithContext(ctx).Where("role_id = ?", roleID).Order("id ASC").Find(&members).Error
+	return members, err
+}
+
+// ListByProjectAndUser 获取用户在项目中的所有角色成员关系
+func (r *projectRoleMemberRepository) ListByProjectAndUser(ctx context.Context, projectID, userID uint64) ([]*model.ProjectRoleMember, error) {
+	var members []*model.ProjectRoleMember
+	err := r.db.WithContext(ctx).Where("project_id = ? AND user_id = ?", projectID, userID).Find(&members).Error
+	return members, err
+}
+
+// Exists 检查角色成员是否存在
+func (r *projectRoleMemberRepository) Exists(ctx context.Context, roleID, userID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.ProjectRoleMember{}).
+		Where("role_id = ? AND user_id = ?", roleID, userID).Count(&count).Error
+	return count > 0, err
+}
+
+// GetByRoleAndUser 根据角色和用户获取成员
+func (r *projectRoleMemberRepository) GetByRoleAndUser(ctx context.Context, roleID, userID uint64) (*model.ProjectRoleMember, error) {
+	var member model.ProjectRoleMember
+	err := r.db.WithContext(ctx).Where("role_id = ? AND user_id = ?", roleID, userID).First(&member).Error
+	if err != nil {
+		return nil, err
+	}
+	return &member, nil
+}

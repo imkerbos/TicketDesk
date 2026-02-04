@@ -18,13 +18,20 @@ func AutoMigrate(db *gorm.DB) error {
 		&UserRole{},
 		&Project{},
 		&ProjectMember{},
+		&ProjectRole{},
+		&ProjectRoleMember{},
 		&IssueType{},
 		&Issue{},
 		&IssueComment{},
 		&IssueWatcher{},
+		&IssueWorklog{},
 		&Workflow{},
 		&WorkflowNode{},
 		&WorkflowEdge{},
+		&WorkflowInstance{},
+		&WorkflowHistory{},
+		&ApprovalRecord{},
+		&WorkflowScheme{},
 		&Alert{},
 		&AlertRule{},
 		&AlertSilence{},
@@ -127,6 +134,81 @@ func SeedData(db *gorm.DB) error {
 		}
 	}
 
+	// 初始化默认系统配置
+	defaultConfigs := []SystemConfig{
+		{
+			ConfigKey:   "general.site_url",
+			ConfigValue: "http://localhost:5173",
+			ConfigType:  "string",
+			Category:    "general",
+			Description: "站点域名（用于生成邮件中的链接）",
+			IsSecret:    false,
+		},
+	}
+
+	for _, config := range defaultConfigs {
+		result := db.Where("config_key = ?", config.ConfigKey).FirstOrCreate(&config)
+		if result.Error != nil {
+			logger.Error("failed to seed system config", zap.String("key", config.ConfigKey), zap.Error(result.Error))
+			return result.Error
+		}
+	}
+
 	logger.Info("seed data completed")
+	return nil
+}
+
+// InitProjectRoles 初始化项目的预置角色
+func InitProjectRoles(db *gorm.DB, projectID uint64) error {
+	logger.Info("initializing project roles", zap.Uint64("project_id", projectID))
+
+	// 系统预置角色
+	presetRoles := []ProjectRole{
+		{
+			ProjectID:   projectID,
+			RoleKey:     "administrators",
+			RoleName:    "管理员",
+			Description: "项目管理员，拥有项目所有权限",
+			IsSystem:    true,
+			SortOrder:   1,
+		},
+		{
+			ProjectID:   projectID,
+			RoleKey:     "developers",
+			RoleName:    "开发人员",
+			Description: "项目开发人员",
+			IsSystem:    true,
+			SortOrder:   2,
+		},
+		{
+			ProjectID:   projectID,
+			RoleKey:     "testers",
+			RoleName:    "测试人员",
+			Description: "项目测试人员",
+			IsSystem:    true,
+			SortOrder:   3,
+		},
+		{
+			ProjectID:   projectID,
+			RoleKey:     "viewers",
+			RoleName:    "只读用户",
+			Description: "只能查看项目信息，不能修改",
+			IsSystem:    true,
+			SortOrder:   4,
+		},
+	}
+
+	for _, role := range presetRoles {
+		result := db.Where("project_id = ? AND role_key = ?", projectID, role.RoleKey).FirstOrCreate(&role)
+		if result.Error != nil {
+			logger.Error("failed to init project role",
+				zap.Uint64("project_id", projectID),
+				zap.String("role_key", role.RoleKey),
+				zap.Error(result.Error))
+			return result.Error
+		}
+	}
+
+	logger.Info("project roles initialized", zap.Uint64("project_id", projectID))
 	return nil
 }

@@ -18,16 +18,18 @@ type BaseModel struct {
 // User 用户模型
 type User struct {
 	BaseModel
-	Username      string     `gorm:"size:50;uniqueIndex;not null" json:"username"`
-	Email         string     `gorm:"size:100;uniqueIndex;not null" json:"email"`
-	PasswordHash  string     `gorm:"size:255;not null" json:"-"`
-	DisplayName   string     `gorm:"size:100" json:"display_name"`
-	AvatarURL     string     `gorm:"size:255" json:"avatar_url"`
-	Status        int8       `gorm:"default:1;index" json:"status"`           // 0-禁用, 1-启用
-	LastLoginAt   *time.Time `json:"last_login_at,omitempty"`                 // 最后登录时间
-	MFAEnabled    bool       `gorm:"default:false" json:"mfa_enabled"`        // 是否启用 MFA
-	MFASecret     string     `gorm:"size:64" json:"-"`                        // TOTP 密钥
-	MFAVerifiedAt *time.Time `json:"mfa_verified_at,omitempty"`               // MFA 验证时间
+	Username             string     `gorm:"size:50;uniqueIndex;not null" json:"username"`
+	Email                string     `gorm:"size:100;uniqueIndex;not null" json:"email"`
+	PasswordHash         string     `gorm:"size:255;not null" json:"-"`
+	DisplayName          string     `gorm:"size:100" json:"display_name"`
+	AvatarURL            string     `gorm:"size:255" json:"avatar_url"`
+	Status               int8       `gorm:"default:1;index" json:"status"`           // 0-禁用, 1-启用
+	LastLoginAt          *time.Time `json:"last_login_at,omitempty"`                 // 最后登录时间
+	MFAEnabled           bool       `gorm:"default:false" json:"mfa_enabled"`        // 是否启用 MFA
+	MFASecret            string     `gorm:"size:64" json:"-"`                        // TOTP 密钥
+	MFAVerifiedAt        *time.Time `json:"mfa_verified_at,omitempty"`               // MFA 验证时间
+	ResetPasswordToken   string     `gorm:"size:64;index" json:"-"`                  // 重置密码令牌
+	ResetPasswordExpires *time.Time `json:"-"`                                       // 重置密码令牌过期时间
 }
 
 // TableName 指定表名
@@ -110,19 +112,20 @@ func (IssueType) TableName() string {
 // Issue 工单模型
 type Issue struct {
 	BaseModel
-	IssueKey    string     `gorm:"size:30;uniqueIndex;not null" json:"issue_key"`
-	ProjectID   uint64     `gorm:"index;not null" json:"project_id"`
-	IssueTypeID uint64     `gorm:"index;not null" json:"issue_type_id"`
-	Title       string     `gorm:"size:200;not null" json:"title"`
-	Description string     `gorm:"type:text" json:"description"`
-	Priority    string     `gorm:"size:10;default:P2;index" json:"priority"`
-	Status      string     `gorm:"size:30;default:open;index" json:"status"`
-	ReporterID  uint64     `gorm:"index;not null" json:"reporter_id"`
-	AssigneeID  *uint64    `gorm:"index" json:"assignee_id"`
-	ParentID    *uint64    `gorm:"index" json:"parent_id"`
-	DueDate     *time.Time `json:"due_date"`
-	ResolvedAt  *time.Time `json:"resolved_at"`
-	ClosedAt    *time.Time `json:"closed_at"`
+	IssueKey           string     `gorm:"size:30;uniqueIndex;not null" json:"issue_key"`
+	ProjectID          uint64     `gorm:"index;not null" json:"project_id"`
+	IssueTypeID        uint64     `gorm:"index;not null" json:"issue_type_id"`
+	Title              string     `gorm:"size:200;not null" json:"title"`
+	Description        string     `gorm:"type:text" json:"description"`
+	Priority           string     `gorm:"size:10;default:P2;index" json:"priority"`
+	Status             string     `gorm:"size:30;default:open;index" json:"status"`
+	ReporterID         uint64     `gorm:"index;not null" json:"reporter_id"`
+	AssigneeID         *uint64    `gorm:"index" json:"assignee_id"`
+	ParentID           *uint64    `gorm:"index" json:"parent_id"`
+	WorkflowInstanceID *uint64    `gorm:"index" json:"workflow_instance_id,omitempty"`
+	DueDate            *time.Time `json:"due_date"`
+	ResolvedAt         *time.Time `json:"resolved_at"`
+	ClosedAt           *time.Time `json:"closed_at"`
 }
 
 // TableName 指定表名
@@ -346,6 +349,23 @@ const (
 	NotificationTypeIssueStatusChanged = "issue_status_changed" // 状态变更
 )
 
+// IssueWorklog 工单工作日志模型
+type IssueWorklog struct {
+	BaseModel
+	IssueID      uint64    `gorm:"index;not null" json:"issue_id"`
+	UserID       uint64    `gorm:"index;not null" json:"user_id"`
+	Description  string    `gorm:"type:text;not null" json:"description"`
+	TimeSpent    string    `gorm:"size:50;not null" json:"time_spent"`       // 格式：2h 30m
+	TimeSpentSec int       `gorm:"not null" json:"time_spent_sec"`           // 秒数（用于统计）
+	WorkedAt     time.Time `gorm:"index;not null" json:"worked_at"`
+	WorkType     string    `gorm:"size:30" json:"work_type"`                 // 工作类型：开发、测试、调试、文档等
+}
+
+// TableName 指定表名
+func (IssueWorklog) TableName() string {
+	return "issue_worklogs"
+}
+
 // ActivityLog 活动日志模型
 type ActivityLog struct {
 	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
@@ -362,4 +382,96 @@ type ActivityLog struct {
 // TableName 指定表名
 func (ActivityLog) TableName() string {
 	return "activity_logs"
+}
+
+// ProjectRole 项目角色定义模型
+type ProjectRole struct {
+	BaseModel
+	ProjectID   uint64 `gorm:"not null;uniqueIndex:uk_project_role,priority:1" json:"project_id"`
+	RoleKey     string `gorm:"size:50;not null;uniqueIndex:uk_project_role,priority:2" json:"role_key"` // developers, testers, pm
+	RoleName    string `gorm:"size:100;not null" json:"role_name"`                                       // 开发人员, 测试人员, 项目经理
+	Description string `gorm:"size:500" json:"description"`
+	IsSystem    bool   `gorm:"default:false" json:"is_system"` // 系统预置角色不可删除
+	SortOrder   int    `gorm:"default:0" json:"sort_order"`
+}
+
+// TableName 指定表名
+func (ProjectRole) TableName() string {
+	return "project_roles"
+}
+
+// ProjectRoleMember 项目角色成员模型
+type ProjectRoleMember struct {
+	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ProjectID uint64    `gorm:"not null;uniqueIndex:uk_prm,priority:1;index" json:"project_id"`
+	RoleID    uint64    `gorm:"not null;uniqueIndex:uk_prm,priority:2;index" json:"role_id"`
+	UserID    uint64    `gorm:"not null;uniqueIndex:uk_prm,priority:3;index" json:"user_id"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+// TableName 指定表名
+func (ProjectRoleMember) TableName() string {
+	return "project_role_members"
+}
+
+// WorkflowInstance 工作流实例模型
+type WorkflowInstance struct {
+	BaseModel
+	IssueID       uint64     `gorm:"not null;uniqueIndex" json:"issue_id"`
+	WorkflowID    uint64     `gorm:"not null;index" json:"workflow_id"`
+	CurrentNodeID uint64     `gorm:"not null;index" json:"current_node_id"`
+	Status        string     `gorm:"size:20;not null;index" json:"status"` // active, completed, cancelled
+	StartedAt     time.Time  `gorm:"not null" json:"started_at"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+}
+
+// TableName 指定表名
+func (WorkflowInstance) TableName() string {
+	return "workflow_instances"
+}
+
+// WorkflowHistory 流转历史模型
+type WorkflowHistory struct {
+	BaseModel
+	InstanceID uint64    `gorm:"not null;index" json:"instance_id"`
+	FromNodeID *uint64   `gorm:"index" json:"from_node_id,omitempty"`
+	ToNodeID   uint64    `gorm:"not null;index" json:"to_node_id"`
+	Action     string    `gorm:"size:30;not null" json:"action"` // forward, approve, reject, cancel
+	OperatorID uint64    `gorm:"not null;index" json:"operator_id"`
+	Comment    string    `gorm:"type:text" json:"comment"`
+	OperatedAt time.Time `gorm:"not null" json:"operated_at"`
+}
+
+// TableName 指定表名
+func (WorkflowHistory) TableName() string {
+	return "workflow_histories"
+}
+
+// ApprovalRecord 审批记录模型
+type ApprovalRecord struct {
+	BaseModel
+	InstanceID uint64     `gorm:"not null;index" json:"instance_id"`
+	NodeID     uint64     `gorm:"not null;index" json:"node_id"`
+	ApproverID uint64     `gorm:"not null;index" json:"approver_id"`
+	Status     string     `gorm:"size:20;not null;index" json:"status"` // pending, approved, rejected
+	Comment    string     `gorm:"type:text" json:"comment"`
+	ApprovedAt *time.Time `json:"approved_at,omitempty"`
+}
+
+// TableName 指定表名
+func (ApprovalRecord) TableName() string {
+	return "approval_records"
+}
+
+// WorkflowScheme 工作流方案模型
+type WorkflowScheme struct {
+	BaseModel
+	ProjectID   uint64 `gorm:"not null;uniqueIndex:uk_project_issue_type,priority:1;index" json:"project_id"`
+	IssueTypeID uint64 `gorm:"not null;uniqueIndex:uk_project_issue_type,priority:2;index" json:"issue_type_id"`
+	WorkflowID  uint64 `gorm:"not null;index" json:"workflow_id"`
+}
+
+// TableName 指定表名
+func (WorkflowScheme) TableName() string {
+	return "workflow_schemes"
 }

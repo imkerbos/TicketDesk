@@ -134,6 +134,15 @@
               <span v-else class="text-muted">未指派</span>
             </template>
           </el-table-column>
+          <el-table-column label="报告人" width="120">
+            <template #default="{ row }">
+              <div v-if="row.reporter" class="assignee-cell">
+                <div class="mini-avatar">{{ row.reporter.display_name?.charAt(0) }}</div>
+                <span>{{ row.reporter.display_name }}</span>
+              </div>
+              <span v-else class="text-muted">未知</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="created_at" label="创建时间" width="160">
             <template #default="{ row }">
               <div class="time-cell">
@@ -638,22 +647,24 @@ onMounted(() => { loadFilterOptions(); loadData() })
 
 // 看板视图
 .kanban-view {
+  min-height: calc(100vh - 400px);
+
   .kanban-board {
     display: flex;
-    gap: 16px;
+    gap: 20px;
     overflow-x: auto;
     padding-bottom: 16px;
+    height: calc(100vh - 400px);
   }
 
   .kanban-column {
     flex: 1;
-    min-width: 300px;
-    max-width: 380px;
+    min-width: 320px;
     background-color: #f8fafc;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 340px);
+    height: 100%;
   }
 
   .column-header {

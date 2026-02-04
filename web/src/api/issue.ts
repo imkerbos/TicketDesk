@@ -10,6 +10,9 @@ import type {
   IssueActivity,
   IssueWatcher,
   IssueStats,
+  Worklog,
+  CreateWorklogRequest,
+  UpdateWorklogRequest,
 } from '@/types/issue'
 
 // 工单列表
@@ -102,4 +105,24 @@ export const getMyTodoIssues = (params?: { page?: number; page_size?: number }) 
 // 我创建的工单
 export const getMyCreatedIssues = (params?: { page?: number; page_size?: number }) => {
   return request.get<ApiResponse<IssueListResponse>>('/issues/my-created', { params })
+}
+
+// 工作日志列表
+export const getWorklogs = (issueKey: string) => {
+  return request.get<ApiResponse<Worklog[]>>(`/issues/${issueKey}/worklogs`)
+}
+
+// 添加工作日志
+export const addWorklog = (issueKey: string, data: CreateWorklogRequest) => {
+  return request.post<ApiResponse<Worklog>>(`/issues/${issueKey}/worklogs`, data)
+}
+
+// 更新工作日志
+export const updateWorklog = (issueKey: string, worklogId: number, data: UpdateWorklogRequest) => {
+  return request.put<ApiResponse<Worklog>>(`/issues/${issueKey}/worklogs/${worklogId}`, data)
+}
+
+// 删除工作日志
+export const deleteWorklog = (issueKey: string, worklogId: number) => {
+  return request.delete(`/issues/${issueKey}/worklogs/${worklogId}`)
 }

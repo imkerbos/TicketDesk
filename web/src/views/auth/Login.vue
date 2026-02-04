@@ -66,7 +66,7 @@
             <template #label>
               <div class="password-label-row">
                 <span>密码</span>
-                <a href="#" class="forgot-link" @click.prevent>忘记密码？</a>
+                <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
               </div>
             </template>
             <el-input

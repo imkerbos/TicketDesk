@@ -3,6 +3,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -10,6 +12,8 @@ import (
 	"github.com/kerbos/ticketdesk/internal/core-user/dto"
 	"github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
+	"github.com/kerbos/ticketdesk/internal/notification/email"
+	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
@@ -19,12 +23,14 @@ import (
 
 // 业务错误定义
 var (
-	ErrUserNotFound       = errors.New("用户不存在")
-	ErrUserDisabled       = errors.New("用户已被禁用")
-	ErrUsernameExists     = errors.New("用户名已存在")
-	ErrEmailExists        = errors.New("邮箱已存在")
-	ErrInvalidCredentials = errors.New("用户名或密码错误")
-	ErrInvalidOldPassword = errors.New("原密码错误")
+	ErrUserNotFound         = errors.New("用户不存在")
+	ErrUserDisabled         = errors.New("用户已被禁用")
+	ErrUsernameExists       = errors.New("用户名已存在")
+	ErrEmailExists          = errors.New("邮箱已存在")
+	ErrInvalidCredentials   = errors.New("用户名或密码错误")
+	ErrInvalidOldPassword   = errors.New("原密码错误")
+	ErrInvalidResetToken    = errors.New("重置密码令牌无效或已过期")
+	ErrResetTokenExpired    = errors.New("重置密码令牌已过期")
 )
 
 // UserService 用户服务接口
@@ -42,13 +48,19 @@ type UserService interface {
 	DisableUser(ctx context.Context, id uint64) error
 	DeleteUser(ctx context.Context, id uint64) error
 	ListUsers(ctx context.Context, req *dto.ListUsersRequest) ([]*dto.UserResponse, int64, error)
+	// 忘记密码相关方法
+	ForgotPassword(ctx context.Context, req *dto.ForgotPasswordRequest) error
+	VerifyResetToken(ctx context.Context, token string) error
+	ResetPasswordWithToken(ctx context.Context, req *dto.ResetPasswordWithTokenRequest) error
 }
 
 // userService 用户服务实现
 type userService struct {
-	userRepo     repository.UserRepository
-	userRoleRepo repository.UserRoleRepository
-	jwtManager   *jwt.Manager
+	userRepo      repository.UserRepository
+	userRoleRepo  repository.UserRoleRepository
+	jwtManager    *jwt.Manager
+	emailService  email.EmailService
+	configService configService.ConfigService
 }
 
 // NewUserService 创建用户服务实例
@@ -56,11 +68,15 @@ func NewUserService(
 	userRepo repository.UserRepository,
 	userRoleRepo repository.UserRoleRepository,
 	jwtManager *jwt.Manager,
+	emailService email.EmailService,
+	configService configService.ConfigService,
 ) UserService {
 	return &userService{
-		userRepo:     userRepo,
-		userRoleRepo: userRoleRepo,
-		jwtManager:   jwtManager,
+		userRepo:      userRepo,
+		userRoleRepo:  userRoleRepo,
+		jwtManager:    jwtManager,
+		emailService:  emailService,
+		configService: configService,
 	}
 }
 
@@ -531,3 +547,181 @@ func (s *userService) toUserResponse(ctx context.Context, user *model.User) *dto
 
 	return resp
 }
+
+// ForgotPassword 请求重置密码
+func (s *userService) ForgotPassword(ctx context.Context, req *dto.ForgotPasswordRequest) error {
+	// 查找用户
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 为了安全，即使用户不存在也返回成功，不泄露用户信息
+			logger.Info("forgot password request for non-existent email", zap.String("email", req.Email))
+			return nil
+		}
+		logger.Error("failed to get user by email", zap.Error(err))
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 检查用户状态
+	if user.Status == 0 {
+		// 禁用的用户也返回成功，不泄露信息
+		logger.Info("forgot password request for disabled user", zap.Uint64("user_id", user.ID))
+		return nil
+	}
+
+	// 生成重置密码令牌（32字节随机字符串）
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		logger.Error("failed to generate reset token", zap.Error(err))
+		return fmt.Errorf("生成重置令牌失败: %w", err)
+	}
+	token := hex.EncodeToString(tokenBytes)
+
+	// 设置令牌过期时间（30分钟）
+	expiresAt := time.Now().Add(30 * time.Minute)
+	user.ResetPasswordToken = token
+	user.ResetPasswordExpires = &expiresAt
+
+	// 保存令牌
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		logger.Error("failed to save reset token", zap.Error(err))
+		return fmt.Errorf("保存重置令牌失败: %w", err)
+	}
+
+	// 发送重置密码邮件
+	if err := s.sendResetPasswordEmail(ctx, user, token); err != nil {
+		logger.Error("failed to send reset password email",
+			zap.Uint64("user_id", user.ID),
+			zap.String("email", user.Email),
+			zap.Error(err),
+		)
+		// 邮件发送失败不影响流程，返回成功
+	}
+
+	logger.Info("reset password email sent",
+		zap.Uint64("user_id", user.ID),
+		zap.String("email", user.Email),
+	)
+
+	return nil
+}
+
+// VerifyResetToken 验证重置密码令牌
+func (s *userService) VerifyResetToken(ctx context.Context, token string) error {
+	// 查找用户
+	user, err := s.userRepo.GetByResetToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidResetToken
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 检查令牌是否过期
+	if user.ResetPasswordExpires == nil || time.Now().After(*user.ResetPasswordExpires) {
+		return ErrResetTokenExpired
+	}
+
+	return nil
+}
+
+// ResetPasswordWithToken 使用令牌重置密码
+func (s *userService) ResetPasswordWithToken(ctx context.Context, req *dto.ResetPasswordWithTokenRequest) error {
+	// 查找用户
+	user, err := s.userRepo.GetByResetToken(ctx, req.Token)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidResetToken
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 检查令牌是否过期
+	if user.ResetPasswordExpires == nil || time.Now().After(*user.ResetPasswordExpires) {
+		return ErrResetTokenExpired
+	}
+
+	// 加密新密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("密码加密失败: %w", err)
+	}
+
+	// 更新密码并清除令牌
+	user.PasswordHash = string(hashedPassword)
+	user.ResetPasswordToken = ""
+	user.ResetPasswordExpires = nil
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("更新密码失败: %w", err)
+	}
+
+	logger.Info("password reset successfully", zap.Uint64("user_id", user.ID))
+
+	return nil
+}
+
+// sendResetPasswordEmail 发送重置密码邮件
+func (s *userService) sendResetPasswordEmail(ctx context.Context, user *model.User, token string) error {
+	// 从配置中读取站点域名
+	siteURL, err := s.configService.GetConfigValue(ctx, configService.KeyGeneralSiteURL)
+	if err != nil || siteURL == "" {
+		// 如果没有配置站点域名，使用默认值
+		siteURL = "http://localhost:5173"
+		logger.Warn("site URL not configured, using default",
+			zap.String("default_url", siteURL),
+		)
+	}
+
+	// 构建重置链接
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", siteURL, token)
+
+	subject := "重置密码 - TicketDesk"
+	htmlBody := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #3b82f6 0%%, #8b5cf6 100%%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #3b82f6 0%%, #8b5cf6 100%%); color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+        .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>重置密码</h1>
+        </div>
+        <div class="content">
+            <p>您好，%s！</p>
+            <p>我们收到了您的密码重置请求。请点击下面的按钮重置您的密码：</p>
+            <p style="text-align: center;">
+                <a href="%s" class="button">重置密码</a>
+            </p>
+            <p>或者复制以下链接到浏览器中打开：</p>
+            <p style="word-break: break-all; background: white; padding: 10px; border-radius: 4px;">%s</p>
+            <div class="warning">
+                <strong>⚠️ 安全提示：</strong>
+                <ul style="margin: 10px 0;">
+                    <li>此链接将在 30 分钟后失效</li>
+                    <li>如果您没有请求重置密码，请忽略此邮件</li>
+                    <li>请勿将此链接分享给他人</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 TicketDesk. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+`, user.DisplayName, resetURL, resetURL)
+
+	return s.emailService.SendHTMLEmail(ctx, []string{user.Email}, subject, htmlBody)
+}
+

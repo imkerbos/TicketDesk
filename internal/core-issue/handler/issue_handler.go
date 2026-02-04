@@ -340,3 +340,111 @@ func (h *IssueHandler) HandleListMyCreatedIssues(c *gin.Context) {
 
 	response.SuccessWithPage(c, issues, total, page, pageSize)
 }
+
+// ============ 工作日志相关处理器 ============
+
+// HandleAddWorklog 添加工作日志
+func (h *IssueHandler) HandleAddWorklog(c *gin.Context) {
+	issueKey := c.Param("key")
+	userID := c.GetUint64("user_id")
+
+	var req dto.CreateWorklogRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.issueService.AddWorklog(c.Request.Context(), issueKey, &req, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrIssueNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrInvalidTimeFormat):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "添加工作日志失败")
+		}
+		return
+	}
+
+	response.Created(c, result)
+}
+
+// HandleUpdateWorklog 更新工作日志
+func (h *IssueHandler) HandleUpdateWorklog(c *gin.Context) {
+	worklogIDStr := c.Param("worklog_id")
+	worklogID, err := strconv.ParseUint(worklogIDStr, 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的工作日志ID")
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+
+	var req dto.UpdateWorklogRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.issueService.UpdateWorklog(c.Request.Context(), worklogID, &req, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrWorklogNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrUnauthorized):
+			response.Forbidden(c, "无权限操作")
+		case errors.Is(err, service.ErrInvalidTimeFormat):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "更新工作日志失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleDeleteWorklog 删除工作日志
+func (h *IssueHandler) HandleDeleteWorklog(c *gin.Context) {
+	worklogIDStr := c.Param("worklog_id")
+	worklogID, err := strconv.ParseUint(worklogIDStr, 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的工作日志ID")
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+
+	err = h.issueService.DeleteWorklog(c.Request.Context(), worklogID, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrWorklogNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrUnauthorized):
+			response.Forbidden(c, "无权限操作")
+		default:
+			response.InternalError(c, "删除工作日志失败")
+		}
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// HandleListWorklogs 获取工作日志列表
+func (h *IssueHandler) HandleListWorklogs(c *gin.Context) {
+	issueKey := c.Param("key")
+
+	worklogs, err := h.issueService.ListWorklogs(c.Request.Context(), issueKey)
+	if err != nil {
+		if errors.Is(err, service.ErrIssueNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取工作日志列表失败")
+		return
+	}
+
+	response.Success(c, worklogs)
+}

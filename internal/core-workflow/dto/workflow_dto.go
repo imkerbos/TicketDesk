@@ -141,3 +141,81 @@ type EdgeResponse struct {
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
+
+// ============ 工作流实例相关 DTO ============
+
+// ApproveRequest 审批请求
+type ApproveRequest struct {
+	Comment string `json:"comment" binding:"max=1000"`
+}
+
+// RejectRequest 拒绝请求
+type RejectRequest struct {
+	Comment string `json:"comment" binding:"required,max=1000"`
+}
+
+// WorkflowInstanceResponse 工作流实例响应
+type WorkflowInstanceResponse struct {
+	ID            uint64                    `json:"id"`
+	IssueID       uint64                    `json:"issue_id"`
+	IssueKey      string                    `json:"issue_key,omitempty"`
+	WorkflowID    uint64                    `json:"workflow_id"`
+	WorkflowName  string                    `json:"workflow_name,omitempty"`
+	CurrentNodeID uint64                    `json:"current_node_id"`
+	CurrentNode   *NodeResponse             `json:"current_node,omitempty"`
+	Status        string                    `json:"status"`
+	StartedAt     time.Time                 `json:"started_at"`
+	CompletedAt   *time.Time                `json:"completed_at,omitempty"`
+	Approvals     []*ApprovalRecordResponse `json:"approvals,omitempty"`
+	CreatedAt     time.Time                 `json:"created_at"`
+	UpdatedAt     time.Time                 `json:"updated_at"`
+}
+
+// WorkflowHistoryResponse 流转历史响应
+type WorkflowHistoryResponse struct {
+	ID           uint64        `json:"id"`
+	InstanceID   uint64        `json:"instance_id"`
+	FromNodeID   *uint64       `json:"from_node_id,omitempty"`
+	FromNode     *NodeResponse `json:"from_node,omitempty"`
+	ToNodeID     uint64        `json:"to_node_id"`
+	ToNode       *NodeResponse `json:"to_node,omitempty"`
+	Action       string        `json:"action"`
+	OperatorID   uint64        `json:"operator_id"`
+	OperatorName string        `json:"operator_name,omitempty"`
+	Comment      string        `json:"comment"`
+	OperatedAt   time.Time     `json:"operated_at"`
+	CreatedAt    time.Time     `json:"created_at"`
+}
+
+// ApprovalRecordResponse 审批记录响应
+type ApprovalRecordResponse struct {
+	ID           uint64     `json:"id"`
+	InstanceID   uint64     `json:"instance_id"`
+	NodeID       uint64     `json:"node_id"`
+	ApproverID   uint64     `json:"approver_id"`
+	ApproverName string     `json:"approver_name,omitempty"`
+	Status       string     `json:"status"`
+	Comment      string     `json:"comment"`
+	ApprovedAt   *time.Time `json:"approved_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+// WorkflowSchemeResponse 工作流方案响应
+type WorkflowSchemeResponse struct {
+	ID            uint64    `json:"id"`
+	ProjectID     uint64    `json:"project_id"`
+	IssueTypeID   uint64    `json:"issue_type_id"`
+	IssueTypeName string    `json:"issue_type_name,omitempty"`
+	WorkflowID    uint64    `json:"workflow_id"`
+	WorkflowName  string    `json:"workflow_name,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// CreateWorkflowSchemeRequest 创建工作流方案请求
+type CreateWorkflowSchemeRequest struct {
+	IssueTypeID uint64 `json:"issue_type_id" binding:"required"`
+	WorkflowID  uint64 `json:"workflow_id" binding:"required"`
+}
+

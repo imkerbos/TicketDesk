@@ -48,8 +48,8 @@
           :lg="6"
           class="project-col"
         >
-          <div class="project-card" @click="handleViewProject(project)">
-            <div class="card-body">
+          <div class="project-card">
+            <div class="card-body" @click="handleViewProject(project)">
               <div class="project-header">
                 <div class="project-icon" :style="{ background: getProjectColor(project.project_key) }">
                   {{ project.project_key?.substring(0, 2).toUpperCase() || '??' }}
@@ -83,6 +83,12 @@
                   <el-icon><User /></el-icon>
                   <span>{{ project.member_count || 0 }}</span>
                 </div>
+                <router-link :to="`/projects/${project.project_key}/settings`" class="settings-link">
+                  <el-button size="small" type="primary" text>
+                    <el-icon><Setting /></el-icon>
+                    设置
+                  </el-button>
+                </router-link>
               </div>
             </div>
           </div>
@@ -170,7 +176,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Search, Plus, User, Folder, Key, Check } from '@element-plus/icons-vue'
+import { Search, Plus, User, Folder, Key, Check, Setting } from '@element-plus/icons-vue'
 import { getProjectList, createProject, updateProject } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import type { Project, CreateProjectRequest } from '@/types/project'
@@ -456,6 +462,13 @@ onMounted(() => { loadProjects(); loadUsers() })
     gap: 4px;
     font-size: 13px;
     color: #9ca3af;
+    margin-right: 8px;
+  }
+
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 }
 
@@ -471,6 +484,11 @@ onMounted(() => { loadProjects(); loadUsers() })
   font-size: 12px;
   color: #9ca3af;
   margin-top: 4px;
+}
+
+.settings-link {
+  text-decoration: none;
+  color: inherit;
 }
 
 // 响应式

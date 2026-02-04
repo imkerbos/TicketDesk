@@ -46,3 +46,31 @@ export const refreshToken = (data: RefreshTokenRequest) => {
 export const getCurrentUser = () => {
   return request.get<ApiResponse<User>>('/users/me')
 }
+
+// 忘记密码请求
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+// 重置密码请求
+export interface ResetPasswordWithTokenRequest {
+  token: string
+  new_password: string
+}
+
+// 忘记密码
+export const forgotPassword = (data: ForgotPasswordRequest) => {
+  return request.post<ApiResponse<{ message: string }>>('/auth/forgot-password', data)
+}
+
+// 验证重置密码令牌
+export const verifyResetToken = (token: string) => {
+  return request.get<ApiResponse<{ message: string }>>('/auth/verify-reset-token', {
+    params: { token }
+  })
+}
+
+// 使用令牌重置密码
+export const resetPasswordWithToken = (data: ResetPasswordWithTokenRequest) => {
+  return request.post<ApiResponse<{ message: string }>>('/auth/reset-password', data)
+}

@@ -14,11 +14,15 @@ import (
 // WorkflowHandler 工作流处理器
 type WorkflowHandler struct {
 	workflowService service.WorkflowService
+	workflowEngine  service.WorkflowEngine
 }
 
 // NewWorkflowHandler 创建工作流处理器实例
-func NewWorkflowHandler(workflowService service.WorkflowService) *WorkflowHandler {
-	return &WorkflowHandler{workflowService: workflowService}
+func NewWorkflowHandler(workflowService service.WorkflowService, workflowEngine service.WorkflowEngine) *WorkflowHandler {
+	return &WorkflowHandler{
+		workflowService: workflowService,
+		workflowEngine:  workflowEngine,
+	}
 }
 
 // ============ 工作流管理 ============
@@ -363,3 +367,130 @@ func (h *WorkflowHandler) HandleListEdges(c *gin.Context) {
 
 	response.Success(c, edges)
 }
+
+// ============ 工作流实例管理 ============
+
+// HandleGetInstanceByIssue 获取工单的工作流实例
+// @Summary 获取工单的工作流实例
+// @Description 根据工单 Key 获取工作流实例
+// @Tags Workflow
+// @Produce json
+// @Param key path string true "工单 Key"
+// @Success 200 {object} dto.WorkflowInstanceResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/issues/{key}/workflow [get]
+// @Security BearerAuth
+func (h *WorkflowHandler) HandleGetInstanceByIssue(c *gin.Context) {
+	// 这个方法需要从 issue key 获取 issue ID
+	// 暂时先返回错误，实际需要在 issue handler 中实现
+	response.InternalError(c, "功能待实现")
+}
+
+// HandleApprove 审批通过
+// @Summary 审批通过
+// @Description 对工作流实例进行审批通过操作
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Param key path string true "工单 Key"
+// @Param request body dto.ApproveRequest true "审批请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/issues/{key}/workflow/approve [post]
+// @Security BearerAuth
+func (h *WorkflowHandler) HandleApprove(c *gin.Context) {
+	// 这个方法需要从 issue key 获取 workflow instance ID
+	// 暂时先返回错误，实际需要在 issue handler 中实现
+	response.InternalError(c, "功能待实现")
+}
+
+// HandleReject 审批拒绝
+// @Summary 审批拒绝
+// @Description 对工作流实例进行审批拒绝操作
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Param key path string true "工单 Key"
+// @Param request body dto.RejectRequest true "拒绝请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/issues/{key}/workflow/reject [post]
+// @Security BearerAuth
+func (h *WorkflowHandler) HandleReject(c *gin.Context) {
+	// 这个方法需要从 issue key 获取 workflow instance ID
+	// 暂时先返回错误，实际需要在 issue handler 中实现
+	response.InternalError(c, "功能待实现")
+}
+
+// HandleGetHistory 获取流转历史
+// @Summary 获取流转历史
+// @Description 获取工作流实例的流转历史
+// @Tags Workflow
+// @Produce json
+// @Param key path string true "工单 Key"
+// @Success 200 {array} dto.WorkflowHistoryResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/issues/{key}/workflow/history [get]
+// @Security BearerAuth
+func (h *WorkflowHandler) HandleGetHistory(c *gin.Context) {
+	// 这个方法需要从 issue key 获取 workflow instance ID
+	// 暂时先返回错误，实际需要在 issue handler 中实现
+	response.InternalError(c, "功能待实现")
+}
+
+// ============ 工作流方案管理 ============
+
+// HandleCreateScheme 创建工作流方案
+// @Summary 创建工作流方案
+// @Description 为项目的工单类型配置工作流
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param request body dto.CreateWorkflowSchemeRequest true "创建方案请求"
+// @Success 201 {object} dto.WorkflowSchemeResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/workflow-schemes [post]
+// @Security BearerAuth
+func (h *WorkflowHandler) HandleCreateScheme(c *gin.Context) {
+	// 这个方法需要从项目 key 获取项目 ID
+	// 暂时先返回错误，实际需要在 project handler 中实现
+	response.InternalError(c, "功能待实现")
+}
+
+// HandleListSchemes 获取项目的工作流方案列表
+// @Summary 获取工作流方案列表
+// @Description 获取项目的所有工作流方案
+// @Tags Workflow
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Success 200 {array} dto.WorkflowSchemeResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/workflow-schemes [get]
+// @Security BearerAuth
+func (h *WorkflowHandler) HandleListSchemes(c *gin.Context) {
+	// 这个方法需要从项目 key 获取项目 ID
+	// 暂时先返回错误，实际需要在 project handler 中实现
+	response.InternalError(c, "功能待实现")
+}
+
+// HandleDeleteScheme 删除工作流方案
+// @Summary 删除工作流方案
+// @Description 删除项目工单类型的工作流方案
+// @Tags Workflow
+// @Produce json
+// @Param key path string true "项目 Key"
+// @Param type_id path int true "工单类型 ID"
+// @Success 200 {object} response.Response
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/projects/{key}/workflow-schemes/{type_id} [delete]
+// @Security BearerAuth
+func (h *WorkflowHandler) HandleDeleteScheme(c *gin.Context) {
+	// 这个方法需要从项目 key 获取项目 ID
+	// 暂时先返回错误，实际需要在 project handler 中实现
+	response.InternalError(c, "功能待实现")
+}
+

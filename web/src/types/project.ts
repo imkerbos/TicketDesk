@@ -82,3 +82,48 @@ export interface CreateIssueTypeRequest {
   icon?: string
   color?: string
 }
+
+// ========== 项目角色相关类型 ==========
+
+export interface ProjectRole {
+  id: number
+  project_id: number
+  role_key: string
+  role_name: string
+  description: string
+  is_system: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProjectRoleRequest {
+  role_key: string
+  role_name: string
+  description?: string
+  sort_order?: number
+}
+
+export interface UpdateProjectRoleRequest {
+  role_name?: string
+  description?: string
+  sort_order?: number
+}
+
+export interface ProjectRoleMember {
+  id: number
+  project_id: number
+  role_id: number
+  user_id: number
+  user?: UserBrief
+  created_at: string
+}
+
+export interface AddRoleMemberRequest {
+  user_id: number
+}
+
+export interface UserRolesResponse {
+  roles: ProjectRole[]
+}
+

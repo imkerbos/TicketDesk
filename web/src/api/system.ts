@@ -28,6 +28,11 @@ export function getConfig(key: string) {
   return request.get<{ data: SystemConfig }>(`/system/configs/${key}`)
 }
 
+// 获取配置值（只返回值）
+export function getConfigValue(key: string) {
+  return request.get<{ data: string }>(`/system/configs/${key}`)
+}
+
 // 更新单个配置
 export function updateConfig(key: string, value: string) {
   return request.put(`/system/configs/${key}`, { config_value: value })

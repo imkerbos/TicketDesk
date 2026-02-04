@@ -12,12 +12,12 @@
         </div>
         <el-menu
           :default-active="activeMenu"
-          :default-openeds="['alert-center', 'system']"
-          router
+          :default-openeds="['project-center', 'alert-center', 'system']"
           background-color="#1e1e2d"
           text-color="#9899ac"
           active-text-color="#fff"
           class="sidebar-menu"
+          @select="handleMenuSelect"
         >
           <!-- 首页 -->
           <el-menu-item index="/dashboard">
@@ -32,10 +32,18 @@
           </el-menu-item>
 
           <!-- 项目管理 -->
-          <el-menu-item index="/projects">
-            <el-icon><Folder /></el-icon>
-            <span>项目管理</span>
-          </el-menu-item>
+          <el-sub-menu index="project-center">
+            <template #title>
+              <el-icon><Folder /></el-icon>
+              <span>项目管理</span>
+            </template>
+            <el-menu-item index="/projects">
+              <span>项目列表</span>
+            </el-menu-item>
+            <el-menu-item index="/workflows">
+              <span>工作流管理</span>
+            </el-menu-item>
+          </el-sub-menu>
 
           <!-- 通知中心 -->
           <el-menu-item index="/notifications">
@@ -154,7 +162,7 @@ onUnmounted(() => {
 
 // 判断是否为认证页面（登录/注册等）
 const isAuthPage = computed(() => {
-  return route.path === '/login' || route.path === '/register'
+  return route.path === '/login' || route.path === '/register' || route.path === '/forgot-password' || route.path === '/reset-password'
 })
 
 // 计算当前激活的菜单
@@ -168,6 +176,10 @@ const activeMenu = computed(() => {
   if (path.startsWith('/alerts/') && path !== '/alerts') {
     return '/alerts'
   }
+  // 项目角色页面高亮项目列表
+  if (path.startsWith('/projects/') && path.includes('/roles')) {
+    return '/projects'
+  }
   return path
 })
 
@@ -175,6 +187,19 @@ const handleLogout = () => {
   notificationStore.disconnectWebSocket()
   userStore.logout()
   router.push('/login')
+}
+
+// 处理菜单点击，支持 Ctrl/Cmd+Click 打开新标签页
+const handleMenuSelect = (index: string) => {
+  // 检测是否按住 Ctrl (Windows) 或 Cmd (Mac)
+  const lastClickEvent = window.event as MouseEvent | undefined
+  if (lastClickEvent && (lastClickEvent.ctrlKey || lastClickEvent.metaKey)) {
+    // 在新标签页打开
+    window.open(index, '_blank')
+  } else {
+    // 在当前标签页跳转
+    router.push(index)
+  }
 }
 </script>
 

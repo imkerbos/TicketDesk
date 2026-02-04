@@ -22,6 +22,8 @@ var (
 	ErrEdgeNotFound     = errors.New("边不存在")
 	ErrInvalidWorkflow  = errors.New("工作流配置无效")
 	ErrNodeInUse        = errors.New("节点正在使用中")
+	ErrSchemeNotFound   = errors.New("工作流方案不存在")
+	ErrSchemeExists     = errors.New("工作流方案已存在")
 )
 
 // WorkflowService 工作流服务接口
@@ -46,6 +48,12 @@ type WorkflowService interface {
 	UpdateEdge(ctx context.Context, id uint64, req *dto.UpdateEdgeRequest) (*dto.EdgeResponse, error)
 	DeleteEdge(ctx context.Context, id uint64) error
 	ListEdges(ctx context.Context, workflowID uint64) ([]*dto.EdgeResponse, error)
+
+	// 工作流方案管理
+	CreateScheme(ctx context.Context, projectID uint64, req *dto.CreateWorkflowSchemeRequest) (*dto.WorkflowSchemeResponse, error)
+	ListSchemes(ctx context.Context, projectID uint64) ([]*dto.WorkflowSchemeResponse, error)
+	DeleteScheme(ctx context.Context, projectID, issueTypeID uint64) error
+	GetWorkflowByIssueType(ctx context.Context, projectID, issueTypeID uint64) (*model.Workflow, error)
 }
 
 // workflowService 工作流服务实现
@@ -53,6 +61,7 @@ type workflowService struct {
 	workflowRepo repository.WorkflowRepository
 	nodeRepo     repository.NodeRepository
 	edgeRepo     repository.EdgeRepository
+	schemeRepo   repository.WorkflowSchemeRepository
 }
 
 // NewWorkflowService 创建工作流服务实例
@@ -60,11 +69,13 @@ func NewWorkflowService(
 	workflowRepo repository.WorkflowRepository,
 	nodeRepo repository.NodeRepository,
 	edgeRepo repository.EdgeRepository,
+	schemeRepo repository.WorkflowSchemeRepository,
 ) WorkflowService {
 	return &workflowService{
 		workflowRepo: workflowRepo,
 		nodeRepo:     nodeRepo,
 		edgeRepo:     edgeRepo,
+		schemeRepo:   schemeRepo,
 	}
 }
 
@@ -552,3 +563,126 @@ func (s *workflowService) toEdgeResponse(edge *model.WorkflowEdge) *dto.EdgeResp
 		UpdatedAt:     edge.UpdatedAt,
 	}
 }
+
+// ============ 工作流方案管理 ============
+
+// CreateScheme 创建工作流方案
+func (s *workflowService) CreateScheme(ctx context.Context, projectID uint64, req *dto.CreateWorkflowSchemeRequest) (*dto.WorkflowSchemeResponse, error) {
+	// 检查是否已存在方案
+	existing, err := s.schemeRepo.GetByProjectAndIssueType(ctx, projectID, req.IssueTypeID)
+	if err == nil && existing != nil {
+		return nil, ErrSchemeExists
+	}
+
+	// 验证工作流是否存在
+	workflow, err := s.workflowRepo.GetByID(ctx, req.WorkflowID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrWorkflowNotFound
+		}
+		return nil, fmt.Errorf("查询工作流失败: %w", err)
+	}
+
+	// 创建方案
+	scheme := &model.WorkflowScheme{
+		ProjectID:   projectID,
+		IssueTypeID: req.IssueTypeID,
+		WorkflowID:  req.WorkflowID,
+	}
+
+	if err := s.schemeRepo.Create(ctx, scheme); err != nil {
+		logger.Error("failed to create workflow scheme", zap.Error(err))
+		return nil, fmt.Errorf("创建工作流方案失败: %w", err)
+	}
+
+	logger.Info("workflow scheme created",
+		zap.Uint64("project_id", projectID),
+		zap.Uint64("issue_type_id", req.IssueTypeID),
+		zap.Uint64("workflow_id", req.WorkflowID),
+	)
+
+	return &dto.WorkflowSchemeResponse{
+		ID:           scheme.ID,
+		ProjectID:    scheme.ProjectID,
+		IssueTypeID:  scheme.IssueTypeID,
+		WorkflowID:   scheme.WorkflowID,
+		WorkflowName: workflow.Name,
+		CreatedAt:    scheme.CreatedAt,
+		UpdatedAt:    scheme.UpdatedAt,
+	}, nil
+}
+
+// ListSchemes 获取项目的工作流方案列表
+func (s *workflowService) ListSchemes(ctx context.Context, projectID uint64) ([]*dto.WorkflowSchemeResponse, error) {
+	schemes, err := s.schemeRepo.ListByProject(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("查询工作流方案失败: %w", err)
+	}
+
+	responses := make([]*dto.WorkflowSchemeResponse, len(schemes))
+	for i, scheme := range schemes {
+		resp := &dto.WorkflowSchemeResponse{
+			ID:          scheme.ID,
+			ProjectID:   scheme.ProjectID,
+			IssueTypeID: scheme.IssueTypeID,
+			WorkflowID:  scheme.WorkflowID,
+			CreatedAt:   scheme.CreatedAt,
+			UpdatedAt:   scheme.UpdatedAt,
+		}
+
+		// 获取工作流名称
+		if workflow, err := s.workflowRepo.GetByID(ctx, scheme.WorkflowID); err == nil {
+			resp.WorkflowName = workflow.Name
+		}
+
+		responses[i] = resp
+	}
+
+	return responses, nil
+}
+
+// DeleteScheme 删除工作流方案
+func (s *workflowService) DeleteScheme(ctx context.Context, projectID, issueTypeID uint64) error {
+	// 检查方案是否存在
+	_, err := s.schemeRepo.GetByProjectAndIssueType(ctx, projectID, issueTypeID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrSchemeNotFound
+		}
+		return fmt.Errorf("查询工作流方案失败: %w", err)
+	}
+
+	if err := s.schemeRepo.DeleteByProjectAndIssueType(ctx, projectID, issueTypeID); err != nil {
+		logger.Error("failed to delete workflow scheme", zap.Error(err))
+		return fmt.Errorf("删除工作流方案失败: %w", err)
+	}
+
+	logger.Info("workflow scheme deleted",
+		zap.Uint64("project_id", projectID),
+		zap.Uint64("issue_type_id", issueTypeID),
+	)
+
+	return nil
+}
+
+// GetWorkflowByIssueType 根据项目和工单类型获取工作流
+func (s *workflowService) GetWorkflowByIssueType(ctx context.Context, projectID, issueTypeID uint64) (*model.Workflow, error) {
+	scheme, err := s.schemeRepo.GetByProjectAndIssueType(ctx, projectID, issueTypeID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSchemeNotFound
+		}
+		return nil, fmt.Errorf("查询工作流方案失败: %w", err)
+	}
+
+	workflow, err := s.workflowRepo.GetByID(ctx, scheme.WorkflowID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrWorkflowNotFound
+		}
+		return nil, fmt.Errorf("查询工作流失败: %w", err)
+	}
+
+	return workflow, nil
+}
+

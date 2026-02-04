@@ -77,6 +77,22 @@ type AssignIssueRequest struct {
 	AssigneeID uint64 `json:"assignee_id" binding:"required"`
 }
 
+// CreateWorklogRequest 创建工作日志请求
+type CreateWorklogRequest struct {
+	Description string `json:"description" binding:"required,min=1,max=5000"`
+	TimeSpent   string `json:"time_spent" binding:"required"`  // 格式：2h 30m, 1d 4h, 30m
+	WorkedAt    string `json:"worked_at" binding:"required"`   // ISO 8601 格式
+	WorkType    string `json:"work_type" binding:"max=30"`
+}
+
+// UpdateWorklogRequest 更新工作日志请求
+type UpdateWorklogRequest struct {
+	Description string `json:"description" binding:"required,min=1,max=5000"`
+	TimeSpent   string `json:"time_spent" binding:"required"`
+	WorkedAt    string `json:"worked_at" binding:"required"`
+	WorkType    string `json:"work_type" binding:"max=30"`
+}
+
 // ============ 响应 DTO ============
 
 // IssueResponse 工单响应
@@ -150,4 +166,19 @@ type WatcherResponse struct {
 	UserID    uint64     `json:"user_id"`
 	User      *UserBrief `json:"user,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
+}
+
+// WorklogResponse 工作日志响应
+type WorklogResponse struct {
+	ID           uint64     `json:"id"`
+	IssueID      uint64     `json:"issue_id"`
+	UserID       uint64     `json:"user_id"`
+	User         *UserBrief `json:"user,omitempty"`
+	Description  string     `json:"description"`
+	TimeSpent    string     `json:"time_spent"`
+	TimeSpentSec int        `json:"time_spent_sec"`
+	WorkedAt     time.Time  `json:"worked_at"`
+	WorkType     string     `json:"work_type"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }

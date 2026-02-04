@@ -18,13 +18,18 @@ import (
 
 // 业务错误定义
 var (
-	ErrProjectNotFound     = errors.New("项目不存在")
-	ErrProjectKeyExists    = errors.New("项目 Key 已存在")
-	ErrMemberNotFound      = errors.New("成员不存在")
-	ErrMemberAlreadyExists = errors.New("成员已存在")
-	ErrCannotRemoveOwner   = errors.New("不能移除项目所有者")
-	ErrIssueTypeNotFound   = errors.New("工单类型不存在")
-	ErrNoPermission        = errors.New("没有操作权限")
+	ErrProjectNotFound       = errors.New("项目不存在")
+	ErrProjectKeyExists      = errors.New("项目 Key 已存在")
+	ErrMemberNotFound        = errors.New("成员不存在")
+	ErrMemberAlreadyExists   = errors.New("成员已存在")
+	ErrCannotRemoveOwner     = errors.New("不能移除项目所有者")
+	ErrIssueTypeNotFound     = errors.New("工单类型不存在")
+	ErrNoPermission          = errors.New("没有操作权限")
+	ErrRoleNotFound          = errors.New("角色不存在")
+	ErrRoleKeyExists         = errors.New("角色 Key 已存在")
+	ErrCannotDeleteSystemRole = errors.New("不能删除系统预置角色")
+	ErrRoleMemberExists      = errors.New("用户已在该角色中")
+	ErrRoleMemberNotFound    = errors.New("角色成员不存在")
 )
 
 // ProjectService 项目服务接口
@@ -48,6 +53,16 @@ type ProjectService interface {
 	UpdateIssueType(ctx context.Context, id uint64, req *dto.UpdateIssueTypeRequest) (*dto.IssueTypeResponse, error)
 	DeleteIssueType(ctx context.Context, id uint64) error
 	ListIssueTypes(ctx context.Context, projectKey string) ([]*dto.IssueTypeResponse, error)
+
+	// 项目角色管理
+	CreateRole(ctx context.Context, projectKey string, req *dto.CreateProjectRoleRequest) (*dto.ProjectRoleResponse, error)
+	UpdateRole(ctx context.Context, projectKey string, roleID uint64, req *dto.UpdateProjectRoleRequest) (*dto.ProjectRoleResponse, error)
+	DeleteRole(ctx context.Context, projectKey string, roleID uint64) error
+	ListRoles(ctx context.Context, projectKey string) ([]*dto.ProjectRoleResponse, error)
+	AddRoleMember(ctx context.Context, projectKey string, roleID uint64, req *dto.AddRoleMemberRequest) (*dto.ProjectRoleMemberResponse, error)
+	RemoveRoleMember(ctx context.Context, projectKey string, roleID, userID uint64) error
+	ListRoleMembers(ctx context.Context, projectKey string, roleID uint64) ([]*dto.ProjectRoleMemberResponse, error)
+	GetUserRoles(ctx context.Context, projectKey string, userID uint64) ([]*dto.ProjectRoleResponse, error)
 }
 
 // projectService 项目服务实现
@@ -55,7 +70,10 @@ type projectService struct {
 	projectRepo       repository.ProjectRepository
 	memberRepo        repository.ProjectMemberRepository
 	issueTypeRepo     repository.IssueTypeRepository
+	roleRepo          repository.ProjectRoleRepository
+	roleMemberRepo    repository.ProjectRoleMemberRepository
 	userRepo          userRepo.UserRepository
+	db                *gorm.DB
 }
 
 // NewProjectService 创建项目服务实例
@@ -63,13 +81,19 @@ func NewProjectService(
 	projectRepo repository.ProjectRepository,
 	memberRepo repository.ProjectMemberRepository,
 	issueTypeRepo repository.IssueTypeRepository,
+	roleRepo repository.ProjectRoleRepository,
+	roleMemberRepo repository.ProjectRoleMemberRepository,
 	userRepo userRepo.UserRepository,
+	db *gorm.DB,
 ) ProjectService {
 	return &projectService{
-		projectRepo:   projectRepo,
-		memberRepo:    memberRepo,
-		issueTypeRepo: issueTypeRepo,
-		userRepo:      userRepo,
+		projectRepo:    projectRepo,
+		memberRepo:     memberRepo,
+		issueTypeRepo:  issueTypeRepo,
+		roleRepo:       roleRepo,
+		roleMemberRepo: roleMemberRepo,
+		userRepo:       userRepo,
+		db:             db,
 	}
 }
 
@@ -130,6 +154,36 @@ func (s *projectService) CreateProject(ctx context.Context, req *dto.CreateProje
 		}
 		if err := s.memberRepo.Create(ctx, leadMember); err != nil {
 			logger.Warn("failed to add lead as admin", zap.Error(err))
+		}
+	}
+
+	// 初始化项目预置角色
+	if err := model.InitProjectRoles(s.db, project.ID); err != nil {
+		logger.Warn("failed to init project roles", zap.Error(err))
+	} else {
+		// 将创建者添加到 administrators 角色
+		adminRole, err := s.roleRepo.GetByProjectAndKey(ctx, project.ID, "administrators")
+		if err == nil {
+			adminMember := &model.ProjectRoleMember{
+				ProjectID: project.ID,
+				RoleID:    adminRole.ID,
+				UserID:    creatorID,
+			}
+			if err := s.roleMemberRepo.Create(ctx, adminMember); err != nil {
+				logger.Warn("failed to add creator to administrators role", zap.Error(err))
+			}
+		}
+
+		// 如果负责人不是创建者，也添加到 administrators 角色
+		if req.LeadUserID != creatorID && err == nil {
+			leadAdminMember := &model.ProjectRoleMember{
+				ProjectID: project.ID,
+				RoleID:    adminRole.ID,
+				UserID:    req.LeadUserID,
+			}
+			if err := s.roleMemberRepo.Create(ctx, leadAdminMember); err != nil {
+				logger.Warn("failed to add lead to administrators role", zap.Error(err))
+			}
 		}
 	}
 
@@ -583,4 +637,364 @@ func (s *projectService) toIssueTypeResponse(issueType *model.IssueType) *dto.Is
 		CreatedAt:   issueType.CreatedAt,
 		UpdatedAt:   issueType.UpdatedAt,
 	}
+}
+
+// ============ 项目角色管理 ============
+
+// CreateRole 创建项目角色
+func (s *projectService) CreateRole(ctx context.Context, projectKey string, req *dto.CreateProjectRoleRequest) (*dto.ProjectRoleResponse, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	// 检查角色 Key 是否已存在
+	_, err = s.roleRepo.GetByProjectAndKey(ctx, project.ID, req.RoleKey)
+	if err == nil {
+		return nil, ErrRoleKeyExists
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("检查角色失败: %w", err)
+	}
+
+	role := &model.ProjectRole{
+		ProjectID:   project.ID,
+		RoleKey:     req.RoleKey,
+		RoleName:    req.RoleName,
+		Description: req.Description,
+		IsSystem:    false,
+		SortOrder:   100, // 自定义角色排在后面
+	}
+
+	if err := s.roleRepo.Create(ctx, role); err != nil {
+		logger.Error("failed to create project role", zap.Error(err))
+		return nil, fmt.Errorf("创建角色失败: %w", err)
+	}
+
+	logger.Info("project role created",
+		zap.String("project_key", projectKey),
+		zap.String("role_key", req.RoleKey),
+	)
+
+	return s.toRoleResponse(ctx, role), nil
+}
+
+// UpdateRole 更新项目角色
+func (s *projectService) UpdateRole(ctx context.Context, projectKey string, roleID uint64, req *dto.UpdateProjectRoleRequest) (*dto.ProjectRoleResponse, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	// 验证角色属于该项目
+	if role.ProjectID != project.ID {
+		return nil, ErrRoleNotFound
+	}
+
+	if req.RoleName != nil {
+		role.RoleName = *req.RoleName
+	}
+	if req.Description != nil {
+		role.Description = *req.Description
+	}
+
+	if err := s.roleRepo.Update(ctx, role); err != nil {
+		logger.Error("failed to update project role", zap.Error(err))
+		return nil, fmt.Errorf("更新角色失败: %w", err)
+	}
+
+	return s.toRoleResponse(ctx, role), nil
+}
+
+// DeleteRole 删除项目角色
+func (s *projectService) DeleteRole(ctx context.Context, projectKey string, roleID uint64) error {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrProjectNotFound
+		}
+		return fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
+		}
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	// 验证角色属于该项目
+	if role.ProjectID != project.ID {
+		return ErrRoleNotFound
+	}
+
+	// 不能删除系统预置角色
+	if role.IsSystem {
+		return ErrCannotDeleteSystemRole
+	}
+
+	if err := s.roleRepo.Delete(ctx, roleID); err != nil {
+		logger.Error("failed to delete project role", zap.Error(err))
+		return fmt.Errorf("删除角色失败: %w", err)
+	}
+
+	logger.Info("project role deleted",
+		zap.String("project_key", projectKey),
+		zap.Uint64("role_id", roleID),
+	)
+
+	return nil
+}
+
+// ListRoles 获取项目角色列表
+func (s *projectService) ListRoles(ctx context.Context, projectKey string) ([]*dto.ProjectRoleResponse, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	roles, err := s.roleRepo.ListByProject(ctx, project.ID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色列表失败: %w", err)
+	}
+
+	responses := make([]*dto.ProjectRoleResponse, len(roles))
+	for i, role := range roles {
+		responses[i] = s.toRoleResponse(ctx, role)
+	}
+
+	return responses, nil
+}
+
+// AddRoleMember 添加角色成员
+func (s *projectService) AddRoleMember(ctx context.Context, projectKey string, roleID uint64, req *dto.AddRoleMemberRequest) (*dto.ProjectRoleMemberResponse, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	// 验证角色属于该项目
+	if role.ProjectID != project.ID {
+		return nil, ErrRoleNotFound
+	}
+
+	// 检查用户是否存在
+	user, err := s.userRepo.GetByID(ctx, req.UserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("用户不存在")
+		}
+		return nil, fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 检查是否已是角色成员
+	exists, err := s.roleMemberRepo.Exists(ctx, roleID, req.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("检查角色成员失败: %w", err)
+	}
+	if exists {
+		return nil, ErrRoleMemberExists
+	}
+
+	member := &model.ProjectRoleMember{
+		ProjectID: project.ID,
+		RoleID:    roleID,
+		UserID:    req.UserID,
+	}
+
+	if err := s.roleMemberRepo.Create(ctx, member); err != nil {
+		logger.Error("failed to add role member", zap.Error(err))
+		return nil, fmt.Errorf("添加角色成员失败: %w", err)
+	}
+
+	logger.Info("role member added",
+		zap.String("project_key", projectKey),
+		zap.Uint64("role_id", roleID),
+		zap.Uint64("user_id", req.UserID),
+	)
+
+	return s.toRoleMemberResponse(member, user), nil
+}
+
+// RemoveRoleMember 移除角色成员
+func (s *projectService) RemoveRoleMember(ctx context.Context, projectKey string, roleID, userID uint64) error {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrProjectNotFound
+		}
+		return fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
+		}
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	// 验证角色属于该项目
+	if role.ProjectID != project.ID {
+		return ErrRoleNotFound
+	}
+
+	// 检查成员是否存在
+	_, err = s.roleMemberRepo.GetByRoleAndUser(ctx, roleID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleMemberNotFound
+		}
+		return fmt.Errorf("查询角色成员失败: %w", err)
+	}
+
+	if err := s.roleMemberRepo.DeleteByRoleAndUser(ctx, roleID, userID); err != nil {
+		logger.Error("failed to remove role member", zap.Error(err))
+		return fmt.Errorf("移除角色成员失败: %w", err)
+	}
+
+	logger.Info("role member removed",
+		zap.String("project_key", projectKey),
+		zap.Uint64("role_id", roleID),
+		zap.Uint64("user_id", userID),
+	)
+
+	return nil
+}
+
+// ListRoleMembers 获取角色成员列表
+func (s *projectService) ListRoleMembers(ctx context.Context, projectKey string, roleID uint64) ([]*dto.ProjectRoleMemberResponse, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	// 验证角色属于该项目
+	if role.ProjectID != project.ID {
+		return nil, ErrRoleNotFound
+	}
+
+	members, err := s.roleMemberRepo.ListByRole(ctx, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色成员列表失败: %w", err)
+	}
+
+	responses := make([]*dto.ProjectRoleMemberResponse, len(members))
+	for i, member := range members {
+		user, _ := s.userRepo.GetByID(ctx, member.UserID)
+		responses[i] = s.toRoleMemberResponse(member, user)
+	}
+
+	return responses, nil
+}
+
+// GetUserRoles 获取用户在项目中的角色
+func (s *projectService) GetUserRoles(ctx context.Context, projectKey string, userID uint64) ([]*dto.ProjectRoleResponse, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	members, err := s.roleMemberRepo.ListByProjectAndUser(ctx, project.ID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("查询用户角色失败: %w", err)
+	}
+
+	responses := make([]*dto.ProjectRoleResponse, 0, len(members))
+	for _, member := range members {
+		role, err := s.roleRepo.GetByID(ctx, member.RoleID)
+		if err != nil {
+			continue
+		}
+		responses = append(responses, s.toRoleResponse(ctx, role))
+	}
+
+	return responses, nil
+}
+
+// toRoleResponse 将角色模型转换为响应 DTO
+func (s *projectService) toRoleResponse(ctx context.Context, role *model.ProjectRole) *dto.ProjectRoleResponse {
+	resp := &dto.ProjectRoleResponse{
+		ID:          role.ID,
+		ProjectID:   role.ProjectID,
+		RoleKey:     role.RoleKey,
+		RoleName:    role.RoleName,
+		Description: role.Description,
+		IsSystem:    role.IsSystem,
+		SortOrder:   role.SortOrder,
+		CreatedAt:   role.CreatedAt,
+		UpdatedAt:   role.UpdatedAt,
+	}
+
+	// 获取成员数量
+	if count, err := s.roleRepo.CountMembersByRole(ctx, role.ID); err == nil {
+		resp.MemberCount = int(count)
+	}
+
+	return resp
+}
+
+// toRoleMemberResponse 将角色成员模型转换为响应 DTO
+func (s *projectService) toRoleMemberResponse(member *model.ProjectRoleMember, user *model.User) *dto.ProjectRoleMemberResponse {
+	resp := &dto.ProjectRoleMemberResponse{
+		ID:        member.ID,
+		ProjectID: member.ProjectID,
+		RoleID:    member.RoleID,
+		UserID:    member.UserID,
+		CreatedAt: member.CreatedAt,
+	}
+
+	if user != nil {
+		resp.User = &dto.UserBrief{
+			ID:          user.ID,
+			Username:    user.Username,
+			DisplayName: user.DisplayName,
+			AvatarURL:   user.AvatarURL,
+		}
+	}
+
+	return resp
 }

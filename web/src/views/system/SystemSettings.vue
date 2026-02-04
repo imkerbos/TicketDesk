@@ -1,6 +1,82 @@
 <template>
   <div class="system-settings">
     <el-tabs v-model="activeTab" class="settings-tabs">
+      <!-- 通用配置 -->
+      <el-tab-pane label="通用配置" name="general">
+        <el-card shadow="never" class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <div class="card-title">
+                <div class="title-icon general-icon">
+                  <el-icon><Setting /></el-icon>
+                </div>
+                <div class="title-text">
+                  <span class="title">通用系统配置</span>
+                  <span class="subtitle">配置系统的基本信息和全局设置</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <el-row :gutter="40">
+            <el-col :xs="24" :lg="12">
+              <el-form
+                ref="generalFormRef"
+                :model="generalForm"
+                :rules="generalRules"
+                label-position="top"
+                class="settings-form"
+              >
+                <div class="form-section">
+                  <div class="section-title">站点信息</div>
+                  <el-form-item label="站点域名" prop="site_url">
+                    <el-input
+                      v-model="generalForm.site_url"
+                      placeholder="例如: https://ticketdesk.example.com"
+                    >
+                      <template #prefix>
+                        <el-icon><Link /></el-icon>
+                      </template>
+                    </el-input>
+                    <template #extra>
+                      <div class="form-item-tip">
+                        用于生成邮件中的链接，请填写完整的域名（包含协议）
+                      </div>
+                    </template>
+                  </el-form-item>
+                </div>
+
+                <el-form-item>
+                  <el-button type="primary" @click="saveGeneralConfig" :loading="generalLoading">
+                    保存配置
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </el-col>
+
+            <el-col :xs="24" :lg="12">
+              <div class="config-tips">
+                <div class="tip-title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>配置说明</span>
+                </div>
+                <div class="tip-content">
+                  <div class="tip-item">
+                    <div class="tip-label">站点域名</div>
+                    <div class="tip-desc">
+                      系统会使用此域名生成邮件中的链接（如重置密码链接）。请确保填写正确的域名，包含协议（http:// 或 https://），不要以斜杠结尾。
+                    </div>
+                    <div class="tip-example">
+                      示例：https://ticketdesk.example.com
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-tab-pane>
+
       <!-- 邮件配置 -->
       <el-tab-pane label="邮件配置" name="email">
         <el-card shadow="never" class="settings-card">
@@ -420,11 +496,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   Message, Connection, Lock, Plus, Check, Promotion, InfoFilled,
-  Edit, Delete, Key, Timer, Monitor, User
+  Edit, Delete, Key, Timer, Monitor, User, Setting, Link
 } from '@element-plus/icons-vue'
 import {
   getEmailConfig,
@@ -435,11 +512,73 @@ import {
   createWebhook,
   updateWebhook,
   deleteWebhook,
+  getConfig,
+  updateConfig,
 } from '@/api/system'
 import type { Webhook } from '@/types/system'
 import { WebhookEvents } from '@/types/system'
 
-const activeTab = ref('email')
+const route = useRoute()
+const router = useRouter()
+
+// 从 URL 查询参数中获取 tab，如果没有则默认为 'general'
+const activeTab = ref((route.query.tab as string) || 'general')
+
+// 监听 tab 变化，更新 URL
+watch(activeTab, (newTab) => {
+  router.replace({
+    query: { ...route.query, tab: newTab },
+  })
+})
+
+// ============ 通用配置 ============
+const generalFormRef = ref<FormInstance>()
+const generalLoading = ref(false)
+const generalForm = reactive({
+  site_url: '',
+})
+
+const generalRules: FormRules = {
+  site_url: [
+    { required: true, message: '请输入站点域名', trigger: 'blur' },
+    { type: 'url', message: '请输入有效的 URL', trigger: 'blur' },
+  ],
+}
+
+// 加载通用配置
+const loadGeneralConfig = async () => {
+  try {
+    // 从系统配置中读取站点域名
+    const res = await getConfig('general.site_url')
+    if (res.data.data) {
+      generalForm.site_url = res.data.data.config_value || ''
+    }
+  } catch (error: any) {
+    // 如果配置不存在（404），不报错，使用默认空值
+    if (error?.response?.status !== 404) {
+      console.error('加载通用配置失败:', error)
+    }
+  }
+}
+
+// 保存通用配置
+const saveGeneralConfig = async () => {
+  if (!generalFormRef.value) return
+
+  await generalFormRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    generalLoading.value = true
+    try {
+      await updateConfig('general.site_url', generalForm.site_url)
+      ElMessage.success('通用配置保存成功')
+    } catch (error) {
+      // 错误已在拦截器中处理
+    } finally {
+      generalLoading.value = false
+    }
+  })
+}
 
 // ============ 邮件配置 ============
 const emailFormRef = ref<FormInstance>()
@@ -678,6 +817,7 @@ const saveSecurityConfig = async () => {
 
 // ============ 初始化 ============
 onMounted(() => {
+  loadGeneralConfig()
   loadEmailConfig()
   loadWebhooks()
   loadSecurityConfig()
@@ -738,6 +878,11 @@ onMounted(() => {
       background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
       color: #fff;
     }
+
+    &.general-icon {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: #fff;
+    }
   }
 
   .title-text {
@@ -780,6 +925,13 @@ onMounted(() => {
     padding: 12px 16px;
     background: #f9fafb;
     border-radius: 8px;
+  }
+
+  .form-item-tip {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+    line-height: 1.5;
   }
 }
 

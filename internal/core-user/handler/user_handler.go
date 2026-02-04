@@ -679,3 +679,95 @@ func (h *UserHandler) HandleVerifyMFA(c *gin.Context) {
 	// 暂时返回成功消息
 	response.Success(c, gin.H{"message": "MFA 验证成功"})
 }
+
+// HandleForgotPassword 处理忘记密码请求
+// @Summary 忘记密码
+// @Description 请求重置密码，系统将发送重置链接到用户邮箱
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.ForgotPasswordRequest true "忘记密码请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/auth/forgot-password [post]
+func (h *UserHandler) HandleForgotPassword(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err := h.userService.ForgotPassword(c.Request.Context(), &req)
+	if err != nil {
+		response.InternalError(c, "处理请求失败")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "如果该邮箱已注册，您将收到重置密码的邮件"})
+}
+
+// HandleVerifyResetToken 验证重置密码令牌
+// @Summary 验证重置密码令牌
+// @Description 验证重置密码令牌是否有效
+// @Tags Auth
+// @Produce json
+// @Param token query string true "重置密码令牌"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/auth/verify-reset-token [get]
+func (h *UserHandler) HandleVerifyResetToken(c *gin.Context) {
+	var req dto.VerifyResetTokenRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err := h.userService.VerifyResetToken(c.Request.Context(), req.Token)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidResetToken):
+			response.BadRequest(c, "重置密码令牌无效")
+		case errors.Is(err, service.ErrResetTokenExpired):
+			response.BadRequest(c, "重置密码令牌已过期")
+		default:
+			response.InternalError(c, "验证令牌失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "令牌有效"})
+}
+
+// HandleResetPasswordWithToken 使用令牌重置密码
+// @Summary 使用令牌重置密码
+// @Description 使用重置密码令牌设置新密码
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.ResetPasswordWithTokenRequest true "重置密码请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/auth/reset-password [post]
+func (h *UserHandler) HandleResetPasswordWithToken(c *gin.Context) {
+	var req dto.ResetPasswordWithTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err := h.userService.ResetPasswordWithToken(c.Request.Context(), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidResetToken):
+			response.BadRequest(c, "重置密码令牌无效")
+		case errors.Is(err, service.ErrResetTokenExpired):
+			response.BadRequest(c, "重置密码令牌已过期")
+		default:
+			response.InternalError(c, "重置密码失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "密码重置成功"})
+}
+

@@ -40,12 +40,15 @@ const (
 	KeyEmailEnabled      = "email.enabled"
 
 	// 安全配置键
-	KeySecurityMFAEnabled           = "security.mfa_enabled"
-	KeySecurityMFARequired          = "security.mfa_required"
-	KeySecurityPasswordMinLength    = "security.password_min_length"
-	KeySecurityPasswordRequireUpper = "security.password_require_upper"
+	KeySecurityMFAEnabled            = "security.mfa_enabled"
+	KeySecurityMFARequired           = "security.mfa_required"
+	KeySecurityPasswordMinLength     = "security.password_min_length"
+	KeySecurityPasswordRequireUpper  = "security.password_require_upper"
 	KeySecurityPasswordRequireNumber = "security.password_require_number"
-	KeySecuritySessionTimeout       = "security.session_timeout"
+	KeySecuritySessionTimeout        = "security.session_timeout"
+
+	// 通用配置键
+	KeyGeneralSiteURL = "general.site_url" // 站点域名
 )
 
 // 业务错误定义

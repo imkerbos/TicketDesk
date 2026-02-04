@@ -246,6 +246,72 @@ func (r *watcherRepository) GetByIssueAndUser(ctx context.Context, issueID, user
 	return &watcher, nil
 }
 
+// WorklogRepository 工作日志数据访问接口
+type WorklogRepository interface {
+	Create(ctx context.Context, worklog *model.IssueWorklog) error
+	GetByID(ctx context.Context, id uint64) (*model.IssueWorklog, error)
+	Update(ctx context.Context, worklog *model.IssueWorklog) error
+	Delete(ctx context.Context, id uint64) error
+	ListByIssue(ctx context.Context, issueID uint64) ([]*model.IssueWorklog, error)
+	GetTotalTimeSpent(ctx context.Context, issueID uint64) (int, error)
+}
+
+// worklogRepository 工作日志数据访问实现
+type worklogRepository struct {
+	db *gorm.DB
+}
+
+// NewWorklogRepository 创建工作日志数据访问实例
+func NewWorklogRepository(db *gorm.DB) WorklogRepository {
+	return &worklogRepository{db: db}
+}
+
+// Create 创建工作日志
+func (r *worklogRepository) Create(ctx context.Context, worklog *model.IssueWorklog) error {
+	return r.db.WithContext(ctx).Create(worklog).Error
+}
+
+// GetByID 根据 ID 获取工作日志
+func (r *worklogRepository) GetByID(ctx context.Context, id uint64) (*model.IssueWorklog, error) {
+	var worklog model.IssueWorklog
+	err := r.db.WithContext(ctx).First(&worklog, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &worklog, nil
+}
+
+// Update 更新工作日志
+func (r *worklogRepository) Update(ctx context.Context, worklog *model.IssueWorklog) error {
+	return r.db.WithContext(ctx).Save(worklog).Error
+}
+
+// Delete 删除工作日志
+func (r *worklogRepository) Delete(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Delete(&model.IssueWorklog{}, id).Error
+}
+
+// ListByIssue 获取工单的所有工作日志
+func (r *worklogRepository) ListByIssue(ctx context.Context, issueID uint64) ([]*model.IssueWorklog, error) {
+	var worklogs []*model.IssueWorklog
+	err := r.db.WithContext(ctx).
+		Where("issue_id = ?", issueID).
+		Order("worked_at DESC, id DESC").
+		Find(&worklogs).Error
+	return worklogs, err
+}
+
+// GetTotalTimeSpent 获取工单的总工作时长（秒）
+func (r *worklogRepository) GetTotalTimeSpent(ctx context.Context, issueID uint64) (int, error) {
+	var total int
+	err := r.db.WithContext(ctx).
+		Model(&model.IssueWorklog{}).
+		Where("issue_id = ?", issueID).
+		Select("COALESCE(SUM(time_spent_sec), 0)").
+		Scan(&total).Error
+	return total, err
+}
+
 // GenerateIssueKey 生成工单 Key
 func GenerateIssueKey(projectKey string, number int64) string {
 	return fmt.Sprintf("%s-%d", projectKey, number)

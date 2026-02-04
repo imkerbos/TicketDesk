@@ -11,6 +11,18 @@ const router = createRouter({
       meta: { title: '登录', public: true },
     },
     {
+      path: '/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('@/views/auth/ForgotPassword.vue'),
+      meta: { title: '忘记密码', public: true },
+    },
+    {
+      path: '/reset-password',
+      name: 'ResetPassword',
+      component: () => import('@/views/auth/ResetPassword.vue'),
+      meta: { title: '重置密码', public: true },
+    },
+    {
       path: '/',
       redirect: '/dashboard',
     },
@@ -40,6 +52,25 @@ const router = createRouter({
       name: 'ProjectList',
       component: () => import('@/views/project/ProjectList.vue'),
       meta: { title: '项目管理' },
+    },
+    {
+      path: '/projects/:key/settings',
+      name: 'ProjectSettings',
+      component: () => import('@/views/project/ProjectSettings.vue'),
+      meta: { title: '项目设置' },
+    },
+    {
+      path: '/projects/:key/roles',
+      name: 'ProjectRoles',
+      component: () => import('@/views/project/ProjectRoles.vue'),
+      meta: { title: '项目角色' },
+    },
+    // 工作流管理
+    {
+      path: '/workflows',
+      name: 'WorkflowList',
+      component: () => import('@/views/workflow/WorkflowList.vue'),
+      meta: { title: '工作流管理' },
     },
     // 告警中心
     {

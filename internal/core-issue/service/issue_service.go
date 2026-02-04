@@ -29,6 +29,9 @@ var (
 	ErrAlreadyWatching    = errors.New("已经关注该工单")
 	ErrNotWatching        = errors.New("未关注该工单")
 	ErrInvalidTransition  = errors.New("无效的状态流转")
+	ErrWorklogNotFound    = errors.New("工作日志不存在")
+	ErrUnauthorized       = errors.New("无权限操作")
+	ErrInvalidTimeFormat  = errors.New("时间格式错误")
 )
 
 // IssueService 工单服务接口
@@ -53,7 +56,13 @@ type IssueService interface {
 	// 关注
 	AddWatcher(ctx context.Context, issueKey string, userID uint64) error
 	RemoveWatcher(ctx context.Context, issueKey string, userID uint64) error
-	ListWatchers(ctx context.Context, issueKey string) ([]*dto.UserBrief, error)
+	ListWatchers(ctx context.Context, issueKey string) ([]*dto.WatcherResponse, error)
+
+	// 工作日志
+	AddWorklog(ctx context.Context, issueKey string, req *dto.CreateWorklogRequest, userID uint64) (*dto.WorklogResponse, error)
+	UpdateWorklog(ctx context.Context, worklogID uint64, req *dto.UpdateWorklogRequest, userID uint64) (*dto.WorklogResponse, error)
+	DeleteWorklog(ctx context.Context, worklogID uint64, userID uint64) error
+	ListWorklogs(ctx context.Context, issueKey string) ([]*dto.WorklogResponse, error)
 }
 
 // issueService 工单服务实现
@@ -61,12 +70,19 @@ type issueService struct {
 	issueRepo      repository.IssueRepository
 	commentRepo    repository.CommentRepository
 	watcherRepo    repository.WatcherRepository
+	worklogRepo    repository.WorklogRepository
 	projectRepo    projectRepo.ProjectRepository
 	issueTypeRepo  projectRepo.IssueTypeRepository
 	userRepo       userRepo.UserRepository
 	alertSyncSvc   AlertSyncService   // 告警同步服务（可选）
 	activityLogger ActivityLogger     // 活动日志记录器（可选）
 	notifSender    NotificationSender // 通知发送服务（可选）
+	workflowEngine WorkflowEngine     // 工作流引擎（可选）
+}
+
+// WorkflowEngine 工作流引擎接口（避免循环依赖）
+type WorkflowEngine interface {
+	CreateInstance(ctx context.Context, issueID, workflowID uint64) (*model.WorkflowInstance, error)
 }
 
 // ActivityLogger 活动日志记录器接口（避免循环依赖）
@@ -97,6 +113,7 @@ func NewIssueService(
 	issueRepo repository.IssueRepository,
 	commentRepo repository.CommentRepository,
 	watcherRepo repository.WatcherRepository,
+	worklogRepo repository.WorklogRepository,
 	projectRepo projectRepo.ProjectRepository,
 	issueTypeRepo projectRepo.IssueTypeRepository,
 	userRepo userRepo.UserRepository,
@@ -105,6 +122,7 @@ func NewIssueService(
 		issueRepo:      issueRepo,
 		commentRepo:    commentRepo,
 		watcherRepo:    watcherRepo,
+		worklogRepo:    worklogRepo,
 		projectRepo:    projectRepo,
 		issueTypeRepo:  issueTypeRepo,
 		userRepo:       userRepo,
@@ -126,6 +144,11 @@ func (s *issueService) SetActivityLogger(activityLogger ActivityLogger) {
 // SetNotificationService 设置通知发送服务（用于避免循环依赖）
 func (s *issueService) SetNotificationService(notifSender NotificationSender) {
 	s.notifSender = notifSender
+}
+
+// SetWorkflowEngine 设置工作流引擎（用于避免循环依赖）
+func (s *issueService) SetWorkflowEngine(workflowEngine WorkflowEngine) {
+	s.workflowEngine = workflowEngine
 }
 
 // sendNotification 发送通知（内部辅助方法，异步不阻塞主流程）
@@ -285,6 +308,21 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 			EntityKey:  issue.IssueKey,
 		})
 	}
+
+	// TODO: 创建工作流实例（需要先实现工作流方案功能）
+	// 暂时跳过工作流实例创建，等工作流方案实现后再集成
+	// if s.workflowEngine != nil {
+	// 	// 根据项目和工单类型查找对应的工作流
+	// 	// workflowID := ...
+	// 	// instance, err := s.workflowEngine.CreateInstance(ctx, issue.ID, workflowID)
+	// 	// if err != nil {
+	// 	// 	logger.Warn("failed to create workflow instance", zap.Error(err))
+	// 	// } else {
+	// 	// 	// 更新工单的工作流实例 ID
+	// 	// 	issue.WorkflowInstanceID = &instance.ID
+	// 	// 	_ = s.issueRepo.Update(ctx, issue)
+	// 	// }
+	// }
 
 	logger.Info("issue created successfully",
 		zap.String("issue_key", issue.IssueKey),
@@ -879,7 +917,7 @@ func (s *issueService) RemoveWatcher(ctx context.Context, issueKey string, userI
 }
 
 // ListWatchers 获取关注人列表
-func (s *issueService) ListWatchers(ctx context.Context, issueKey string) ([]*dto.UserBrief, error) {
+func (s *issueService) ListWatchers(ctx context.Context, issueKey string) ([]*dto.WatcherResponse, error) {
 	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(issueKey))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -893,16 +931,22 @@ func (s *issueService) ListWatchers(ctx context.Context, issueKey string) ([]*dt
 		return nil, fmt.Errorf("查询关注人失败: %w", err)
 	}
 
-	responses := make([]*dto.UserBrief, 0, len(watchers))
+	responses := make([]*dto.WatcherResponse, 0, len(watchers))
 	for _, w := range watchers {
+		resp := &dto.WatcherResponse{
+			ID:      w.ID,
+			IssueID: w.IssueID,
+			UserID:  w.UserID,
+		}
 		if user, err := s.userRepo.GetByID(ctx, w.UserID); err == nil {
-			responses = append(responses, &dto.UserBrief{
+			resp.User = &dto.UserBrief{
 				ID:          user.ID,
 				Username:    user.Username,
 				DisplayName: user.DisplayName,
 				AvatarURL:   user.AvatarURL,
-			})
+			}
 		}
+		responses = append(responses, resp)
 	}
 
 	return responses, nil
@@ -1039,6 +1083,267 @@ func (s *issueService) toCommentResponse(ctx context.Context, comment *model.Iss
 	}
 
 	if user, err := s.userRepo.GetByID(ctx, comment.UserID); err == nil {
+		resp.User = &dto.UserBrief{
+			ID:          user.ID,
+			Username:    user.Username,
+			DisplayName: user.DisplayName,
+			AvatarURL:   user.AvatarURL,
+		}
+	}
+
+	return resp
+}
+
+// ============ 工作日志相关方法 ============
+
+// AddWorklog 添加工作日志
+func (s *issueService) AddWorklog(ctx context.Context, issueKey string, req *dto.CreateWorklogRequest, userID uint64) (*dto.WorklogResponse, error) {
+	// 获取工单
+	issue, err := s.issueRepo.GetByKey(ctx, issueKey)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrIssueNotFound
+		}
+		return nil, fmt.Errorf("failed to get issue: %w", err)
+	}
+
+	// 解析时间字符串
+	timeSpentSec, err := parseTimeSpent(req.TimeSpent)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析工作日期
+	workedAt, err := time.Parse(time.RFC3339, req.WorkedAt)
+	if err != nil {
+		return nil, fmt.Errorf("invalid worked_at format: %w", ErrInvalidTimeFormat)
+	}
+
+	// 创建工作日志
+	worklog := &model.IssueWorklog{
+		IssueID:      issue.ID,
+		UserID:       userID,
+		Description:  req.Description,
+		TimeSpent:    req.TimeSpent,
+		TimeSpentSec: timeSpentSec,
+		WorkedAt:     workedAt,
+		WorkType:     req.WorkType,
+	}
+
+	if err := s.worklogRepo.Create(ctx, worklog); err != nil {
+		return nil, fmt.Errorf("failed to create worklog: %w", err)
+	}
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		user, _ := s.userRepo.GetByID(ctx, userID)
+		userName := "Unknown"
+		if user != nil {
+			userName = user.DisplayName
+		}
+		details := fmt.Sprintf("添加工作日志：%s", req.TimeSpent)
+		_ = s.activityLogger.LogActivity(ctx, userID, userName, "worklog_added", "issue", issue.ID, issue.IssueKey, details)
+	}
+
+	// 通知关注者
+	if s.notifSender != nil {
+		user, _ := s.userRepo.GetByID(ctx, userID)
+		userName := "Unknown"
+		if user != nil {
+			userName = user.DisplayName
+		}
+		s.notifyWatchers(issue, userID, userID, userName, model.NotificationTypeIssueUpdated,
+			fmt.Sprintf("工单 %s 添加了工作日志", issue.IssueKey),
+			fmt.Sprintf("%s 添加了工作日志（%s）", userName, req.TimeSpent))
+	}
+
+	return s.toWorklogResponse(ctx, worklog), nil
+}
+
+// UpdateWorklog 更新工作日志
+func (s *issueService) UpdateWorklog(ctx context.Context, worklogID uint64, req *dto.UpdateWorklogRequest, userID uint64) (*dto.WorklogResponse, error) {
+	// 获取工作日志
+	worklog, err := s.worklogRepo.GetByID(ctx, worklogID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrWorklogNotFound
+		}
+		return nil, fmt.Errorf("failed to get worklog: %w", err)
+	}
+
+	// 权限检查：只有创建者可以编辑
+	if worklog.UserID != userID {
+		return nil, ErrUnauthorized
+	}
+
+	// 解析时间字符串
+	timeSpentSec, err := parseTimeSpent(req.TimeSpent)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析工作日期
+	workedAt, err := time.Parse(time.RFC3339, req.WorkedAt)
+	if err != nil {
+		return nil, fmt.Errorf("invalid worked_at format: %w", ErrInvalidTimeFormat)
+	}
+
+	// 更新字段
+	worklog.Description = req.Description
+	worklog.TimeSpent = req.TimeSpent
+	worklog.TimeSpentSec = timeSpentSec
+	worklog.WorkedAt = workedAt
+	worklog.WorkType = req.WorkType
+
+	if err := s.worklogRepo.Update(ctx, worklog); err != nil {
+		return nil, fmt.Errorf("failed to update worklog: %w", err)
+	}
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		issue, _ := s.issueRepo.GetByID(ctx, worklog.IssueID)
+		user, _ := s.userRepo.GetByID(ctx, userID)
+		userName := "Unknown"
+		issueKey := ""
+		if user != nil {
+			userName = user.DisplayName
+		}
+		if issue != nil {
+			issueKey = issue.IssueKey
+		}
+		details := fmt.Sprintf("更新工作日志：%s", req.TimeSpent)
+		_ = s.activityLogger.LogActivity(ctx, userID, userName, "worklog_updated", "issue", worklog.IssueID, issueKey, details)
+	}
+
+	return s.toWorklogResponse(ctx, worklog), nil
+}
+
+// DeleteWorklog 删除工作日志
+func (s *issueService) DeleteWorklog(ctx context.Context, worklogID uint64, userID uint64) error {
+	// 获取工作日志
+	worklog, err := s.worklogRepo.GetByID(ctx, worklogID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrWorklogNotFound
+		}
+		return fmt.Errorf("failed to get worklog: %w", err)
+	}
+
+	// 权限检查：只有创建者可以删除
+	if worklog.UserID != userID {
+		return ErrUnauthorized
+	}
+
+	if err := s.worklogRepo.Delete(ctx, worklogID); err != nil {
+		return fmt.Errorf("failed to delete worklog: %w", err)
+	}
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		issue, _ := s.issueRepo.GetByID(ctx, worklog.IssueID)
+		user, _ := s.userRepo.GetByID(ctx, userID)
+		userName := "Unknown"
+		issueKey := ""
+		if user != nil {
+			userName = user.DisplayName
+		}
+		if issue != nil {
+			issueKey = issue.IssueKey
+		}
+		details := fmt.Sprintf("删除工作日志：%s", worklog.TimeSpent)
+		_ = s.activityLogger.LogActivity(ctx, userID, userName, "worklog_deleted", "issue", worklog.IssueID, issueKey, details)
+	}
+
+	return nil
+}
+
+// ListWorklogs 获取工单的工作日志列表
+func (s *issueService) ListWorklogs(ctx context.Context, issueKey string) ([]*dto.WorklogResponse, error) {
+	// 获取工单
+	issue, err := s.issueRepo.GetByKey(ctx, issueKey)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrIssueNotFound
+		}
+		return nil, fmt.Errorf("failed to get issue: %w", err)
+	}
+
+	// 获取工作日志列表
+	worklogs, err := s.worklogRepo.ListByIssue(ctx, issue.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list worklogs: %w", err)
+	}
+
+	// 转换为响应 DTO
+	responses := make([]*dto.WorklogResponse, 0, len(worklogs))
+	for _, worklog := range worklogs {
+		responses = append(responses, s.toWorklogResponse(ctx, worklog))
+	}
+
+	return responses, nil
+}
+
+// parseTimeSpent 解析时间字符串（如 "2h 30m"）为秒数
+func parseTimeSpent(timeStr string) (int, error) {
+	timeStr = strings.TrimSpace(timeStr)
+	if timeStr == "" {
+		return 0, fmt.Errorf("time_spent cannot be empty: %w", ErrInvalidTimeFormat)
+	}
+
+	// 支持格式：1d, 2h, 30m, 1d 2h, 2h 30m, 1d 2h 30m
+	// 1d = 8小时（工作日）
+	// 1h = 3600秒
+	// 1m = 60秒
+
+	totalSeconds := 0
+
+	// 匹配天数
+	dayRegex := regexp.MustCompile(`(\d+)d`)
+	if matches := dayRegex.FindStringSubmatch(timeStr); len(matches) > 1 {
+		days := 0
+		fmt.Sscanf(matches[1], "%d", &days)
+		totalSeconds += days * 8 * 3600 // 1天 = 8小时
+	}
+
+	// 匹配小时
+	hourRegex := regexp.MustCompile(`(\d+)h`)
+	if matches := hourRegex.FindStringSubmatch(timeStr); len(matches) > 1 {
+		hours := 0
+		fmt.Sscanf(matches[1], "%d", &hours)
+		totalSeconds += hours * 3600
+	}
+
+	// 匹配分钟
+	minRegex := regexp.MustCompile(`(\d+)m`)
+	if matches := minRegex.FindStringSubmatch(timeStr); len(matches) > 1 {
+		minutes := 0
+		fmt.Sscanf(matches[1], "%d", &minutes)
+		totalSeconds += minutes * 60
+	}
+
+	if totalSeconds == 0 {
+		return 0, fmt.Errorf("invalid time format: %s (expected format: 1d 2h 30m): %w", timeStr, ErrInvalidTimeFormat)
+	}
+
+	return totalSeconds, nil
+}
+
+// toWorklogResponse 将工作日志模型转换为响应 DTO
+func (s *issueService) toWorklogResponse(ctx context.Context, worklog *model.IssueWorklog) *dto.WorklogResponse {
+	resp := &dto.WorklogResponse{
+		ID:           worklog.ID,
+		IssueID:      worklog.IssueID,
+		UserID:       worklog.UserID,
+		Description:  worklog.Description,
+		TimeSpent:    worklog.TimeSpent,
+		TimeSpentSec: worklog.TimeSpentSec,
+		WorkedAt:     worklog.WorkedAt,
+		WorkType:     worklog.WorkType,
+		CreatedAt:    worklog.CreatedAt,
+		UpdatedAt:    worklog.UpdatedAt,
+	}
+
+	if user, err := s.userRepo.GetByID(ctx, worklog.UserID); err == nil {
 		resp.User = &dto.UserBrief{
 			ID:          user.ID,
 			Username:    user.Username,
