@@ -57,6 +57,23 @@
             />
           </el-menu-item>
 
+          <!-- 需求池 -->
+          <el-sub-menu index="requirement-center">
+            <template #title>
+              <el-icon><Document /></el-icon>
+              <span>需求池</span>
+            </template>
+            <el-menu-item index="/requirement-pools">
+              <span>需求池管理</span>
+            </el-menu-item>
+            <el-menu-item index="/requirements">
+              <span>需求管理</span>
+            </el-menu-item>
+            <el-menu-item index="/requirements/kanban">
+              <span>需求看板</span>
+            </el-menu-item>
+          </el-sub-menu>
+
           <!-- 告警中心 -->
           <el-sub-menu index="alert-center">
             <template #title>
@@ -71,6 +88,9 @@
             </el-menu-item>
             <el-menu-item index="/alert-silences">
               <span>告警静默</span>
+            </el-menu-item>
+            <el-menu-item v-if="userStore.isAdmin" index="/alert-datasources">
+              <span>数据源管理</span>
             </el-menu-item>
           </el-sub-menu>
 
@@ -128,7 +148,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton, Document } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import NotificationBell from '@/components/NotificationBell.vue'

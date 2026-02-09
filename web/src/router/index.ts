@@ -97,12 +97,37 @@ const router = createRouter({
       component: () => import('@/views/alert/AlertSilences.vue'),
       meta: { title: '告警静默' },
     },
+    {
+      path: '/alert-datasources',
+      name: 'AlertDatasources',
+      component: () => import('@/views/alert/AlertDatasources.vue'),
+      meta: { title: '数据源管理', requiresAdmin: true },
+    },
     // 通知中心
     {
       path: '/notifications',
       name: 'NotificationList',
       component: () => import('@/views/notification/NotificationList.vue'),
       meta: { title: '通知中心' },
+    },
+    // 需求池管理
+    {
+      path: '/requirement-pools',
+      name: 'RequirementPoolList',
+      component: () => import('@/views/requirement/RequirementPoolList.vue'),
+      meta: { title: '需求池管理' },
+    },
+    {
+      path: '/requirements',
+      name: 'RequirementList',
+      component: () => import('@/views/requirement/RequirementList.vue'),
+      meta: { title: '需求管理' },
+    },
+    {
+      path: '/requirements/kanban',
+      name: 'RequirementKanban',
+      component: () => import('@/views/requirement/RequirementKanban.vue'),
+      meta: { title: '需求看板' },
     },
     // 报表统计
     {

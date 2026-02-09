@@ -30,10 +30,10 @@
                 <h3 class="workflow-name">{{ workflow.name }}</h3>
                 <p v-if="workflow.description" class="workflow-desc">{{ workflow.description }}</p>
                 <div class="workflow-meta">
-                  <el-tag size="small" :type="workflow.is_active ? 'success' : 'info'">
-                    {{ workflow.is_active ? '启用' : '禁用' }}
+                  <el-tag size="small" :type="workflow.status === 1 ? 'success' : 'info'">
+                    {{ workflow.status === 1 ? '启用' : '禁用' }}
                   </el-tag>
-                  <span class="workflow-project">项目: {{ workflow.project_key || '全局' }}</span>
+                  <span class="workflow-project">项目: {{ workflow.project_id || '全局' }}</span>
                 </div>
               </div>
             </div>
@@ -67,12 +67,12 @@
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="工作流描述" />
         </el-form-item>
         <el-form-item label="所属项目">
-          <el-select v-model="form.project_key" placeholder="选择项目（留空为全局）" clearable style="width: 100%">
-            <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
+          <el-select v-model="form.project_id" placeholder="选择项目（留空为全局）" clearable style="width: 100%">
+            <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="form.is_active" active-text="启用" inactive-text="禁用" />
+          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -134,27 +134,15 @@ import {
 } from '@element-plus/icons-vue'
 import { getAllProjects } from '@/api/project'
 import type { Project } from '@/types/project'
-
-// 临时类型定义（后续需要在 types/workflow.ts 中定义）
-interface Workflow {
-  id: number
-  name: string
-  description: string
-  project_key?: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
-interface WorkflowNode {
-  id: number
-  workflow_id: number
-  name: string
-  node_type: string
-  description: string
-  position_x: number
-  position_y: number
-}
+import {
+  getWorkflowList,
+  createWorkflow,
+  updateWorkflow,
+  deleteWorkflow,
+  getWorkflowNodes,
+  deleteNode,
+} from '@/api/workflow'
+import type { Workflow, WorkflowNode } from '@/types/workflow'
 
 const loading = ref(false)
 const workflows = ref<Workflow[]>([])
@@ -169,8 +157,8 @@ const formRef = ref<FormInstance>()
 const form = reactive({
   name: '',
   description: '',
-  project_key: undefined as string | undefined,
-  is_active: true,
+  project_id: undefined as number | undefined,
+  status: 1,
 })
 const formRules: FormRules = {
   name: [{ required: true, message: '请输入工作流名称', trigger: 'blur' }],
@@ -185,13 +173,11 @@ const nodesLoading = ref(false)
 const loadWorkflows = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际的工作流列表 API
-    // const { data } = await getWorkflowList()
-    // workflows.value = data.data
-    workflows.value = []
-    ElMessage.info('工作流列表功能开发中')
+    const { data } = await getWorkflowList()
+    workflows.value = data.data.items || []
   } catch (error) {
     console.error('Failed to load workflows:', error)
+    ElMessage.error('加载工作流列表失败')
   } finally {
     loading.value = false
   }
@@ -209,7 +195,7 @@ const loadProjects = async () => {
 const handleCreate = () => {
   isEditMode.value = false
   editingId.value = null
-  Object.assign(form, { name: '', description: '', project_key: undefined, is_active: true })
+  Object.assign(form, { name: '', description: '', project_id: undefined, status: 1 })
   dialogVisible.value = true
 }
 
@@ -219,8 +205,8 @@ const handleEdit = (workflow: Workflow) => {
   Object.assign(form, {
     name: workflow.name,
     description: workflow.description,
-    project_key: workflow.project_key,
-    is_active: workflow.is_active,
+    project_id: workflow.project_id,
+    status: workflow.status,
   })
   dialogVisible.value = true
 }
@@ -231,12 +217,26 @@ const submitForm = async () => {
     if (!valid) return
     submitLoading.value = true
     try {
-      // TODO: 调用实际的创建/更新 API
-      ElMessage.success(isEditMode.value ? '更新成功' : '创建成功')
+      if (isEditMode.value && editingId.value) {
+        await updateWorkflow(editingId.value, {
+          name: form.name,
+          description: form.description,
+          status: form.status,
+        })
+        ElMessage.success('更新成功')
+      } else {
+        await createWorkflow({
+          name: form.name,
+          description: form.description,
+          project_id: form.project_id,
+        })
+        ElMessage.success('创建成功')
+      }
       dialogVisible.value = false
       loadWorkflows()
     } catch (error) {
       console.error('Failed to save workflow:', error)
+      ElMessage.error(isEditMode.value ? '更新失败' : '创建失败')
     } finally {
       submitLoading.value = false
     }
@@ -249,6 +249,7 @@ const handleDelete = async (workflow: Workflow) => {
       type: 'warning',
     })
     // TODO: 调用实际的删除 API
+    await deleteWorkflow(workflow.id)
     ElMessage.success('删除成功')
     loadWorkflows()
   } catch (error) {
@@ -267,10 +268,11 @@ const handleViewNodes = async (workflow: Workflow) => {
 const loadNodes = async (workflowId: number) => {
   nodesLoading.value = true
   try {
-    // TODO: 调用实际的节点列表 API
-    workflowNodes.value = []
+    const { data } = await getWorkflowNodes(workflowId)
+    workflowNodes.value = data.data || []
   } catch (error) {
     console.error('Failed to load nodes:', error)
+    ElMessage.error('加载节点列表失败')
   } finally {
     nodesLoading.value = false
   }
@@ -291,6 +293,7 @@ const handleDeleteNode = async (node: WorkflowNode) => {
     })
     ElMessage.success('删除成功')
     if (currentWorkflow.value) {
+      await deleteNode(currentWorkflow.value.id, node.id)
       await loadNodes(currentWorkflow.value.id)
     }
   } catch (error) {

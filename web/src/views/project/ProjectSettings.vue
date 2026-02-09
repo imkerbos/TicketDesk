@@ -273,6 +273,19 @@
             <el-empty v-if="!issueTypesLoading && issueTypes.length === 0" description="暂无工单类型" />
           </div>
         </el-tab-pane>
+
+        <!-- 字段配置 -->
+        <el-tab-pane name="fields">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Grid /></el-icon>
+              字段配置
+            </span>
+          </template>
+          <div class="tab-content">
+            <FieldConfigTab :project-key="projectKey" />
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -453,7 +466,9 @@ import {
   Tools,
   Connection,
   Memo,
+  Grid,
 } from '@element-plus/icons-vue'
+import FieldConfigTab from './components/FieldConfigTab.vue'
 import {
   getProjectDetail,
   updateProject,
