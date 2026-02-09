@@ -25,10 +25,14 @@ import (
 type AlertService interface {
 	// Webhook 处理
 	HandleWebhook(ctx context.Context, req *dto.AlertWebhookRequest) error
+	HandleNightingaleWebhook(ctx context.Context, events []dto.N9eAlertEvent) error
+	HandleWebhookWithSource(ctx context.Context, req *dto.AlertWebhookRequest, sourceName string) error
+	HandleNightingaleWebhookWithSource(ctx context.Context, events []dto.N9eAlertEvent, sourceName string) error
 
 	// 告警查询
 	GetAlert(ctx context.Context, id uint64) (*dto.AlertResponse, error)
 	ListAlerts(ctx context.Context, req *dto.AlertListRequest) (*dto.AlertListResponse, error)
+	GetAlertStats(ctx context.Context) (*dto.AlertStatsResponse, error)
 	GroupAlerts(ctx context.Context, req *dto.AlertGroupRequest) (*dto.AlertGroupResponse, error)
 
 	// 告警操作
@@ -94,7 +98,7 @@ func (s *alertService) HandleWebhook(ctx context.Context, req *dto.AlertWebhookR
 	)
 
 	for _, alertItem := range req.Alerts {
-		if err := s.processAlert(ctx, &alertItem); err != nil {
+		if err := s.processAlertWithSource(ctx, &alertItem, "prometheus"); err != nil {
 			logger.Error("failed to process alert",
 				zap.String("fingerprint", alertItem.Fingerprint),
 				zap.Error(err),
@@ -107,8 +111,74 @@ func (s *alertService) HandleWebhook(ctx context.Context, req *dto.AlertWebhookR
 	return nil
 }
 
-// processAlert 处理单个告警
-func (s *alertService) processAlert(ctx context.Context, alertItem *dto.AlertWebhookAlertItem) error {
+// HandleNightingaleWebhook 处理夜莺 Webhook 告警
+func (s *alertService) HandleNightingaleWebhook(ctx context.Context, events []dto.N9eAlertEvent) error {
+	logger.Info("received nightingale webhook",
+		zap.Int("event_count", len(events)),
+	)
+
+	for _, event := range events {
+		alertItem := event.ToAlertWebhookItem()
+		if err := s.processAlertWithSource(ctx, alertItem, "nightingale"); err != nil {
+			logger.Error("failed to process nightingale alert",
+				zap.String("hash", event.Hash),
+				zap.String("rule_name", event.RuleName),
+				zap.Error(err),
+			)
+			continue
+		}
+	}
+
+	return nil
+}
+
+// HandleWebhookWithSource 处理 Webhook 告警（带数据源名称）
+func (s *alertService) HandleWebhookWithSource(ctx context.Context, req *dto.AlertWebhookRequest, sourceName string) error {
+	logger.Info("received alert webhook",
+		zap.String("source", sourceName),
+		zap.String("status", req.Status),
+		zap.Int("alert_count", len(req.Alerts)),
+	)
+
+	for _, alertItem := range req.Alerts {
+		if err := s.processAlertWithSource(ctx, &alertItem, sourceName); err != nil {
+			logger.Error("failed to process alert",
+				zap.String("source", sourceName),
+				zap.String("fingerprint", alertItem.Fingerprint),
+				zap.Error(err),
+			)
+			continue
+		}
+	}
+
+	return nil
+}
+
+// HandleNightingaleWebhookWithSource 处理夜莺 Webhook 告警（带数据源名称）
+func (s *alertService) HandleNightingaleWebhookWithSource(ctx context.Context, events []dto.N9eAlertEvent, sourceName string) error {
+	logger.Info("received nightingale webhook",
+		zap.String("source", sourceName),
+		zap.Int("event_count", len(events)),
+	)
+
+	for _, event := range events {
+		alertItem := event.ToAlertWebhookItem()
+		if err := s.processAlertWithSource(ctx, alertItem, sourceName); err != nil {
+			logger.Error("failed to process nightingale alert",
+				zap.String("source", sourceName),
+				zap.String("hash", event.Hash),
+				zap.String("rule_name", event.RuleName),
+				zap.Error(err),
+			)
+			continue
+		}
+	}
+
+	return nil
+}
+
+// processAlertWithSource 处理单个告警（带来源参数）
+func (s *alertService) processAlertWithSource(ctx context.Context, alertItem *dto.AlertWebhookAlertItem, source string) error {
 	// 1. 检查告警是否被静默
 	if silenced, err := s.isAlertSilenced(ctx, alertItem.Labels); err != nil {
 		logger.Error("failed to check alert silence", zap.Error(err))
@@ -137,7 +207,7 @@ func (s *alertService) processAlert(ctx context.Context, alertItem *dto.AlertWeb
 	}
 
 	// 5. 创建新告警
-	return s.createNewAlert(ctx, fingerprint, alertItem)
+	return s.createNewAlert(ctx, fingerprint, alertItem, source)
 }
 
 // calculateFingerprint 计算告警指纹
@@ -166,7 +236,7 @@ func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Ale
 	// 更新告警状态
 	oldStatus := alert.Status
 	alert.Status = alertItem.Status
-	alert.EndsAt = &alertItem.EndsAt
+	alert.EndsAt = alertItem.EndsAt
 
 	// 如果告警恢复，自动解决关联的工单
 	if alertItem.Status == "resolved" && oldStatus != "resolved" && alert.IssueID != nil {
@@ -190,11 +260,21 @@ func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Ale
 		}
 	}
 
+	// 如果告警仍在触发且没有关联工单，尝试自动建单
+	if alert.Status == "firing" && alert.IssueID == nil {
+		if err := s.tryAutoCreateIssue(ctx, alert); err != nil {
+			logger.Error("failed to auto create issue for existing alert",
+				zap.Uint64("alert_id", alert.ID),
+				zap.Error(err),
+			)
+		}
+	}
+
 	return s.alertRepo.Update(ctx, alert)
 }
 
 // createNewAlert 创建新告警
-func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, alertItem *dto.AlertWebhookAlertItem) error {
+func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, alertItem *dto.AlertWebhookAlertItem, source string) error {
 	// 提取告警名称和严重程度
 	alertName := alertItem.Labels["alertname"]
 	severity := alertItem.Labels["severity"]
@@ -209,14 +289,14 @@ func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, a
 	// 创建告警记录
 	alert := &model.Alert{
 		Fingerprint: fingerprint,
-		Source:      "prometheus", // 默认来源
+		Source:      source,
 		AlertName:   alertName,
 		Severity:    severity,
 		Status:      alertItem.Status,
 		Labels:      labelsJSON,
 		Annotations: annotationsJSON,
 		StartsAt:    alertItem.StartsAt,
-		EndsAt:      &alertItem.EndsAt,
+		EndsAt:      alertItem.EndsAt,
 	}
 
 	if err := s.alertRepo.Create(ctx, alert); err != nil {
@@ -270,14 +350,26 @@ func (s *alertService) tryAutoCreateIssue(ctx context.Context, alert *model.Aler
 					if err := s.alertRepo.Update(ctx, alert); err != nil {
 						return fmt.Errorf("failed to update alert with issue_id: %w", err)
 					}
+					// 追加实例信息到工单
+					if err := s.appendAlertToIssue(ctx, existingIssueID, alert, labels, annotations); err != nil {
+						logger.Error("failed to append alert info to issue",
+							zap.Uint64("issue_id", existingIssueID),
+							zap.Error(err),
+						)
+					}
 					return nil
 				}
 			}
 
 			// 创建新工单
-			issueID, err := s.createIssueFromAlert(ctx, alert, rule, labels, annotations)
+			issueID, newIssueKey, err := s.createIssueFromAlert(ctx, alert, rule, labels, annotations)
 			if err != nil {
 				return fmt.Errorf("failed to create issue: %w", err)
+			}
+
+			// 将同名旧工单标记为 merged，并双向关联
+			if rule.MergeWindow > 0 {
+				s.mergeOldIssues(ctx, rule, alert, issueID, newIssueKey)
 			}
 
 			// 更新告警关联的工单 ID
@@ -305,31 +397,28 @@ func (s *alertService) createIssueFromAlert(
 	rule *model.AlertRule,
 	labels map[string]string,
 	annotations map[string]string,
-) (uint64, error) {
+) (uint64, string, error) {
 	// 获取项目信息
 	project, err := s.projectRepo.GetByID(ctx, rule.ProjectID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get project: %w", err)
+		return 0, "", fmt.Errorf("failed to get project: %w", err)
 	}
 
 	// 获取工单类型（用于验证）
 	_, err = s.issueTypeRepo.GetByID(ctx, rule.IssueTypeID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get issue type: %w", err)
+		return 0, "", fmt.Errorf("failed to get issue type: %w", err)
 	}
 
 	// 构建工单标题和描述
-	title := fmt.Sprintf("[告警] %s", alert.AlertName)
-	if summary, ok := annotations["summary"]; ok {
-		title = fmt.Sprintf("[告警] %s", summary)
-	}
+	title := fmt.Sprintf("[告警] %s (1 个实例)", alert.AlertName)
 
 	description := s.buildIssueDescription(alert, labels, annotations)
 
 	// 生成工单 Key
 	issueKey, err := s.generateIssueKey(ctx, project.ProjectKey)
 	if err != nil {
-		return 0, fmt.Errorf("failed to generate issue key: %w", err)
+		return 0, "", fmt.Errorf("failed to generate issue key: %w", err)
 	}
 
 	// 创建工单
@@ -346,10 +435,10 @@ func (s *alertService) createIssueFromAlert(
 	}
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
-		return 0, fmt.Errorf("failed to create issue: %w", err)
+		return 0, "", fmt.Errorf("failed to create issue: %w", err)
 	}
 
-	return issue.ID, nil
+	return issue.ID, issueKey, nil
 }
 
 // buildIssueDescription 构建工单描述
@@ -399,9 +488,10 @@ func (s *alertService) buildIssueDescription(
 
 // generateIssueKey 生成工单 Key
 func (s *alertService) generateIssueKey(ctx context.Context, projectKey string) (string, error) {
-	// 查询该项目下最新的工单序号
+	// 查询该项目下最新的工单序号（包含软删除的记录，避免 key 冲突）
 	var maxSeq int
 	err := s.db.WithContext(ctx).
+		Unscoped().
 		Model(&model.Issue{}).
 		Where("issue_key LIKE ?", projectKey+"-%").
 		Select("COALESCE(MAX(CAST(SUBSTRING(issue_key, LENGTH(?) + 2) AS UNSIGNED)), 0)", projectKey).
@@ -414,6 +504,65 @@ func (s *alertService) generateIssueKey(ctx context.Context, projectKey string) 
 	return fmt.Sprintf("%s-%d", projectKey, maxSeq+1), nil
 }
 
+// appendAlertToIssue 合并告警时追加实例信息到工单
+func (s *alertService) appendAlertToIssue(
+	ctx context.Context,
+	issueID uint64,
+	alert *model.Alert,
+	labels map[string]string,
+	annotations map[string]string,
+) error {
+	issue, err := s.issueRepo.GetByID(ctx, issueID)
+	if err != nil {
+		return fmt.Errorf("failed to get issue: %w", err)
+	}
+
+	// 统计该工单关联的告警数量
+	linkedAlerts, err := s.alertRepo.ListByIssueID(ctx, issueID)
+	if err != nil {
+		return fmt.Errorf("failed to count linked alerts: %w", err)
+	}
+	alertCount := len(linkedAlerts)
+
+	// 更新标题：[告警] AlertName (N 个实例)
+	issue.Title = fmt.Sprintf("[告警] %s (%d 个实例)", alert.AlertName, alertCount)
+
+	// 追加实例信息到描述
+	instance := labels["instance"]
+	if instance == "" {
+		instance = labels["target_ident"]
+	}
+	nodename := labels["nodename"]
+	description := ""
+	if d, ok := annotations["description"]; ok {
+		description = d
+	}
+
+	appendInfo := fmt.Sprintf("\n\n---\n### 合并告警 #%d (%s)\n", alertCount, alert.StartsAt.Format("2006-01-02 15:04:05"))
+	appendInfo += fmt.Sprintf("- **实例**: %s\n", instance)
+	if nodename != "" {
+		appendInfo += fmt.Sprintf("- **主机名**: %s\n", nodename)
+	}
+	appendInfo += fmt.Sprintf("- **指纹**: %s\n", alert.Fingerprint)
+	if description != "" {
+		appendInfo += fmt.Sprintf("- **描述**: %s\n", description)
+	}
+
+	issue.Description += appendInfo
+
+	if err := s.issueRepo.Update(ctx, issue); err != nil {
+		return fmt.Errorf("failed to update issue: %w", err)
+	}
+
+	logger.Info("appended alert info to issue",
+		zap.Uint64("issue_id", issueID),
+		zap.String("instance", instance),
+		zap.Int("alert_count", alertCount),
+	)
+
+	return nil
+}
+
 // autoResolveIssue 自动解决工单
 func (s *alertService) autoResolveIssue(ctx context.Context, issueID uint64) error {
 	// 获取工单
@@ -422,8 +571,8 @@ func (s *alertService) autoResolveIssue(ctx context.Context, issueID uint64) err
 		return fmt.Errorf("failed to get issue: %w", err)
 	}
 
-	// 如果工单已经是 resolved 或 closed 状态，不需要处理
-	if issue.Status == "resolved" || issue.Status == "closed" {
+	// 如果工单已经是 resolved、closed 或 merged 状态，不需要处理
+	if issue.Status == "resolved" || issue.Status == "closed" || issue.Status == "merged" {
 		return nil
 	}
 
@@ -542,6 +691,11 @@ func (s *alertService) ListAlerts(ctx context.Context, req *dto.AlertListRequest
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+// GetAlertStats 获取告警统计数据
+func (s *alertService) GetAlertStats(ctx context.Context) (*dto.AlertStatsResponse, error) {
+	return s.alertRepo.Stats(ctx)
 }
 
 // AckAlert 确认告警

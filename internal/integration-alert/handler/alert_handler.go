@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,35 @@ func (h *AlertHandler) HandleWebhook(c *gin.Context) {
 	response.Success(c, gin.H{"message": "webhook processed"})
 }
 
+// HandleNightingaleWebhook 处理夜莺告警 Webhook
+func (h *AlertHandler) HandleNightingaleWebhook(c *gin.Context) {
+	body, err := c.GetRawData()
+	if err != nil {
+		response.BadRequest(c, "读取请求体失败: "+err.Error())
+		return
+	}
+
+	// 先尝试解析为数组
+	var events []dto.N9eAlertEvent
+	if err := json.Unmarshal(body, &events); err != nil {
+		// 失败则尝试解析为单个对象
+		var single dto.N9eAlertEvent
+		if err := json.Unmarshal(body, &single); err != nil {
+			response.BadRequest(c, "参数错误: "+err.Error())
+			return
+		}
+		events = []dto.N9eAlertEvent{single}
+	}
+
+	if err := h.alertService.HandleNightingaleWebhook(c.Request.Context(), events); err != nil {
+		logger.Error("failed to handle nightingale webhook", zap.Error(err))
+		response.InternalError(c, "处理夜莺 Webhook 失败")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "nightingale webhook processed"})
+}
+
 // HandleListAlerts 获取告警列表
 func (h *AlertHandler) HandleListAlerts(c *gin.Context) {
 	var req dto.AlertListRequest
@@ -57,6 +87,18 @@ func (h *AlertHandler) HandleListAlerts(c *gin.Context) {
 	}
 
 	response.Success(c, result)
+}
+
+// HandleGetAlertStats 获取告警统计数据
+func (h *AlertHandler) HandleGetAlertStats(c *gin.Context) {
+	stats, err := h.alertService.GetAlertStats(c.Request.Context())
+	if err != nil {
+		logger.Error("failed to get alert stats", zap.Error(err))
+		response.InternalError(c, "获取告警统计失败")
+		return
+	}
+
+	response.Success(c, stats)
 }
 
 // HandleGetAlert 获取告警详情

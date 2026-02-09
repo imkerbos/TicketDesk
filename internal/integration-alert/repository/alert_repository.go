@@ -19,12 +19,14 @@ type AlertRepository interface {
 	Update(ctx context.Context, alert *model.Alert) error
 	Delete(ctx context.Context, id uint64) error
 	List(ctx context.Context, req *dto.AlertListRequest) ([]*model.Alert, int64, error)
+	Stats(ctx context.Context) (*dto.AlertStatsResponse, error)
 	UpdateStatus(ctx context.Context, id uint64, status string) error
 	Ack(ctx context.Context, id uint64, userID uint64, ackAt time.Time) error
 	Resolve(ctx context.Context, id uint64, userID uint64, resolvedAt time.Time) error
 	ListByIssueID(ctx context.Context, issueID uint64) ([]*model.Alert, error)
 	UpdateStatusByIssueID(ctx context.Context, issueID uint64, status string) error
 	GroupBy(ctx context.Context, groupBy string, req *dto.AlertGroupRequest) ([]dto.AlertGroupItem, error)
+	ListBySourceAndStatus(ctx context.Context, source string, status string) ([]*model.Alert, error)
 }
 
 // alertRepository 告警仓库实现
@@ -117,6 +119,25 @@ func (r *alertRepository) List(ctx context.Context, req *dto.AlertListRequest) (
 	return alerts, total, err
 }
 
+// Stats 获取告警统计数据
+func (r *alertRepository) Stats(ctx context.Context) (*dto.AlertStatsResponse, error) {
+	var stats dto.AlertStatsResponse
+	err := r.db.WithContext(ctx).Model(&model.Alert{}).
+		Select(`
+			COUNT(*) as total,
+			SUM(CASE WHEN status = 'firing' THEN 1 ELSE 0 END) as firing,
+			SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
+			SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
+			SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) as warning,
+			SUM(CASE WHEN severity = 'info' THEN 1 ELSE 0 END) as info
+		`).
+		Scan(&stats).Error
+	if err != nil {
+		return nil, err
+	}
+	return &stats, nil
+}
+
 // UpdateStatus 更新告警状态
 func (r *alertRepository) UpdateStatus(ctx context.Context, id uint64, status string) error {
 	return r.db.WithContext(ctx).Model(&model.Alert{}).Where("id = ?", id).Update("status", status).Error
@@ -155,6 +176,13 @@ func (r *alertRepository) UpdateStatusByIssueID(ctx context.Context, issueID uin
 		updates["resolved_at"] = time.Now()
 	}
 	return r.db.WithContext(ctx).Model(&model.Alert{}).Where("issue_id = ?", issueID).Updates(updates).Error
+}
+
+// ListBySourceAndStatus 根据来源和状态查询告警列表
+func (r *alertRepository) ListBySourceAndStatus(ctx context.Context, source string, status string) ([]*model.Alert, error) {
+	var alerts []*model.Alert
+	err := r.db.WithContext(ctx).Where("source = ? AND status = ?", source, status).Find(&alerts).Error
+	return alerts, err
 }
 
 // GroupBy 按标签分组统计告警

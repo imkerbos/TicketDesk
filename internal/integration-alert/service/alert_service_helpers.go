@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
@@ -78,18 +79,19 @@ func (s *alertService) matchLabels(matchers []dto.LabelMatcher, labels map[strin
 	return true
 }
 
-// findMergeableIssue 查找可合并的工单
+// findMergeableIssue 查找可合并的工单（在合并窗口内的同名活跃工单）
 func (s *alertService) findMergeableIssue(ctx context.Context, rule *model.AlertRule, alert *model.Alert) (uint64, error) {
 	// 计算时间窗口
 	windowStart := time.Now().Add(-time.Duration(rule.MergeWindow) * time.Second)
 
-	// 查询该项目下、该工单类型、在时间窗口内创建的、未关闭的工单
+	// 查询该项目下、该工单类型、同告警名称、在时间窗口内创建的、未关闭的工单
+	titlePattern := fmt.Sprintf("[告警] %s%%", alert.AlertName)
 	var issue model.Issue
 	err := s.db.WithContext(ctx).
 		Where("project_id = ?", rule.ProjectID).
 		Where("issue_type_id = ?", rule.IssueTypeID).
-		Where("priority = ?", rule.Priority).
-		Where("status NOT IN (?)", []string{"resolved", "closed"}).
+		Where("title LIKE ?", titlePattern).
+		Where("status NOT IN (?)", []string{"resolved", "closed", "merged"}).
 		Where("created_at >= ?", windowStart).
 		Order("created_at DESC").
 		First(&issue).Error
@@ -99,6 +101,68 @@ func (s *alertService) findMergeableIssue(ctx context.Context, rule *model.Alert
 	}
 
 	return issue.ID, nil
+}
+
+// mergeOldIssues 将同名旧工单标记为 merged 状态，双向关联新旧工单
+func (s *alertService) mergeOldIssues(ctx context.Context, rule *model.AlertRule, alert *model.Alert, newIssueID uint64, newIssueKey string) {
+	titlePattern := fmt.Sprintf("[告警] %s%%", alert.AlertName)
+
+	// 查找所有同名的、未关闭的旧工单（排除刚创建的新工单）
+	var oldIssues []model.Issue
+	err := s.db.WithContext(ctx).
+		Where("project_id = ?", rule.ProjectID).
+		Where("issue_type_id = ?", rule.IssueTypeID).
+		Where("title LIKE ?", titlePattern).
+		Where("id != ?", newIssueID).
+		Where("status NOT IN (?)", []string{"resolved", "closed", "merged"}).
+		Order("created_at DESC").
+		Find(&oldIssues).Error
+
+	if err != nil || len(oldIssues) == 0 {
+		return
+	}
+
+	// 收集旧工单编号
+	var mergedKeys []string
+	now := time.Now()
+	for _, oldIssue := range oldIssues {
+		mergedKeys = append(mergedKeys, oldIssue.IssueKey)
+
+		// 旧工单追加关联信息：指向新工单
+		oldIssue.Status = "merged"
+		oldIssue.Resolution = "merged"
+		oldIssue.ClosedAt = &now
+		oldIssue.Description += fmt.Sprintf("\n\n---\n> 🔗 **已合并**: 此工单已合并到新工单 **%s**，后续告警将在新工单中跟进\n", newIssueKey)
+
+		if err := s.issueRepo.Update(ctx, &oldIssue); err != nil {
+			logger.Error("failed to mark old issue as merged",
+				zap.String("issue_key", oldIssue.IssueKey),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		logger.Info("old issue marked as merged",
+			zap.String("old_issue_key", oldIssue.IssueKey),
+			zap.String("new_issue_key", newIssueKey),
+			zap.String("alert_name", alert.AlertName),
+		)
+	}
+
+	// 新工单追加关联信息：来自哪些旧工单
+	if len(mergedKeys) > 0 {
+		newIssue, err := s.issueRepo.GetByID(ctx, newIssueID)
+		if err != nil {
+			logger.Error("failed to get new issue for merge link", zap.Error(err))
+			return
+		}
+
+		newIssue.Description += fmt.Sprintf("\n\n---\n> 📎 **合并来源**: 此工单由 **%s** 合并而来，旧工单已标记为「已合并」状态\n", strings.Join(mergedKeys, ", "))
+
+		if err := s.issueRepo.Update(ctx, newIssue); err != nil {
+			logger.Error("failed to update new issue with merge info", zap.Error(err))
+		}
+	}
 }
 
 // ============ 告警静默管理 ============
@@ -160,11 +224,17 @@ func (s *alertService) UpdateAlertSilence(ctx context.Context, id uint64, req *d
 		}
 		silence.LabelMatchers = string(matchersJSON)
 	}
+	if req.StartsAt != nil {
+		silence.StartsAt = *req.StartsAt
+	}
 	if req.EndsAt != nil {
 		silence.EndsAt = *req.EndsAt
 	}
 	if req.Comment != nil {
 		silence.Comment = *req.Comment
+	}
+	if req.Status != nil {
+		silence.Status = *req.Status
 	}
 
 	if err := s.alertSilenceRepo.Update(ctx, silence); err != nil {
@@ -266,6 +336,9 @@ func (s *alertService) SyncIssueStatus(ctx context.Context, issueID uint64, issu
 		alertStatus = "resolved"
 	case "reopened":
 		alertStatus = "firing"
+	case "merged":
+		// 已合并的工单不同步告警状态，告警会关联到新工单
+		return nil
 	default:
 		// 其他状态不同步
 		return nil

@@ -25,7 +25,7 @@ type AlertWebhookAlertItem struct {
 	Labels       map[string]string `json:"labels"`
 	Annotations  map[string]string `json:"annotations"`
 	StartsAt     time.Time         `json:"startsAt"`
-	EndsAt       time.Time         `json:"endsAt"`
+	EndsAt       *time.Time        `json:"endsAt,omitempty"`
 	GeneratorURL string            `json:"generatorURL"`
 	Fingerprint  string            `json:"fingerprint"`
 }
@@ -175,8 +175,10 @@ type UpdateAlertSilenceRequest struct {
 	Name          *string        `json:"name" binding:"omitempty,min=1,max=100"`
 	Description   *string        `json:"description" binding:"omitempty,max=500"`
 	LabelMatchers []LabelMatcher `json:"label_matchers" binding:"omitempty,min=1"`
+	StartsAt      *time.Time     `json:"starts_at"`
 	EndsAt        *time.Time     `json:"ends_at"`
 	Comment       *string        `json:"comment" binding:"omitempty,max=500"`
+	Status        *int8          `json:"status" binding:"omitempty,oneof=0 1"`
 }
 
 // AlertSilenceResponse 告警静默响应
@@ -232,4 +234,14 @@ type AlertGroupResponse struct {
 	GroupBy string           `json:"group_by"`
 	Items   []AlertGroupItem `json:"items"`
 	Total   int64            `json:"total"`
+}
+
+// AlertStatsResponse 告警统计响应
+type AlertStatsResponse struct {
+	Total    int64 `json:"total"`
+	Firing   int64 `json:"firing"`
+	Resolved int64 `json:"resolved"`
+	Critical int64 `json:"critical"`
+	Warning  int64 `json:"warning"`
+	Info     int64 `json:"info"`
 }
