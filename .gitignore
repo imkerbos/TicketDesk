@@ -32,6 +32,13 @@ go.work
 .DS_Store
 Thumbs.db
 
+# Node
+node_modules/
+web/node_modules/
+
+# Uploads
+uploads/
+
 # Logs
 logs/
 *.log
