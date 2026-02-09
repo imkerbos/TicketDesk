@@ -107,6 +107,16 @@ export const getMyCreatedIssues = (params?: { page?: number; page_size?: number 
   return request.get<ApiResponse<IssueListResponse>>('/issues/my-created', { params })
 }
 
+// 获取 Epic 下的所有 Issues
+export const getEpicIssues = (epicKey: string) => {
+  return request.get<ApiResponse<Issue[]>>(`/issues/${epicKey}/epic-issues`)
+}
+
+// 获取子任务列表
+export const getSubtasks = (issueKey: string) => {
+  return request.get<ApiResponse<Issue[]>>(`/issues/${issueKey}/subtasks`)
+}
+
 // 工作日志列表
 export const getWorklogs = (issueKey: string) => {
   return request.get<ApiResponse<Worklog[]>>(`/issues/${issueKey}/worklogs`)

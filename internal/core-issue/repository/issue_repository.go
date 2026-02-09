@@ -18,6 +18,9 @@ type IssueRepository interface {
 	Delete(ctx context.Context, id uint64) error
 	List(ctx context.Context, filter *IssueFilter, offset, limit int) ([]*model.Issue, int64, error)
 	GetNextIssueNumber(ctx context.Context, projectID uint64) (int64, error)
+	ListByIDs(ctx context.Context, ids []uint64) ([]*model.Issue, error)
+	ListByParentID(ctx context.Context, parentID uint64) ([]*model.Issue, error)
+	ListByEpicID(ctx context.Context, epicID uint64) ([]*model.Issue, error)
 }
 
 // IssueFilter 工单过滤条件
@@ -133,6 +136,27 @@ func (r *issueRepository) GetNextIssueNumber(ctx context.Context, projectID uint
 		Where("project_id = ?", projectID).
 		Count(&maxNum).Error
 	return maxNum + 1, err
+}
+
+// ListByIDs 根据 ID 列表批量查询工单
+func (r *issueRepository) ListByIDs(ctx context.Context, ids []uint64) ([]*model.Issue, error) {
+	var issues []*model.Issue
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&issues).Error
+	return issues, err
+}
+
+// ListByParentID 根据父工单 ID 获取所有子任务
+func (r *issueRepository) ListByParentID(ctx context.Context, parentID uint64) ([]*model.Issue, error) {
+	var issues []*model.Issue
+	err := r.db.WithContext(ctx).Where("parent_id = ?", parentID).Order("created_at ASC").Find(&issues).Error
+	return issues, err
+}
+
+// ListByEpicID 根据 Epic ID 获取所有关联工单
+func (r *issueRepository) ListByEpicID(ctx context.Context, epicID uint64) ([]*model.Issue, error) {
+	var issues []*model.Issue
+	err := r.db.WithContext(ctx).Where("epic_id = ?", epicID).Order("created_at ASC").Find(&issues).Error
+	return issues, err
 }
 
 // CommentRepository 评论数据访问接口

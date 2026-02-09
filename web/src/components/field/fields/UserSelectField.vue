@@ -1,0 +1,98 @@
+<template>
+  <el-select
+    v-model="internalValue"
+    :placeholder="field.description || `${field.field_name}`"
+    :disabled="disabled"
+    :readonly="readonly"
+    clearable
+    filterable
+    style="width: 100%"
+    @change="handleChange"
+  >
+    <el-option
+      v-for="user in users"
+      :key="user.id"
+      :label="user.display_name || user.username"
+      :value="user.id"
+    >
+      <div class="user-option">
+        <div class="user-avatar">{{ (user.display_name || user.username).charAt(0) }}</div>
+        <span class="user-name">{{ user.display_name || user.username }}</span>
+      </div>
+    </el-option>
+  </el-select>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, onMounted } from 'vue'
+import type { FieldDefinition, FieldSchemeItem } from '@/types/field'
+import type { UserOption } from '@/types/user'
+import { getAllUsers } from '@/api/user'
+
+const props = defineProps<{
+  field: FieldDefinition
+  scheme?: FieldSchemeItem
+  projectKey: string
+  modelValue?: number
+  readonly?: boolean
+  disabled?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: number | undefined): void
+  (e: 'change', value: number | undefined): void
+}>()
+
+const internalValue = ref(props.modelValue)
+const users = ref<UserOption[]>([])
+
+const loadUsers = async () => {
+  try {
+    const { data } = await getAllUsers()
+    users.value = data.data
+  } catch (error) {
+    console.error('Failed to load users:', error)
+  }
+}
+
+onMounted(() => {
+  loadUsers()
+})
+
+watch(() => props.modelValue, (newVal) => {
+  internalValue.value = newVal
+})
+
+watch(internalValue, (newVal) => {
+  emit('update:modelValue', newVal)
+})
+
+const handleChange = (value: number | undefined) => {
+  emit('change', value)
+}
+</script>
+
+<style scoped>
+.user-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-name {
+  flex: 1;
+}
+</style>

@@ -48,6 +48,12 @@ type IssueService interface {
 	ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error)
 	ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error)
 
+	// Epic 相关
+	ListIssuesInEpic(ctx context.Context, epicKey string) ([]*dto.IssueResponse, error)
+
+	// 子任务相关
+	ListSubtasks(ctx context.Context, parentKey string) ([]*dto.IssueResponse, error)
+
 	// 评论
 	AddComment(ctx context.Context, issueKey string, req *dto.CreateCommentRequest, userID uint64) (*dto.CommentResponse, error)
 	ListComments(ctx context.Context, issueKey string) ([]*dto.CommentResponse, error)
@@ -67,17 +73,19 @@ type IssueService interface {
 
 // issueService 工单服务实现
 type issueService struct {
-	issueRepo      repository.IssueRepository
-	commentRepo    repository.CommentRepository
-	watcherRepo    repository.WatcherRepository
-	worklogRepo    repository.WorklogRepository
-	projectRepo    projectRepo.ProjectRepository
-	issueTypeRepo  projectRepo.IssueTypeRepository
-	userRepo       userRepo.UserRepository
-	alertSyncSvc   AlertSyncService   // 告警同步服务（可选）
-	activityLogger ActivityLogger     // 活动日志记录器（可选）
-	notifSender    NotificationSender // 通知发送服务（可选）
-	workflowEngine WorkflowEngine     // 工作流引擎（可选）
+	issueRepo       repository.IssueRepository
+	commentRepo     repository.CommentRepository
+	watcherRepo     repository.WatcherRepository
+	worklogRepo     repository.WorklogRepository
+	projectRepo     projectRepo.ProjectRepository
+	issueTypeRepo   projectRepo.IssueTypeRepository
+	userRepo        userRepo.UserRepository
+	alertSyncSvc    AlertSyncService   // 告警同步服务（可选）
+	activityLogger  ActivityLogger     // 活动日志记录器（可选）
+	notifSender     NotificationSender // 通知发送服务（可选）
+	workflowEngine  WorkflowEngine     // 工作流引擎（可选）
+	fieldValueSaver FieldValueSaver    // 字段值保存服务（可选）
+	epicLinkGetter  EpicLinkGetter     // Epic 链接获取服务（可选）
 }
 
 // WorkflowEngine 工作流引擎接口（避免循环依赖）
@@ -90,9 +98,25 @@ type ActivityLogger interface {
 	LogActivity(ctx context.Context, userID uint64, userName, action, entityType string, entityID uint64, entityKey, details string) error
 }
 
+// EpicLinkGetter Epic 链接获取接口（避免循环依赖）
+type EpicLinkGetter interface {
+	GetIssueIDsByEpicLink(ctx context.Context, epicID uint64) ([]uint64, error)
+}
+
 // NotificationSender 通知发送接口（避免循环依赖）
 type NotificationSender interface {
 	CreateNotification(ctx context.Context, req *NotificationRequest) error
+}
+
+// FieldValueSaver 字段值保存接口（避免循环依赖）
+type FieldValueSaver interface {
+	SaveIssueFieldValues(ctx context.Context, issueID uint64, values []CustomFieldValueInput) error
+}
+
+// CustomFieldValueInput 自定义字段值输入（避免导入依赖）
+type CustomFieldValueInput struct {
+	FieldID uint64
+	Value   any
 }
 
 // NotificationRequest 通知请求（本地定义，避免依赖 notification-inbox/dto）
@@ -149,6 +173,16 @@ func (s *issueService) SetNotificationService(notifSender NotificationSender) {
 // SetWorkflowEngine 设置工作流引擎（用于避免循环依赖）
 func (s *issueService) SetWorkflowEngine(workflowEngine WorkflowEngine) {
 	s.workflowEngine = workflowEngine
+}
+
+// SetFieldValueSaver 设置字段值保存服务（用于避免循环依赖）
+func (s *issueService) SetFieldValueSaver(fieldValueSaver FieldValueSaver) {
+	s.fieldValueSaver = fieldValueSaver
+}
+
+// SetEpicLinkGetter 设置 Epic 链接获取服务（用于避免循环依赖）
+func (s *issueService) SetEpicLinkGetter(epicLinkGetter EpicLinkGetter) {
+	s.epicLinkGetter = epicLinkGetter
 }
 
 // sendNotification 发送通知（内部辅助方法，异步不阻塞主流程）
@@ -252,6 +286,26 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		dueDate = &t
 	}
 
+	// 解析预计开始时间
+	var plannedStartDate *time.Time
+	if req.PlannedStartDate != nil && *req.PlannedStartDate != "" {
+		t, err := time.Parse("2006-01-02", *req.PlannedStartDate)
+		if err != nil {
+			return nil, fmt.Errorf("预计开始时间格式错误")
+		}
+		plannedStartDate = &t
+	}
+
+	// 解析预计交付时间
+	var plannedEndDate *time.Time
+	if req.PlannedEndDate != nil && *req.PlannedEndDate != "" {
+		t, err := time.Parse("2006-01-02", *req.PlannedEndDate)
+		if err != nil {
+			return nil, fmt.Errorf("预计交付时间格式错误")
+		}
+		plannedEndDate = &t
+	}
+
 	// 设置默认优先级
 	priority := req.Priority
 	if priority == "" {
@@ -260,22 +314,47 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 
 	// 创建工单
 	issue := &model.Issue{
-		IssueKey:    issueKey,
-		ProjectID:   project.ID,
-		IssueTypeID: issueType.ID,
-		Title:       req.Title,
-		Description: req.Description,
-		Priority:    priority,
-		Status:      "open",
-		ReporterID:  reporterID,
-		AssigneeID:  req.AssigneeID,
-		ParentID:    req.ParentID,
-		DueDate:     dueDate,
+		IssueKey:         issueKey,
+		ProjectID:        project.ID,
+		IssueTypeID:      issueType.ID,
+		Title:            req.Title,
+		Description:      req.Description,
+		Priority:         priority,
+		Status:           "open",
+		ReporterID:       reporterID,
+		AssigneeID:       req.AssigneeID,
+		ParentID:         req.ParentID,
+		EpicID:           req.EpicID,
+		DueDate:          dueDate,
+		PlannedStartDate: plannedStartDate,
+		PlannedEndDate:   plannedEndDate,
 	}
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
 		logger.Error("failed to create issue", zap.Error(err))
 		return nil, fmt.Errorf("创建工单失败: %w", err)
+	}
+
+	// 保存自定义字段值
+	logger.Info("CreateIssue: checking custom fields",
+		zap.Bool("fieldValueSaver_nil", s.fieldValueSaver == nil),
+		zap.Int("custom_fields_count", len(req.CustomFields)),
+	)
+	if s.fieldValueSaver != nil && len(req.CustomFields) > 0 {
+		inputs := make([]CustomFieldValueInput, len(req.CustomFields))
+		for i, v := range req.CustomFields {
+			inputs[i] = CustomFieldValueInput{FieldID: v.FieldID, Value: v.Value}
+			logger.Info("CreateIssue: custom field",
+				zap.Uint64("field_id", v.FieldID),
+				zap.Any("value", v.Value),
+			)
+		}
+		if err := s.fieldValueSaver.SaveIssueFieldValues(ctx, issue.ID, inputs); err != nil {
+			logger.Warn("failed to save custom field values", zap.Error(err), zap.String("issue_key", issue.IssueKey))
+			// 不阻塞工单创建，只记录警告
+		} else {
+			logger.Info("CreateIssue: custom fields saved successfully", zap.String("issue_key", issue.IssueKey))
+		}
 	}
 
 	// 自动添加报告人为关注人
@@ -328,6 +407,25 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		zap.String("issue_key", issue.IssueKey),
 		zap.Uint64("reporter_id", reporterID),
 	)
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		reporter, _ := s.userRepo.GetByID(ctx, reporterID)
+		reporterName := "未知用户"
+		if reporter != nil {
+			reporterName = reporter.DisplayName
+		}
+		_ = s.activityLogger.LogActivity(
+			ctx,
+			reporterID,
+			reporterName,
+			"创建工单",
+			"issue",
+			issue.ID,
+			issue.IssueKey,
+			fmt.Sprintf("创建了工单: %s", issue.Title),
+		)
+	}
 
 	return s.toIssueResponse(ctx, issue, project.ProjectKey), nil
 }
@@ -394,6 +492,29 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 	if req.Priority != nil {
 		issue.Priority = *req.Priority
 	}
+	if req.Resolution != nil {
+		issue.Resolution = *req.Resolution
+	}
+	if req.EpicID != nil {
+		// 验证 Epic 是否存在
+		if *req.EpicID != 0 {
+			epicIssue, err := s.issueRepo.GetByID(ctx, *req.EpicID)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, fmt.Errorf("Epic 不存在")
+				}
+				return nil, fmt.Errorf("查询 Epic 失败: %w", err)
+			}
+			// 验证是否为 Epic 类型
+			epicType, _ := s.issueTypeRepo.GetByID(ctx, epicIssue.IssueTypeID)
+			if epicType == nil || strings.ToLower(epicType.Name) != "epic" {
+				return nil, fmt.Errorf("指定的工单不是 Epic 类型")
+			}
+			issue.EpicID = req.EpicID
+		} else {
+			issue.EpicID = nil
+		}
+	}
 	if req.AssigneeID != nil {
 		// 验证指派人
 		_, err := s.userRepo.GetByID(ctx, *req.AssigneeID)
@@ -416,6 +537,28 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 			issue.DueDate = &t
 		}
 	}
+	if req.PlannedStartDate != nil {
+		if *req.PlannedStartDate == "" {
+			issue.PlannedStartDate = nil
+		} else {
+			t, err := time.Parse("2006-01-02", *req.PlannedStartDate)
+			if err != nil {
+				return nil, fmt.Errorf("预计开始时间格式错误")
+			}
+			issue.PlannedStartDate = &t
+		}
+	}
+	if req.PlannedEndDate != nil {
+		if *req.PlannedEndDate == "" {
+			issue.PlannedEndDate = nil
+		} else {
+			t, err := time.Parse("2006-01-02", *req.PlannedEndDate)
+			if err != nil {
+				return nil, fmt.Errorf("预计交付时间格式错误")
+			}
+			issue.PlannedEndDate = &t
+		}
+	}
 	if req.IssueTypeID != nil {
 		_, err := s.issueTypeRepo.GetByID(ctx, *req.IssueTypeID)
 		if err != nil {
@@ -432,6 +575,17 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 		return nil, fmt.Errorf("更新工单失败: %w", err)
 	}
 
+	// 保存自定义字段值
+	if s.fieldValueSaver != nil && len(req.CustomFields) > 0 {
+		inputs := make([]CustomFieldValueInput, len(req.CustomFields))
+		for i, v := range req.CustomFields {
+			inputs[i] = CustomFieldValueInput{FieldID: v.FieldID, Value: v.Value}
+		}
+		if err := s.fieldValueSaver.SaveIssueFieldValues(ctx, issue.ID, inputs); err != nil {
+			logger.Warn("failed to save custom field values on update", zap.Error(err), zap.String("issue_key", key))
+		}
+	}
+
 	project, _ := s.projectRepo.GetByID(ctx, issue.ProjectID)
 	projectKey := ""
 	if project != nil {
@@ -439,6 +593,46 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 	}
 
 	logger.Info("issue updated successfully", zap.String("issue_key", key))
+
+	// 记录活动日志 - 记录具体的变更
+	if s.activityLogger != nil {
+		// 获取当前用户信息（从 context 中获取，如果没有则使用默认值）
+		userID := uint64(1) // TODO: 从 context 中获取当前用户 ID
+		userName := "系统"
+
+		var changes []string
+		if req.Title != nil {
+			changes = append(changes, "标题")
+		}
+		if req.Description != nil {
+			changes = append(changes, "描述")
+		}
+		if req.Priority != nil {
+			changes = append(changes, fmt.Sprintf("优先级 → %s", *req.Priority))
+		}
+		if req.Resolution != nil {
+			changes = append(changes, fmt.Sprintf("解决结果 → %s", *req.Resolution))
+		}
+		if req.AssigneeID != nil {
+			if assignee, err := s.userRepo.GetByID(ctx, *req.AssigneeID); err == nil {
+				changes = append(changes, fmt.Sprintf("指派人 → %s", assignee.DisplayName))
+			}
+		}
+
+		if len(changes) > 0 {
+			details := fmt.Sprintf("更新了: %s", strings.Join(changes, ", "))
+			_ = s.activityLogger.LogActivity(
+				ctx,
+				userID,
+				userName,
+				"更新工单",
+				"issue",
+				issue.ID,
+				issue.IssueKey,
+				details,
+			)
+		}
+	}
 
 	return s.toIssueResponse(ctx, issue, projectKey), nil
 }
@@ -591,6 +785,56 @@ func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, p
 	return responses, total, nil
 }
 
+// ListIssuesInEpic 获取 Epic 下的所有 Issues
+func (s *issueService) ListIssuesInEpic(ctx context.Context, epicKey string) ([]*dto.IssueResponse, error) {
+	// 获取 Epic Issue
+	epicIssue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(epicKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrIssueNotFound
+		}
+		return nil, fmt.Errorf("查询 Epic 失败: %w", err)
+	}
+
+	// 直接查询 epic_id 字段（新方式）
+	issues, err := s.issueRepo.ListByEpicID(ctx, epicIssue.ID)
+	if err != nil {
+		logger.Error("failed to query issues by epic_id", zap.Error(err))
+		return nil, fmt.Errorf("查询 Epic 关联工单失败: %w", err)
+	}
+
+	// 如果新方式没有数据，尝试通过旧的字段表方式查询（兼容迁移期间）
+	if len(issues) == 0 && s.epicLinkGetter != nil {
+		issueIDs, err := s.epicLinkGetter.GetIssueIDsByEpicLink(ctx, epicIssue.ID)
+		if err == nil && len(issueIDs) > 0 {
+			issues, err = s.issueRepo.ListByIDs(ctx, issueIDs)
+			if err != nil {
+				logger.Error("failed to query issues", zap.Error(err))
+				return nil, fmt.Errorf("查询工单失败: %w", err)
+			}
+		}
+	}
+
+	if len(issues) == 0 {
+		return []*dto.IssueResponse{}, nil
+	}
+
+	// 获取项目信息
+	project, err := s.projectRepo.GetByID(ctx, epicIssue.ProjectID)
+	if err != nil {
+		logger.Error("failed to get project", zap.Error(err))
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	// 转换为响应格式
+	responses := make([]*dto.IssueResponse, len(issues))
+	for i, issue := range issues {
+		responses[i] = s.toIssueResponse(ctx, issue, project.ProjectKey)
+	}
+
+	return responses, nil
+}
+
 // TransitionIssue 工单状态流转
 func (s *issueService) TransitionIssue(ctx context.Context, key string, req *dto.TransitionIssueRequest, userID uint64) (*dto.IssueResponse, error) {
 	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(key))
@@ -611,14 +855,20 @@ func (s *issueService) TransitionIssue(ctx context.Context, key string, req *dto
 
 	// 更新相关时间字段
 	switch req.Status {
+	case "in_progress":
+		if issue.ActualStartDate == nil {
+			issue.ActualStartDate = &now // 仅首次进入时记录
+		}
 	case "resolved":
 		issue.ResolvedAt = &now
 	case "closed":
 		issue.ClosedAt = &now
+		issue.ActualEndDate = &now
 	case "reopened":
 		issue.Status = "open"
 		issue.ResolvedAt = nil
 		issue.ClosedAt = nil
+		issue.ActualEndDate = nil // 重新打开时清除实际完成时间
 	}
 
 	if err := s.issueRepo.Update(ctx, issue); err != nil {
@@ -760,6 +1010,44 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 	return s.toIssueResponse(ctx, issue, projectKey), nil
 }
 
+// ListSubtasks 获取工单的所有子任务
+func (s *issueService) ListSubtasks(ctx context.Context, parentKey string) ([]*dto.IssueResponse, error) {
+	// 获取父工单
+	parentIssue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(parentKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrIssueNotFound
+		}
+		return nil, fmt.Errorf("查询父工单失败: %w", err)
+	}
+
+	// 查询所有子任务
+	subtasks, err := s.issueRepo.ListByParentID(ctx, parentIssue.ID)
+	if err != nil {
+		logger.Error("failed to query subtasks", zap.Error(err))
+		return nil, fmt.Errorf("查询子任务失败: %w", err)
+	}
+
+	if len(subtasks) == 0 {
+		return []*dto.IssueResponse{}, nil
+	}
+
+	// 获取项目信息
+	project, err := s.projectRepo.GetByID(ctx, parentIssue.ProjectID)
+	if err != nil {
+		logger.Error("failed to get project", zap.Error(err))
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	// 转换为响应格式
+	responses := make([]*dto.IssueResponse, len(subtasks))
+	for i, subtask := range subtasks {
+		responses[i] = s.toIssueResponse(ctx, subtask, project.ProjectKey)
+	}
+
+	return responses, nil
+}
+
 // AddComment 添加评论
 func (s *issueService) AddComment(ctx context.Context, issueKey string, req *dto.CreateCommentRequest, userID uint64) (*dto.CommentResponse, error) {
 	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(issueKey))
@@ -788,7 +1076,7 @@ func (s *issueService) AddComment(ctx context.Context, issueKey string, req *dto
 		if userName == "" {
 			userName = user.Username
 		}
-		s.logActivity(ctx, userID, user.Username, "评论了工单", issue.IssueKey, "", issue.ID)
+		s.logActivity(ctx, userID, userName, "评论了工单", issue.IssueKey, "", issue.ID)
 	}
 
 	// 通知关注者
@@ -900,7 +1188,30 @@ func (s *issueService) AddWatcher(ctx context.Context, issueKey string, userID u
 		UserID:  userID,
 	}
 
-	return s.watcherRepo.Create(ctx, watcher)
+	if err := s.watcherRepo.Create(ctx, watcher); err != nil {
+		return err
+	}
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		user, _ := s.userRepo.GetByID(ctx, userID)
+		userName := "未知用户"
+		if user != nil {
+			userName = user.DisplayName
+		}
+		_ = s.activityLogger.LogActivity(
+			ctx,
+			userID,
+			userName,
+			"关注工单",
+			"issue",
+			issue.ID,
+			issue.IssueKey,
+			fmt.Sprintf("%s 开始关注此工单", userName),
+		)
+	}
+
+	return nil
 }
 
 // RemoveWatcher 移除关注人
@@ -911,6 +1222,25 @@ func (s *issueService) RemoveWatcher(ctx context.Context, issueKey string, userI
 			return ErrIssueNotFound
 		}
 		return fmt.Errorf("查询工单失败: %w", err)
+	}
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		user, _ := s.userRepo.GetByID(ctx, userID)
+		userName := "未知用户"
+		if user != nil {
+			userName = user.DisplayName
+		}
+		_ = s.activityLogger.LogActivity(
+			ctx,
+			userID,
+			userName,
+			"取消关注工单",
+			"issue",
+			issue.ID,
+			issue.IssueKey,
+			fmt.Sprintf("%s 取消关注此工单", userName),
+		)
 	}
 
 	return s.watcherRepo.DeleteByIssueAndUser(ctx, issue.ID, userID)
@@ -1009,23 +1339,36 @@ func extractMentions(content string) []string {
 // toIssueResponse 将工单模型转换为响应 DTO
 func (s *issueService) toIssueResponse(ctx context.Context, issue *model.Issue, projectKey string) *dto.IssueResponse {
 	resp := &dto.IssueResponse{
-		ID:          issue.ID,
-		IssueKey:    issue.IssueKey,
-		ProjectID:   issue.ProjectID,
-		ProjectKey:  projectKey,
-		IssueTypeID: issue.IssueTypeID,
-		Title:       issue.Title,
-		Description: issue.Description,
-		Priority:    issue.Priority,
-		Status:      issue.Status,
-		ReporterID:  issue.ReporterID,
-		AssigneeID:  issue.AssigneeID,
-		ParentID:    issue.ParentID,
-		DueDate:     issue.DueDate,
-		ResolvedAt:  issue.ResolvedAt,
-		ClosedAt:    issue.ClosedAt,
-		CreatedAt:   issue.CreatedAt,
-		UpdatedAt:   issue.UpdatedAt,
+		ID:               issue.ID,
+		IssueKey:         issue.IssueKey,
+		ProjectID:        issue.ProjectID,
+		ProjectKey:       projectKey,
+		IssueTypeID:      issue.IssueTypeID,
+		Title:            issue.Title,
+		Description:      issue.Description,
+		Priority:         issue.Priority,
+		Status:           issue.Status,
+		Resolution:       issue.Resolution,
+		ReporterID:       issue.ReporterID,
+		AssigneeID:       issue.AssigneeID,
+		ParentID:         issue.ParentID,
+		EpicID:           issue.EpicID,
+		DueDate:          issue.DueDate,
+		PlannedStartDate: issue.PlannedStartDate,
+		PlannedEndDate:   issue.PlannedEndDate,
+		ActualStartDate:  issue.ActualStartDate,
+		ActualEndDate:    issue.ActualEndDate,
+		ResolvedAt:       issue.ResolvedAt,
+		ClosedAt:         issue.ClosedAt,
+		CreatedAt:        issue.CreatedAt,
+		UpdatedAt:        issue.UpdatedAt,
+	}
+
+	// 加载 Epic Key
+	if issue.EpicID != nil {
+		if epicIssue, err := s.issueRepo.GetByID(ctx, *issue.EpicID); err == nil {
+			resp.EpicKey = epicIssue.IssueKey
+		}
 	}
 
 	// 加载工单类型

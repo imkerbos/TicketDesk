@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"strconv"
 
@@ -11,14 +12,27 @@ import (
 	"github.com/kerbos/ticketdesk/internal/core-issue/service"
 )
 
+// FieldServiceInterface 字段服务接口（避免循环依赖）
+type FieldServiceInterface interface {
+	GetIssueIDsByEpicLink(ctx context.Context, epicID uint64) ([]uint64, error)
+}
+
 // IssueHandler 工单处理器
 type IssueHandler struct {
 	issueService service.IssueService
+	fieldService FieldServiceInterface
 }
 
 // NewIssueHandler 创建工单处理器实例
 func NewIssueHandler(issueService service.IssueService) *IssueHandler {
-	return &IssueHandler{issueService: issueService}
+	return &IssueHandler{
+		issueService: issueService,
+	}
+}
+
+// SetFieldService 设置字段服务（避免循环依赖）
+func (h *IssueHandler) SetFieldService(fieldService FieldServiceInterface) {
+	h.fieldService = fieldService
 }
 
 // HandleCreateIssue 创建工单
@@ -127,6 +141,23 @@ func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 	response.SuccessWithPage(c, issues, total, req.GetDefaultPage(), req.GetDefaultPageSize())
 }
 
+// HandleListIssuesInEpic 获取 Epic 下的所有 Issues
+func (h *IssueHandler) HandleListIssuesInEpic(c *gin.Context) {
+	epicKey := c.Param("key")
+
+	issues, err := h.issueService.ListIssuesInEpic(c.Request.Context(), epicKey)
+	if err != nil {
+		if errors.Is(err, service.ErrIssueNotFound) {
+			response.NotFound(c, "Epic 不存在")
+			return
+		}
+		response.InternalError(c, "获取 Epic 关联工单失败")
+		return
+	}
+
+	response.Success(c, issues)
+}
+
 // HandleTransitionIssue 工单状态流转
 func (h *IssueHandler) HandleTransitionIssue(c *gin.Context) {
 	key := c.Param("key")
@@ -178,6 +209,23 @@ func (h *IssueHandler) HandleAssignIssue(c *gin.Context) {
 	}
 
 	response.Success(c, result)
+}
+
+// HandleListSubtasks 获取工单的所有子任务
+func (h *IssueHandler) HandleListSubtasks(c *gin.Context) {
+	parentKey := c.Param("key")
+
+	subtasks, err := h.issueService.ListSubtasks(c.Request.Context(), parentKey)
+	if err != nil {
+		if errors.Is(err, service.ErrIssueNotFound) {
+			response.NotFound(c, "父工单不存在")
+			return
+		}
+		response.InternalError(c, "获取子任务失败")
+		return
+	}
+
+	response.Success(c, subtasks)
 }
 
 // HandleAddComment 添加评论

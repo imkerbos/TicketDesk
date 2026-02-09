@@ -7,24 +7,39 @@ import "time"
 
 // CreateIssueRequest 创建工单请求
 type CreateIssueRequest struct {
-	ProjectKey  string  `json:"project_key" binding:"required,max=20"`
-	IssueTypeID uint64  `json:"issue_type_id" binding:"required"`
-	Title       string  `json:"title" binding:"required,min=1,max=200"`
-	Description string  `json:"description" binding:"max=10000"`
-	Priority    string  `json:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
-	AssigneeID  *uint64 `json:"assignee_id"`
-	ParentID    *uint64 `json:"parent_id"`
-	DueDate     *string `json:"due_date"` // 格式: 2006-01-02
+	ProjectKey   string              `json:"project_key" binding:"required,max=20"`
+	IssueTypeID  uint64              `json:"issue_type_id" binding:"required"`
+	Title        string              `json:"title" binding:"required,min=1,max=200"`
+	Description  string              `json:"description" binding:"max=10000"`
+	Priority     string              `json:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
+	AssigneeID   *uint64             `json:"assignee_id"`
+	ParentID         *uint64             `json:"parent_id"`
+	EpicID           *uint64             `json:"epic_id"`
+	DueDate          *string             `json:"due_date"` // 格式: 2006-01-02
+	PlannedStartDate *string             `json:"planned_start_date"` // 格式: 2006-01-02
+	PlannedEndDate   *string             `json:"planned_end_date"`   // 格式: 2006-01-02
+	CustomFields     []CustomFieldValue  `json:"custom_fields"`
+}
+
+// CustomFieldValue 自定义字段值
+type CustomFieldValue struct {
+	FieldID uint64 `json:"field_id"`
+	Value   any    `json:"value"`
 }
 
 // UpdateIssueRequest 更新工单请求
 type UpdateIssueRequest struct {
-	Title       *string `json:"title" binding:"omitempty,min=1,max=200"`
-	Description *string `json:"description" binding:"omitempty,max=10000"`
-	Priority    *string `json:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
-	AssigneeID  *uint64 `json:"assignee_id"`
-	DueDate     *string `json:"due_date"`
-	IssueTypeID *uint64 `json:"issue_type_id"`
+	Title            *string            `json:"title" binding:"omitempty,min=1,max=200"`
+	Description      *string            `json:"description" binding:"omitempty,max=10000"`
+	Priority         *string            `json:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
+	Resolution       *string            `json:"resolution" binding:"omitempty,oneof=fixed wont_fix duplicate cannot_reproduce works_as_designed incomplete done"`
+	AssigneeID       *uint64            `json:"assignee_id"`
+	EpicID           *uint64            `json:"epic_id"`
+	DueDate          *string            `json:"due_date"`
+	PlannedStartDate *string            `json:"planned_start_date"`
+	PlannedEndDate   *string            `json:"planned_end_date"`
+	IssueTypeID      *uint64            `json:"issue_type_id"`
+	CustomFields     []CustomFieldValue `json:"custom_fields"`
 }
 
 // TransitionIssueRequest 工单状态流转请求
@@ -93,33 +108,67 @@ type UpdateWorklogRequest struct {
 	WorkType    string `json:"work_type" binding:"max=30"`
 }
 
+// ============ 附件相关 DTO ============
+
+// AttachmentResponse 附件响应
+type AttachmentResponse struct {
+	ID         uint64     `json:"id"`
+	IssueID    uint64     `json:"issue_id"`
+	FileName   string     `json:"file_name"`
+	FilePath   string     `json:"file_path"`
+	FileSize   int64      `json:"file_size"`
+	FileType   string     `json:"file_type"`
+	IsImage    bool       `json:"is_image"`
+	UploadedBy uint64     `json:"uploaded_by"`
+	Uploader   *UserBrief `json:"uploader,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
 // ============ 响应 DTO ============
 
 // IssueResponse 工单响应
 type IssueResponse struct {
-	ID          uint64             `json:"id"`
-	IssueKey    string             `json:"issue_key"`
-	ProjectID   uint64             `json:"project_id"`
-	ProjectKey  string             `json:"project_key"`
-	IssueTypeID uint64             `json:"issue_type_id"`
-	IssueType   *IssueTypeBrief    `json:"issue_type,omitempty"`
-	Title       string             `json:"title"`
-	Description string             `json:"description"`
-	Priority    string             `json:"priority"`
-	Status      string             `json:"status"`
-	ReporterID  uint64             `json:"reporter_id"`
-	Reporter    *UserBrief         `json:"reporter,omitempty"`
-	AssigneeID  *uint64            `json:"assignee_id"`
-	Assignee    *UserBrief         `json:"assignee,omitempty"`
-	ParentID    *uint64            `json:"parent_id"`
-	ParentKey   string             `json:"parent_key,omitempty"`
-	DueDate     *time.Time         `json:"due_date"`
-	ResolvedAt  *time.Time         `json:"resolved_at"`
-	ClosedAt    *time.Time         `json:"closed_at"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
-	Comments    []*CommentResponse `json:"comments,omitempty"`
-	Watchers    []*UserBrief       `json:"watchers,omitempty"`
+	ID           uint64                   `json:"id"`
+	IssueKey     string                   `json:"issue_key"`
+	ProjectID    uint64                   `json:"project_id"`
+	ProjectKey   string                   `json:"project_key"`
+	IssueTypeID  uint64                   `json:"issue_type_id"`
+	IssueType    *IssueTypeBrief          `json:"issue_type,omitempty"`
+	Title        string                   `json:"title"`
+	Description  string                   `json:"description"`
+	Priority     string                   `json:"priority"`
+	Status       string                   `json:"status"`
+	Resolution   string                   `json:"resolution"`
+	ReporterID   uint64                   `json:"reporter_id"`
+	Reporter     *UserBrief               `json:"reporter,omitempty"`
+	AssigneeID   *uint64                  `json:"assignee_id"`
+	Assignee     *UserBrief               `json:"assignee,omitempty"`
+	ParentID     *uint64                  `json:"parent_id"`
+	ParentKey    string                   `json:"parent_key,omitempty"`
+	EpicID           *uint64                  `json:"epic_id"`
+	EpicKey          string                   `json:"epic_key,omitempty"`
+	DueDate          *time.Time               `json:"due_date"`
+	PlannedStartDate *time.Time               `json:"planned_start_date"`
+	PlannedEndDate   *time.Time               `json:"planned_end_date"`
+	ActualStartDate  *time.Time               `json:"actual_start_date"`
+	ActualEndDate    *time.Time               `json:"actual_end_date"`
+	ResolvedAt       *time.Time               `json:"resolved_at"`
+	ClosedAt         *time.Time               `json:"closed_at"`
+	CreatedAt    time.Time                `json:"created_at"`
+	UpdatedAt    time.Time                `json:"updated_at"`
+	Comments     []*CommentResponse       `json:"comments,omitempty"`
+	Watchers     []*UserBrief             `json:"watchers,omitempty"`
+	CustomFields []*CustomFieldResponse   `json:"custom_fields,omitempty"`
+}
+
+// CustomFieldResponse 自定义字段值响应
+type CustomFieldResponse struct {
+	FieldID      uint64 `json:"field_id"`
+	FieldKey     string `json:"field_key"`
+	FieldName    string `json:"field_name"`
+	FieldType    string `json:"field_type"`
+	Value        any    `json:"value"`
+	DisplayValue string `json:"display_value"`
 }
 
 // IssueBrief 工单简要信息

@@ -1,7 +1,8 @@
 // 工单相关类型定义
 
 export type IssuePriority = 'P0' | 'P1' | 'P2' | 'P3'
-export type IssueStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'reopened'
+export type IssueStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'reopened' | 'merged'
+export type IssueResolution = 'fixed' | 'wont_fix' | 'duplicate' | 'cannot_reproduce' | 'works_as_designed' | 'incomplete' | 'done' | ''
 
 // 用户简要信息
 export interface UserBrief {
@@ -31,13 +32,20 @@ export interface Issue {
   description: string
   priority: IssuePriority
   status: IssueStatus
+  resolution: IssueResolution
   assignee_id?: number
   assignee?: UserBrief
   reporter_id: number
   reporter?: UserBrief
   parent_id?: number
   parent_key?: string
+  epic_id?: number
+  epic_key?: string
   due_date?: string
+  planned_start_date?: string
+  planned_end_date?: string
+  actual_start_date?: string
+  actual_end_date?: string
   resolved_at?: string
   closed_at?: string
   created_at: string
@@ -65,6 +73,12 @@ export interface IssueListResponse {
   page_size: number
 }
 
+// Custom field value for issue creation/update
+export interface CustomFieldValue {
+  field_id: number
+  value: any
+}
+
 export interface CreateIssueRequest {
   project_key: string
   issue_type_id: number
@@ -73,16 +87,25 @@ export interface CreateIssueRequest {
   priority: IssuePriority
   assignee_id?: number
   due_date?: string
+  planned_start_date?: string
+  planned_end_date?: string
   parent_id?: number
+  epic_id?: number
+  custom_fields?: CustomFieldValue[]
 }
 
 export interface UpdateIssueRequest {
   title?: string
   description?: string
   priority?: IssuePriority
+  resolution?: IssueResolution
   assignee_id?: number
+  epic_id?: number
   due_date?: string
+  planned_start_date?: string
+  planned_end_date?: string
   issue_type_id?: number
+  custom_fields?: CustomFieldValue[]
 }
 
 export interface TransitionRequest {
@@ -132,6 +155,7 @@ export interface IssueActivity {
   field?: string
   old_value?: string
   new_value?: string
+  details?: string
   created_at: string
 }
 
