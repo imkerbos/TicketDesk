@@ -1,0 +1,122 @@
+# TicketDesk 生产环境 Nginx 配置模板
+# 仅 $BACKEND_HOST 和 $BACKEND_PORT 由 envsubst 替换
+# Nginx 官方镜像默认会替换所有 $ 变量，需要通过 NGINX_ENVSUBST_TEMPLATE_SUFFIX
+# 和 NGINX_ENVSUBST_OUTPUT_DIR 控制，或使用 $$ 转义
+# 这里使用 Nginx 官方推荐方式：只替换指定变量
+
+upstream backend_upstream {
+    server ${BACKEND_HOST}:${BACKEND_PORT};
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    # 安全头
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Gzip 压缩
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_types
+        text/plain
+        text/css
+        text/javascript
+        application/json
+        application/javascript
+        application/xml
+        application/xml+rss
+        image/svg+xml;
+
+    # 客户端请求限制
+    client_max_body_size 50m;
+    client_body_timeout 60s;
+    client_header_timeout 60s;
+
+    # 代理超时
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 120s;
+    proxy_read_timeout 120s;
+
+    # API 反向代理
+    location /api/ {
+        proxy_pass http://backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+
+        # WebSocket 支持
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # 禁用缓冲（适合流式响应）
+        proxy_buffering off;
+    }
+
+    # 健康检查端点代理
+    location /health {
+        proxy_pass http://backend_upstream/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Connection "";
+        access_log off;
+    }
+
+    # Webhook 端点代理（告警接入）
+    location /webhook/ {
+        proxy_pass http://backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+    }
+
+    # 静态资源（带缓存）
+    location /assets/ {
+        root /usr/share/nginx/html;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    # favicon
+    location = /favicon.ico {
+        root /usr/share/nginx/html;
+        expires 7d;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Vue SPA 前端路由（所有未匹配的路径返回 index.html）
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+
+        # HTML 不缓存（确保更新后立即生效）
+        location = /index.html {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
+    }
+
+    # 禁止访问隐藏文件
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}

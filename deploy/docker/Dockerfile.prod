@@ -1,0 +1,54 @@
+# TicketDesk 后端生产镜像（多阶段构建）
+# 最终镜像约 30MB
+
+# ============ 构建阶段 ============
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+# 安装构建依赖
+RUN apk add --no-cache git ca-certificates tzdata
+
+# 设置 Go 环境
+ENV GO111MODULE=on
+ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+
+# 先复制依赖文件（利用 Docker 层缓存）
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 复制源代码
+COPY . .
+
+# 编译（静态链接，去除调试信息）
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev)" \
+    -o /app/bin/ticketdesk ./cmd/ticketdesk
+
+# ============ 运行阶段 ============
+FROM alpine:3.19
+
+WORKDIR /app
+
+# 安装运行时依赖
+RUN apk add --no-cache ca-certificates tzdata curl
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+
+# 从构建阶段复制二进制和配置
+COPY --from=builder /app/bin/ticketdesk /app/ticketdesk
+COPY --from=builder /app/configs/config.prod.yaml /app/configs/config.yaml
+
+# 创建必要目录
+RUN mkdir -p /app/logs /app/uploads
+
+# 暴露端口
+EXPOSE 10010
+
+# 健康检查
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:${APP_PORT:-10010}/health || exit 1
+
+# 运行
+CMD ["/app/ticketdesk", "-config", "/app/configs/config.yaml"]

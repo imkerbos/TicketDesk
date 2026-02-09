@@ -1,0 +1,42 @@
+# TicketDesk 前端生产镜像（构建 + Nginx）
+# 最终镜像约 25MB
+
+# ============ 构建阶段 ============
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# 复制依赖文件（从项目根目录的 web/ 子目录）
+COPY web/package*.json ./
+RUN npm ci --production=false
+
+# 复制前端源代码
+COPY web/ .
+
+# 构建生产版本
+RUN npm run build
+
+# ============ 运行阶段 ============
+FROM nginx:1.25-alpine
+
+# 设置时区
+RUN apk add --no-cache tzdata
+ENV TZ=Asia/Shanghai
+
+# 默认后端地址（可通过环境变量覆盖）
+ENV BACKEND_HOST=backend
+ENV BACKEND_PORT=10010
+
+# 仅替换 BACKEND_HOST 和 BACKEND_PORT，不替换 Nginx 内置变量
+ENV NGINX_ENVSUBST_FILTER=BACKEND
+
+# 复制构建产物
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# 复制 Nginx 配置模板（Nginx 官方镜像自动处理 envsubst）
+COPY deploy/docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+
+# 暴露端口
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

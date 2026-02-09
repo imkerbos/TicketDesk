@@ -1,4 +1,4 @@
-.PHONY: all build run dev test clean lint fmt swagger wire docker-build docker-run docker-dev docker-dev-d docker-dev-stop docker-dev-logs docker-dev-rebuild init migrate help
+.PHONY: all build run dev test clean lint fmt swagger wire docker-dev docker-dev-d docker-dev-stop docker-dev-logs docker-dev-rebuild prod prod-d prod-stop prod-logs prod-rebuild prod-ps init migrate help
 
 # 变量定义
 APP_NAME := ticketdesk
@@ -38,12 +38,21 @@ help:
 	@echo "  make swagger       - 生成 API 文档"
 	@echo "  make wire          - 生成依赖注入代码"
 	@echo "  make migrate       - 运行数据库迁移"
-	@echo "  make docker-build  - 构建 Docker 镜像"
-	@echo "  make docker-run    - 运行 Docker 容器"
+	@echo ""
+	@echo "Docker Dev（开发环境）:"
 	@echo "  make docker-dev    - Docker 开发模式（前后端热更新）"
 	@echo "  make docker-dev-d  - Docker 开发模式（后台运行）"
 	@echo "  make docker-dev-stop - 停止 Docker 开发容器"
 	@echo "  make docker-dev-logs - 查看 Docker 开发日志"
+	@echo ""
+	@echo "Production（生产部署）:"
+	@echo "  make prod          - 生产环境启动（前台）"
+	@echo "  make prod-d        - 生产环境启动（后台）"
+	@echo "  make prod-stop     - 停止生产环境"
+	@echo "  make prod-logs     - 查看生产环境日志"
+	@echo "  make prod-rebuild  - 重建生产环境镜像并启动"
+	@echo "  make prod-ps       - 查看生产环境容器状态"
+	@echo ""
 	@echo "  make clean         - 清理构建产物"
 	@echo ""
 
@@ -128,21 +137,6 @@ migrate:
 	@echo ">>> 运行数据库迁移..."
 	$(GORUN) $(MAIN_FILE) -config $(CONFIG_FILE) -migrate
 
-# Docker 构建
-docker-build:
-	@echo ">>> 构建 Docker 镜像..."
-	docker build -t $(APP_NAME):latest -f deploy/docker/Dockerfile .
-
-# Docker 运行（MySQL + Redis）
-docker-run:
-	@echo ">>> 运行 Docker 容器..."
-	docker-compose -f deploy/docker-compose.yaml up -d
-
-# Docker 停止
-docker-stop:
-	@echo ">>> 停止 Docker 容器..."
-	docker-compose -f deploy/docker-compose.yaml down
-
 # Docker 开发模式（前后端热更新）
 docker-dev:
 	@echo ">>> Docker 开发模式启动（前后端热更新）..."
@@ -167,6 +161,49 @@ docker-dev-logs:
 docker-dev-rebuild:
 	@echo ">>> 重建 Docker 开发容器..."
 	docker-compose -f deploy/docker-compose.dev.yaml up --build --force-recreate
+
+# ============ 生产环境部署 ============
+
+# 生产环境启动（前台，可看到日志）
+prod:
+	@echo ">>> 生产环境启动..."
+	@if [ ! -f deploy/.env ]; then \
+		echo "⚠️  未找到 deploy/.env 文件，正在从 .env.example 复制..."; \
+		cp deploy/.env.example deploy/.env; \
+		echo "📝 请修改 deploy/.env 中的配置（尤其是密码和 JWT_SECRET），然后重新运行"; \
+		exit 1; \
+	fi
+	docker compose -f deploy/docker-compose.yaml --env-file deploy/.env up --build
+
+# 生产环境启动（后台运行）
+prod-d:
+	@echo ">>> 生产环境启动（后台）..."
+	@if [ ! -f deploy/.env ]; then \
+		echo "⚠️  未找到 deploy/.env 文件，正在从 .env.example 复制..."; \
+		cp deploy/.env.example deploy/.env; \
+		echo "📝 请修改 deploy/.env 中的配置（尤其是密码和 JWT_SECRET），然后重新运行"; \
+		exit 1; \
+	fi
+	docker compose -f deploy/docker-compose.yaml --env-file deploy/.env up --build -d
+	@echo ">>> 生产环境已启动，访问 http://localhost:$$(grep WEB_PORT deploy/.env 2>/dev/null | cut -d= -f2 || echo 80)"
+
+# 生产环境停止
+prod-stop:
+	@echo ">>> 停止生产环境..."
+	docker compose -f deploy/docker-compose.yaml --env-file deploy/.env down
+
+# 生产环境日志
+prod-logs:
+	docker compose -f deploy/docker-compose.yaml --env-file deploy/.env logs -f
+
+# 生产环境重建
+prod-rebuild:
+	@echo ">>> 重建生产环境镜像并启动..."
+	docker compose -f deploy/docker-compose.yaml --env-file deploy/.env up --build --force-recreate -d
+
+# 生产环境容器状态
+prod-ps:
+	docker compose -f deploy/docker-compose.yaml --env-file deploy/.env ps
 
 # 清理
 clean:

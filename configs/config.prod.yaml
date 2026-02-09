@@ -1,0 +1,55 @@
+# TicketDesk 配置文件 - 生产环境
+# 所有敏感配置通过环境变量覆盖，参考 deploy/.env.example
+# Viper 会自动将环境变量映射到配置项（用 _ 替代 .）
+# 例如：DATABASE_HOST 环境变量 → database.host 配置项
+
+app:
+  name: ticketdesk
+  env: production
+  port: 10010       # 可通过 APP_PORT 环境变量覆盖
+  debug: false
+
+# 数据库配置（通过环境变量覆盖）
+database:
+  host: mysql         # Docker 内部服务名
+  port: 3306
+  user: ticketdesk
+  password: ticketdesk_pwd_2026
+  name: ticketdesk
+  charset: utf8mb4
+  max_idle_conns: 20
+  max_open_conns: 200
+  conn_max_lifetime: 3600
+
+# Redis 配置（通过环境变量覆盖）
+redis:
+  host: redis         # Docker 内部服务名
+  port: 6379
+  password: ticketdesk_redis_2026
+  db: 0
+  pool_size: 20
+
+# JWT 配置（务必通过环境变量覆盖 secret）
+jwt:
+  secret: change-this-to-a-random-secret-in-production
+  access_expire: 7200      # Access Token 有效期（秒）- 2小时
+  refresh_expire: 604800   # Refresh Token 有效期（秒）- 7天
+  issuer: ticketdesk
+
+# 日志配置
+log:
+  level: info
+  format: json
+  output: file
+  file_path: logs/app.log
+  max_size: 200        # MB
+  max_backups: 10
+  max_age: 30          # 天
+  compress: true
+
+# 夜莺告警系统配置（按需启用）
+nightingale:
+  enable: false
+  base_url: ""
+  token: ""
+  poll_interval: 30

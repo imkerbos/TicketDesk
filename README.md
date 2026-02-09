@@ -1,323 +1,272 @@
 # TicketDesk
 
-TicketDesk 是一个面向运维与技术团队的 **项目化工单与告警联动系统**，用于统一管理研发 / 运维工单，并将监控告警自动转化为可跟踪、可调度、可审计、可统计的工单，形成完整的问题处理闭环。
-
-TicketDesk 的核心理念是：
+TicketDesk 是一个面向运维与技术团队的 **项目化工单与告警联动系统**，用于统一管理研发/运维工单，并将监控告警自动转化为可跟踪、可调度、可审计、可统计的工单，形成完整的问题处理闭环。
 
 > **一切问题都是工单，一切告警都必须被跟进。**
 
 ---
 
-## 1. 核心能力概览
+## 功能特性
 
-TicketDesk 聚焦三个核心方向：
+### 🎫 项目化工单系统（Jira-like）
+- **多项目管理**：独立配置工单类型、工作流、自定义字段、SLA 策略
+- **工单类型**：Epic / Task / Bug / Fault / Change / ServiceRequest
+- **工单能力**：指派、关注人、评论、附件、标签、优先级（P0~P3）、自定义字段
+- **工单关联**：父子工单、阻塞/被阻塞、重复/关联
 
-1️⃣ **项目化工单系统（Jira-like）**  
-2️⃣ **告警自动建单与调度闭环**  
-3️⃣ **审批 + 工作节点驱动的流程引擎**
+### 🔔 告警自动建单与调度闭环
+- **告警接入**：支持 Prometheus / Alertmanager / 夜莺（N9E）等告警源
+- **告警指纹去重**：基于规则 ID + 资源标识 + 标签计算指纹，自动去重合并
+- **自动建单**：告警触发 → 自动创建 Fault 工单，告警恢复 → 自动关闭
+- **合并窗口**：同名告警在时间窗口内合并到同一工单，超时后创建新工单并标记旧工单为「已合并」
+- **告警静默**：支持标签匹配器（`==` / `!=` / `=~` / `!~`），维护窗口内自动抑制建单
+- **双向联动**：工单状态变更同步告警状态，告警恢复同步工单状态
 
-并辅以 SLA、统计面板、审计与报告能力，支撑日常运维与故障管理。
+### ⚙️ 流程引擎（审批 + 工作节点）
+- **审批节点**：单人审批 / 会签（AND）/ 或签（OR），支持超时升级
+- **工作节点**：指派负责人、子任务、完成条件校验
+- **流程编排**：串行节点、条件分支、退回机制
 
----
+### 📊 统计与报表
+- **实时面板**：未关闭工单数、优先级分布、告警趋势、SLA 倒计时
+- **效率指标**：MTTA（响应时间）、MTTR（修复时间）、SLA 命中率
+- **数据导出**：CSV
 
-## 2. 工单系统设计（Jira-like）
+### 📋 需求池
+- **双层级**：全局需求池（跨项目）+ 项目级需求池
+- **生命周期**：待评审 → 评审中 → 已接受 → 转化为工单
+- **看板视图**：按状态 / 优先级 / 负责人 / 时间线分组
 
-### 2.1 Project（项目）
-- 工单的一级归属单位
-- 不同项目可独立配置：
-  - 工单类型（Issue Type）
-  - 工作流（Workflow）
-  - 自定义字段（Custom Fields）
-  - SLA 策略
-  - 成员与权限
-
-示例：
-- OPS-INFRA
-- PAY-SERVICE
-- GAME-BACKEND
-
----
-
-### 2.2 Issue Type（工单类型）
-
-内置推荐类型（可扩展）：
-
-| 类型 | 说明 |
-|---|---|
-| Epic | 阶段性目标 / 大型需求 |
-| Task | 普通任务 |
-| Bug | 研发缺陷 |
-| Fault | 生产故障 / 告警工单 |
-| Change | 变更工单 |
-| ServiceRequest | 服务申请 |
-
-不同 Issue Type 可绑定不同工作流与字段模板。
+### 🔐 权限与通知
+- **RBAC 权限模型**：系统级 + 项目级角色控制
+- **通知渠道**：站内信（WebSocket 实时推送）、邮件、Webhook
+- **全量审计**：字段修改、指派变化、节点流转、审批意见
 
 ---
 
-### 2.3 Workflow（流程引擎：审批节点 + 工作节点）
+## 技术栈
 
-TicketDesk 的 Workflow 不只是状态流转，而是 **由流程节点驱动的可编排流程引擎**。
-
-工作流由 **Node（节点）+ Edge（流转条件）** 构成。
-
----
-
-#### 2.3.1 节点类型
-
-##### ✅ Approval Node（审批节点）
-用于授权、合规、高风险操作前置检查。
-
-支持能力：
-- 审批人来源：
-  - 指定用户
-  - 角色
-  - 用户组 / 值班组
-- 审批策略：
-  - 单人审批
-  - 会签（AND）
-  - 或签（OR）
-  - 按比例通过（如 2/3）
-- 超时处理：
-  - 超时自动升级（Escalation）
-- 审批结果：
-  - 通过 / 拒绝 / 退回补充
-- 全量审计：
-  - 审批人
-  - 时间
-  - 意见
-  - 附件
+| 层级 | 技术 |
+|------|------|
+| **后端** | Go 1.25 + Gin |
+| **前端** | Vue 3 + TypeScript + Element Plus |
+| **数据库** | MySQL 8.0 |
+| **缓存** | Redis 7 |
+| **认证** | JWT（Access Token + Refresh Token） |
+| **日志** | Zap（结构化日志） |
+| **配置** | Viper（YAML + 环境变量覆盖） |
+| **ORM** | GORM |
+| **部署** | Docker Compose |
 
 ---
 
-##### ✅ Work Node（工作节点）
-用于实际执行、处理问题的阶段。
+## 项目结构
 
-支持能力：
-- 指派策略：
-  - 指定负责人
-  - 角色
-  - 组 / 值班组
-  - 标签路由（service → team）
-- 子任务（Subtask / Checklist）
-- 完成条件校验
-- 处理产出沉淀：
-  - 处理结论
-  - 证据附件
-  - 变更单号 / 发布链接 / 回滚方案
-
----
-
-##### （可扩展）System Node（自动节点）
-用于自动化动作（后续阶段）：
-- 自动静默告警
-- 自动回写告警系统
-- 自动触发 CI/CD / 回滚
-- 自动创建协作群 / 通知
-
----
-
-#### 2.3.2 流程能力（MVP 要求）
-- 串行节点：A → B → C
-- 条件分支：按字段（环境 / 优先级 / 类型）分支
-- 退回机制：审批拒绝 → 指定工作节点
-- 状态由节点驱动自动变化
-
-示例（高风险变更）：
 ```
-Submit
-→ Work(方案准备)
-→ Approval(负责人审批)
-→ Approval(安全审批)
-→ Work(执行)
-→ Work(验证)
-→ Close
+ticketdesk/
+├── cmd/ticketdesk/          # 应用入口
+├── internal/                # 内部业务代码
+│   ├── model/               # 数据模型（全局共享）
+│   ├── api/                 # API 层（路由、中间件、统一响应）
+│   ├── core-project/        # 项目管理模块
+│   ├── core-issue/          # 工单管理模块
+│   ├── core-workflow/       # 工作流引擎模块
+│   ├── core-user/           # 用户管理模块
+│   ├── core-field/          # 自定义字段模块
+│   ├── integration-alert/   # 告警集成模块
+│   ├── requirement-pool/    # 需求池模块
+│   ├── activity/            # 活动日志模块
+│   ├── notification/        # 通知模块（邮件/Webhook）
+│   ├── notification-inbox/  # 站内信模块（WebSocket）
+│   ├── reporting/           # 报表统计模块
+│   ├── scheduler/           # 定时任务模块
+│   └── system-config/       # 系统配置模块
+├── pkg/                     # 可复用公共库
+│   ├── config/              # 配置管理
+│   ├── logger/              # 日志
+│   ├── database/            # 数据库
+│   ├── redis/               # Redis
+│   └── jwt/                 # JWT 认证
+├── configs/                 # 配置文件
+├── deploy/                  # 部署配置
+│   ├── docker-compose.yaml      # 生产环境（全栈）
+│   ├── docker-compose.dev.yaml  # 开发环境（热更新）
+│   ├── .env.example             # 环境变量模板
+│   └── docker/                  # Dockerfile 集合
+├── web/                     # 前端代码（Vue 3）
+├── scripts/                 # 脚本
+├── Makefile                 # 构建命令
+└── CLAUDE.md                # AI 开发规范
+```
+
+每个业务模块遵循分层架构：
+```
+module/
+├── dto/            # 数据传输对象
+├── handler/        # HTTP 处理层
+├── service/        # 业务逻辑层
+└── repository/     # 数据访问层
 ```
 
 ---
 
-## 3. 工单基础能力
+## 快速开始
 
-- 指派（Assignee）
-- 关注人（Watcher）
-- 评论（Comment）
-- 附件（Attachment）
-- 标签（Labels）
-- 优先级（P0 ~ P3）
-- 自定义字段（Custom Fields）
-- 工单关联关系：
-  - 父子工单
-  - Epic ↔ Task
-  - 阻塞 / 被阻塞
-  - 重复 / 关联
+### 环境要求
 
----
+- Go 1.25+
+- Node.js 20+
+- MySQL 8.0+
+- Redis 6.0+
+- Docker & Docker Compose
 
-## 4. 告警 → 工单联动设计（核心能力）
+### 方式一：生产部署（推荐）
 
-### 4.1 告警接入
-TicketDesk 通过 API 对接外部监控 / 告警系统，周期性拉取 **活跃告警（Active Alerts）**。
+一键部署全栈服务（MySQL + Redis + Backend + Nginx），无需本地安装数据库。
 
-支持来源：
-- Prometheus / Alertmanager
-- 云厂商监控
-- APM / 日志告警系统
+```bash
+# 1. 克隆代码
+git clone <repo-url> && cd TicketDesk
 
----
+# 2. 配置环境变量
+cp deploy/.env.example deploy/.env
+vim deploy/.env   # 修改密码和 JWT_SECRET
 
-### 4.2 告警去重与合并（Alert Fingerprint）
+# 3. 一键启动
+make prod-d
 
-通过 **告警指纹（Fingerprint）** 控制建单行为。
+# 4. 访问
+open http://localhost
+```
 
-指纹建议字段：
-- 告警规则 ID / 名称
-- 资源标识（实例 / Pod / 服务）
-- 环境（prod / staging）
-- 集群 / 区域
-- 核心标签（job / namespace / service）
+**管理命令：**
 
-处理策略：
-- 无对应未关闭工单 → 创建新的 `Fault` 工单
-- 已存在 → 追加告警事件到工单时间线
+```bash
+make prod-d        # 后台启动
+make prod-stop     # 停止
+make prod-logs     # 查看日志
+make prod-ps       # 查看容器状态
+make prod-rebuild  # 重建镜像并启动
+```
 
----
+### 方式二：本地开发
 
-### 4.3 自动建单规则
-- 告警严重级别 → 工单优先级
-- 告警标签 → 项目映射
-- 告警来源 → 工单组件 / 类型
+需要本地安装 MySQL 和 Redis。
 
----
+```bash
+# 1. 安装依赖
+make init
 
-### 4.4 告警生命周期联动
-- 告警触发 → 建单 / 合并
-- 告警恢复（Resolved）：
-  - 追加事件
-  - 自动建议进入“待关闭”节点
-- 工单 Ack / 处理中：
-  - 可回写告警系统（ack / comment / silence）
-- 工单关闭：
-  - 解除静默
-  - 补充结论（可选）
+# 2. 配置
+cp configs/config.example.yaml configs/config.yaml
+vim configs/config.yaml   # 修改数据库连接信息
 
----
+# 3. 启动后端（热更新）
+make dev-backend
 
-## 5. 调度与升级（Escalation）
+# 4. 启动前端（另一个终端）
+make dev-frontend
 
-- 自动指派负责人 / 值班组
-- 升级策略示例：
-  - P0：5 分钟未 Ack → 升级值班负责人
-  - 30 分钟未恢复 → 升级到组负责人
-- 支持通知渠道：
-  - IM
-  - Email
-  - Webhook
+# 5. 访问
+open http://localhost:3100
+```
+
+### 方式三：Docker 开发模式
+
+后端 + 前端容器化热更新，MySQL/Redis 使用宿主机。
+
+```bash
+make docker-dev
+```
 
 ---
 
-## 6. SLA 与效率指标
+## 环境变量说明
 
-内置 SLA 计算：
-- MTTA（响应时间）
-- MTTR（修复时间）
-- SLA 命中率
-- 超时统计
+生产部署通过 `deploy/.env` 配置，主要变量：
 
-支持：
-- 按项目 / 类型 / 优先级配置
-- SLA 暂停（等待用户 / 外部依赖）
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `DB_ROOT_PASSWORD` | MySQL root 密码 | `ticketdesk_root_2026` |
+| `DB_NAME` | 数据库名 | `ticketdesk` |
+| `DB_USER` | 数据库用户 | `ticketdesk` |
+| `DB_PASSWORD` | 数据库密码 | `ticketdesk_pwd_2026` |
+| `REDIS_PASSWORD` | Redis 密码 | `ticketdesk_redis_2026` |
+| `JWT_SECRET` | JWT 密钥（**必须修改**） | - |
+| `WEB_PORT` | 前端对外端口 | `80` |
+| `APP_PORT` | 后端内部端口 | `10010` |
+| `LOG_LEVEL` | 日志级别 | `info` |
 
----
-
-## 7. 统计面板与报告
-
-### 7.1 实时面板
-- 未关闭工单数
-- P0 / P1 分布
-- 告警工单趋势
-- SLA 倒计时
-
-### 7.2 报告指标
-- MTTA / MTTR
-- 告警噪声比（重复 vs 有效）
-- Top 根因 / 组件
-- 项目 / 人员负载
-
-支持导出：
-- CSV
-- PDF
+完整变量列表见 [`deploy/.env.example`](deploy/.env.example)。
 
 ---
 
-## 8. 权限与审计
+## 架构概览
 
-- RBAC 权限模型
-- 项目级权限控制
-- 全量审计日志：
-  - 字段修改
-  - 指派变化
-  - 节点流转
-  - 审批意见
-  - 告警回写
+```
+                    ┌─────────────┐
+                    │   Browser   │
+                    └──────┬──────┘
+                           │ :80
+                    ┌──────▼──────┐
+                    │    Nginx    │  静态资源 + 反向代理
+                    │  (Frontend) │
+                    └──────┬──────┘
+                           │ /api/*
+                    ┌──────▼──────┐
+                    │   Backend   │  Go + Gin
+                    │   (API)     │  :10010
+                    └───┬─────┬───┘
+                        │     │
+                 ┌──────▼┐   ┌▼──────┐
+                 │ MySQL │   │ Redis │
+                 │  8.0  │   │  7    │
+                 └───────┘   └───────┘
 
----
-
-## 9. 系统架构（建议）
-
-模块划分：
-- core-project
-- core-issue
-- core-workflow
-- integration-alert
-- scheduler
-- notification
-- reporting
-- api
-
----
-
-## 10. 技术栈建议
-
-- Backend：Go
-- API：REST (OpenAPI)
-- DB：PostgreSQL / MySQL
-- Cache / Queue：Redis（可选）
-- Auth：JWT / OIDC（可对接统一 SSO）
-- Deploy：Docker / Kubernetes
+  外部告警源 ──webhook──▶ Backend ──自动建单──▶ Issue
+  (Prometheus/N9E)
+```
 
 ---
 
-## 11. Roadmap
+## 常用命令
 
-### Phase 1（MVP）
-- 项目 & 工单基础
-- 审批节点 + 工作节点（串行 + 退回）
-- 告警自动建 Fault 工单
-- SLA 基础能力
-- 基础面板
+```bash
+# ============ 开发 ============
+make dev-backend     # 后端热更新
+make dev-frontend    # 前端热更新
+make build           # 构建后端二进制
+make test            # 运行测试
+make lint            # 代码静态检查
+make fmt             # 格式化代码
+make swagger         # 生成 API 文档
 
-### Phase 2
-- 权限模型完善
-- 值班表 / Oncall 集成
-- 升级策略
-- 高级搜索与视图
+# ============ Docker 开发 ============
+make docker-dev      # 容器化开发（热更新）
+make docker-dev-stop # 停止开发容器
 
-### Phase 3
-- 并行审批
-- 自动化节点
-- Postmortem / 知识库
-- CMDB / CI-CD 联动
-
----
-
-## 12. Design Principles
-
-- 工单是事实来源（Single Source of Truth）
-- 告警不是问题，工单才是
-- 自动化优先，人工兜底
-- 可审计、可追责、可复盘
+# ============ 生产部署 ============
+make prod-d          # 后台启动
+make prod-stop       # 停止
+make prod-logs       # 查看日志
+make prod-rebuild    # 重建并启动
+make prod-ps         # 容器状态
+```
 
 ---
 
-## 13. License
-TBD
+## 默认账号
+
+系统启动后会自动创建管理员账号：
+
+| 用户名 | 密码 | 角色 |
+|--------|------|------|
+| `admin` | `admin123` | 系统管理员 |
+
+> ⚠️ 生产环境请立即修改默认密码。
+
+---
+
+## License
+
+MIT

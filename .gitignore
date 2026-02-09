@@ -49,6 +49,7 @@ configs/config.yaml
 configs/*.local.yaml
 .env
 .env.local
+deploy/.env
 
 # Temporary files
 tmp/
