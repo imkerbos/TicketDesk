@@ -14,11 +14,11 @@
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-row">
-      <el-col :xs="12" :sm="6">
-        <div class="stat-card total">
+    <el-row :gutter="16" class="stat-row">
+      <el-col :xs="12" :sm="8" :md="4">
+        <div class="stat-card total" :class="{ active: !queryParams.status && !queryParams.severity }" @click="handleStatClick()">
           <div class="stat-icon-wrapper">
-            <el-icon :size="24"><Bell /></el-icon>
+            <el-icon :size="22"><Bell /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.total }}</div>
@@ -26,36 +26,58 @@
           </div>
         </div>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <div class="stat-card critical">
+      <el-col :xs="12" :sm="8" :md="4">
+        <div class="stat-card firing" :class="{ active: queryParams.status === 'firing' && !queryParams.severity }" @click="handleStatClick('firing')">
           <div class="stat-icon-wrapper">
-            <el-icon :size="24"><WarningFilled /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.critical }}</div>
-            <div class="stat-label">严重告警</div>
-          </div>
-        </div>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <div class="stat-card warning">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="24"><Warning /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.warning }}</div>
-            <div class="stat-label">警告告警</div>
-          </div>
-        </div>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <div class="stat-card firing">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="24"><Promotion /></el-icon>
+            <el-icon :size="22"><Promotion /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.firing }}</div>
-            <div class="stat-label">触发中</div>
+            <div class="stat-label">活跃告警</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :xs="12" :sm="8" :md="4">
+        <div class="stat-card resolved" :class="{ active: queryParams.status === 'resolved' && !queryParams.severity }" @click="handleStatClick('resolved')">
+          <div class="stat-icon-wrapper">
+            <el-icon :size="22"><CircleCheck /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ stats.resolved }}</div>
+            <div class="stat-label">已解决</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :xs="12" :sm="8" :md="4">
+        <div class="stat-card critical" :class="{ active: queryParams.severity === 'critical' && !queryParams.status }" @click="handleStatClick(undefined, 'critical')">
+          <div class="stat-icon-wrapper">
+            <el-icon :size="22"><WarningFilled /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ stats.critical }}</div>
+            <div class="stat-label">严重</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :xs="12" :sm="8" :md="4">
+        <div class="stat-card warning" :class="{ active: queryParams.severity === 'warning' && !queryParams.status }" @click="handleStatClick(undefined, 'warning')">
+          <div class="stat-icon-wrapper">
+            <el-icon :size="22"><Warning /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ stats.warning }}</div>
+            <div class="stat-label">警告</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :xs="12" :sm="8" :md="4">
+        <div class="stat-card info" :class="{ active: queryParams.severity === 'info' && !queryParams.status }" @click="handleStatClick(undefined, 'info')">
+          <div class="stat-icon-wrapper">
+            <el-icon :size="22"><InfoFilled /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ stats.info }}</div>
+            <div class="stat-label">信息</div>
           </div>
         </div>
       </el-col>
@@ -320,10 +342,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Search, Refresh, List, Grid, Bell, Clock, Check, CircleCheck,
-  View, WarningFilled, Warning, Promotion
+  View, WarningFilled, Warning, Promotion, InfoFilled
 } from '@element-plus/icons-vue'
-import { getAlertList, ackAlert, resolveAlert, getAlertGroup } from '@/api/alert'
-import type { Alert, AlertGroupItem } from '@/types/alert'
+import { getAlertList, getAlertStats, ackAlert, resolveAlert, getAlertGroup } from '@/api/alert'
+import type { Alert, AlertGroupItem, AlertStatsResponse } from '@/types/alert'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -335,7 +357,7 @@ const viewMode = ref<'list' | 'group'>('list')
 const groupBy = ref('cluster')
 const groupData = ref<AlertGroupItem[]>([])
 
-const stats = reactive({ total: 0, critical: 0, warning: 0, firing: 0 })
+const stats = reactive<AlertStatsResponse>({ total: 0, firing: 0, resolved: 0, critical: 0, warning: 0, info: 0 })
 
 const queryParams = reactive({
   page: 1, page_size: 20,
@@ -355,11 +377,19 @@ const loadData = async () => {
     const { data } = await getAlertList(queryParams)
     alertList.value = data.data.items
     total.value = data.data.total
-    updateStats()
   } catch (error) {
     console.error('Failed to load alerts:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const loadStats = async () => {
+  try {
+    const { data } = await getAlertStats()
+    Object.assign(stats, data.data)
+  } catch (error) {
+    console.error('Failed to load alert stats:', error)
   }
 }
 
@@ -377,16 +407,15 @@ const loadGroupData = async () => {
   }
 }
 
-const updateStats = () => {
-  stats.total = total.value
-  stats.critical = alertList.value.filter((a) => a.severity === 'critical').length
-  stats.warning = alertList.value.filter((a) => a.severity === 'warning').length
-  stats.firing = alertList.value.filter((a) => a.status === 'firing').length
-}
-
 const handleQuery = () => {
   queryParams.page = 1
   viewMode.value === 'list' ? loadData() : loadGroupData()
+}
+
+const handleStatClick = (status?: 'firing' | 'resolved', severity?: 'critical' | 'warning' | 'info') => {
+  queryParams.status = status
+  queryParams.severity = severity
+  handleQuery()
 }
 
 const handleReset = () => {
@@ -435,7 +464,7 @@ const getMainLabels = (labels: Record<string, string>) => {
 }
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
 
-onMounted(() => { loadData() })
+onMounted(() => { loadData(); loadStats() })
 </script>
 
 <style scoped lang="scss">
@@ -483,40 +512,58 @@ onMounted(() => { loadData() })
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
+  gap: 14px;
+  padding: 16px 18px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   transition: all 0.3s;
+  cursor: pointer;
+  border: 2px solid transparent;
 
   &:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
+  &.active { border-color: currentColor; }
 
   .stat-icon-wrapper {
-    width: 48px; height: 48px; border-radius: 12px;
+    width: 44px; height: 44px; border-radius: 12px;
     display: flex; align-items: center; justify-content: center; color: #fff;
+    flex-shrink: 0;
   }
 
   .stat-content {
-    .stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
-    .stat-label { font-size: 13px; color: #909399; margin-top: 2px; }
+    .stat-value { font-size: 24px; font-weight: 700; line-height: 1.2; }
+    .stat-label { font-size: 12px; color: #909399; margin-top: 2px; }
   }
 
   &.total {
     .stat-icon-wrapper { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
     .stat-value { color: #667eea; }
+    &.active { border-color: #667eea; }
+  }
+  &.firing {
+    .stat-icon-wrapper { background: linear-gradient(135deg, #f56c6c 0%, #e74c3c 100%); }
+    .stat-value { color: #e74c3c; }
+    &.active { border-color: #e74c3c; }
+  }
+  &.resolved {
+    .stat-icon-wrapper { background: linear-gradient(135deg, #67c23a 0%, #2ecc71 100%); }
+    .stat-value { color: #2ecc71; }
+    &.active { border-color: #2ecc71; }
   }
   &.critical {
     .stat-icon-wrapper { background: linear-gradient(135deg, #f56c6c 0%, #c0392b 100%); }
     .stat-value { color: #c0392b; }
+    &.active { border-color: #c0392b; }
   }
   &.warning {
     .stat-icon-wrapper { background: linear-gradient(135deg, #e6a23c 0%, #d68910 100%); }
     .stat-value { color: #d68910; }
+    &.active { border-color: #d68910; }
   }
-  &.firing {
-    .stat-icon-wrapper { background: linear-gradient(135deg, #409eff 0%, #2c7bd9 100%); }
-    .stat-value { color: #2c7bd9; }
+  &.info {
+    .stat-icon-wrapper { background: linear-gradient(135deg, #909399 0%, #6b7280 100%); }
+    .stat-value { color: #6b7280; }
+    &.active { border-color: #6b7280; }
   }
 }
 

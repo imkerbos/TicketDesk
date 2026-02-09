@@ -40,6 +40,15 @@ export interface AlertListResponse {
   page_size: number
 }
 
+export interface AlertStatsResponse {
+  total: number
+  firing: number
+  resolved: number
+  critical: number
+  warning: number
+  info: number
+}
+
 export interface LabelMatcher {
   key: string
   operator: '==' | '!=' | '=~' | '!~'
@@ -113,4 +122,65 @@ export interface AlertGroupResponse {
   group_by: string
   items: AlertGroupItem[]
   total: number
+}
+
+// ============ 告警数据源相关类型 ============
+
+export const DatasourceTypes = [
+  { value: 'prometheus', label: 'Prometheus', icon: '🔥' },
+  { value: 'nightingale', label: '夜莺 (Nightingale)', icon: '🦅' },
+] as const
+
+export interface AlertDatasource {
+  id: number
+  name: string
+  type: string
+  description: string
+  config: Record<string, any>
+  push_mode: boolean
+  poll_interval: number
+  status: number
+  webhook_url: string
+  last_check_at?: string
+  last_check_ok?: boolean
+  last_check_msg?: string
+  created_by: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateDatasourceRequest {
+  name: string
+  type: string
+  description?: string
+  config: Record<string, any>
+  push_mode: boolean
+  poll_interval?: number
+}
+
+export interface UpdateDatasourceRequest {
+  name?: string
+  description?: string
+  config?: Record<string, any>
+  push_mode?: boolean
+  poll_interval?: number
+  status?: number
+}
+
+export interface TestDatasourceRequest {
+  type: string
+  config: Record<string, any>
+}
+
+export interface TestDatasourceResponse {
+  success: boolean
+  message: string
+  latency_ms: number
+}
+
+export interface DatasourceListResponse {
+  items: AlertDatasource[]
+  total: number
+  page: number
+  page_size: number
 }

@@ -3,16 +3,28 @@ import type {
   Alert,
   AlertListRequest,
   AlertListResponse,
+  AlertStatsResponse,
   AlertRule,
   CreateAlertRuleRequest,
   AlertSilence,
   CreateAlertSilenceRequest,
   AlertGroupResponse,
+  AlertDatasource,
+  CreateDatasourceRequest,
+  UpdateDatasourceRequest,
+  TestDatasourceRequest,
+  TestDatasourceResponse,
+  DatasourceListResponse,
 } from '@/types/alert'
 
 // 告警列表
 export const getAlertList = (params: AlertListRequest) => {
   return request.get<ApiResponse<AlertListResponse>>('/alerts', { params })
+}
+
+// 告警统计
+export const getAlertStats = () => {
+  return request.get<ApiResponse<AlertStatsResponse>>('/alerts/stats')
 }
 
 // 告警详情
@@ -90,4 +102,41 @@ export const deleteAlertSilence = (id: number) => {
 // 取消告警静默
 export const cancelAlertSilence = (id: number) => {
   return request.post(`/alert-silences/${id}/cancel`)
+}
+
+// ============ 告警数据源管理 ============
+
+// 数据源列表
+export const getDatasourceList = (params?: { page?: number; page_size?: number; type?: string; status?: number }) => {
+  return request.get<ApiResponse<DatasourceListResponse>>('/alert-datasources', { params })
+}
+
+// 数据源详情
+export const getDatasource = (id: number) => {
+  return request.get<ApiResponse<AlertDatasource>>(`/alert-datasources/${id}`)
+}
+
+// 创建数据源
+export const createDatasource = (data: CreateDatasourceRequest) => {
+  return request.post<ApiResponse<AlertDatasource>>('/alert-datasources', data)
+}
+
+// 更新数据源
+export const updateDatasource = (id: number, data: UpdateDatasourceRequest) => {
+  return request.put<ApiResponse<AlertDatasource>>(`/alert-datasources/${id}`, data)
+}
+
+// 删除数据源
+export const deleteDatasource = (id: number) => {
+  return request.delete(`/alert-datasources/${id}`)
+}
+
+// 测试数据源连接（创建前）
+export const testDatasource = (data: TestDatasourceRequest) => {
+  return request.post<ApiResponse<TestDatasourceResponse>>('/alert-datasources/test', data)
+}
+
+// 测试已保存数据源的连接
+export const testDatasourceById = (id: number) => {
+  return request.post<ApiResponse<TestDatasourceResponse>>(`/alert-datasources/${id}/test`)
 }

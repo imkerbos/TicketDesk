@@ -62,14 +62,19 @@
         <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
+              <el-tooltip v-if="row.status === 0" content="启用" placement="top">
+                <el-button link type="success" @click="handleEnable(row)">
+                  <el-icon><CircleCheck /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip v-if="row.status === 1" content="关闭" placement="top">
+                <el-button link type="warning" @click="handleDisable(row)">
+                  <el-icon><CircleClose /></el-icon>
+                </el-button>
+              </el-tooltip>
               <el-tooltip content="编辑" placement="top">
                 <el-button link type="primary" @click="handleEdit(row)">
                   <el-icon><Edit /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip v-if="row.status === 1" content="取消" placement="top">
-                <el-button link type="warning" @click="handleCancel(row)">
-                  <el-icon><CircleClose /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="删除" placement="top">
@@ -172,7 +177,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Delete, Edit, CircleClose, BellFilled } from '@element-plus/icons-vue'
+import { Plus, Delete, Edit, CircleClose, CircleCheck, BellFilled } from '@element-plus/icons-vue'
 import {
   getAlertSilenceList,
   createAlertSilence,
@@ -269,24 +274,45 @@ const handleSubmit = async () => {
   })
 }
 
-const handleCancel = async (row: AlertSilence) => {
+// 启用静默规则
+const handleEnable = async (row: AlertSilence) => {
   try {
-    await ElMessageBox.confirm('确定要取消此静默规则吗？', '提示', {
-      type: 'warning',
-    })
-    await cancelAlertSilence(row.id)
-    ElMessage.success('取消成功')
+    await ElMessageBox.confirm(
+      '启用后，匹配的告警将不会自动创建工单。确定要启用此静默规则吗？',
+      '启用静默',
+      { type: 'info', confirmButtonText: '启用', cancelButtonText: '取消' }
+    )
+    await updateAlertSilence(row.id, { status: 1 } as any)
+    ElMessage.success('已启用')
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to cancel:', error)
+      console.error('Failed to enable:', error)
+    }
+  }
+}
+
+// 关闭静默规则
+const handleDisable = async (row: AlertSilence) => {
+  try {
+    await ElMessageBox.confirm('关闭后，匹配的告警将恢复正常建单。确定要关闭此静默规则吗？', '关闭静默', {
+      type: 'warning',
+      confirmButtonText: '关闭',
+      cancelButtonText: '取消',
+    })
+    await cancelAlertSilence(row.id)
+    ElMessage.success('已关闭')
+    loadData()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to disable:', error)
     }
   }
 }
 
 const handleDelete = async (row: AlertSilence) => {
   try {
-    await ElMessageBox.confirm('确定要删除此静默规则吗？', '提示', {
+    await ElMessageBox.confirm('确定要删除此静默规则吗？删除后不可恢复。', '删除静默', {
       type: 'warning',
     })
     await deleteAlertSilence(row.id)
@@ -313,17 +339,17 @@ const handleDialogClose = () => {
 
 const getStatusClass = (status: number) => {
   const map: Record<number, string> = {
-    0: 'cancelled',
+    0: 'disabled',
     1: 'active',
     2: 'expired',
   }
-  return map[status] || 'cancelled'
+  return map[status] || 'disabled'
 }
 
 const getStatusText = (status: number) => {
   const map: Record<number, string> = {
-    0: '已取消',
-    1: '生效中',
+    0: '已关闭',
+    1: '已启用',
     2: '已过期',
   }
   return map[status] || '未知'
@@ -439,7 +465,7 @@ onMounted(() => {
     }
   }
 
-  &.cancelled {
+  &.disabled {
     background: #f3f4f6;
     color: #6b7280;
 
