@@ -443,7 +443,7 @@ const getStatusLabel = (status: string) => {
 }
 
 const getStatusColor = (status: string) => {
-  const map: Record<string, string> = { open: '#909399', in_progress: '#E6A23C', resolved: '#67C23A', closed: '#409EFF' }
+  const map: Record<string, string> = { open: '#909399', in_progress: '#E6A23C', resolved: '#67C23A', closed: '#409EFF', merged: '#8b5cf6' }
   return map[status] || '#909399'
 }
 

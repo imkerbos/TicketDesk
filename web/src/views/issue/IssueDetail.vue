@@ -13,6 +13,10 @@
           </div>
           <h1 class="issue-title">{{ issue.title }}</h1>
           <div class="issue-meta">
+            <div v-if="issue.issue_type" class="type-badge">
+              <el-icon class="type-icon"><Document /></el-icon>
+              <span class="type-text">{{ issue.issue_type.display_name }}</span>
+            </div>
             <el-tag :type="getPriorityType(issue.priority)" size="small" effect="dark">{{ issue.priority }}</el-tag>
             <div class="status-badge" :class="issue.status">
               <span class="status-dot"></span>
@@ -43,6 +47,7 @@
             </template>
           </el-dropdown>
           <el-button :icon="Edit" @click="handleEdit">编辑</el-button>
+          <el-button type="danger" :icon="Delete" @click="handleDelete">删除</el-button>
         </div>
       </div>
 
@@ -63,6 +68,139 @@
               {{ issue.description }}
             </div>
             <div v-else class="empty-placeholder">暂无描述</div>
+          </el-card>
+
+          <!-- 扩展字段 - 显示在主体区域 -->
+          <el-card v-if="customFields.length > 0" shadow="never" class="content-card custom-fields-card">
+            <template #header>
+              <div class="card-header-group">
+                <div class="card-icon custom">
+                  <el-icon><Document /></el-icon>
+                </div>
+                <span class="card-title">扩展字段</span>
+              </div>
+            </template>
+            <div class="custom-fields-grid">
+              <div v-for="field in customFields" :key="field.field_id" class="field-item">
+                <div class="field-label">{{ field.field_name }}</div>
+                <div class="field-value">
+                  <template v-if="field.value !== null && field.value !== undefined && field.value !== ''">
+                    <!-- Epic Link 特殊显示 -->
+                    <template v-if="field.field_type === 'epic_link' && typeof field.value === 'object' && field.value.issue_key">
+                      <router-link :to="`/issues/${field.value.issue_key}`" class="epic-link">
+                        <el-icon><Link /></el-icon>
+                        {{ field.value.issue_key }}: {{ field.value.title }}
+                      </router-link>
+                    </template>
+                    <!-- 其他字段 -->
+                    <template v-else>
+                      {{ field.display_value || field.value }}
+                    </template>
+                  </template>
+                  <span v-else class="empty-value">未设置</span>
+                </div>
+              </div>
+            </div>
+          </el-card>
+
+          <!-- Epic 下的 Issues（仅当当前工单是 Epic 类型时显示）-->
+          <el-card v-if="issue.issue_type?.name?.toLowerCase() === 'epic'" shadow="never" class="content-card epic-issues-card">
+            <template #header>
+              <div class="card-header-group">
+                <div class="card-icon epic">
+                  <el-icon><Document /></el-icon>
+                </div>
+                <span class="card-title">长篇故事中的事物 ({{ epicIssues.length }})</span>
+              </div>
+            </template>
+            <div class="epic-issues-list">
+              <div v-if="epicIssues.length === 0" class="empty-state">
+                <el-empty description="暂无关联的工单" :image-size="80" />
+              </div>
+              <div v-for="epicIssue in epicIssues" :key="epicIssue.id" class="epic-issue-item">
+                <div class="issue-left">
+                  <div class="issue-type-icon" :class="epicIssue.issue_type?.name?.toLowerCase() || 'task'">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <router-link :to="`/issues/${epicIssue.issue_key}`" class="issue-link">
+                    <span class="issue-key">{{ epicIssue.issue_key }}</span>
+                  </router-link>
+                  <div class="issue-title">{{ epicIssue.title }}</div>
+                </div>
+                <div class="issue-right">
+                  <el-tag :type="getPriorityType(epicIssue.priority)" size="small" effect="dark" class="priority-tag">
+                    {{ epicIssue.priority }}
+                  </el-tag>
+                  <div class="status-badge" :class="epicIssue.status">
+                    <span class="status-dot"></span>
+                    <span>{{ getStatusText(epicIssue.status) }}</span>
+                  </div>
+                  <div v-if="epicIssue.assignee" class="assignee-info">
+                    <div class="assignee-avatar" :title="epicIssue.assignee.display_name">
+                      {{ epicIssue.assignee.display_name?.charAt(0) || '?' }}
+                    </div>
+                    <span class="assignee-name">{{ epicIssue.assignee.display_name }}</span>
+                  </div>
+                  <div v-else class="assignee-info">
+                    <div class="assignee-avatar unassigned" title="未分配">?</div>
+                    <span class="assignee-name unassigned">未分配</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-card>
+
+          <!-- 子任务列表 -->
+          <el-card v-if="subtasks.length > 0 || issue.issue_type?.name?.toLowerCase() === 'task'" shadow="never" class="content-card subtasks-card">
+            <template #header>
+              <div class="card-header-with-action">
+                <div class="card-header-group">
+                  <div class="card-icon subtask">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <span class="card-title">子任务 ({{ subtasks.length }})</span>
+                </div>
+                <el-button link type="primary" size="small" @click="handleCreateSubtask">
+                  <el-icon><Plus /></el-icon>
+                  创建子任务
+                </el-button>
+              </div>
+            </template>
+            <div class="subtasks-list">
+              <div v-if="subtasks.length === 0" class="empty-state-compact">
+                <span class="empty-text">暂无子任务</span>
+              </div>
+              <div v-for="subtask in subtasks" :key="subtask.id" class="subtask-item">
+                <div class="issue-left">
+                  <div class="issue-type-icon" :class="subtask.issue_type?.name?.toLowerCase() || 'task'">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <router-link :to="`/issues/${subtask.issue_key}`" class="issue-link">
+                    <span class="issue-key">{{ subtask.issue_key }}</span>
+                  </router-link>
+                  <div class="issue-title">{{ subtask.title }}</div>
+                </div>
+                <div class="issue-right">
+                  <el-tag :type="getPriorityType(subtask.priority)" size="small" effect="dark" class="priority-tag">
+                    {{ subtask.priority }}
+                  </el-tag>
+                  <div class="status-badge" :class="subtask.status">
+                    <span class="status-dot"></span>
+                    <span>{{ getStatusText(subtask.status) }}</span>
+                  </div>
+                  <div v-if="subtask.assignee" class="assignee-info">
+                    <div class="assignee-avatar" :title="subtask.assignee.display_name">
+                      {{ subtask.assignee.display_name?.charAt(0) || '?' }}
+                    </div>
+                    <span class="assignee-name">{{ subtask.assignee.display_name }}</span>
+                  </div>
+                  <div v-else class="assignee-info">
+                    <div class="assignee-avatar unassigned" title="未分配">?</div>
+                    <span class="assignee-name unassigned">未分配</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </el-card>
 
           <!-- 评论和工作日志 -->
@@ -199,6 +337,23 @@
             </el-tabs>
           </el-card>
 
+          <!-- 附件 -->
+          <el-card shadow="never" class="content-card">
+            <template #header>
+              <div class="card-header-group">
+                <div class="card-icon attachment">
+                  <el-icon><Paperclip /></el-icon>
+                </div>
+                <span class="card-title">附件</span>
+                <span class="card-count">{{ attachments.length }}</span>
+              </div>
+            </template>
+            <div class="attachment-section">
+              <AttachmentUpload v-if="issue" :issue-key="issue.issue_key" @success="loadAttachments(issue.issue_key)" />
+              <AttachmentList v-if="issue" :issue-key="issue.issue_key" :attachments="attachments" @refresh="loadAttachments(issue.issue_key)" />
+            </div>
+          </el-card>
+
           <!-- 活动记录 -->
           <el-card shadow="never" class="content-card">
             <template #header>
@@ -218,12 +373,17 @@
               >
                 <div class="activity-content">
                   <span class="activity-user">{{ activity.user_name }}</span>
-                  <span class="activity-action">{{ activity.action }}</span>
-                  <template v-if="activity.field">
-                    <span class="activity-field">{{ activity.field }}</span>
-                    <span v-if="activity.old_value" class="activity-old-value">{{ activity.old_value }}</span>
-                    <el-icon v-if="activity.old_value"><ArrowRight /></el-icon>
-                    <span v-if="activity.new_value" class="activity-new-value">{{ activity.new_value }}</span>
+                  <template v-if="activity.details">
+                    <span class="activity-details">{{ activity.details }}</span>
+                  </template>
+                  <template v-else>
+                    <span class="activity-action">{{ activity.action }}</span>
+                    <template v-if="activity.field">
+                      <span class="activity-field">{{ activity.field }}</span>
+                      <span v-if="activity.old_value" class="activity-old-value">{{ activity.old_value }}</span>
+                      <el-icon v-if="activity.old_value"><ArrowRight /></el-icon>
+                      <span v-if="activity.new_value" class="activity-new-value">{{ activity.new_value }}</span>
+                    </template>
                   </template>
                 </div>
               </el-timeline-item>
@@ -245,58 +405,96 @@
               </div>
             </template>
             <div class="info-list">
+              <div v-if="issue.parent_key" class="info-item">
+                <span class="info-label">父工单</span>
+                <el-link type="primary" @click="$router.push(`/issues/${issue.parent_key}`)">
+                  {{ issue.parent_key }}
+                </el-link>
+              </div>
+              <div v-if="issue.epic_key" class="info-item">
+                <span class="info-label">Epic</span>
+                <el-link type="primary" @click="$router.push(`/issues/${issue.epic_key}`)">
+                  <el-icon><Link /></el-icon>
+                  {{ issue.epic_key }}
+                </el-link>
+              </div>
               <div class="info-item">
                 <span class="info-label">状态</span>
-                <span class="info-value">
-                  <div class="status-badge sm" :class="issue.status">
-                    <span class="status-dot"></span>
-                    <span>{{ getStatusText(issue.status) }}</span>
-                  </div>
-                </span>
+                <div class="status-badge sm" :class="issue.status">
+                  <span class="status-dot"></span>
+                  <span>{{ getStatusText(issue.status) }}</span>
+                </div>
               </div>
               <div class="info-item">
                 <span class="info-label">优先级</span>
-                <span class="info-value">
-                  <el-tag :type="getPriorityType(issue.priority)" size="small" effect="dark">{{ issue.priority }}</el-tag>
-                </span>
+                <el-tag :type="getPriorityType(issue.priority)" size="small" effect="dark">{{ issue.priority }}</el-tag>
+              </div>
+              <div v-if="issue.resolution" class="info-item">
+                <span class="info-label">解决结果</span>
+                <el-tag size="small" type="success">{{ getResolutionText(issue.resolution) }}</el-tag>
               </div>
               <div class="info-item">
                 <span class="info-label">项目</span>
-                <span class="info-value">
-                  <el-link type="primary" @click="$router.push(`/issues?project_key=${issue.project_key}`)">
-                    {{ issue.project_key }}
-                  </el-link>
-                </span>
+                <el-link type="primary" @click="$router.push(`/issues?project_key=${issue.project_key}`)">
+                  {{ issue.project_key }}
+                </el-link>
               </div>
               <div class="info-item">
                 <span class="info-label">类型</span>
-                <span class="info-value">{{ issue.issue_type?.display_name || '-' }}</span>
+                <span>{{ issue.issue_type?.display_name || '-' }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">指派人</span>
-                <span class="info-value">
+                <div class="assignee-with-action">
                   <template v-if="issue.assignee">
-                    <div class="mini-avatar">{{ issue.assignee.display_name?.charAt(0) || '?' }}</div>
-                    {{ issue.assignee.display_name }}
+                    <div class="user-info">
+                      <div class="mini-avatar">{{ issue.assignee.display_name?.charAt(0) || '?' }}</div>
+                      <span>{{ issue.assignee.display_name }}</span>
+                    </div>
                   </template>
                   <span v-else class="text-muted">未指派</span>
-                </span>
+                  <el-button
+                    v-if="issue.assignee?.id !== userStore.user?.id"
+                    link
+                    type="primary"
+                    size="small"
+                    @click="handleAssignToMe"
+                  >
+                    分配给我
+                  </el-button>
+                </div>
               </div>
               <div class="info-item">
                 <span class="info-label">创建者</span>
-                <span class="info-value">{{ issue.reporter?.display_name || '未知' }}</span>
+                <span>{{ issue.reporter?.display_name || '未知' }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">创建时间</span>
-                <span class="info-value">{{ formatTime(issue.created_at) }}</span>
+                <span>{{ formatTime(issue.created_at) }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">更新时间</span>
-                <span class="info-value">{{ formatTime(issue.updated_at) }}</span>
+                <span>{{ formatTime(issue.updated_at) }}</span>
               </div>
               <div v-if="issue.due_date" class="info-item">
                 <span class="info-label">截止时间</span>
-                <span class="info-value">{{ formatDate(issue.due_date) }}</span>
+                <span>{{ formatDate(issue.due_date) }}</span>
+              </div>
+              <div v-if="issue.planned_start_date" class="info-item">
+                <span class="info-label">预计开始</span>
+                <span>{{ formatDate(issue.planned_start_date) }}</span>
+              </div>
+              <div v-if="issue.planned_end_date" class="info-item">
+                <span class="info-label">预计交付</span>
+                <span>{{ formatDate(issue.planned_end_date) }}</span>
+              </div>
+              <div v-if="issue.actual_start_date" class="info-item">
+                <span class="info-label">实际开始</span>
+                <span>{{ formatTime(issue.actual_start_date) }}</span>
+              </div>
+              <div v-if="issue.actual_end_date" class="info-item">
+                <span class="info-label">实际完成</span>
+                <span>{{ formatTime(issue.actual_end_date) }}</span>
               </div>
             </div>
           </el-card>
@@ -375,12 +573,12 @@
     </el-dialog>
 
     <!-- 编辑对话框 -->
-    <el-dialog v-model="editDialogVisible" title="编辑工单" width="600px" destroy-on-close>
+    <el-dialog v-model="editDialogVisible" title="编辑工单" width="640px" destroy-on-close class="edit-dialog">
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-position="top">
         <el-form-item label="标题" prop="title">
           <el-input v-model="editForm.title" maxlength="200" show-word-limit />
         </el-form-item>
-        <el-row :gutter="16">
+        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="优先级" prop="priority">
               <el-select v-model="editForm.priority" style="width: 100%">
@@ -392,16 +590,87 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="指派人">
-              <el-select v-model="editForm.assignee_id" placeholder="请选择" style="width: 100%" clearable filterable>
-                <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+            <el-form-item label="解决结果">
+              <el-select v-model="editForm.resolution" placeholder="请选择" style="width: 100%" clearable>
+                <el-option label="已解决" value="fixed" />
+                <el-option label="不予修复" value="wont_fix" />
+                <el-option label="重复工单" value="duplicate" />
+                <el-option label="无法复现" value="cannot_reproduce" />
+                <el-option label="按设计工作" value="works_as_designed" />
+                <el-option label="信息不完整" value="incomplete" />
+                <el-option label="已完成" value="done" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="指派人">
+              <div style="display: flex; gap: 8px;">
+                <el-select v-model="editForm.assignee_id" placeholder="请选择" style="flex: 1" clearable filterable>
+                  <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+                </el-select>
+                <el-button @click="assignToMe">分配给我</el-button>
+              </div>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="描述">
-          <el-input v-model="editForm.description" type="textarea" :rows="4" />
+          <el-input v-model="editForm.description" type="textarea" :rows="3" />
         </el-form-item>
+        <el-form-item label="Epic">
+          <el-select v-model="editForm.epic_id" placeholder="请选择Epic" style="width: 100%" clearable filterable>
+            <el-option v-for="epic in epicOptions" :key="epic.id" :label="`${epic.issue_key}: ${epic.title}`" :value="epic.id" />
+          </el-select>
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="预计开始时间">
+              <el-date-picker
+                v-model="editForm.planned_start_date"
+                type="date"
+                placeholder="请选择预计开始时间"
+                style="width: 100%"
+                value-format="YYYY-MM-DD"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="预计交付时间">
+              <el-date-picker
+                v-model="editForm.planned_end_date"
+                type="date"
+                placeholder="请选择预计交付时间"
+                style="width: 100%"
+                value-format="YYYY-MM-DD"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 自定义字段 -->
+        <div v-if="editFieldScheme.length > 0" class="edit-custom-fields">
+          <div class="section-divider">
+            <span>扩展字段</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col
+              v-for="item in editFieldScheme"
+              :key="item.field_id"
+              :span="item.field?.field_type === 'textarea' ? 24 : 12"
+            >
+              <el-form-item :label="item.field?.field_name" :required="item.is_required">
+                <FieldRenderer
+                  v-if="item.field && issue"
+                  :field="item.field"
+                  :scheme="item"
+                  :project-key="issue.project_key"
+                  v-model="editFieldValues[item.field_id]"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
@@ -411,30 +680,118 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 创建子任务对话框 -->
+    <el-dialog v-model="createSubtaskDialogVisible" title="创建子任务" width="640px" destroy-on-close class="create-dialog">
+      <el-form ref="createSubtaskFormRef" :model="createSubtaskForm" :rules="createSubtaskRules" label-position="top">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="项目" prop="project_key">
+              <el-select v-model="createSubtaskForm.project_key" placeholder="请选择项目" style="width: 100%" @change="handleSubtaskProjectChange">
+                <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="类型" prop="issue_type_id">
+              <el-select v-model="createSubtaskForm.issue_type_id" placeholder="请选择类型" style="width: 100%" :disabled="!createSubtaskForm.project_key" @change="handleSubtaskIssueTypeChange">
+                <el-option v-for="t in issueTypes" :key="t.id" :label="t.display_name" :value="t.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="标题" prop="title">
+          <el-input v-model="createSubtaskForm.title" placeholder="请输入子任务标题" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="优先级" prop="priority">
+              <el-select v-model="createSubtaskForm.priority" placeholder="请选择优先级" style="width: 100%">
+                <el-option label="P0 - 紧急" value="P0" />
+                <el-option label="P1 - 高" value="P1" />
+                <el-option label="P2 - 中" value="P2" />
+                <el-option label="P3 - 低" value="P3" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="指派人">
+              <el-select v-model="createSubtaskForm.assignee_id" placeholder="请选择指派人" style="width: 100%" clearable filterable>
+                <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="描述">
+          <el-input v-model="createSubtaskForm.description" type="textarea" :rows="3" placeholder="请输入子任务描述" />
+        </el-form-item>
+
+        <!-- 动态自定义字段 -->
+        <div v-if="createSubtaskFieldScheme.length > 0" class="custom-fields-section">
+          <div class="section-divider">
+            <span>扩展字段</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col
+              v-for="item in createSubtaskFieldScheme"
+              :key="item.field_id"
+              :span="item.field?.field_type === 'textarea' ? 24 : 12"
+            >
+              <el-form-item :label="item.field?.field_name" :required="item.is_required">
+                <FieldRenderer
+                  v-if="item.field"
+                  :field="item.field"
+                  :scheme="item"
+                  :project-key="createSubtaskForm.project_key"
+                  v-model="createSubtaskFieldValues[item.field_id]"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="createSubtaskDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="createSubtaskLoading" @click="submitCreateSubtask">
+          <el-icon><Check /></el-icon>
+          创建子任务
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   User, Clock, Edit, ArrowDown, ArrowRight, Plus, Document,
-  ChatLineRound, InfoFilled, View, Check, Switch
+  ChatLineRound, InfoFilled, View, Check, Switch, Link, Delete, Paperclip
 } from '@element-plus/icons-vue'
 import {
-  getIssueDetail, updateIssue, transitionIssue,
+  getIssueDetail, updateIssue, transitionIssue, deleteIssue, createIssue, getIssueList,
   getIssueComments, addIssueComment, getIssueActivities, getIssueWatchers,
   getWorklogs, addWorklog, updateWorklog, deleteWorklog,
-  addIssueWatcher, removeIssueWatcher,
+  addIssueWatcher, removeIssueWatcher, getEpicIssues, getSubtasks,
 } from '@/api/issue'
+import { listAttachments } from '@/api/attachment'
+import type { Attachment } from '@/types/attachment'
+import AttachmentUpload from '@/components/attachment/AttachmentUpload.vue'
+import AttachmentList from '@/components/attachment/AttachmentList.vue'
 import { getAllUsers } from '@/api/user'
+import { getIssueFieldValues, getFieldScheme } from '@/api/field'
+import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { useUserStore } from '@/stores/user'
-import type { Issue, IssueComment, IssueActivity, IssueWatcher, UpdateIssueRequest, IssueStatus, Worklog, CreateWorklogRequest } from '@/types/issue'
+import type { Issue, IssueComment, IssueActivity, IssueWatcher, UpdateIssueRequest, IssueStatus, Worklog, CreateWorklogRequest, CreateIssueRequest, IssuePriority, CustomFieldValue } from '@/types/issue'
 import type { UserOption } from '@/types/user'
+import type { FieldValue, FieldSchemeItem } from '@/types/field'
+import type { Project, ProjectIssueType } from '@/types/project'
+import FieldRenderer from '@/components/field/FieldRenderer.vue'
 import dayjs from 'dayjs'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 
 const loading = ref(false)
@@ -443,8 +800,46 @@ const comments = ref<IssueComment[]>([])
 const activities = ref<IssueActivity[]>([])
 const watchers = ref<IssueWatcher[]>([])
 const worklogs = ref<Worklog[]>([])
+const customFields = ref<FieldValue[]>([])
 const users = ref<UserOption[]>([])
 const activeTab = ref('comments')
+const epicIssues = ref<Issue[]>([])
+const subtasks = ref<Issue[]>([])
+const attachments = ref<Attachment[]>([])
+
+// 创建子任务相关
+const createSubtaskDialogVisible = ref(false)
+const createSubtaskLoading = ref(false)
+const createSubtaskFormRef = ref<FormInstance>()
+const projects = ref<Project[]>([])
+const issueTypes = ref<ProjectIssueType[]>([])
+const createSubtaskFieldScheme = ref<FieldSchemeItem[]>([])
+const createSubtaskFieldValues = ref<Record<number, any>>({})
+
+interface CreateSubtaskFormData {
+  project_key: string
+  issue_type_id: number | undefined
+  title: string
+  description: string
+  priority: IssuePriority
+  assignee_id: number | undefined
+}
+
+const createSubtaskForm = reactive<CreateSubtaskFormData>({
+  project_key: '',
+  issue_type_id: undefined,
+  title: '',
+  description: '',
+  priority: 'P2',
+  assignee_id: undefined,
+})
+
+const createSubtaskRules: FormRules = {
+  project_key: [{ required: true, message: '请选择项目', trigger: 'change' }],
+  issue_type_id: [{ required: true, message: '请选择类型', trigger: 'change' }],
+  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
+  priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
+}
 
 interface StatusTransition { status: IssueStatus; label: string }
 
@@ -465,11 +860,16 @@ const editDialogVisible = ref(false)
 const editLoading = ref(false)
 const editFormRef = ref<FormInstance>()
 const editForm = reactive<UpdateIssueRequest>({
-  title: '', description: '', priority: undefined, assignee_id: undefined,
+  title: '', description: '', priority: undefined, resolution: undefined, epic_id: undefined, assignee_id: undefined,
+  planned_start_date: undefined, planned_end_date: undefined,
 })
 const editRules: FormRules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
 }
+// 编辑用的字段方案和值
+const editFieldScheme = ref<FieldSchemeItem[]>([])
+const editFieldValues = ref<Record<number, any>>({})
+const epicOptions = ref<Issue[]>([])
 
 const loadIssue = async () => {
   const key = route.params.key as string
@@ -478,7 +878,18 @@ const loadIssue = async () => {
   try {
     const { data } = await getIssueDetail(key)
     issue.value = data.data
-    await Promise.all([loadComments(key), loadActivities(key), loadWatchers(key), loadWorklogs(key)])
+    // 先加载字段（需要 issue.value 中的 project_key 和 issue_type_id）
+    await loadCustomFields(data.data.id)
+    // 然后并行加载其他数据
+    await Promise.all([
+      loadComments(key),
+      loadActivities(key),
+      loadWatchers(key),
+      loadWorklogs(key),
+      loadEpicIssues(key),
+      loadSubtasks(key),
+      loadAttachments(key)
+    ])
   } catch (error) {
     console.error('Failed to load issue:', error)
     ElMessage.error('加载工单失败')
@@ -498,6 +909,79 @@ const loadWatchers = async (key: string) => {
 }
 const loadWorklogs = async (key: string) => {
   try { const { data } = await getWorklogs(key); worklogs.value = data.data } catch (e) { console.error(e) }
+}
+const loadEpicIssues = async (key: string) => {
+  // 只有当工单类型是 Epic 时才加载
+  if (issue.value?.issue_type?.name?.toLowerCase() !== 'epic') {
+    epicIssues.value = []
+    return
+  }
+  try {
+    const { data } = await getEpicIssues(key)
+    epicIssues.value = data.data || []
+  } catch (e) {
+    console.error('Failed to load epic issues:', e)
+    epicIssues.value = []
+  }
+}
+
+const loadSubtasks = async (key: string) => {
+  try {
+    const { data } = await getSubtasks(key)
+    subtasks.value = data.data || []
+  } catch (e) {
+    console.error('Failed to load subtasks:', e)
+    subtasks.value = []
+  }
+}
+
+const loadAttachments = async (key: string) => {
+  try {
+    const response = await listAttachments(key)
+    attachments.value = (response as any).data.data || []
+  } catch (e) {
+    console.error('Failed to load attachments:', e)
+    attachments.value = []
+  }
+}
+
+const loadCustomFields = async (issueId: number) => {
+  if (!issue.value) return
+  try {
+    // 获取该工单类型配置的字段方案
+    const schemeRes = await getFieldScheme(issue.value.project_key, issue.value.issue_type_id)
+    const scheme = schemeRes.data.data || []
+
+    // 只获取详情页可见的字段
+    const visibleScheme = scheme.filter((s: FieldSchemeItem) => s.is_visible_detail)
+
+    // 获取已保存的字段值
+    const valuesRes = await getIssueFieldValues(issueId)
+    const savedValues = valuesRes.data.data || []
+    console.log('=== 字段值调试 ===')
+    console.log('工单ID:', issueId)
+    console.log('字段方案:', visibleScheme)
+    console.log('已保存的字段值:', savedValues)
+
+    // 合并：用字段方案作为基础，填充已保存的值
+    const valueMap = new Map(savedValues.map((v: FieldValue) => [v.field_id, v]))
+
+    customFields.value = visibleScheme.map((item: FieldSchemeItem) => {
+      const savedValue = valueMap.get(item.field_id)
+      const result = {
+        field_id: item.field_id,
+        field_key: item.field?.field_key || '',
+        field_name: item.field?.field_name || '',
+        field_type: item.field?.field_type || '',
+        value: savedValue?.value ?? null,
+        display_value: savedValue?.display_value || ''
+      }
+      console.log(`字段 ${item.field?.field_name}:`, result)
+      return result
+    })
+  } catch (e) {
+    console.error('Failed to load custom fields:', e)
+  }
 }
 
 const handleTransition = async (status: IssueStatus) => {
@@ -521,13 +1005,190 @@ const submitComment = async () => {
   finally { commentLoading.value = false }
 }
 
+const assignToMe = () => {
+  if (userStore.user) {
+    editForm.assignee_id = userStore.user.id
+  }
+}
+
+const handleAssignToMe = async () => {
+  if (!issue.value || !userStore.user) return
+  try {
+    await updateIssue(issue.value.issue_key, {
+      assignee_id: userStore.user.id
+    })
+    ElMessage.success('已分配给您')
+    loadIssue()
+  } catch (error) {
+    console.error('Failed to assign to me:', error)
+    ElMessage.error('分配失败')
+  }
+}
+
+const handleDelete = async () => {
+  if (!issue.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除工单 ${issue.value.issue_key} 吗？删除后无法恢复。`,
+      '删除工单',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      }
+    )
+    await deleteIssue(issue.value.issue_key)
+    ElMessage.success('工单已删除')
+    router.push('/issues')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete issue:', error)
+      ElMessage.error('删除工单失败')
+    }
+  }
+}
+
+const handleCreateSubtask = async () => {
+  if (!issue.value) return
+
+  // 加载项目列表和用户列表
+  try {
+    const [projectsRes, usersRes] = await Promise.all([getAllProjects(), getAllUsers()])
+    projects.value = projectsRes.data.data
+    users.value = usersRes.data.data
+  } catch (error) {
+    console.error('Failed to load options:', error)
+    ElMessage.error('加载选项失败')
+    return
+  }
+
+  // 初始化表单，自动填充父工单的项目
+  Object.assign(createSubtaskForm, {
+    project_key: issue.value.project_key,
+    issue_type_id: undefined,
+    title: '',
+    description: '',
+    priority: 'P2',
+    assignee_id: undefined,
+  })
+  createSubtaskFieldScheme.value = []
+  createSubtaskFieldValues.value = {}
+
+  // 加载项目的工单类型
+  await handleSubtaskProjectChange(issue.value.project_key)
+
+  createSubtaskDialogVisible.value = true
+}
+
+const handleSubtaskProjectChange = async (projectKey: string) => {
+  createSubtaskForm.issue_type_id = undefined
+  createSubtaskFieldScheme.value = []
+  createSubtaskFieldValues.value = {}
+  if (!projectKey) {
+    issueTypes.value = []
+    return
+  }
+  try {
+    const { data } = await getProjectIssueTypes(projectKey)
+    issueTypes.value = data.data
+  } catch (error) {
+    console.error('Failed to load issue types:', error)
+  }
+}
+
+const handleSubtaskIssueTypeChange = async (issueTypeId: number) => {
+  createSubtaskFieldScheme.value = []
+  createSubtaskFieldValues.value = {}
+  if (!issueTypeId || !createSubtaskForm.project_key) return
+  try {
+    const { data } = await getFieldScheme(createSubtaskForm.project_key, issueTypeId)
+    const schemeItems = data.data || []
+    createSubtaskFieldScheme.value = schemeItems.filter(item => item.is_visible_create && item.field?.field_key !== 'epic_link')
+    createSubtaskFieldScheme.value.forEach(item => {
+      if (item.default_value) {
+        createSubtaskFieldValues.value[item.field_id] = item.default_value
+      }
+    })
+  } catch (error) {
+    console.error('Failed to load field scheme:', error)
+  }
+}
+
+const submitCreateSubtask = async () => {
+  if (!createSubtaskFormRef.value || !issue.value) return
+  await createSubtaskFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    createSubtaskLoading.value = true
+    try {
+      const customFields = Object.entries(createSubtaskFieldValues.value)
+        .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+        .map(([fieldId, value]) => ({
+          field_id: parseInt(fieldId),
+          value: value,
+        }))
+
+      const requestData: CreateIssueRequest = {
+        ...createSubtaskForm,
+        issue_type_id: createSubtaskForm.issue_type_id!,
+        parent_id: issue.value!.id,  // 设置父工单ID
+        custom_fields: customFields.length > 0 ? customFields : undefined,
+      }
+
+      const { data } = await createIssue(requestData)
+      ElMessage.success('子任务创建成功')
+      createSubtaskDialogVisible.value = false
+      // 重新加载子任务列表
+      await loadSubtasks(issue.value.issue_key)
+    } catch (error) {
+      console.error('Failed to create subtask:', error)
+      ElMessage.error('创建子任务失败')
+    } finally {
+      createSubtaskLoading.value = false
+    }
+  })
+}
+
 const handleEdit = async () => {
   if (!issue.value) return
   try { const { data } = await getAllUsers(); users.value = data.data } catch (e) { console.error(e) }
+
+  // 加载Epic选项（获取当前项目的所有Epic类型工单）
+  try {
+    const { data } = await getIssueList({
+      project_key: issue.value.project_key,
+      page: 1,
+      page_size: 100
+    })
+    // 过滤出Epic类型的工单
+    epicOptions.value = data.data.items.filter(i => i.issue_type?.name?.toLowerCase() === 'epic')
+  } catch (e) {
+    console.error('Failed to load epic options:', e)
+  }
+
   Object.assign(editForm, {
     title: issue.value.title, description: issue.value.description,
-    priority: issue.value.priority, assignee_id: issue.value.assignee_id,
+    priority: issue.value.priority, resolution: issue.value.resolution || undefined,
+    epic_id: issue.value.epic_id, assignee_id: issue.value.assignee_id,
+    planned_start_date: issue.value.planned_start_date ? dayjs(issue.value.planned_start_date).format('YYYY-MM-DD') : undefined,
+    planned_end_date: issue.value.planned_end_date ? dayjs(issue.value.planned_end_date).format('YYYY-MM-DD') : undefined,
   })
+
+  // 加载编辑用的字段方案
+  try {
+    const schemeRes = await getFieldScheme(issue.value.project_key, issue.value.issue_type_id)
+    const scheme = schemeRes.data.data || []
+    editFieldScheme.value = scheme.filter((s: FieldSchemeItem) => s.is_visible_edit && s.field?.field_key !== 'epic_link')
+
+    // 加载当前字段值
+    const valuesRes = await getIssueFieldValues(issue.value.id)
+    const savedValues = valuesRes.data.data || []
+    editFieldValues.value = {}
+    savedValues.forEach((v: FieldValue) => {
+      editFieldValues.value[v.field_id] = v.value
+    })
+  } catch (e) { console.error('Failed to load field scheme for edit:', e) }
+
   editDialogVisible.value = true
 }
 
@@ -537,7 +1198,19 @@ const submitEdit = async () => {
     if (!valid) return
     editLoading.value = true
     try {
-      await updateIssue(issue.value!.issue_key, editForm)
+      // 构建自定义字段值
+      const customFields = Object.entries(editFieldValues.value)
+        .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+        .map(([fieldId, value]) => ({
+          field_id: parseInt(fieldId),
+          value: value,
+        }))
+
+      const updateData: UpdateIssueRequest = {
+        ...editForm,
+        custom_fields: customFields.length > 0 ? customFields : undefined,
+      }
+      await updateIssue(issue.value!.issue_key, updateData)
       ElMessage.success('更新成功')
       editDialogVisible.value = false
       loadIssue()
@@ -737,17 +1410,38 @@ const formatTimeSpent = (seconds: number) => {
 
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 const getPriorityType = (priority: string): TagType => {
-  const map: Record<string, TagType> = { P0: 'danger', P1: 'warning', P2: 'info', P3: 'info' }
+  const map: Record<string, TagType> = { P0: 'danger', P1: 'warning', P2: 'info', P3: 'success' }
   return map[priority] || 'info'
 }
 const getStatusText = (status: string) => {
-  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已解决', closed: '已关闭', reopened: '重新打开' }
+  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已解决', closed: '已关闭', reopened: '重新打开', merged: '已合并' }
   return map[status] || status
 }
+
+const getResolutionText = (resolution: string) => {
+  const map: Record<string, string> = {
+    fixed: '已解决',
+    wont_fix: '不予修复',
+    duplicate: '重复工单',
+    cannot_reproduce: '无法复现',
+    works_as_designed: '按设计工作',
+    incomplete: '信息不完整',
+    done: '已完成'
+  }
+  return map[resolution] || resolution
+}
+
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
 const formatDate = (date: string) => dayjs(date).format('YYYY-MM-DD')
 
 onMounted(() => { loadIssue() })
+
+// 监听路由参数变化，当切换到不同的 Issue 时重新加载数据
+watch(() => route.params.key, (newKey, oldKey) => {
+  if (newKey && newKey !== oldKey) {
+    loadIssue()
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -786,6 +1480,27 @@ onMounted(() => { loadIssue() })
     font-size: 14px;
     flex-wrap: wrap;
 
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+
+      .type-icon {
+        font-size: 14px;
+      }
+
+      .type-text {
+        line-height: 1;
+      }
+    }
+
     .meta-item {
       display: flex;
       align-items: center;
@@ -822,6 +1537,7 @@ onMounted(() => { loadIssue() })
   &.resolved { background: #ecfdf5; color: #059669; .status-dot { background: #10b981; } }
   &.closed { background: #f3f4f6; color: #6b7280; .status-dot { background: #9ca3af; } }
   &.reopened { background: #fef2f2; color: #dc2626; .status-dot { background: #ef4444; } }
+  &.merged { background: #f3e8ff; color: #7c3aed; .status-dot { background: #8b5cf6; } }
 
   &.sm { padding: 2px 10px; font-size: 12px; .status-dot { width: 6px; height: 6px; } }
 }
@@ -864,6 +1580,10 @@ onMounted(() => { loadIssue() })
   &.activity { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
   &.info { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
   &.watcher { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
+  &.custom { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); }
+  &.epic { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+  &.subtask { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+  &.attachment { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
 }
 
 .card-title { font-size: 15px; font-weight: 600; color: #1f2937; }
@@ -897,6 +1617,58 @@ onMounted(() => { loadIssue() })
   line-height: 1.8;
   color: #374151;
   padding: 20px;
+}
+
+// 扩展字段
+.custom-fields-card {
+  .custom-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+
+    .field-item {
+      .field-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: #6b7280;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .field-value {
+        font-size: 14px;
+        color: #1f2937;
+        line-height: 1.6;
+        word-break: break-word;
+
+        .empty-value {
+          color: #9ca3af;
+          font-style: italic;
+        }
+
+        .epic-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: #667eea;
+          text-decoration: none;
+          font-weight: 500;
+          transition: all 0.2s;
+
+          &:hover {
+            color: #764ba2;
+            text-decoration: underline;
+          }
+
+          .el-icon {
+            font-size: 14px;
+          }
+        }
+      }
+    }
+  }
 }
 
 // 评论区
@@ -974,28 +1746,45 @@ onMounted(() => { loadIssue() })
 // 右侧信息
 .info-list {
   .info-item {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 80px 1fr;
     align-items: center;
+    gap: 12px;
     padding: 12px 20px;
     border-bottom: 1px solid #f5f5f5;
 
     &:last-child { border-bottom: none; }
 
     .info-label {
-      color: #6b7280;
-      font-size: 13px;
-      flex-shrink: 0;
+      color: #9ca3af;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: left;
     }
 
-    .info-value {
-      color: #1f2937;
-      font-size: 13px;
-      text-align: right;
+    .user-info {
       display: flex;
       align-items: center;
       gap: 8px;
-      justify-content: flex-end;
+      color: #1f2937;
+      font-size: 13px;
+    }
+
+    .assignee-with-action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    > span:not(.info-label),
+    > .el-tag,
+    > .el-link,
+    > .status-badge {
+      color: #1f2937;
+      font-size: 13px;
+      justify-self: start;
     }
   }
 }
@@ -1174,5 +1963,455 @@ onMounted(() => { loadIssue() })
       width: 100%;
     }
   }
+}
+
+// 编辑对话框
+.edit-custom-fields {
+  margin-top: 8px;
+
+  .section-divider {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-top: 8px;
+    border-top: 1px dashed #e4e7ed;
+
+    span {
+      font-size: 13px;
+      font-weight: 500;
+      color: #606266;
+    }
+  }
+}
+
+:deep(.edit-dialog) {
+  .el-dialog__body {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+}
+
+:deep(.create-dialog) {
+  .el-dialog__body {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .custom-fields-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed #e4e7ed;
+
+    .section-divider {
+      margin-bottom: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #606266;
+    }
+  }
+}
+
+// Epic Issues 列表
+.epic-issues-card {
+  .epic-issues-list {
+    padding: 8px;
+
+    .empty-state {
+      padding: 40px 0;
+    }
+
+    .epic-issue-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      transition: all 0.2s ease;
+      cursor: pointer;
+
+      &:hover {
+        background: #f9fafb;
+        border-color: #667eea;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        transform: translateY(-1px);
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .issue-left {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+
+        .issue-type-icon {
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          flex-shrink: 0;
+
+          &.task {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+          }
+
+          &.bug {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+          }
+
+          &.epic {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+          }
+        }
+
+        .issue-link {
+          text-decoration: none;
+          flex-shrink: 0;
+
+          .issue-key {
+            font-size: 13px;
+            font-weight: 600;
+            color: #667eea;
+            transition: all 0.2s;
+
+            &:hover {
+              color: #5568d3;
+              text-decoration: underline;
+            }
+          }
+        }
+
+        .issue-title {
+          font-size: 14px;
+          color: #1f2937;
+          font-weight: 500;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex: 1;
+          min-width: 0;
+        }
+      }
+
+      .issue-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+
+        .priority-tag {
+          font-size: 11px;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+
+        .status-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          background: #f3f4f6;
+          color: #6b7280;
+
+          .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+          }
+
+          &.open {
+            background: #dbeafe;
+            color: #1e40af;
+          }
+
+          &.in_progress {
+            background: #fef3c7;
+            color: #92400e;
+          }
+
+          &.resolved {
+            background: #d1fae5;
+            color: #065f46;
+          }
+
+          &.closed {
+            background: #e5e7eb;
+            color: #4b5563;
+          }
+
+          &.merged {
+            background: #f3e8ff;
+            color: #7c3aed;
+          }
+        }
+
+        .assignee-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+
+          .assignee-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            flex-shrink: 0;
+
+            &.unassigned {
+              background: #e5e7eb;
+              color: #9ca3af;
+            }
+          }
+
+          .assignee-name {
+            font-size: 13px;
+            color: #4b5563;
+            font-weight: 500;
+            white-space: nowrap;
+
+            &.unassigned {
+              color: #9ca3af;
+              font-style: italic;
+            }
+          }
+
+          &:hover .assignee-avatar {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+          }
+        }
+      }
+    }
+  }
+}
+
+// 子任务列表（复用 Epic Issues 样式）
+.subtasks-card {
+  .subtasks-list {
+    padding: 8px;
+
+    .empty-state-compact {
+      padding: 12px 16px;
+      text-align: center;
+
+      .empty-text {
+        color: #9ca3af;
+        font-size: 13px;
+      }
+    }
+
+    .subtask-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      transition: all 0.2s ease;
+      cursor: pointer;
+
+      &:hover {
+        background: #f9fafb;
+        border-color: #fa709a;
+        box-shadow: 0 2px 8px rgba(250, 112, 154, 0.1);
+        transform: translateY(-1px);
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .issue-left {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+
+        .issue-type-icon {
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          flex-shrink: 0;
+
+          &.task {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+          }
+
+          &.bug {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+          }
+        }
+
+        .issue-link {
+          text-decoration: none;
+          flex-shrink: 0;
+
+          .issue-key {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fa709a;
+            transition: all 0.2s;
+
+            &:hover {
+              color: #f5576c;
+              text-decoration: underline;
+            }
+          }
+        }
+
+        .issue-title {
+          font-size: 14px;
+          color: #1f2937;
+          font-weight: 500;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex: 1;
+          min-width: 0;
+        }
+      }
+
+      .issue-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+
+        .priority-tag {
+          font-size: 11px;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+
+        .status-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          background: #f3f4f6;
+          color: #6b7280;
+
+          .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+          }
+
+          &.open {
+            background: #dbeafe;
+            color: #1e40af;
+          }
+
+          &.in_progress {
+            background: #fef3c7;
+            color: #92400e;
+          }
+
+          &.resolved {
+            background: #d1fae5;
+            color: #065f46;
+          }
+
+          &.closed {
+            background: #e5e7eb;
+            color: #4b5563;
+          }
+
+          &.merged {
+            background: #f3e8ff;
+            color: #7c3aed;
+          }
+        }
+
+        .assignee-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+
+          .assignee-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            flex-shrink: 0;
+
+            &.unassigned {
+              background: #e5e7eb;
+              color: #9ca3af;
+            }
+          }
+
+          .assignee-name {
+            font-size: 13px;
+            color: #4b5563;
+            font-weight: 500;
+            white-space: nowrap;
+
+            &.unassigned {
+              color: #9ca3af;
+              font-style: italic;
+            }
+          }
+
+          &:hover .assignee-avatar {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(250, 112, 154, 0.3);
+          }
+        }
+      }
+    }
+  }
+}
+
+// 附件区域
+.attachment-section {
+  padding: 20px;
 }
 </style>
