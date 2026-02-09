@@ -10,11 +10,20 @@ import (
 
 // Config 应用配置结构
 type Config struct {
-	App      AppConfig      `mapstructure:"app"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
-	Log      LogConfig      `mapstructure:"log"`
+	App         AppConfig         `mapstructure:"app"`
+	Database    DatabaseConfig    `mapstructure:"database"`
+	Redis       RedisConfig       `mapstructure:"redis"`
+	JWT         JWTConfig         `mapstructure:"jwt"`
+	Log         LogConfig         `mapstructure:"log"`
+	Nightingale NightingaleConfig `mapstructure:"nightingale"`
+}
+
+// NightingaleConfig 夜莺告警系统配置
+type NightingaleConfig struct {
+	Enable       bool   `mapstructure:"enable"`
+	BaseURL      string `mapstructure:"base_url"`
+	Token        string `mapstructure:"token"`
+	PollInterval int    `mapstructure:"poll_interval"` // 轮询间隔（秒），默认 30
 }
 
 // AppConfig 应用配置

@@ -23,6 +23,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&IssueType{},
 		&Issue{},
 		&IssueComment{},
+		&IssueAttachment{},
 		&IssueWatcher{},
 		&IssueWorklog{},
 		&Workflow{},
@@ -40,6 +41,17 @@ func AutoMigrate(db *gorm.DB) error {
 		&WebhookLog{},
 		&ActivityLog{},
 		&Notification{},
+		&RequirementPool{},
+		&Requirement{},
+		&RequirementComment{},
+		&RequirementAttachment{},
+		&FieldDefinition{},
+		&IssueTypeFieldScheme{},
+		&IssueFieldValue{},
+		&ProjectVersion{},
+		&ProjectComponent{},
+		&IssueLabel{},
+		&AlertDatasource{},
 	}
 
 	for _, model := range models {
@@ -50,6 +62,41 @@ func AutoMigrate(db *gorm.DB) error {
 	}
 
 	logger.Info("database auto migration completed")
+
+	// 迁移需求旧状态值到新状态值
+	if err := migrateRequirementStatus(db); err != nil {
+		logger.Error("failed to migrate requirement status", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+// migrateRequirementStatus 迁移需求表中旧的状态值
+func migrateRequirementStatus(db *gorm.DB) error {
+	statusMapping := map[string]string{
+		"pending":   "pending_review",
+		"reviewing": "pending_review",
+		"accepted":  "planning",
+		"converted": "in_progress",
+	}
+
+	for oldStatus, newStatus := range statusMapping {
+		result := db.Model(&Requirement{}).
+			Where("status = ?", oldStatus).
+			Update("status", newStatus)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected > 0 {
+			logger.Info("migrated requirement status",
+				zap.String("from", oldStatus),
+				zap.String("to", newStatus),
+				zap.Int64("count", result.RowsAffected),
+			)
+		}
+	}
+
 	return nil
 }
 
@@ -154,6 +201,11 @@ func SeedData(db *gorm.DB) error {
 		}
 	}
 
+	// 初始化系统字段
+	if err := SeedSystemFields(db); err != nil {
+		return err
+	}
+
 	logger.Info("seed data completed")
 	return nil
 }
@@ -210,5 +262,304 @@ func InitProjectRoles(db *gorm.DB, projectID uint64) error {
 	}
 
 	logger.Info("project roles initialized", zap.Uint64("project_id", projectID))
+	return nil
+}
+
+// SeedSystemFields 初始化系统字段定义
+func SeedSystemFields(db *gorm.DB) error {
+	logger.Info("seeding system fields...")
+
+	systemFields := []FieldDefinition{
+		// Bug 特有字段
+		{
+			FieldKey:    "severity",
+			FieldName:   "严重程度",
+			FieldType:   FieldTypeSelect,
+			Description: "缺陷的严重程度",
+			IsSystem:    true,
+			IsActive:    true,
+			Options:     `[{"value":"blocker","label":"阻塞"},{"value":"critical","label":"严重"},{"value":"major","label":"主要"},{"value":"minor","label":"次要"},{"value":"trivial","label":"轻微"}]`,
+			SortOrder:   1,
+		},
+		{
+			FieldKey:    "environment",
+			FieldName:   "环境",
+			FieldType:   FieldTypeTextarea,
+			Description: "问题发生的环境信息",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   2,
+		},
+		{
+			FieldKey:    "steps_to_reproduce",
+			FieldName:   "复现步骤",
+			FieldType:   FieldTypeTextarea,
+			Description: "问题复现的详细步骤",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   3,
+		},
+		// 版本相关字段
+		{
+			FieldKey:    "affects_version",
+			FieldName:   "受影响版本",
+			FieldType:   FieldTypeVersion,
+			Description: "受此问题影响的版本",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   4,
+		},
+		{
+			FieldKey:    "fix_version",
+			FieldName:   "修复版本",
+			FieldType:   FieldTypeVersion,
+			Description: "修复此问题的目标版本",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   5,
+		},
+		// Epic 特有字段
+		{
+			FieldKey:    "epic_name",
+			FieldName:   "Epic名称",
+			FieldType:   FieldTypeText,
+			Description: "Epic的简短名称（用于看板显示）",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   6,
+		},
+		{
+			FieldKey:    "epic_color",
+			FieldName:   "Epic颜色",
+			FieldType:   FieldTypeSelect,
+			Description: "Epic的标识颜色",
+			IsSystem:    true,
+			IsActive:    true,
+			Options:     `[{"value":"#6554C0","label":"紫色"},{"value":"#4FADE6","label":"蓝色"},{"value":"#36B37E","label":"绿色"},{"value":"#FFAB00","label":"黄色"},{"value":"#FF5630","label":"红色"},{"value":"#00B8D9","label":"青色"}]`,
+			SortOrder:   7,
+		},
+		// 日期字段
+		{
+			FieldKey:    "start_date",
+			FieldName:   "开始日期",
+			FieldType:   FieldTypeDate,
+			Description: "计划开始日期",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   8,
+		},
+		{
+			FieldKey:    "end_date",
+			FieldName:   "结束日期",
+			FieldType:   FieldTypeDate,
+			Description: "计划结束日期",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   9,
+		},
+		// 时间估算字段
+		{
+			FieldKey:    "original_estimate",
+			FieldName:   "预估时间",
+			FieldType:   FieldTypeTimeEstimate,
+			Description: "原始预估工作时间",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   10,
+		},
+		{
+			FieldKey:    "remaining_estimate",
+			FieldName:   "剩余时间",
+			FieldType:   FieldTypeTimeEstimate,
+			Description: "剩余预估工作时间",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   11,
+		},
+		// Epic链接字段
+		{
+			FieldKey:    "epic_link",
+			FieldName:   "Epic链接",
+			FieldType:   FieldTypeEpicLink,
+			Description: "关联的Epic",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   12,
+		},
+		// 故事点
+		{
+			FieldKey:    "story_points",
+			FieldName:   "故事点",
+			FieldType:   FieldTypeNumber,
+			Description: "任务复杂度估算",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   13,
+		},
+		// 通用字段
+		{
+			FieldKey:    "labels",
+			FieldName:   "标签",
+			FieldType:   FieldTypeLabel,
+			Description: "工单标签",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   14,
+		},
+		{
+			FieldKey:    "components",
+			FieldName:   "组件",
+			FieldType:   FieldTypeComponent,
+			Description: "关联的项目组件",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   15,
+		},
+	}
+
+	for _, field := range systemFields {
+		// MySQL JSON 类型不接受空字符串，需要设置为有效 JSON
+		if field.Options == "" {
+			field.Options = "{}"
+		}
+		if field.Validation == "" {
+			field.Validation = "{}"
+		}
+		result := db.Where("field_key = ? AND project_id IS NULL", field.FieldKey).FirstOrCreate(&field)
+		if result.Error != nil {
+			logger.Error("failed to seed system field", zap.String("field_key", field.FieldKey), zap.Error(result.Error))
+			return result.Error
+		}
+	}
+
+	logger.Info("system fields seeded")
+	return nil
+}
+
+// InitProjectFieldSchemes 初始化项目的字段方案（为每个工单类型配置默认字段）
+func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
+	logger.Info("initializing project field schemes", zap.Uint64("project_id", projectID))
+
+	// 获取系统字段
+	var systemFields []FieldDefinition
+	if err := db.Where("project_id IS NULL AND is_system = ?", true).Find(&systemFields).Error; err != nil {
+		logger.Error("failed to get system fields", zap.Error(err))
+		return err
+	}
+
+	// 创建字段key到ID的映射
+	fieldMap := make(map[string]uint64)
+	for _, field := range systemFields {
+		fieldMap[field.FieldKey] = field.ID
+	}
+
+	// 获取全局工单类型
+	var issueTypes []IssueType
+	if err := db.Where("project_id IS NULL").Find(&issueTypes).Error; err != nil {
+		logger.Error("failed to get issue types", zap.Error(err))
+		return err
+	}
+
+	// 创建类型名到ID的映射
+	typeMap := make(map[string]uint64)
+	for _, it := range issueTypes {
+		typeMap[it.Name] = it.ID
+	}
+
+	// 定义每种工单类型的字段配置
+	// key: 工单类型名, value: 字段key列表及配置
+	typeFieldConfig := map[string][]struct {
+		FieldKey   string
+		IsRequired bool
+		SortOrder  int
+	}{
+		"Bug": {
+			{FieldKey: "severity", IsRequired: true, SortOrder: 1},
+			{FieldKey: "environment", IsRequired: false, SortOrder: 2},
+			{FieldKey: "steps_to_reproduce", IsRequired: false, SortOrder: 3},
+			{FieldKey: "affects_version", IsRequired: false, SortOrder: 4},
+			{FieldKey: "fix_version", IsRequired: false, SortOrder: 5},
+			{FieldKey: "epic_link", IsRequired: false, SortOrder: 6},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 7},
+			{FieldKey: "components", IsRequired: false, SortOrder: 8},
+		},
+		"Epic": {
+			{FieldKey: "epic_name", IsRequired: true, SortOrder: 1},
+			{FieldKey: "epic_color", IsRequired: false, SortOrder: 2},
+			{FieldKey: "start_date", IsRequired: false, SortOrder: 3},
+			{FieldKey: "end_date", IsRequired: false, SortOrder: 4},
+			{FieldKey: "story_points", IsRequired: false, SortOrder: 5},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 6},
+			{FieldKey: "components", IsRequired: false, SortOrder: 7},
+		},
+		"Task": {
+			{FieldKey: "original_estimate", IsRequired: false, SortOrder: 1},
+			{FieldKey: "remaining_estimate", IsRequired: false, SortOrder: 2},
+			{FieldKey: "start_date", IsRequired: false, SortOrder: 3},
+			{FieldKey: "fix_version", IsRequired: false, SortOrder: 4},
+			{FieldKey: "epic_link", IsRequired: false, SortOrder: 5},
+			{FieldKey: "story_points", IsRequired: false, SortOrder: 6},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 7},
+			{FieldKey: "components", IsRequired: false, SortOrder: 8},
+		},
+		"Fault": {
+			{FieldKey: "severity", IsRequired: true, SortOrder: 1},
+			{FieldKey: "environment", IsRequired: false, SortOrder: 2},
+			{FieldKey: "affects_version", IsRequired: false, SortOrder: 3},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 4},
+			{FieldKey: "components", IsRequired: false, SortOrder: 5},
+		},
+		"Change": {
+			{FieldKey: "start_date", IsRequired: false, SortOrder: 1},
+			{FieldKey: "end_date", IsRequired: false, SortOrder: 2},
+			{FieldKey: "fix_version", IsRequired: false, SortOrder: 3},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 4},
+			{FieldKey: "components", IsRequired: false, SortOrder: 5},
+		},
+		"ServiceRequest": {
+			{FieldKey: "original_estimate", IsRequired: false, SortOrder: 1},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 2},
+			{FieldKey: "components", IsRequired: false, SortOrder: 3},
+		},
+	}
+
+	// 为每个工单类型创建字段方案
+	for typeName, fields := range typeFieldConfig {
+		typeID, ok := typeMap[typeName]
+		if !ok {
+			continue
+		}
+
+		for _, fieldConfig := range fields {
+			fieldID, ok := fieldMap[fieldConfig.FieldKey]
+			if !ok {
+				continue
+			}
+
+			scheme := IssueTypeFieldScheme{
+				ProjectID:       projectID,
+				IssueTypeID:     typeID,
+				FieldID:         fieldID,
+				IsRequired:      fieldConfig.IsRequired,
+				IsVisibleCreate: true,
+				IsVisibleEdit:   true,
+				IsVisibleDetail: true,
+				SortOrder:       fieldConfig.SortOrder,
+			}
+
+			result := db.Where("project_id = ? AND issue_type_id = ? AND field_id = ?",
+				projectID, typeID, fieldID).FirstOrCreate(&scheme)
+			if result.Error != nil {
+				logger.Error("failed to create field scheme",
+					zap.Uint64("project_id", projectID),
+					zap.String("type", typeName),
+					zap.String("field", fieldConfig.FieldKey),
+					zap.Error(result.Error))
+				return result.Error
+			}
+		}
+	}
+
+	logger.Info("project field schemes initialized", zap.Uint64("project_id", projectID))
 	return nil
 }

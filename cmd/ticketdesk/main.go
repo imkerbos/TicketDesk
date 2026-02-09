@@ -87,7 +87,8 @@ func main() {
 	jwtManager := jwt.NewManager(&cfg.JWT)
 
 	// 设置路由
-	r := router.NewRouter(cfg, jwtManager, database.GetDB()).Setup()
+	appRouter := router.NewRouter(cfg, jwtManager, database.GetDB())
+	r := appRouter.Setup()
 
 	// 创建 HTTP 服务器
 	srv := &http.Server{
@@ -109,6 +110,9 @@ func main() {
 	<-quit
 
 	logger.Info("shutting down server...")
+
+	// 停止所有数据源轮询器
+	appRouter.StopPollers()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

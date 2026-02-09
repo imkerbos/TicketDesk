@@ -6,12 +6,24 @@ WORKDIR /app
 # 设置时区
 ENV TZ=Asia/Shanghai
 
+# 安装 curl（用于健康检查）
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # 设置 Go 环境
 ENV GO111MODULE=on
-ENV GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
 
-# 安装 Air 热更新工具
-RUN go install github.com/air-verse/air@latest
+# 先复制 go.mod 和 go.sum（利用 Docker 层缓存）
+COPY go.mod go.sum ./
+
+# 下载依赖（使用 BuildKit 缓存挂载）
+# 只有当 go.mod 或 go.sum 改变时才会重新下载
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# 安装 Air 热更新工具（使用缓存）
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go install github.com/air-verse/air@latest
 
 # 暴露端口
 EXPOSE 10010

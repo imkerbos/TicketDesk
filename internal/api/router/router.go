@@ -3,6 +3,7 @@ package router
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,30 +36,45 @@ import (
 	reportHandler "github.com/kerbos/ticketdesk/internal/reporting/handler"
 	reportRepo "github.com/kerbos/ticketdesk/internal/reporting/repository"
 	reportService "github.com/kerbos/ticketdesk/internal/reporting/service"
+	reqPoolHandler "github.com/kerbos/ticketdesk/internal/requirement-pool/handler"
+	reqPoolRepo "github.com/kerbos/ticketdesk/internal/requirement-pool/repository"
+	reqPoolService "github.com/kerbos/ticketdesk/internal/requirement-pool/service"
+	fieldHandler "github.com/kerbos/ticketdesk/internal/core-field/handler"
+	fieldRepo "github.com/kerbos/ticketdesk/internal/core-field/repository"
+	fieldService "github.com/kerbos/ticketdesk/internal/core-field/service"
 	configHandler "github.com/kerbos/ticketdesk/internal/system-config/handler"
 	configRepo "github.com/kerbos/ticketdesk/internal/system-config/repository"
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/config"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
+	"github.com/kerbos/ticketdesk/pkg/storage"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 // Router 路由管理器
 type Router struct {
-	config              *config.Config
-	jwtManager          *jwt.Manager
-	db                  *gorm.DB
-	userHandler         *userHandler.UserHandler
-	projectHandler      *projectHandler.ProjectHandler
-	issueHandler        *issueHandler.IssueHandler
-	workflowHandler     *workflowHandler.WorkflowHandler
-	alertHandler        *alertHandler.AlertHandler
-	configHandler       *configHandler.ConfigHandler
-	reportHandler       *reportHandler.ReportHandler
-	activityHandler     *activityHandler.ActivityHandler
-	notificationHandler *notifHandler.NotificationHandler
-	wsHandler           *notifHandler.WebSocketHandler
-	rbac                *middleware.RBACMiddleware
+	config                 *config.Config
+	jwtManager             *jwt.Manager
+	db                     *gorm.DB
+	logger                 *zap.Logger
+	userHandler            *userHandler.UserHandler
+	projectHandler         *projectHandler.ProjectHandler
+	issueHandler           *issueHandler.IssueHandler
+	attachmentHandler      *issueHandler.AttachmentHandler
+	workflowHandler        *workflowHandler.WorkflowHandler
+	alertHandler           *alertHandler.AlertHandler
+	configHandler          *configHandler.ConfigHandler
+	reportHandler          *reportHandler.ReportHandler
+	activityHandler        *activityHandler.ActivityHandler
+	notificationHandler    *notifHandler.NotificationHandler
+	wsHandler              *notifHandler.WebSocketHandler
+	requirementPoolHandler *reqPoolHandler.RequirementPoolHandler
+	requirementHandler     *reqPoolHandler.RequirementHandler
+	fieldHandler           *fieldHandler.FieldHandler
+	rbac                   *middleware.RBACMiddleware
+	datasourceHandler      *alertHandler.DatasourceHandler
+	datasourceService      alertService.DatasourceService
 }
 
 // NewRouter 创建路由管理器
@@ -116,6 +132,20 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		userRepository,
 	)
 	issueHdl := issueHandler.NewIssueHandler(issueSvc)
+
+	// ============ 初始化 Attachment 模块 ============
+	attachmentRepository := issueRepo.NewAttachmentRepository(db)
+	localStorage, err := storage.NewLocalStorage("./uploads")
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize local storage: %v", err))
+	}
+	attachmentSvc := issueService.NewAttachmentService(
+		attachmentRepository,
+		issueRepository,
+		userRepository,
+		localStorage,
+	)
+	attachmentHdl := issueHandler.NewAttachmentHandler(attachmentSvc)
 
 	// ============ 初始化 Workflow 模块 ============
 	workflowRepository := workflowRepo.NewWorkflowRepository(db)
@@ -183,6 +213,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		issueServiceImpl.SetActivityLogger(activitySvc)
 	}
 
+	// 设置附件服务的活动日志记录器
+	if attachmentServiceImpl, ok := attachmentSvc.(interface{ SetActivityLogger(issueService.ActivityLogger) }); ok {
+		attachmentServiceImpl.SetActivityLogger(activitySvc)
+	}
+
 	// ============ 初始化 Notification 模块 ============
 	wsManager := ws.NewManager()
 	go wsManager.Run()
@@ -205,24 +240,111 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		issueServiceImpl.SetWorkflowEngine(workflowEngine)
 	}
 
+	// ============ 初始化需求池模块 ============
+	// 初始化 logger（如果还没有的话）
+	logger, _ := zap.NewProduction()
+
+	reqPoolRepository := reqPoolRepo.NewRequirementPoolRepository(db)
+	reqRepository := reqPoolRepo.NewRequirementRepository(db)
+
+	reqPoolSvc := reqPoolService.NewRequirementPoolService(
+		reqPoolRepository,
+		reqRepository,
+		logger,
+	)
+	reqSvc := reqPoolService.NewRequirementService(
+		reqRepository,
+		reqPoolRepository,
+		db,
+		logger,
+	)
+
+	reqPoolHdl := reqPoolHandler.NewRequirementPoolHandler(reqPoolSvc, logger)
+	reqHdl := reqPoolHandler.NewRequirementHandler(reqSvc, logger)
+
+	// ============ 初始化 Field 模块 ============
+	fieldRepository := fieldRepo.NewFieldRepository(db)
+	schemeRepository := fieldRepo.NewSchemeRepository(db)
+	valueRepository := fieldRepo.NewValueRepository(db)
+	versionRepository := fieldRepo.NewVersionRepository(db)
+	componentRepository := fieldRepo.NewComponentRepository(db)
+	labelRepository := fieldRepo.NewLabelRepository(db)
+	fieldSvc := fieldService.NewFieldService(
+		fieldRepository,
+		schemeRepository,
+		valueRepository,
+		versionRepository,
+		componentRepository,
+		labelRepository,
+		projectRepository,
+		issueTypeRepository,
+		userRepository,
+		db,
+	)
+	fieldHdl := fieldHandler.NewFieldHandler(fieldSvc)
+
+	// ============ 设置字段值保存服务（避免循环依赖）============
+	fieldValueAdapter := &fieldValueSaverAdapter{svc: fieldSvc}
+	if issueServiceImpl, ok := issueSvc.(interface {
+		SetFieldValueSaver(issueService.FieldValueSaver)
+	}); ok {
+		issueServiceImpl.SetFieldValueSaver(fieldValueAdapter)
+	}
+
+	// 设置 Epic 链接获取服务
+	if issueServiceImpl, ok := issueSvc.(interface {
+		SetEpicLinkGetter(issueService.EpicLinkGetter)
+	}); ok {
+		issueServiceImpl.SetEpicLinkGetter(fieldSvc)
+	}
+
 	// ============ 初始化 RBAC 中间件 ============
 	rbac := middleware.NewRBACMiddleware(userRoleRepository)
 
+	// ============ 初始化数据源服务 ============
+	datasourceRepository := alertRepo.NewAlertDatasourceRepository(db)
+	datasourceSvc := alertService.NewDatasourceService(
+		datasourceRepository,
+		alertSvc,
+		alertRepository,
+		&cfg.Nightingale,
+	)
+	datasourceHdl := alertHandler.NewDatasourceHandler(datasourceSvc, alertSvc)
+
+	// 启动所有数据源 Poller
+	if err := datasourceSvc.StartAllPollers(context.Background()); err != nil {
+		logger.Error("failed to start datasource pollers", zap.Error(err))
+	}
+
 	return &Router{
-		config:              cfg,
-		jwtManager:          jwtManager,
-		db:                  db,
-		userHandler:         userHdl,
-		projectHandler:      projectHdl,
-		issueHandler:        issueHdl,
-		workflowHandler:     workflowHdl,
-		alertHandler:        alertHdl,
-		configHandler:       configHdl,
-		reportHandler:       reportHdl,
-		activityHandler:     activityHdl,
-		notificationHandler: notificationHdl,
-		wsHandler:           wsHdl,
-		rbac:                rbac,
+		config:                 cfg,
+		jwtManager:             jwtManager,
+		db:                     db,
+		logger:                 logger,
+		userHandler:            userHdl,
+		projectHandler:         projectHdl,
+		issueHandler:           issueHdl,
+		attachmentHandler:      attachmentHdl,
+		workflowHandler:        workflowHdl,
+		alertHandler:           alertHdl,
+		configHandler:          configHdl,
+		reportHandler:          reportHdl,
+		activityHandler:        activityHdl,
+		notificationHandler:    notificationHdl,
+		wsHandler:              wsHdl,
+		requirementPoolHandler: reqPoolHdl,
+		requirementHandler:     reqHdl,
+		fieldHandler:           fieldHdl,
+		rbac:                   rbac,
+		datasourceHandler:      datasourceHdl,
+		datasourceService:      datasourceSvc,
+	}
+}
+
+// StopPollers 停止所有数据源轮询器（用于优雅关闭）
+func (r *Router) StopPollers() {
+	if r.datasourceService != nil {
+		r.datasourceService.StopAllPollers()
 	}
 }
 
@@ -285,6 +407,8 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 	alerts := rg.Group("/alerts")
 	{
 		alerts.POST("/webhook", r.alertHandler.HandleWebhook)
+		alerts.POST("/nightingale", r.alertHandler.HandleNightingaleWebhook)
+		alerts.POST("/datasource/:name/webhook", r.datasourceHandler.HandleDatasourceWebhook)
 	}
 }
 
@@ -320,6 +444,12 @@ func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 
 		// 通知相关
 		r.registerNotificationRoutes(protected)
+
+		// 需求池相关
+		r.registerRequirementPoolRoutes(protected)
+
+		// 字段配置相关
+		r.registerFieldRoutes(protected)
 	}
 }
 
@@ -413,6 +543,12 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 		issues.POST("/:key/transition", r.issueHandler.HandleTransitionIssue)
 		issues.POST("/:key/assign", r.issueHandler.HandleAssignIssue)
 
+		// Epic 相关
+		issues.GET("/:key/epic-issues", r.issueHandler.HandleListIssuesInEpic)
+
+		// 子任务相关
+		issues.GET("/:key/subtasks", r.issueHandler.HandleListSubtasks)
+
 		// 评论管理
 		issues.GET("/:key/comments", r.issueHandler.HandleListComments)
 		issues.POST("/:key/comments", r.issueHandler.HandleAddComment)
@@ -428,6 +564,12 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 		issues.POST("/:key/worklogs", r.issueHandler.HandleAddWorklog)
 		issues.PUT("/:key/worklogs/:worklog_id", r.issueHandler.HandleUpdateWorklog)
 		issues.DELETE("/:key/worklogs/:worklog_id", r.issueHandler.HandleDeleteWorklog)
+
+		// 附件管理
+		issues.POST("/:key/attachments", r.attachmentHandler.HandleUploadAttachment)
+		issues.GET("/:key/attachments", r.attachmentHandler.HandleListAttachments)
+		issues.DELETE("/:key/attachments/:id", r.attachmentHandler.HandleDeleteAttachment)
+		issues.GET("/:key/attachments/:id/download", r.attachmentHandler.HandleDownloadAttachment)
 	}
 }
 
@@ -464,8 +606,9 @@ func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 	{
 		// 告警查询
 		alerts.GET("", r.alertHandler.HandleListAlerts)
-		alerts.GET("/:id", r.alertHandler.HandleGetAlert)
+		alerts.GET("/stats", r.alertHandler.HandleGetAlertStats)
 		alerts.GET("/group", r.alertHandler.HandleGroupAlerts)
+		alerts.GET("/:id", r.alertHandler.HandleGetAlert)
 
 		// 告警操作
 		alerts.POST("/:id/ack", r.alertHandler.HandleAckAlert)
@@ -483,6 +626,19 @@ func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 		alertRules.GET("/:id", r.alertHandler.HandleGetAlertRule)
 		alertRules.PUT("/:id", r.rbac.RequireProjectAdmin(), r.alertHandler.HandleUpdateAlertRule)
 		alertRules.DELETE("/:id", r.rbac.RequireAdmin(), r.alertHandler.HandleDeleteAlertRule)
+	}
+
+	// 告警数据源管理（需要管理员权限）
+	alertDatasources := rg.Group("/alert-datasources")
+	alertDatasources.Use(r.rbac.RequireAdmin())
+	{
+		alertDatasources.GET("", r.datasourceHandler.HandleListDatasources)
+		alertDatasources.POST("", r.datasourceHandler.HandleCreateDatasource)
+		alertDatasources.GET("/:id", r.datasourceHandler.HandleGetDatasource)
+		alertDatasources.PUT("/:id", r.datasourceHandler.HandleUpdateDatasource)
+		alertDatasources.DELETE("/:id", r.datasourceHandler.HandleDeleteDatasource)
+		alertDatasources.POST("/test", r.datasourceHandler.HandleTestConnection)
+		alertDatasources.POST("/:id/test", r.datasourceHandler.HandleTestConnectionByID)
 	}
 
 	// 告警静默管理
@@ -600,9 +756,110 @@ func (a *notificationAdapter) CreateNotification(ctx context.Context, req *issue
 	})
 }
 
+// ============ 字段值保存适配器（桥接 issue_service.FieldValueSaver 和 fieldService.FieldService）============
+
+// fieldValueSaverAdapter 将 FieldService 适配为 issue_service.FieldValueSaver
+type fieldValueSaverAdapter struct {
+	svc fieldService.FieldService
+}
+
+// SaveIssueFieldValues 适配保存字段值调用
+func (a *fieldValueSaverAdapter) SaveIssueFieldValues(ctx context.Context, issueID uint64, values []issueService.CustomFieldValueInput) error {
+	// 转换类型
+	fieldValues := make([]fieldService.CustomFieldValueInput, len(values))
+	for i, v := range values {
+		fieldValues[i] = fieldService.CustomFieldValueInput{
+			FieldID: v.FieldID,
+			Value:   v.Value,
+		}
+	}
+	return a.svc.SaveIssueFieldValues(ctx, issueID, fieldValues)
+}
+
 // ============ 兼容旧的 Setup 函数 ============
 
 // Setup 设置路由（兼容旧接口）
 func Setup(cfg *config.Config, jwtManager *jwt.Manager) *gin.Engine {
 	panic("请使用 NewRouter(cfg, jwtManager, db).Setup() 方式初始化路由")
+}
+
+// registerFieldRoutes 注册字段配置路由
+func (r *Router) registerFieldRoutes(rg *gin.RouterGroup) {
+	// 字段定义（在项目下）
+	projectFields := rg.Group("/projects/:key/fields")
+	{
+		projectFields.GET("", r.fieldHandler.ListFields)
+		projectFields.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateField)
+		projectFields.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateField)
+		projectFields.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteField)
+	}
+
+	// 字段方案（在项目的工单类型下）
+	fieldScheme := rg.Group("/projects/:key/issue-types/:id/field-scheme")
+	{
+		fieldScheme.GET("", r.fieldHandler.GetFieldScheme)
+		fieldScheme.PUT("", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateFieldScheme)
+	}
+
+	// 版本管理
+	versions := rg.Group("/projects/:key/versions")
+	{
+		versions.GET("", r.fieldHandler.ListVersions)
+		versions.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateVersion)
+		versions.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateVersion)
+		versions.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteVersion)
+	}
+
+	// 组件管理
+	components := rg.Group("/projects/:key/components")
+	{
+		components.GET("", r.fieldHandler.ListComponents)
+		components.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateComponent)
+		components.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateComponent)
+		components.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteComponent)
+	}
+
+	// 标签管理
+	labels := rg.Group("/projects/:key/labels")
+	{
+		labels.GET("", r.fieldHandler.ListLabels)
+		labels.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateLabel)
+		labels.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateLabel)
+		labels.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteLabel)
+	}
+
+	// 工单字段值
+	rg.GET("/issue-field-values/:issue_id", r.fieldHandler.GetIssueFieldValues)
+}
+
+// registerRequirementPoolRoutes 注册需求池路由
+func (r *Router) registerRequirementPoolRoutes(rg *gin.RouterGroup) {
+	// 需求池管理
+	pools := rg.Group("/requirement-pools")
+	{
+		pools.GET("", r.requirementPoolHandler.List)
+		pools.POST("", r.requirementPoolHandler.Create)
+		pools.GET("/:id", r.requirementPoolHandler.GetByID)
+		pools.PUT("/:id", r.requirementPoolHandler.Update)
+		pools.DELETE("/:id", r.requirementPoolHandler.Delete)
+	}
+
+	// 需求管理
+	requirements := rg.Group("/requirements")
+	{
+		// 看板和报告（必须在 /:id 之前）
+		requirements.GET("/kanban", r.requirementHandler.GetKanban)
+		requirements.GET("/report", r.requirementHandler.GetReport)
+
+		// 需求 CRUD
+		requirements.GET("", r.requirementHandler.List)
+		requirements.POST("", r.requirementHandler.Create)
+		requirements.GET("/:id", r.requirementHandler.GetByID)
+		requirements.PUT("/:id", r.requirementHandler.Update)
+		requirements.DELETE("/:id", r.requirementHandler.Delete)
+
+		// 需求操作
+		requirements.POST("/:id/convert", r.requirementHandler.ConvertToIssue)
+		requirements.POST("/:id/comments", r.requirementHandler.AddComment)
+	}
 }

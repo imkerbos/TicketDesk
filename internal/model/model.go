@@ -119,11 +119,17 @@ type Issue struct {
 	Description        string     `gorm:"type:text" json:"description"`
 	Priority           string     `gorm:"size:10;default:P2;index" json:"priority"`
 	Status             string     `gorm:"size:30;default:open;index" json:"status"`
+	Resolution         string     `gorm:"size:30;index" json:"resolution"` // 解决结果：fixed, wont_fix, duplicate, cannot_reproduce, works_as_designed, incomplete, done
 	ReporterID         uint64     `gorm:"index;not null" json:"reporter_id"`
 	AssigneeID         *uint64    `gorm:"index" json:"assignee_id"`
 	ParentID           *uint64    `gorm:"index" json:"parent_id"`
+	EpicID             *uint64    `gorm:"index" json:"epic_id"` // Epic 关联（从扩展字段迁移为默认字段）
 	WorkflowInstanceID *uint64    `gorm:"index" json:"workflow_instance_id,omitempty"`
 	DueDate            *time.Time `json:"due_date"`
+	PlannedStartDate   *time.Time `json:"planned_start_date"`   // 预计开始时间
+	PlannedEndDate     *time.Time `json:"planned_end_date"`     // 预计交付时间
+	ActualStartDate    *time.Time `json:"actual_start_date"`    // 实际开始时间（状态→in_progress 时自动记录）
+	ActualEndDate      *time.Time `json:"actual_end_date"`      // 实际完成时间（状态→closed 时自动记录）
 	ResolvedAt         *time.Time `json:"resolved_at"`
 	ClosedAt           *time.Time `json:"closed_at"`
 }
@@ -144,6 +150,23 @@ type IssueComment struct {
 // TableName 指定表名
 func (IssueComment) TableName() string {
 	return "issue_comments"
+}
+
+// IssueAttachment 工单附件模型
+type IssueAttachment struct {
+	BaseModel
+	IssueID    uint64 `gorm:"index;not null" json:"issue_id"`
+	FileName   string `gorm:"size:255;not null" json:"file_name"`
+	FilePath   string `gorm:"size:500;not null" json:"file_path"`
+	FileSize   int64  `gorm:"not null" json:"file_size"`
+	FileType   string `gorm:"size:100" json:"file_type"`
+	IsImage    bool   `gorm:"default:false" json:"is_image"`
+	UploadedBy uint64 `gorm:"index;not null" json:"uploaded_by"`
+}
+
+// TableName 指定表名
+func (IssueAttachment) TableName() string {
+	return "issue_attachments"
 }
 
 // IssueWatcher 工单关注人模型
@@ -475,3 +498,155 @@ type WorkflowScheme struct {
 func (WorkflowScheme) TableName() string {
 	return "workflow_schemes"
 }
+
+// FieldDefinition 字段定义模型
+type FieldDefinition struct {
+	BaseModel
+	ProjectID    *uint64 `gorm:"index" json:"project_id"`                         // NULL=全局系统字段
+	FieldKey     string  `gorm:"size:50;not null;index" json:"field_key"`         // severity, environment, epic_link
+	FieldName    string  `gorm:"size:100;not null" json:"field_name"`             // 严重程度, 环境, Epic链接
+	FieldType    string  `gorm:"size:30;not null" json:"field_type"`              // text/textarea/number/date/select/multiselect/user/version/component/label/epic_link/time_estimate
+	Description  string  `gorm:"size:500" json:"description"`                     // 字段描述
+	IsSystem     bool    `gorm:"default:false" json:"is_system"`                  // 系统字段不可删除
+	IsActive     bool    `gorm:"default:true" json:"is_active"`                   // 是否启用
+	Options      string  `gorm:"type:json" json:"options"`                        // 选项配置JSON（select类型）
+	Validation   string  `gorm:"type:json" json:"validation"`                     // 校验规则JSON
+	DefaultValue string  `gorm:"size:500" json:"default_value"`                   // 默认值
+	SortOrder    int     `gorm:"default:0" json:"sort_order"`                     // 排序
+}
+
+// TableName 指定表名
+func (FieldDefinition) TableName() string {
+	return "field_definitions"
+}
+
+// IssueTypeFieldScheme 工单类型字段方案模型
+type IssueTypeFieldScheme struct {
+	BaseModel
+	ProjectID       uint64 `gorm:"not null;uniqueIndex:uk_type_field,priority:1;index" json:"project_id"`
+	IssueTypeID     uint64 `gorm:"not null;uniqueIndex:uk_type_field,priority:2;index" json:"issue_type_id"`
+	FieldID         uint64 `gorm:"not null;uniqueIndex:uk_type_field,priority:3;index" json:"field_id"`
+	IsRequired      bool   `gorm:"default:false" json:"is_required"`              // 是否必填
+	IsVisibleCreate bool   `gorm:"default:true" json:"is_visible_create"`         // 创建时显示
+	IsVisibleEdit   bool   `gorm:"default:true" json:"is_visible_edit"`           // 编辑时显示
+	IsVisibleDetail bool   `gorm:"default:true" json:"is_visible_detail"`         // 详情时显示
+	SortOrder       int    `gorm:"default:0" json:"sort_order"`                   // 排序
+	DefaultValue    string `gorm:"size:500" json:"default_value"`                 // 该类型的默认值（覆盖字段默认值）
+}
+
+// TableName 指定表名
+func (IssueTypeFieldScheme) TableName() string {
+	return "issue_type_field_schemes"
+}
+
+// IssueFieldValue 工单字段值模型（EAV模式）
+type IssueFieldValue struct {
+	ID          uint64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	IssueID     uint64     `gorm:"not null;uniqueIndex:uk_issue_field,priority:1;index" json:"issue_id"`
+	FieldID     uint64     `gorm:"not null;uniqueIndex:uk_issue_field,priority:2;index" json:"field_id"`
+	ValueText   *string    `gorm:"type:text" json:"value_text"`                   // 文本值
+	ValueNumber *float64   `json:"value_number"`                                  // 数值
+	ValueDate   *time.Time `json:"value_date"`                                    // 日期值
+	ValueJSON   *string    `gorm:"type:json" json:"value_json"`                   // JSON值（多选、标签等）
+	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+// TableName 指定表名
+func (IssueFieldValue) TableName() string {
+	return "issue_field_values"
+}
+
+// ProjectVersion 项目版本模型
+type ProjectVersion struct {
+	BaseModel
+	ProjectID   uint64     `gorm:"not null;index" json:"project_id"`
+	Name        string     `gorm:"size:50;not null" json:"name"`                  // 版本名称
+	Description string     `gorm:"size:500" json:"description"`                   // 版本描述
+	ReleaseDate *time.Time `json:"release_date"`                                  // 发布日期
+	Status      string     `gorm:"size:20;default:unreleased;index" json:"status"` // unreleased, released, archived
+	SortOrder   int        `gorm:"default:0" json:"sort_order"`
+}
+
+// TableName 指定表名
+func (ProjectVersion) TableName() string {
+	return "project_versions"
+}
+
+// ProjectComponent 项目组件模型
+type ProjectComponent struct {
+	BaseModel
+	ProjectID   uint64  `gorm:"not null;index" json:"project_id"`
+	Name        string  `gorm:"size:100;not null" json:"name"`                    // 组件名称
+	Description string  `gorm:"size:500" json:"description"`                      // 组件描述
+	LeadUserID  *uint64 `gorm:"index" json:"lead_user_id"`                        // 组件负责人
+}
+
+// TableName 指定表名
+func (ProjectComponent) TableName() string {
+	return "project_components"
+}
+
+// IssueLabel 工单标签模型
+type IssueLabel struct {
+	BaseModel
+	ProjectID   uint64 `gorm:"not null;index" json:"project_id"`
+	Name        string `gorm:"size:50;not null" json:"name"`                      // 标签名称
+	Color       string `gorm:"size:20" json:"color"`                              // 标签颜色
+	Description string `gorm:"size:200" json:"description"`                       // 标签描述
+}
+
+// TableName 指定表名
+func (IssueLabel) TableName() string {
+	return "issue_labels"
+}
+
+// 数据源类型常量
+const (
+	DatasourceTypePrometheus  = "prometheus"
+	DatasourceTypeNightingale = "nightingale"
+)
+
+// AlertDatasource 告警数据源模型
+type AlertDatasource struct {
+	BaseModel
+	Name         string     `gorm:"size:100;not null;uniqueIndex" json:"name"`
+	Type         string     `gorm:"size:50;not null;index" json:"type"`
+	Description  string     `gorm:"type:text" json:"description"`
+	Config       string     `gorm:"type:json;not null" json:"config"`
+	PushMode     bool       `gorm:"default:false" json:"push_mode"`
+	PollInterval int        `gorm:"default:30" json:"poll_interval"`
+	Status       int8       `gorm:"default:1;index" json:"status"`
+	LastCheckAt  *time.Time `json:"last_check_at,omitempty"`
+	LastCheckOk  *bool      `json:"last_check_ok,omitempty"`
+	LastCheckMsg string     `gorm:"size:500" json:"last_check_msg,omitempty"`
+	CreatedBy    uint64     `gorm:"index;not null" json:"created_by"`
+}
+
+// TableName 指定表名
+func (AlertDatasource) TableName() string {
+	return "alert_datasources"
+}
+
+// 字段类型常量
+const (
+	FieldTypeText         = "text"          // 单行文本
+	FieldTypeTextarea     = "textarea"      // 多行文本
+	FieldTypeNumber       = "number"        // 数字
+	FieldTypeDate         = "date"          // 日期
+	FieldTypeSelect       = "select"        // 单选
+	FieldTypeMultiSelect  = "multiselect"   // 多选
+	FieldTypeUser         = "user"          // 用户选择
+	FieldTypeVersion      = "version"       // 版本选择
+	FieldTypeComponent    = "component"     // 组件选择
+	FieldTypeLabel        = "label"         // 标签选择
+	FieldTypeEpicLink     = "epic_link"     // Epic链接
+	FieldTypeTimeEstimate = "time_estimate" // 时间估算
+)
+
+// 版本状态常量
+const (
+	VersionStatusUnreleased = "unreleased"
+	VersionStatusReleased   = "released"
+	VersionStatusArchived   = "archived"
+)
