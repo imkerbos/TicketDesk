@@ -72,6 +72,12 @@ const router = createRouter({
       component: () => import('@/views/workflow/WorkflowList.vue'),
       meta: { title: '工作流管理' },
     },
+    {
+      path: '/workflows/:id/designer',
+      name: 'WorkflowDesigner',
+      component: () => import('@/views/workflow/WorkflowDesigner.vue'),
+      meta: { title: '工作流设计器' },
+    },
     // 告警中心
     {
       path: '/alerts',

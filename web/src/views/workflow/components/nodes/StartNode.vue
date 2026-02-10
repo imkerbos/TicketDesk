@@ -1,0 +1,59 @@
+<template>
+  <div class="custom-node start-node" :class="{ selected: selected }">
+    <div class="node-body">
+      <div class="node-icon">
+        <el-icon><VideoPlay /></el-icon>
+      </div>
+      <div class="node-label">{{ data.label }}</div>
+    </div>
+    <Handle type="source" :position="Position.Bottom" />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { Handle, Position } from '@vue-flow/core'
+import { VideoPlay } from '@element-plus/icons-vue'
+
+defineProps<{
+  data: { label: string }
+  selected?: boolean
+}>()
+</script>
+
+<style scoped lang="scss">
+.start-node {
+  .node-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 50px;
+    color: #fff;
+    min-width: 80px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+
+  &.selected .node-body {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4), 0 4px 16px rgba(16, 185, 129, 0.4);
+    transform: scale(1.02);
+  }
+
+  &:hover .node-body {
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  }
+
+  .node-icon {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .node-label {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+</style>

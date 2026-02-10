@@ -28,6 +28,7 @@ export interface NodeConfig {
   // 通用配置
   timeout_hours?: number
   description?: string
+  target_status?: string // 进入该节点时工单目标状态（open, in_progress, resolved, closed）
 }
 
 // 工作流节点

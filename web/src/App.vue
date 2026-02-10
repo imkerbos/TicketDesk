@@ -200,6 +200,10 @@ const activeMenu = computed(() => {
   if (path.startsWith('/projects/') && path.includes('/roles')) {
     return '/projects'
   }
+  // 工作流设计器页面高亮工作流管理
+  if (path.startsWith('/workflows/') && path.includes('/designer')) {
+    return '/workflows'
+  }
   return path
 })
 

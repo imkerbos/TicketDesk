@@ -38,6 +38,10 @@
               </div>
             </div>
             <div class="workflow-actions">
+              <el-button size="small" type="primary" @click="handleDesign(workflow)">
+                <el-icon><EditPen /></el-icon>
+                设计工作流
+              </el-button>
               <el-button size="small" @click="handleViewNodes(workflow)">
                 <el-icon><View /></el-icon>
                 查看节点
@@ -246,6 +250,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   Connection,
@@ -253,6 +258,7 @@ import {
   Share,
   View,
   Edit,
+  EditPen,
   Delete,
   VideoPlay,
   CircleCheck,
@@ -283,7 +289,7 @@ import type { Workflow, WorkflowNode, WorkflowEdge, NodeConfig } from '@/types/w
 const loading = ref(false)
 const workflows = ref<Workflow[]>([])
 const projects = ref<Project[]>([])
-
+const router = useRouter()
 // 工作流表单
 const dialogVisible = ref(false)
 const isEditMode = ref(false)
@@ -375,6 +381,10 @@ const loadProjects = async () => {
   } catch (error) {
     console.error('Failed to load projects:', error)
   }
+}
+
+const handleDesign = (workflow: Workflow) => {
+  router.push(`/workflows/${workflow.id}/designer`)
 }
 
 const handleCreate = () => {
