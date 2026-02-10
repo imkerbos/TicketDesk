@@ -3,6 +3,9 @@ import type {
   Workflow,
   WorkflowNode,
   WorkflowEdge,
+  WorkflowInstance,
+  WorkflowHistory,
+  WorkflowScheme,
   ListWorkflowsRequest,
   CreateWorkflowRequest,
   UpdateWorkflowRequest,
@@ -10,6 +13,9 @@ import type {
   UpdateNodeRequest,
   CreateEdgeRequest,
   UpdateEdgeRequest,
+  ApproveRequest,
+  RejectRequest,
+  CreateWorkflowSchemeRequest,
 } from '@/types/workflow'
 
 // ============ 工作流管理 ============
@@ -119,4 +125,64 @@ export const updateEdge = (workflowId: number, edgeId: number, data: UpdateEdgeR
  */
 export const deleteEdge = (workflowId: number, edgeId: number) => {
   return request.delete(`/workflows/${workflowId}/edges/${edgeId}`)
+}
+
+// ============ 工作流实例管理 ============
+
+/**
+ * 获取工单的工作流实例
+ */
+export const getWorkflowInstance = (issueKey: string) => {
+  return request.get<WorkflowInstance>(`/issues/${issueKey}/workflow`, { _silent: true } as any)
+}
+
+/**
+ * 审批通过
+ */
+export const approveWorkflow = (issueKey: string, data: ApproveRequest) => {
+  return request.post(`/issues/${issueKey}/workflow/approve`, data)
+}
+
+/**
+ * 审批拒绝
+ */
+export const rejectWorkflow = (issueKey: string, data: RejectRequest) => {
+  return request.post(`/issues/${issueKey}/workflow/reject`, data)
+}
+
+/**
+ * 完成工作节点
+ */
+export const completeWorkflow = (issueKey: string, data: ApproveRequest) => {
+  return request.post(`/issues/${issueKey}/workflow/complete`, data)
+}
+
+/**
+ * 获取流转历史
+ */
+export const getWorkflowHistory = (issueKey: string) => {
+  return request.get<WorkflowHistory[]>(`/issues/${issueKey}/workflow/history`, { _silent: true } as any)
+}
+
+// ============ 工作流方案管理 ============
+
+/**
+ * 获取项目的工作流方案列表
+ */
+export const getWorkflowSchemes = (projectKey: string) => {
+  return request.get<WorkflowScheme[]>(`/projects/${projectKey}/workflow-schemes`)
+}
+
+/**
+ * 创建工作流方案
+ */
+export const createWorkflowScheme = (projectKey: string, data: CreateWorkflowSchemeRequest) => {
+  return request.post<WorkflowScheme>(`/projects/${projectKey}/workflow-schemes`, data)
+}
+
+/**
+ * 删除工作流方案
+ */
+export const deleteWorkflowScheme = (projectKey: string, typeId: number) => {
+  return request.delete(`/projects/${projectKey}/workflow-schemes/${typeId}`)
 }

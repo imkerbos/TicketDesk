@@ -152,6 +152,36 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-form-item v-if="!isEdit" label="项目模版">
+          <div class="template-cards">
+            <div
+              class="template-card"
+              :class="{ active: form.template === 'standard' }"
+              @click="form.template = 'standard'"
+            >
+              <div class="template-card-icon">
+                <el-icon :size="22"><Folder /></el-icon>
+              </div>
+              <div class="template-card-body">
+                <div class="template-card-title">标准模版</div>
+                <div class="template-card-desc">预置工单类型、工作流、字段方案</div>
+              </div>
+            </div>
+            <div
+              class="template-card"
+              :class="{ active: form.template === 'blank' }"
+              @click="form.template = 'blank'"
+            >
+              <div class="template-card-icon">
+                <el-icon :size="22"><Plus /></el-icon>
+              </div>
+              <div class="template-card-body">
+                <div class="template-card-title">空项目</div>
+                <div class="template-card-desc">不预置配置，完全自定义</div>
+              </div>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item label="负责人">
           <el-select v-model="form.lead_user_id" placeholder="请选择负责人" style="width: 100%" clearable filterable>
             <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
@@ -203,6 +233,7 @@ const form = reactive<CreateProjectRequest>({
   name: '',
   description: '',
   lead_user_id: undefined,
+  template: 'standard',
 })
 
 const rules: FormRules = {
@@ -260,7 +291,7 @@ const handleViewProject = (project: Project) => {
 const handleCreate = () => {
   isEdit.value = false
   editingProject.value = null
-  Object.assign(form, { project_key: '', name: '', description: '', lead_user_id: undefined })
+  Object.assign(form, { project_key: '', name: '', description: '', lead_user_id: undefined, template: 'standard' })
   dialogVisible.value = true
 }
 
@@ -484,6 +515,65 @@ onMounted(() => { loadProjects(); loadUsers() })
   font-size: 12px;
   color: #9ca3af;
   margin-top: 4px;
+}
+
+.template-cards {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.template-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #a0cfff;
+    background: #f0f7ff;
+  }
+
+  &.active {
+    border-color: #409eff;
+    background: #ecf5ff;
+  }
+}
+
+.template-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  flex-shrink: 0;
+
+  .template-card.active & {
+    background: #d9ecff;
+    color: #409eff;
+  }
+}
+
+.template-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.4;
+}
+
+.template-card-desc {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 .settings-link {

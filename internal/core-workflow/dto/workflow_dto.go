@@ -55,6 +55,7 @@ type NodeConfig struct {
 	// 通用配置
 	TimeoutHours int    `json:"timeout_hours,omitempty"` // 超时时间（小时）
 	Description  string `json:"description,omitempty"`   // 节点说明
+	TargetStatus string `json:"target_status,omitempty"` // 进入该节点时工单目标状态（open, in_progress, resolved, closed）
 }
 
 // CreateEdgeRequest 创建边请求

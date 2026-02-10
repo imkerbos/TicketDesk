@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
 	"github.com/kerbos/ticketdesk/internal/core-workflow/dto"
 	"github.com/kerbos/ticketdesk/internal/core-workflow/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
@@ -58,10 +59,11 @@ type WorkflowService interface {
 
 // workflowService 工作流服务实现
 type workflowService struct {
-	workflowRepo repository.WorkflowRepository
-	nodeRepo     repository.NodeRepository
-	edgeRepo     repository.EdgeRepository
-	schemeRepo   repository.WorkflowSchemeRepository
+	workflowRepo  repository.WorkflowRepository
+	nodeRepo      repository.NodeRepository
+	edgeRepo      repository.EdgeRepository
+	schemeRepo    repository.WorkflowSchemeRepository
+	issueTypeRepo projectRepo.IssueTypeRepository
 }
 
 // NewWorkflowService 创建工作流服务实例
@@ -70,12 +72,14 @@ func NewWorkflowService(
 	nodeRepo repository.NodeRepository,
 	edgeRepo repository.EdgeRepository,
 	schemeRepo repository.WorkflowSchemeRepository,
+	issueTypeRepo projectRepo.IssueTypeRepository,
 ) WorkflowService {
 	return &workflowService{
-		workflowRepo: workflowRepo,
-		nodeRepo:     nodeRepo,
-		edgeRepo:     edgeRepo,
-		schemeRepo:   schemeRepo,
+		workflowRepo:  workflowRepo,
+		nodeRepo:      nodeRepo,
+		edgeRepo:      edgeRepo,
+		schemeRepo:    schemeRepo,
+		issueTypeRepo: issueTypeRepo,
 	}
 }
 
@@ -98,6 +102,7 @@ func (s *workflowService) CreateWorkflow(ctx context.Context, req *dto.CreateWor
 		WorkflowID: workflow.ID,
 		Name:       "开始",
 		NodeType:   "start",
+		Config:     "{}",
 		PositionX:  100,
 		PositionY:  200,
 	}
@@ -109,6 +114,7 @@ func (s *workflowService) CreateWorkflow(ctx context.Context, req *dto.CreateWor
 		WorkflowID: workflow.ID,
 		Name:       "结束",
 		NodeType:   "end",
+		Config:     "{}",
 		PositionX:  500,
 		PositionY:  200,
 	}
@@ -233,7 +239,7 @@ func (s *workflowService) CreateNode(ctx context.Context, workflowID uint64, req
 	}
 
 	// 序列化配置
-	var configJSON string
+	configJSON := "{}"
 	if req.Config != nil {
 		configBytes, err := json.Marshal(req.Config)
 		if err != nil {
@@ -602,14 +608,26 @@ func (s *workflowService) CreateScheme(ctx context.Context, projectID uint64, re
 	)
 
 	return &dto.WorkflowSchemeResponse{
-		ID:           scheme.ID,
-		ProjectID:    scheme.ProjectID,
-		IssueTypeID:  scheme.IssueTypeID,
-		WorkflowID:   scheme.WorkflowID,
-		WorkflowName: workflow.Name,
-		CreatedAt:    scheme.CreatedAt,
-		UpdatedAt:    scheme.UpdatedAt,
+		ID:            scheme.ID,
+		ProjectID:     scheme.ProjectID,
+		IssueTypeID:   scheme.IssueTypeID,
+		IssueTypeName: s.getIssueTypeName(ctx, scheme.IssueTypeID),
+		WorkflowID:    scheme.WorkflowID,
+		WorkflowName:  workflow.Name,
+		CreatedAt:     scheme.CreatedAt,
+		UpdatedAt:     scheme.UpdatedAt,
 	}, nil
+}
+
+// getIssueTypeName 获取工单类型显示名称
+func (s *workflowService) getIssueTypeName(ctx context.Context, issueTypeID uint64) string {
+	if issueType, err := s.issueTypeRepo.GetByID(ctx, issueTypeID); err == nil {
+		if issueType.DisplayName != "" {
+			return issueType.DisplayName
+		}
+		return issueType.Name
+	}
+	return ""
 }
 
 // ListSchemes 获取项目的工作流方案列表
@@ -634,6 +652,9 @@ func (s *workflowService) ListSchemes(ctx context.Context, projectID uint64) ([]
 		if workflow, err := s.workflowRepo.GetByID(ctx, scheme.WorkflowID); err == nil {
 			resp.WorkflowName = workflow.Name
 		}
+
+		// 获取工单类型名称
+		resp.IssueTypeName = s.getIssueTypeName(ctx, scheme.IssueTypeID)
 
 		responses[i] = resp
 	}

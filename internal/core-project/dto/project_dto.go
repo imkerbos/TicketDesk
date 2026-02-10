@@ -11,6 +11,7 @@ type CreateProjectRequest struct {
 	Name        string `json:"name" binding:"required,min=1,max=100"`
 	Description string `json:"description" binding:"max=1000"`
 	LeadUserID  uint64 `json:"lead_user_id" binding:"required"`
+	Template    string `json:"template"` // "standard" 使用模版（默认），"blank" 空项目
 }
 
 // UpdateProjectRequest 更新项目请求

@@ -33,15 +33,52 @@
           </div>
         </div>
         <div class="header-actions">
-          <el-dropdown v-if="issue && getAvailableTransitions(issue.status).length > 0" trigger="click" @command="handleTransition">
-            <el-button type="primary" class="transition-btn">
-              <el-icon><Switch /></el-icon>
-              状态流转 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          <!-- 工作流快捷操作按钮 -->
+          <el-dropdown v-if="workflowInstance" trigger="hover" @command="handleWorkflowCommand">
+            <el-button
+              :type="canOperateWorkflow ? 'primary' : 'info'"
+              :disabled="!canOperateWorkflow && workflowInstance.status !== 'active'"
+              class="workflow-action-btn"
+            >
+              <el-icon><Promotion /></el-icon>
+              {{ workflowActionBtnText }}
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item v-for="t in getAvailableTransitions(issue.status)" :key="t.status" :command="t.status">
-                  {{ t.label }}
+                <!-- 审批节点操作 -->
+                <template v-if="workflowInstance.current_node?.node_type === 'approval' && workflowInstance.status === 'active'">
+                  <el-dropdown-item
+                    command="approve"
+                    :disabled="!isCurrentUserApprover"
+                  >
+                    <el-icon style="color: #67c23a"><Check /></el-icon>
+                    审批通过
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    command="reject"
+                    :disabled="!isCurrentUserApprover"
+                  >
+                    <el-icon style="color: #f56c6c"><Delete /></el-icon>
+                    审批拒绝
+                  </el-dropdown-item>
+                </template>
+                <!-- 工作节点操作 -->
+                <template v-else-if="isWorkNode && workflowInstance.status === 'active'">
+                  <el-dropdown-item command="complete">
+                    <el-icon style="color: #409eff"><Check /></el-icon>
+                    完成节点
+                  </el-dropdown-item>
+                </template>
+                <!-- 工作流已结束提示 -->
+                <template v-else-if="workflowInstance.status !== 'active'">
+                  <el-dropdown-item disabled>
+                    工作流已{{ workflowInstance.status === 'completed' ? '完成' : '取消' }}
+                  </el-dropdown-item>
+                </template>
+                <el-dropdown-item divided command="view-workflow">
+                  <el-icon style="color: #909399"><View /></el-icon>
+                  查看工作流
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -68,6 +105,103 @@
               {{ issue.description }}
             </div>
             <div v-else class="empty-placeholder">暂无描述</div>
+          </el-card>
+
+          <!-- 工作流卡片 -->
+          <el-card v-if="workflowInstance" shadow="never" class="content-card workflow-card">
+            <template #header>
+              <div class="card-header-group">
+                <div class="card-icon workflow">
+                  <el-icon><Promotion /></el-icon>
+                </div>
+                <span class="card-title">工作流</span>
+                <el-tag :type="getWorkflowStatusType(workflowInstance.status)" size="small" effect="dark">
+                  {{ getWorkflowStatusText(workflowInstance.status) }}
+                </el-tag>
+              </div>
+            </template>
+
+            <!-- 当前节点信息 -->
+            <div class="workflow-current-node">
+              <div class="current-node-label">当前节点</div>
+              <div class="current-node-info">
+                <el-tag size="default" effect="plain">
+                  {{ workflowInstance.current_node?.name || `节点#${workflowInstance.current_node_id}` }}
+                </el-tag>
+                <el-tag v-if="workflowInstance.current_node?.node_type" size="small" type="info">
+                  {{ workflowInstance.current_node.node_type === 'approval' ? '审批节点' : workflowInstance.current_node.node_type === 'work' ? '工作节点' : workflowInstance.current_node.node_type }}
+                </el-tag>
+              </div>
+            </div>
+
+            <!-- 审批记录 -->
+            <div v-if="workflowInstance.approvals && workflowInstance.approvals.length > 0" class="workflow-approvals">
+              <div class="approvals-label">审批记录</div>
+              <div class="approvals-list">
+                <div v-for="approval in workflowInstance.approvals" :key="approval.id" class="approval-item">
+                  <div class="approval-user">
+                    <div class="mini-avatar">{{ approval.approver_name?.charAt(0) || '?' }}</div>
+                    <span>{{ approval.approver_name || `用户#${approval.approver_id}` }}</span>
+                  </div>
+                  <el-tag :type="getApprovalStatusType(approval.status)" size="small">
+                    {{ getApprovalStatusText(approval.status) }}
+                  </el-tag>
+                  <span v-if="approval.comment" class="approval-comment">{{ approval.comment }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 审批操作按钮 -->
+            <div v-if="isCurrentUserApprover && workflowInstance.status === 'active'" class="workflow-actions">
+              <div class="actions-label">审批操作</div>
+              <div class="actions-row">
+                <el-input v-model="approveComment" placeholder="审批意见（可选）" size="default" style="flex: 1; margin-right: 12px;" />
+                <el-button type="success" :loading="approveLoading" @click="handleApprove">
+                  <el-icon><Check /></el-icon>
+                  通过
+                </el-button>
+                <el-button type="danger" @click="showRejectDialog">
+                  <el-icon><Delete /></el-icon>
+                  拒绝
+                </el-button>
+              </div>
+            </div>
+
+            <!-- 工作节点完成按钮 -->
+            <div v-if="isWorkNode" class="workflow-actions">
+              <div class="actions-label">节点操作</div>
+              <div class="actions-row">
+                <el-input v-model="completeComment" placeholder="完成备注（可选）" size="default" style="flex: 1; margin-right: 12px;" />
+                <el-button type="primary" :loading="completeLoading" @click="handleComplete">
+                  <el-icon><Check /></el-icon>
+                  完成节点
+                </el-button>
+              </div>
+            </div>
+
+            <!-- 流转历史时间线 -->
+            <div v-if="workflowHistoryList.length > 0" class="workflow-history">
+              <div class="history-label">流转历史</div>
+              <el-timeline class="workflow-timeline">
+                <el-timeline-item
+                  v-for="item in workflowHistoryList"
+                  :key="item.id"
+                  :timestamp="formatTime(item.operated_at || item.created_at)"
+                  placement="top"
+                  :type="item.action === 'reject' ? 'danger' : item.action === 'complete' ? 'success' : 'primary'"
+                >
+                  <div class="history-content">
+                    <span class="history-user">{{ item.operator_name || (item.operator_id === 0 ? '系统' : `用户#${item.operator_id}`) }}</span>
+                    <span class="history-action">{{ getHistoryActionText(item.action) }}</span>
+                    <template v-if="item.to_node">
+                      <span class="history-arrow">→</span>
+                      <el-tag size="small">{{ item.to_node.name }}</el-tag>
+                    </template>
+                    <div v-if="item.comment" class="history-comment">{{ item.comment }}</div>
+                  </div>
+                </el-timeline-item>
+              </el-timeline>
+            </div>
           </el-card>
 
           <!-- 扩展字段 - 显示在主体区域 -->
@@ -572,6 +706,21 @@
       </template>
     </el-dialog>
 
+    <!-- 拒绝审批对话框 -->
+    <el-dialog v-model="rejectDialogVisible" title="拒绝审批" width="450px" destroy-on-close>
+      <el-form label-position="top">
+        <el-form-item label="拒绝原因（必填）">
+          <el-input v-model="rejectComment" type="textarea" :rows="3" placeholder="请输入拒绝原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="rejectDialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="rejectLoading" :disabled="!rejectComment.trim()" @click="handleReject">
+          确认拒绝
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 编辑对话框 -->
     <el-dialog v-model="editDialogVisible" title="编辑工单" width="640px" destroy-on-close class="edit-dialog">
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-position="top">
@@ -758,6 +907,35 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 工作流流程图对话框 -->
+    <el-dialog v-model="diagramVisible" title="工单流程" width="800px" destroy-on-close>
+      <div v-loading="diagramLoading" class="workflow-diagram">
+        <div v-if="diagramNodes.length > 0" class="diagram-flow">
+          <template v-for="(node, index) in diagramNodes" :key="node.id">
+            <div class="diagram-node" :class="getNodeDiagramClass(node)">
+              <div class="diagram-node-icon">
+                <span v-if="node.node_type === 'start'">▶</span>
+                <span v-else-if="node.node_type === 'end'">◉</span>
+                <span v-else-if="node.node_type === 'approval'">✓</span>
+                <span v-else-if="node.node_type === 'work'">⚙</span>
+                <span v-else>●</span>
+              </div>
+              <div class="diagram-node-name">{{ node.name }}</div>
+              <div class="diagram-node-type">{{ getNodeTypeText(node.node_type) }}</div>
+              <div v-if="getNodeDiagramClass(node).visited" class="diagram-node-check">✓</div>
+            </div>
+            <div v-if="index < diagramNodes.length - 1" class="diagram-arrow" :class="{ visited: isEdgeVisited(node.id, diagramNodes[index + 1]?.id) }">
+              <div class="arrow-line"></div>
+              <div class="arrow-head"></div>
+            </div>
+          </template>
+        </div>
+        <div v-else-if="!diagramLoading" class="diagram-empty">
+          <el-empty description="暂无流程节点" :image-size="80" />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -767,15 +945,17 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   User, Clock, Edit, ArrowDown, ArrowRight, Plus, Document,
-  ChatLineRound, InfoFilled, View, Check, Switch, Link, Delete, Paperclip
+  ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion
 } from '@element-plus/icons-vue'
 import {
-  getIssueDetail, updateIssue, transitionIssue, deleteIssue, createIssue, getIssueList,
+  getIssueDetail, updateIssue, deleteIssue, createIssue, getIssueList,
   getIssueComments, addIssueComment, getIssueActivities, getIssueWatchers,
   getWorklogs, addWorklog, updateWorklog, deleteWorklog,
   addIssueWatcher, removeIssueWatcher, getEpicIssues, getSubtasks,
 } from '@/api/issue'
 import { listAttachments } from '@/api/attachment'
+import { getWorkflowInstance, getWorkflowHistory, approveWorkflow, rejectWorkflow, completeWorkflow, getWorkflowNodes, getWorkflowEdges } from '@/api/workflow'
+import type { WorkflowInstance, WorkflowHistory, WorkflowNode, WorkflowEdge } from '@/types/workflow'
 import type { Attachment } from '@/types/attachment'
 import AttachmentUpload from '@/components/attachment/AttachmentUpload.vue'
 import AttachmentList from '@/components/attachment/AttachmentList.vue'
@@ -783,7 +963,7 @@ import { getAllUsers } from '@/api/user'
 import { getIssueFieldValues, getFieldScheme } from '@/api/field'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { useUserStore } from '@/stores/user'
-import type { Issue, IssueComment, IssueActivity, IssueWatcher, UpdateIssueRequest, IssueStatus, Worklog, CreateWorklogRequest, CreateIssueRequest, IssuePriority, CustomFieldValue } from '@/types/issue'
+import type { Issue, IssueComment, IssueActivity, IssueWatcher, UpdateIssueRequest, Worklog, CreateWorklogRequest, CreateIssueRequest, IssuePriority, CustomFieldValue } from '@/types/issue'
 import type { UserOption } from '@/types/user'
 import type { FieldValue, FieldSchemeItem } from '@/types/field'
 import type { Project, ProjectIssueType } from '@/types/project'
@@ -806,6 +986,15 @@ const activeTab = ref('comments')
 const epicIssues = ref<Issue[]>([])
 const subtasks = ref<Issue[]>([])
 const attachments = ref<Attachment[]>([])
+
+// 工作流相关
+const workflowInstance = ref<WorkflowInstance | null>(null)
+const workflowHistoryList = ref<WorkflowHistory[]>([])
+const approveComment = ref('')
+const rejectComment = ref('')
+const approveLoading = ref(false)
+const rejectLoading = ref(false)
+const rejectDialogVisible = ref(false)
 
 // 创建子任务相关
 const createSubtaskDialogVisible = ref(false)
@@ -839,19 +1028,6 @@ const createSubtaskRules: FormRules = {
   issue_type_id: [{ required: true, message: '请选择类型', trigger: 'change' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
-}
-
-interface StatusTransition { status: IssueStatus; label: string }
-
-const getAvailableTransitions = (currentStatus: IssueStatus): StatusTransition[] => {
-  const transitions: Record<IssueStatus, StatusTransition[]> = {
-    open: [{ status: 'in_progress', label: '开始处理' }, { status: 'closed', label: '关闭' }],
-    in_progress: [{ status: 'resolved', label: '标记解决' }, { status: 'open', label: '重新打开' }],
-    resolved: [{ status: 'closed', label: '关闭' }, { status: 'reopened', label: '重新打开' }],
-    closed: [{ status: 'reopened', label: '重新打开' }],
-    reopened: [{ status: 'in_progress', label: '开始处理' }, { status: 'closed', label: '关闭' }],
-  }
-  return transitions[currentStatus] || []
 }
 
 const newComment = ref('')
@@ -888,7 +1064,8 @@ const loadIssue = async () => {
       loadWorklogs(key),
       loadEpicIssues(key),
       loadSubtasks(key),
-      loadAttachments(key)
+      loadAttachments(key),
+      loadWorkflowData(key),
     ])
   } catch (error) {
     console.error('Failed to load issue:', error)
@@ -945,6 +1122,218 @@ const loadAttachments = async (key: string) => {
   }
 }
 
+// 工作流数据加载
+const loadWorkflowData = async (key: string) => {
+  // 加载工作流实例，404 表示没有工作流，静默处理
+  try {
+    const { data } = await getWorkflowInstance(key)
+    workflowInstance.value = (data as any).data
+  } catch (e: any) {
+    // 404 或其他错误表示没有关联工作流，不显示卡片
+    workflowInstance.value = null
+    workflowHistoryList.value = []
+    return
+  }
+
+  // 只有工作流实例存在时才加载流转历史
+  try {
+    const { data } = await getWorkflowHistory(key)
+    workflowHistoryList.value = (data as any).data || []
+  } catch (e: any) {
+    workflowHistoryList.value = []
+  }
+}
+
+// 判断当前用户是否是审批人
+const isCurrentUserApprover = computed(() => {
+  if (!workflowInstance.value || !userStore.user) return false
+  const approvals = workflowInstance.value.approvals || []
+  return approvals.some(
+    a => a.approver_id === userStore.user!.id && a.status === 'pending'
+  )
+})
+
+// 判断当前节点是否是工作节点（可完成）
+const isWorkNode = computed(() => {
+  if (!workflowInstance.value || workflowInstance.value.status !== 'active') return false
+  const nodeType = workflowInstance.value.current_node?.node_type
+  return nodeType === 'work' || nodeType === 'start'
+})
+
+// 当前用户是否可以操作工作流
+const canOperateWorkflow = computed(() => {
+  return isCurrentUserApprover.value || isWorkNode.value
+})
+
+// 工作流快捷按钮文本
+const workflowActionBtnText = computed(() => {
+  if (!workflowInstance.value) return '工作流'
+  if (workflowInstance.value.status !== 'active') {
+    return workflowInstance.value.status === 'completed' ? '已完成' : '已取消'
+  }
+  const nodeName = workflowInstance.value.current_node?.name || '当前节点'
+  return nodeName
+})
+
+// 工作流下拉菜单命令处理
+const handleWorkflowCommand = (command: string) => {
+  switch (command) {
+    case 'approve':
+      handleQuickApprove()
+      break
+    case 'reject':
+      showRejectDialog()
+      break
+    case 'complete':
+      handleQuickComplete()
+      break
+    case 'view-workflow':
+      showWorkflowDiagram()
+      break
+  }
+}
+
+// 快捷审批通过（从下拉菜单触发，弹确认框）
+const handleQuickApprove = async () => {
+  try {
+    await ElMessageBox.confirm('确认审批通过？', '审批确认', {
+      confirmButtonText: '通过',
+      cancelButtonText: '取消',
+      type: 'success',
+    })
+    handleApprove()
+  } catch {
+    // 用户取消
+  }
+}
+
+// 快捷完成节点（从下拉菜单触发，弹确认框）
+const handleQuickComplete = async () => {
+  try {
+    await ElMessageBox.confirm('确认完成当前节点？', '完成确认', {
+      confirmButtonText: '完成',
+      cancelButtonText: '取消',
+      type: 'info',
+    })
+    handleComplete()
+  } catch {
+    // 用户取消
+  }
+}
+
+const completeLoading = ref(false)
+const completeComment = ref('')
+
+// 完成工作节点
+const handleComplete = async () => {
+  if (!issue.value) return
+  completeLoading.value = true
+  try {
+    await completeWorkflow(issue.value.issue_key, { comment: completeComment.value || undefined })
+    ElMessage.success('工作节点已完成')
+    completeComment.value = ''
+    await loadIssue()
+  } catch (error: any) {
+    console.error('Failed to complete:', error)
+    ElMessage.error(error.response?.data?.message || '完成操作失败')
+  } finally {
+    completeLoading.value = false
+  }
+}
+
+// 审批通过
+const handleApprove = async () => {
+  if (!issue.value) return
+  approveLoading.value = true
+  try {
+    await approveWorkflow(issue.value.issue_key, { comment: approveComment.value || undefined })
+    ElMessage.success('审批通过')
+    approveComment.value = ''
+    await loadIssue() // 刷新工单（状态已由工作流联动更新）
+  } catch (error: any) {
+    console.error('Failed to approve:', error)
+    ElMessage.error(error.response?.data?.message || '审批操作失败')
+  } finally {
+    approveLoading.value = false
+  }
+}
+
+// 打开拒绝对话框
+const showRejectDialog = () => {
+  rejectComment.value = ''
+  rejectDialogVisible.value = true
+}
+
+// 审批拒绝
+const handleReject = async () => {
+  if (!issue.value || !rejectComment.value.trim()) {
+    ElMessage.warning('请填写拒绝原因')
+    return
+  }
+  rejectLoading.value = true
+  try {
+    await rejectWorkflow(issue.value.issue_key, { comment: rejectComment.value })
+    ElMessage.success('已拒绝')
+    rejectComment.value = ''
+    rejectDialogVisible.value = false
+    await loadIssue() // 刷新工单（状态已由工作流联动更新）
+  } catch (error: any) {
+    console.error('Failed to reject:', error)
+    ElMessage.error(error.response?.data?.message || '拒绝操作失败')
+  } finally {
+    rejectLoading.value = false
+  }
+}
+
+const getWorkflowStatusText = (status: string) => {
+  const map: Record<string, string> = {
+    active: '进行中',
+    completed: '已完成',
+    cancelled: '已取消',
+  }
+  return map[status] || status
+}
+
+const getWorkflowStatusType = (status: string): 'success' | 'info' | 'warning' | 'danger' => {
+  const map: Record<string, 'success' | 'info' | 'warning' | 'danger'> = {
+    active: 'warning',
+    completed: 'success',
+    cancelled: 'info',
+  }
+  return map[status] || 'info'
+}
+
+const getApprovalStatusText = (status: string) => {
+  const map: Record<string, string> = {
+    pending: '待审批',
+    approved: '已通过',
+    rejected: '已拒绝',
+  }
+  return map[status] || status
+}
+
+const getApprovalStatusType = (status: string): 'success' | 'info' | 'warning' | 'danger' => {
+  const map: Record<string, 'success' | 'info' | 'warning' | 'danger'> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'danger',
+  }
+  return map[status] || 'info'
+}
+
+const getHistoryActionText = (action: string) => {
+  const map: Record<string, string> = {
+    start: '启动工作流',
+    approve: '审批通过',
+    reject: '审批拒绝',
+    forward: '流转到下一节点',
+    advance: '流转到下一节点',
+    complete: '工作流完成',
+    cancel: '工作流取消',
+  }
+  return map[action] || action
+}
+
 const loadCustomFields = async (issueId: number) => {
   if (!issue.value) return
   try {
@@ -958,10 +1347,6 @@ const loadCustomFields = async (issueId: number) => {
     // 获取已保存的字段值
     const valuesRes = await getIssueFieldValues(issueId)
     const savedValues = valuesRes.data.data || []
-    console.log('=== 字段值调试 ===')
-    console.log('工单ID:', issueId)
-    console.log('字段方案:', visibleScheme)
-    console.log('已保存的字段值:', savedValues)
 
     // 合并：用字段方案作为基础，填充已保存的值
     const valueMap = new Map(savedValues.map((v: FieldValue) => [v.field_id, v]))
@@ -982,15 +1367,6 @@ const loadCustomFields = async (issueId: number) => {
   } catch (e) {
     console.error('Failed to load custom fields:', e)
   }
-}
-
-const handleTransition = async (status: IssueStatus) => {
-  if (!issue.value) return
-  try {
-    await transitionIssue(issue.value.issue_key, status)
-    ElMessage.success('状态更新成功')
-    loadIssue()
-  } catch (error) { console.error('Failed to transition:', error) }
 }
 
 const submitComment = async () => {
@@ -1414,7 +1790,7 @@ const getPriorityType = (priority: string): TagType => {
   return map[priority] || 'info'
 }
 const getStatusText = (status: string) => {
-  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已解决', closed: '已关闭', reopened: '重新打开', merged: '已合并' }
+  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已完成', closed: '已终止', reopened: '重新打开', merged: '已合并' }
   return map[status] || status
 }
 
@@ -1442,6 +1818,142 @@ watch(() => route.params.key, (newKey, oldKey) => {
     loadIssue()
   }
 })
+
+// ============ 工作流流程图 ============
+
+const diagramVisible = ref(false)
+const diagramLoading = ref(false)
+const diagramNodes = ref<WorkflowNode[]>([])
+const diagramEdges = ref<WorkflowEdge[]>([])
+
+// 拓扑排序：按 edges 的 source→target 关系排序节点
+const topologicalSort = (nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] => {
+  if (nodes.length === 0) return []
+
+  const nodeMap = new Map<number, WorkflowNode>()
+  nodes.forEach(n => nodeMap.set(n.id, n))
+
+  const inDegree = new Map<number, number>()
+  const adjacency = new Map<number, number[]>()
+  nodes.forEach(n => {
+    inDegree.set(n.id, 0)
+    adjacency.set(n.id, [])
+  })
+
+  edges.forEach(e => {
+    if (nodeMap.has(e.source_node_id) && nodeMap.has(e.target_node_id)) {
+      inDegree.set(e.target_node_id, (inDegree.get(e.target_node_id) || 0) + 1)
+      adjacency.get(e.source_node_id)?.push(e.target_node_id)
+    }
+  })
+
+  // BFS 拓扑排序
+  const queue: number[] = []
+  inDegree.forEach((deg, id) => {
+    if (deg === 0) queue.push(id)
+  })
+
+  const sorted: WorkflowNode[] = []
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    const node = nodeMap.get(id)
+    if (node) sorted.push(node)
+    for (const next of (adjacency.get(id) || [])) {
+      const newDeg = (inDegree.get(next) || 1) - 1
+      inDegree.set(next, newDeg)
+      if (newDeg === 0) queue.push(next)
+    }
+  }
+
+  // 如果有未排序的节点（可能有环），追加到末尾
+  if (sorted.length < nodes.length) {
+    nodes.forEach(n => {
+      if (!sorted.find(s => s.id === n.id)) sorted.push(n)
+    })
+  }
+
+  return sorted
+}
+
+// 获取已访问的节点 ID 集合（从流转历史中提取）
+const visitedNodeIds = computed(() => {
+  const ids = new Set<number>()
+  workflowHistoryList.value.forEach(h => {
+    if (h.from_node_id) ids.add(h.from_node_id)
+    if (h.to_node_id) ids.add(h.to_node_id)
+  })
+  return ids
+})
+
+// 获取已访问的边（from→to 对）
+const visitedEdgePairs = computed(() => {
+  const pairs = new Set<string>()
+  workflowHistoryList.value.forEach(h => {
+    if (h.from_node_id && h.to_node_id) {
+      pairs.add(`${h.from_node_id}-${h.to_node_id}`)
+    }
+  })
+  return pairs
+})
+
+// 判断节点的流程图样式类
+const getNodeDiagramClass = (node: WorkflowNode) => {
+  const currentNodeId = workflowInstance.value?.current_node_id
+  const isCurrent = node.id === currentNodeId
+  const isVisited = visitedNodeIds.value.has(node.id) && !isCurrent
+  const instanceStatus = workflowInstance.value?.status
+
+  return {
+    current: isCurrent && instanceStatus === 'active',
+    visited: isVisited || (isCurrent && instanceStatus === 'completed'),
+    cancelled: instanceStatus === 'cancelled' && isCurrent,
+    pending: !isCurrent && !isVisited,
+    'node-start': node.node_type === 'start',
+    'node-end': node.node_type === 'end',
+    'node-approval': node.node_type === 'approval',
+    'node-work': node.node_type === 'work',
+  }
+}
+
+// 判断边是否已访问
+const isEdgeVisited = (fromId: number, toId: number | undefined) => {
+  if (!toId) return false
+  return visitedEdgePairs.value.has(`${fromId}-${toId}`)
+}
+
+// 获取节点类型文本
+const getNodeTypeText = (nodeType: string) => {
+  const map: Record<string, string> = {
+    start: '开始',
+    end: '结束',
+    approval: '审批',
+    work: '工作',
+    system: '系统',
+  }
+  return map[nodeType] || nodeType
+}
+
+// 显示工作流流程图
+const showWorkflowDiagram = async () => {
+  diagramVisible.value = true
+  diagramLoading.value = true
+  try {
+    const workflowId = workflowInstance.value!.workflow_id
+    const [nodesRes, edgesRes] = await Promise.all([
+      getWorkflowNodes(workflowId),
+      getWorkflowEdges(workflowId),
+    ])
+    const nodes = (nodesRes.data as any).data || []
+    const edges = (edgesRes.data as any).data || []
+    diagramEdges.value = edges
+    diagramNodes.value = topologicalSort(nodes, edges)
+  } catch (e) {
+    console.error('Failed to load workflow diagram', e)
+    ElMessage.error('加载流程图失败')
+  } finally {
+    diagramLoading.value = false
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -1513,6 +2025,10 @@ watch(() => route.params.key, (newKey, oldKey) => {
     gap: 10px;
     flex-shrink: 0;
     margin-left: 20px;
+
+    .workflow-action-btn {
+      font-weight: 500;
+    }
   }
 }
 
@@ -1584,6 +2100,7 @@ watch(() => route.params.key, (newKey, oldKey) => {
   &.epic { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
   &.subtask { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
   &.attachment { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+  &.workflow { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
 }
 
 .card-title { font-size: 15px; font-weight: 600; color: #1f2937; }
@@ -1947,6 +2464,137 @@ watch(() => route.params.key, (newKey, oldKey) => {
         line-height: 1.6;
         white-space: pre-wrap;
         word-break: break-word;
+      }
+    }
+  }
+}
+
+// 工作流卡片
+.workflow-card {
+  .workflow-current-node {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+
+    .current-node-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .current-node-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  .workflow-approvals {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+
+    .approvals-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .approvals-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .approval-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+
+      .approval-user {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #1f2937;
+        font-weight: 500;
+      }
+
+      .approval-comment {
+        font-size: 12px;
+        color: #6b7280;
+        margin-left: auto;
+      }
+    }
+  }
+
+  .workflow-actions {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+
+    .actions-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .actions-row {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .workflow-history {
+    padding: 16px 20px;
+
+    .history-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .workflow-timeline {
+      padding-left: 4px;
+    }
+
+    .history-content {
+      font-size: 13px;
+
+      .history-user {
+        font-weight: 600;
+        color: #1f2937;
+      }
+
+      .history-action {
+        color: #6b7280;
+        margin: 0 4px;
+      }
+
+      .history-arrow {
+        color: #9ca3af;
+        margin: 0 4px;
+      }
+
+      .history-comment {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #6b7280;
+        padding: 6px 10px;
+        background: #f9fafb;
+        border-radius: 6px;
       }
     }
   }
@@ -2413,5 +3061,156 @@ watch(() => route.params.key, (newKey, oldKey) => {
 // 附件区域
 .attachment-section {
   padding: 20px;
+}
+
+// 工作流流程图
+.workflow-diagram {
+  min-height: 120px;
+  overflow-x: auto;
+  padding: 20px 0;
+
+  .diagram-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    min-width: max-content;
+    padding: 10px 20px;
+  }
+
+  .diagram-node {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 2px solid #dcdfe6;
+    background: #f5f7fa;
+    transition: all 0.3s ease;
+    cursor: default;
+
+    .diagram-node-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+      color: #909399;
+    }
+
+    .diagram-node-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #303133;
+      white-space: nowrap;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .diagram-node-type {
+      font-size: 11px;
+      color: #909399;
+      margin-top: 2px;
+    }
+
+    .diagram-node-check {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #67c23a;
+      color: #fff;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    // 节点类型图标颜色
+    &.node-start .diagram-node-icon { color: #67c23a; }
+    &.node-end .diagram-node-icon { color: #909399; }
+    &.node-approval .diagram-node-icon { color: #e6a23c; }
+    &.node-work .diagram-node-icon { color: #409eff; }
+
+    // 已完成节点
+    &.visited {
+      border-color: #67c23a;
+      background: #f0f9eb;
+
+      .diagram-node-name { color: #67c23a; }
+      .diagram-node-icon { color: #67c23a; }
+    }
+
+    // 当前节点
+    &.current {
+      border-color: #409eff;
+      background: #ecf5ff;
+      box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
+      animation: pulse-border 2s ease-in-out infinite;
+
+      .diagram-node-name { color: #409eff; }
+      .diagram-node-icon { color: #409eff; }
+    }
+
+    // 被取消节点
+    &.cancelled {
+      border-color: #f56c6c;
+      background: #fef0f0;
+
+      .diagram-node-name { color: #f56c6c; }
+      .diagram-node-icon { color: #f56c6c; }
+    }
+
+    // 未到达节点
+    &.pending {
+      border-color: #dcdfe6;
+      background: #f5f7fa;
+      opacity: 0.7;
+    }
+  }
+
+  .diagram-arrow {
+    display: flex;
+    align-items: center;
+    margin: 0 4px;
+
+    .arrow-line {
+      width: 32px;
+      height: 2px;
+      background: #dcdfe6;
+    }
+
+    .arrow-head {
+      width: 0;
+      height: 0;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 8px solid #dcdfe6;
+    }
+
+    &.visited {
+      .arrow-line { background: #67c23a; }
+      .arrow-head { border-left-color: #67c23a; }
+    }
+  }
+
+  .diagram-empty {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(64, 158, 255, 0.1);
+  }
 }
 </style>

@@ -50,27 +50,31 @@ request.interceptors.response.use(
     return response
   },
   (error) => {
+    // 支持静默错误：请求配置中设置 _silent 则不弹出错误提示
+    const silent = (error.config as any)?._silent
     if (error.response) {
       const { status, data } = error.response
-      switch (status) {
-        case 401:
-          ElMessage.error('未登录或登录已过期')
-          localStorage.removeItem('token')
-          window.location.href = '/login'
-          break
-        case 403:
-          ElMessage.error('没有权限访问')
-          break
-        case 404:
-          ElMessage.error('请求的资源不存在')
-          break
-        case 500:
-          ElMessage.error(data?.message || '服务器错误')
-          break
-        default:
-          ElMessage.error(data?.message || '请求失败')
+      if (!silent) {
+        switch (status) {
+          case 401:
+            ElMessage.error('未登录或登录已过期')
+            localStorage.removeItem('token')
+            window.location.href = '/login'
+            break
+          case 403:
+            ElMessage.error('没有权限访问')
+            break
+          case 404:
+            ElMessage.error('请求的资源不存在')
+            break
+          case 500:
+            ElMessage.error(data?.message || '服务器错误')
+            break
+          default:
+            ElMessage.error(data?.message || '请求失败')
+        }
       }
-    } else {
+    } else if (!silent) {
       ElMessage.error('网络错误，请检查网络连接')
     }
     return Promise.reject(error)

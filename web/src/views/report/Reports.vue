@@ -44,7 +44,7 @@
             <el-col :xs="12" :sm="6">
               <div class="summary-card success">
                 <div class="summary-value">{{ issueStats.summary?.resolved || 0 }}</div>
-                <div class="summary-label">已解决</div>
+                <div class="summary-label">已完成</div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
@@ -156,7 +156,7 @@
                 </template>
               </el-table-column>
               <el-table-column prop="total" label="总数" width="80" />
-              <el-table-column prop="resolved" label="已解决" width="80" />
+              <el-table-column prop="resolved" label="已完成" width="80" />
               <el-table-column prop="sla_target" label="SLA 目标" width="100">
                 <template #default="{ row }">
                   {{ formatMinutes(row.sla_target) }}
@@ -438,7 +438,7 @@ const formatPercent = (value: number) => `${value.toFixed(1)}%`
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 
 const getStatusLabel = (status: string) => {
-  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已解决', closed: '已关闭' }
+  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已完成', closed: '已终止' }
   return map[status] || status
 }
 

@@ -158,33 +158,6 @@ func (h *IssueHandler) HandleListIssuesInEpic(c *gin.Context) {
 	response.Success(c, issues)
 }
 
-// HandleTransitionIssue 工单状态流转
-func (h *IssueHandler) HandleTransitionIssue(c *gin.Context) {
-	key := c.Param("key")
-
-	var req dto.TransitionIssueRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
-		return
-	}
-
-	userID := c.GetUint64("user_id")
-	result, err := h.issueService.TransitionIssue(c.Request.Context(), key, &req, userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrIssueNotFound):
-			response.NotFound(c, err.Error())
-		case errors.Is(err, service.ErrInvalidTransition):
-			response.BadRequest(c, err.Error())
-		default:
-			response.InternalError(c, "状态流转失败")
-		}
-		return
-	}
-
-	response.Success(c, result)
-}
-
 // HandleAssignIssue 指派工单
 func (h *IssueHandler) HandleAssignIssue(c *gin.Context) {
 	key := c.Param("key")

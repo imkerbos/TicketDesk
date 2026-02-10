@@ -38,8 +38,12 @@ type WorkflowEngine interface {
 	Approve(ctx context.Context, instanceID, userID uint64, comment string) error
 	// 审批拒绝
 	Reject(ctx context.Context, instanceID, userID uint64, comment string) error
+	// 完成工作节点
+	Complete(ctx context.Context, instanceID, userID uint64, comment string) error
 	// 获取流转历史
 	GetHistory(ctx context.Context, instanceID uint64) ([]*dto.WorkflowHistoryResponse, error)
+	// 根据项目和工单类型查找工作流方案，如果存在则自动创建工作流实例
+	TryCreateInstanceForIssue(ctx context.Context, issueID, projectID, issueTypeID uint64) (*model.WorkflowInstance, error)
 }
 
 // workflowEngine 工作流引擎实现
@@ -50,6 +54,7 @@ type workflowEngine struct {
 	workflowRepo       repository.WorkflowRepository
 	nodeRepo           repository.NodeRepository
 	edgeRepo           repository.EdgeRepository
+	schemeRepo         repository.WorkflowSchemeRepository
 	projectRoleRepo    projectRepo.ProjectRoleRepository
 	userRepo           userRepo.UserRepository
 	db                 *gorm.DB
@@ -63,6 +68,7 @@ func NewWorkflowEngine(
 	workflowRepo repository.WorkflowRepository,
 	nodeRepo repository.NodeRepository,
 	edgeRepo repository.EdgeRepository,
+	schemeRepo repository.WorkflowSchemeRepository,
 	projectRoleRepo projectRepo.ProjectRoleRepository,
 	userRepo userRepo.UserRepository,
 	db *gorm.DB,
@@ -74,6 +80,7 @@ func NewWorkflowEngine(
 		workflowRepo:    workflowRepo,
 		nodeRepo:        nodeRepo,
 		edgeRepo:        edgeRepo,
+		schemeRepo:      schemeRepo,
 		projectRoleRepo: projectRoleRepo,
 		userRepo:        userRepo,
 		db:              db,
@@ -85,8 +92,13 @@ func (e *workflowEngine) CreateInstance(ctx context.Context, issueID, workflowID
 	// 获取工作流的开始节点
 	startNode, err := e.nodeRepo.GetStartNode(ctx, workflowID)
 	if err != nil {
-		logger.Error("failed to get start node", zap.Error(err))
-		return nil, fmt.Errorf("获取开始节点失败: %w", err)
+		// 如果开始节点不存在，自动补建开始和结束节点
+		logger.Warn("start node not found, auto-creating start/end nodes", zap.Uint64("workflow_id", workflowID))
+		startNode, err = e.ensureStartEndNodes(ctx, workflowID)
+		if err != nil {
+			logger.Error("failed to ensure start/end nodes", zap.Error(err))
+			return nil, fmt.Errorf("获取开始节点失败: %w", err)
+		}
 	}
 
 	// 创建工作流实例
@@ -117,10 +129,12 @@ func (e *workflowEngine) CreateInstance(ctx context.Context, issueID, workflowID
 		logger.Warn("failed to create workflow history", zap.Error(err))
 	}
 
-	// 自动流转到下一个节点
+	// 自动流转到下一个节点（如果失败，实例仍然保留在开始节点）
 	if err := e.moveToNextNode(ctx, instance, 0); err != nil {
-		logger.Error("failed to move to next node", zap.Error(err))
-		return nil, fmt.Errorf("流转到下一节点失败: %w", err)
+		logger.Warn("failed to move to next node, instance stays at start node",
+			zap.Uint64("instance_id", instance.ID),
+			zap.Error(err),
+		)
 	}
 
 	logger.Info("workflow instance created",
@@ -319,7 +333,65 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 		return fmt.Errorf("更新工作流实例失败: %w", err)
 	}
 
+	// 联动更新工单状态为 closed
+	closedAt := time.Now()
+	e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", instance.IssueID).Updates(map[string]interface{}{
+		"status":          "closed",
+		"closed_at":       closedAt,
+		"actual_end_date": closedAt,
+		"updated_at":      closedAt,
+	})
+
 	logger.Info("approval rejected",
+		zap.Uint64("instance_id", instanceID),
+		zap.Uint64("user_id", userID),
+	)
+
+	return nil
+}
+
+// Complete 完成工作节点，推进到下一个节点
+func (e *workflowEngine) Complete(ctx context.Context, instanceID, userID uint64, comment string) error {
+	instance, err := e.instanceRepo.GetByID(ctx, instanceID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrWorkflowInstanceNotFound
+		}
+		return fmt.Errorf("查询工作流实例失败: %w", err)
+	}
+
+	// 获取当前节点
+	currentNode, err := e.nodeRepo.GetByID(ctx, instance.CurrentNodeID)
+	if err != nil {
+		return fmt.Errorf("查询当前节点失败: %w", err)
+	}
+
+	// 检查节点类型（work 和 start 节点都可以完成）
+	if currentNode.NodeType != "work" && currentNode.NodeType != "start" {
+		return fmt.Errorf("当前节点不是工作节点，无法执行完成操作")
+	}
+
+	// 记录流转历史
+	now := time.Now()
+	history := &model.WorkflowHistory{
+		InstanceID: instanceID,
+		FromNodeID: &currentNode.ID,
+		ToNodeID:   currentNode.ID,
+		Action:     "complete",
+		OperatorID: userID,
+		Comment:    comment,
+		OperatedAt: now,
+	}
+	if err := e.historyRepo.Create(ctx, history); err != nil {
+		logger.Warn("failed to create workflow history", zap.Error(err))
+	}
+
+	// 流转到下一个节点
+	if err := e.moveToNextNode(ctx, instance, userID); err != nil {
+		return fmt.Errorf("流转到下一节点失败: %w", err)
+	}
+
+	logger.Info("work node completed",
 		zap.Uint64("instance_id", instanceID),
 		zap.Uint64("user_id", userID),
 	)
@@ -357,7 +429,11 @@ func (e *workflowEngine) moveToNextNode(ctx context.Context, instance *model.Wor
 			instance.Status = "completed"
 			completedAt := time.Now()
 			instance.CompletedAt = &completedAt
-			return e.instanceRepo.Update(ctx, instance)
+			if err := e.instanceRepo.Update(ctx, instance); err != nil {
+				return err
+			}
+			e.syncIssueStatus(ctx, instance.IssueID, currentNode)
+			return nil
 		}
 		return fmt.Errorf("当前节点没有出边")
 	}
@@ -390,6 +466,9 @@ func (e *workflowEngine) moveToNextNode(ctx context.Context, instance *model.Wor
 	if err := e.historyRepo.Create(ctx, history); err != nil {
 		logger.Warn("failed to create workflow history", zap.Error(err))
 	}
+
+	// 联动更新工单状态
+	e.syncIssueStatus(ctx, instance.IssueID, nextNode)
 
 	// 如果是审批节点，创建审批记录
 	if nextNode.NodeType == "approval" {
@@ -459,10 +538,20 @@ func (e *workflowEngine) resolveApprovers(ctx context.Context, instance *model.W
 
 	// 2. 按项目角色解析
 	if config.ApproverRole != "" {
-		// 需要获取项目 ID，这里需要从 issue 获取
-		// 简化处理：假设已经有项目 ID
-		// 实际应该通过 issue 查询项目
-		return nil, fmt.Errorf("角色解析功能待实现")
+		// 通过 issue 获取 project_id
+		var issue model.Issue
+		if err := e.db.WithContext(ctx).Select("project_id").Where("id = ?", instance.IssueID).First(&issue).Error; err != nil {
+			return nil, fmt.Errorf("查询工单项目失败: %w", err)
+		}
+
+		userIDs, err := e.projectRoleRepo.GetUserIDsByRoleKey(ctx, issue.ProjectID, config.ApproverRole)
+		if err != nil {
+			return nil, fmt.Errorf("查询角色成员失败: %w", err)
+		}
+		if len(userIDs) > 0 {
+			return userIDs, nil
+		}
+		return nil, ErrNoApproversConfigured
 	}
 
 	return nil, ErrNoApproversConfigured
@@ -612,4 +701,110 @@ func (e *workflowEngine) toNodeResponse(node *model.WorkflowNode) *dto.NodeRespo
 	}
 
 	return resp
+}
+
+// syncIssueStatus 根据工作流节点联动更新工单状态
+func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, node *model.WorkflowNode) {
+	// 优先使用节点配置中的 target_status
+	targetStatus := ""
+	if node.Config != "" && node.Config != "{}" {
+		var config dto.NodeConfig
+		if err := json.Unmarshal([]byte(node.Config), &config); err == nil && config.TargetStatus != "" {
+			targetStatus = config.TargetStatus
+		}
+	}
+
+	// 如果节点没有配置 target_status，使用默认映射
+	if targetStatus == "" {
+		switch node.NodeType {
+		case "approval":
+			targetStatus = "in_progress"
+		case "work":
+			targetStatus = "in_progress"
+		case "end":
+			targetStatus = "resolved"
+		default:
+			return // start、system 等节点不改变状态
+		}
+	}
+
+	now := time.Now()
+	updates := map[string]interface{}{
+		"status":     targetStatus,
+		"updated_at": now,
+	}
+
+	// 根据目标状态更新相关时间字段
+	switch targetStatus {
+	case "in_progress":
+		updates["actual_start_date"] = now
+	case "resolved":
+		updates["resolved_at"] = now
+		updates["actual_end_date"] = now
+		updates["resolution"] = "done"
+	case "closed":
+		updates["closed_at"] = now
+		updates["actual_end_date"] = now
+	}
+
+	if err := e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", issueID).Updates(updates).Error; err != nil {
+		logger.Warn("failed to sync issue status from workflow",
+			zap.Uint64("issue_id", issueID),
+			zap.String("target_status", targetStatus),
+			zap.Error(err),
+		)
+	} else {
+		logger.Info("issue status synced from workflow",
+			zap.Uint64("issue_id", issueID),
+			zap.String("target_status", targetStatus),
+			zap.String("node_type", node.NodeType),
+		)
+	}
+}
+
+// ensureStartEndNodes 确保工作流有开始和结束节点，如果没有则自动创建
+func (e *workflowEngine) ensureStartEndNodes(ctx context.Context, workflowID uint64) (*model.WorkflowNode, error) {
+	// 创建开始节点
+	startNode := &model.WorkflowNode{
+		WorkflowID: workflowID,
+		Name:       "开始",
+		NodeType:   "start",
+		Config:     "{}",
+		PositionX:  100,
+		PositionY:  200,
+	}
+	if err := e.nodeRepo.Create(ctx, startNode); err != nil {
+		return nil, fmt.Errorf("创建开始节点失败: %w", err)
+	}
+
+	// 检查是否有结束节点，没有则创建
+	endNodes, _ := e.nodeRepo.GetEndNodes(ctx, workflowID)
+	if len(endNodes) == 0 {
+		endNode := &model.WorkflowNode{
+			WorkflowID: workflowID,
+			Name:       "结束",
+			NodeType:   "end",
+			Config:     "{}",
+			PositionX:  500,
+			PositionY:  200,
+		}
+		if err := e.nodeRepo.Create(ctx, endNode); err != nil {
+			logger.Warn("failed to create end node", zap.Error(err))
+		}
+	}
+
+	return startNode, nil
+}
+
+// TryCreateInstanceForIssue 根据项目和工单类型查找工作流方案，如果存在则自动创建工作流实例
+func (e *workflowEngine) TryCreateInstanceForIssue(ctx context.Context, issueID, projectID, issueTypeID uint64) (*model.WorkflowInstance, error) {
+	// 查找工作流方案
+	scheme, err := e.schemeRepo.GetByProjectAndIssueType(ctx, projectID, issueTypeID)
+	if err != nil {
+		// 没有配置工作流方案，返回 nil（不是错误）
+		return nil, nil
+	}
+
+	// 创建工作流实例
+	return e.CreateInstance(ctx, issueID, scheme.WorkflowID)
 }

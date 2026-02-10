@@ -168,12 +168,6 @@ func handleRemoveWatcher(c *gin.Context) {
 	response.Success(c, gin.H{"message": "remove watcher endpoint", "key": c.Param("key"), "user_id": c.Param("user_id")})
 }
 
-// handleTransitionIssue 工单状态流转
-func handleTransitionIssue(c *gin.Context) {
-	// TODO: 实现工单状态流转
-	response.Success(c, gin.H{"message": "transition issue endpoint", "key": c.Param("key")})
-}
-
 // ============ Workflow Handlers ============
 
 // handleListWorkflows 获取工作流列表

@@ -162,6 +162,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		nodeRepository,
 		edgeRepository,
 		workflowSchemeRepository,
+		issueTypeRepository,
 	)
 
 	workflowEngine := workflowService.NewWorkflowEngine(
@@ -171,12 +172,18 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		workflowRepository,
 		nodeRepository,
 		edgeRepository,
+		workflowSchemeRepository,
 		projectRoleRepository,
 		userRepository,
 		db,
 	)
 
-	workflowHdl := workflowHandler.NewWorkflowHandler(workflowSvc, workflowEngine)
+	// ============ 初始化 Activity 模块（提前初始化，因为 WorkflowHandler 依赖它）============
+	activityRepository := activityRepo.NewActivityRepository(db)
+	activitySvc := activityService.NewActivityService(activityRepository)
+	activityHdl := activityHandler.NewActivityHandler(activitySvc)
+
+	workflowHdl := workflowHandler.NewWorkflowHandler(workflowSvc, workflowEngine, issueRepository, projectRepository, activitySvc)
 
 	// ============ 初始化 Alert 模块 ============
 	alertRepository := alertRepo.NewAlertRepository(db)
@@ -203,11 +210,6 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	reportRepository := reportRepo.NewReportRepository(db)
 	reportSvc := reportService.NewReportService(reportRepository, projectRepository)
 	reportHdl := reportHandler.NewReportHandler(reportSvc)
-
-	// ============ 初始化 Activity 模块 ============
-	activityRepository := activityRepo.NewActivityRepository(db)
-	activitySvc := activityService.NewActivityService(activityRepository)
-	activityHdl := activityHandler.NewActivityHandler(activitySvc)
 
 	// ============ 设置活动日志记录器（避免循环依赖）============
 	if issueServiceImpl, ok := issueSvc.(interface{ SetActivityLogger(issueService.ActivityLogger) }); ok {
@@ -546,6 +548,11 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 			notifChannels.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleDeleteChannel)
 			notifChannels.POST("/:id/test", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleTestChannel)
 		}
+
+		// 工作流方案管理
+		projects.GET("/:key/workflow-schemes", r.workflowHandler.HandleListSchemes)
+		projects.POST("/:key/workflow-schemes", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateScheme)
+		projects.DELETE("/:key/workflow-schemes/:type_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleDeleteScheme)
 	}
 }
 
@@ -564,8 +571,6 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 		issues.PUT("/:key", r.issueHandler.HandleUpdateIssue)
 		issues.DELETE("/:key", r.issueHandler.HandleDeleteIssue)
 
-		// 工单操作
-		issues.POST("/:key/transition", r.issueHandler.HandleTransitionIssue)
 		issues.POST("/:key/assign", r.issueHandler.HandleAssignIssue)
 
 		// Epic 相关
@@ -595,6 +600,13 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 		issues.GET("/:key/attachments", r.attachmentHandler.HandleListAttachments)
 		issues.DELETE("/:key/attachments/:id", r.attachmentHandler.HandleDeleteAttachment)
 		issues.GET("/:key/attachments/:id/download", r.attachmentHandler.HandleDownloadAttachment)
+
+		// 工作流实例（通过工单 key 访问）
+		issues.GET("/:key/workflow", r.workflowHandler.HandleGetInstanceByIssue)
+		issues.POST("/:key/workflow/approve", r.workflowHandler.HandleApprove)
+		issues.POST("/:key/workflow/reject", r.workflowHandler.HandleReject)
+		issues.POST("/:key/workflow/complete", r.workflowHandler.HandleComplete)
+		issues.GET("/:key/workflow/history", r.workflowHandler.HandleGetHistory)
 	}
 }
 

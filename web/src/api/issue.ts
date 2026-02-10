@@ -40,11 +40,6 @@ export const deleteIssue = (key: string) => {
   return request.delete(`/issues/${key}`)
 }
 
-// 工单状态流转
-export const transitionIssue = (key: string, status: string, comment?: string) => {
-  return request.post<ApiResponse<Issue>>(`/issues/${key}/transition`, { status, comment })
-}
-
 // 指派工单
 export const assignIssue = (key: string, assigneeId: number) => {
   return request.post(`/issues/${key}/assign`, { assignee_id: assigneeId })

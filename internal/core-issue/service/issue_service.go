@@ -28,7 +28,6 @@ var (
 	ErrCommentNotFound    = errors.New("评论不存在")
 	ErrAlreadyWatching    = errors.New("已经关注该工单")
 	ErrNotWatching        = errors.New("未关注该工单")
-	ErrInvalidTransition  = errors.New("无效的状态流转")
 	ErrWorklogNotFound    = errors.New("工作日志不存在")
 	ErrUnauthorized       = errors.New("无权限操作")
 	ErrInvalidTimeFormat  = errors.New("时间格式错误")
@@ -41,7 +40,6 @@ type IssueService interface {
 	UpdateIssue(ctx context.Context, key string, req *dto.UpdateIssueRequest) (*dto.IssueResponse, error)
 	DeleteIssue(ctx context.Context, key string) error
 	ListIssues(ctx context.Context, req *dto.ListIssuesRequest) ([]*dto.IssueResponse, int64, error)
-	TransitionIssue(ctx context.Context, key string, req *dto.TransitionIssueRequest, userID uint64) (*dto.IssueResponse, error)
 	AssignIssue(ctx context.Context, key string, assigneeID uint64) (*dto.IssueResponse, error)
 
 	// Dashboard 专用
@@ -92,6 +90,8 @@ type issueService struct {
 // WorkflowEngine 工作流引擎接口（避免循环依赖）
 type WorkflowEngine interface {
 	CreateInstance(ctx context.Context, issueID, workflowID uint64) (*model.WorkflowInstance, error)
+	// TryCreateInstanceForIssue 根据项目和工单类型查找工作流方案，如果存在则自动创建工作流实例
+	TryCreateInstanceForIssue(ctx context.Context, issueID, projectID, issueTypeID uint64) (*model.WorkflowInstance, error)
 }
 
 // ActivityLogger 活动日志记录器接口（避免循环依赖）
@@ -424,20 +424,24 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		"priority":     issue.Priority,
 	})
 
-	// TODO: 创建工作流实例（需要先实现工作流方案功能）
-	// 暂时跳过工作流实例创建，等工作流方案实现后再集成
-	// if s.workflowEngine != nil {
-	// 	// 根据项目和工单类型查找对应的工作流
-	// 	// workflowID := ...
-	// 	// instance, err := s.workflowEngine.CreateInstance(ctx, issue.ID, workflowID)
-	// 	// if err != nil {
-	// 	// 	logger.Warn("failed to create workflow instance", zap.Error(err))
-	// 	// } else {
-	// 	// 	// 更新工单的工作流实例 ID
-	// 	// 	issue.WorkflowInstanceID = &instance.ID
-	// 	// 	_ = s.issueRepo.Update(ctx, issue)
-	// 	// }
-	// }
+	// 创建工作流实例（根据项目+工单类型查找工作流方案）
+	if s.workflowEngine != nil {
+		instance, err := s.workflowEngine.TryCreateInstanceForIssue(ctx, issue.ID, project.ID, issue.IssueTypeID)
+		if err != nil {
+			logger.Warn("failed to create workflow instance", zap.Error(err), zap.String("issue_key", issue.IssueKey))
+		} else if instance != nil {
+			// 重新读取工单（工作流引擎可能已联动更新了状态），避免覆盖
+			if freshIssue, err := s.issueRepo.GetByID(ctx, issue.ID); err == nil {
+				freshIssue.WorkflowInstanceID = &instance.ID
+				_ = s.issueRepo.Update(ctx, freshIssue)
+				issue = freshIssue // 用最新数据返回
+			}
+			logger.Info("workflow instance created for issue",
+				zap.String("issue_key", issue.IssueKey),
+				zap.Uint64("instance_id", instance.ID),
+			)
+		}
+	}
 
 	logger.Info("issue created successfully",
 		zap.String("issue_key", issue.IssueKey),
@@ -871,123 +875,6 @@ func (s *issueService) ListIssuesInEpic(ctx context.Context, epicKey string) ([]
 	return responses, nil
 }
 
-// TransitionIssue 工单状态流转
-func (s *issueService) TransitionIssue(ctx context.Context, key string, req *dto.TransitionIssueRequest, userID uint64) (*dto.IssueResponse, error) {
-	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(key))
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrIssueNotFound
-		}
-		return nil, fmt.Errorf("查询工单失败: %w", err)
-	}
-
-	// 验证状态流转
-	if !isValidTransition(issue.Status, req.Status) {
-		return nil, ErrInvalidTransition
-	}
-
-	now := time.Now()
-	issue.Status = req.Status
-
-	// 更新相关时间字段
-	switch req.Status {
-	case "in_progress":
-		if issue.ActualStartDate == nil {
-			issue.ActualStartDate = &now // 仅首次进入时记录
-		}
-	case "resolved":
-		issue.ResolvedAt = &now
-	case "closed":
-		issue.ClosedAt = &now
-		issue.ActualEndDate = &now
-	case "reopened":
-		issue.Status = "open"
-		issue.ResolvedAt = nil
-		issue.ClosedAt = nil
-		issue.ActualEndDate = nil // 重新打开时清除实际完成时间
-	}
-
-	if err := s.issueRepo.Update(ctx, issue); err != nil {
-		return nil, fmt.Errorf("更新工单状态失败: %w", err)
-	}
-
-	// 同步告警状态
-	if s.alertSyncSvc != nil {
-		if err := s.alertSyncSvc.SyncIssueStatus(ctx, issue.ID, issue.Status); err != nil {
-			logger.Error("failed to sync alert status",
-				zap.Uint64("issue_id", issue.ID),
-				zap.String("issue_status", issue.Status),
-				zap.Error(err),
-			)
-			// 不中断工单状态更新流程
-		}
-	}
-
-	// 添加状态变更评论
-	if req.Comment != "" {
-		comment := &model.IssueComment{
-			IssueID: issue.ID,
-			UserID:  userID,
-			Content: fmt.Sprintf("[状态变更为 %s] %s", req.Status, req.Comment),
-		}
-		_ = s.commentRepo.Create(ctx, comment)
-	}
-
-	// 记录活动日志
-	user, _ := s.userRepo.GetByID(ctx, userID)
-	userName := ""
-	if user != nil {
-		userName = user.DisplayName
-		if userName == "" {
-			userName = user.Username
-		}
-		actionText := s.getStatusActionText(req.Status)
-		s.logActivity(ctx, userID, user.Username, actionText, issue.IssueKey, "", issue.ID)
-	}
-
-	// 通知：关注者和创建者
-	statusText := s.getStatusActionText(req.Status)
-	notifTitle := fmt.Sprintf("工单 %s %s", issue.IssueKey, statusText)
-	s.notifyWatchers(issue, userID, userID, userName, "issue_status_changed", notifTitle, issue.Title)
-
-	// 通知创建者（如果不是操作人且不在关注者中）
-	if issue.ReporterID != userID {
-		s.sendNotification(userID, userName, &NotificationRequest{
-			UserID:     issue.ReporterID,
-			Type:       "issue_status_changed",
-			Title:      fmt.Sprintf("您创建的工单 %s %s", issue.IssueKey, statusText),
-			Content:    issue.Title,
-			EntityType: "issue",
-			EntityID:   issue.ID,
-			EntityKey:  issue.IssueKey,
-		})
-	}
-
-	project, _ := s.projectRepo.GetByID(ctx, issue.ProjectID)
-	projectKey := ""
-	if project != nil {
-		projectKey = project.ProjectKey
-	}
-
-	// 通知项目外部渠道（飞书/Telegram）
-	if project != nil {
-		s.notifyProjectChannels(project.ID, "issue.transitioned", map[string]interface{}{
-			"issue_key":    issue.IssueKey,
-			"issue_title":  issue.Title,
-			"project_name": project.Name,
-			"status":       req.Status,
-			"priority":     issue.Priority,
-		})
-	}
-
-	logger.Info("issue transitioned successfully",
-		zap.String("issue_key", key),
-		zap.String("new_status", req.Status),
-	)
-
-	return s.toIssueResponse(ctx, issue, projectKey), nil
-}
-
 // AssignIssue 指派工单
 func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID uint64) (*dto.IssueResponse, error) {
 	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(key))
@@ -1348,43 +1235,6 @@ func (s *issueService) ListWatchers(ctx context.Context, issueKey string) ([]*dt
 	}
 
 	return responses, nil
-}
-
-// isValidTransition 验证状态流转是否有效
-func isValidTransition(from, to string) bool {
-	validTransitions := map[string][]string{
-		"open":        {"in_progress", "resolved", "closed"},
-		"in_progress": {"open", "resolved", "closed"},
-		"resolved":    {"closed", "reopened"},
-		"closed":      {"reopened"},
-	}
-
-	allowed, ok := validTransitions[from]
-	if !ok {
-		return false
-	}
-
-	for _, s := range allowed {
-		if s == to {
-			return true
-		}
-	}
-	return false
-}
-
-// getStatusActionText 获取状态对应的动作文本
-func (s *issueService) getStatusActionText(status string) string {
-	statusActions := map[string]string{
-		"open":        "打开了工单",
-		"in_progress": "开始处理工单",
-		"resolved":    "解决了工单",
-		"closed":      "关闭了工单",
-		"reopened":    "重新打开了工单",
-	}
-	if action, ok := statusActions[status]; ok {
-		return action
-	}
-	return "更新了工单状态"
 }
 
 // mentionRegex 匹配 @username 格式的提及

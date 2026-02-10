@@ -42,12 +42,6 @@ type UpdateIssueRequest struct {
 	CustomFields     []CustomFieldValue `json:"custom_fields"`
 }
 
-// TransitionIssueRequest 工单状态流转请求
-type TransitionIssueRequest struct {
-	Status  string `json:"status" binding:"required,oneof=open in_progress resolved closed reopened"`
-	Comment string `json:"comment" binding:"max=1000"`
-}
-
 // ListIssuesRequest 工单列表请求
 type ListIssuesRequest struct {
 	Page        int     `form:"page" binding:"omitempty,min=1"`

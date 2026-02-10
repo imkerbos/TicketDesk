@@ -39,8 +39,8 @@
           <el-select v-model="queryParams.status" placeholder="状态" clearable class="filter-select" @change="handleQuery">
             <el-option label="待处理" value="open" />
             <el-option label="进行中" value="in_progress" />
-            <el-option label="已解决" value="resolved" />
-            <el-option label="已关闭" value="closed" />
+            <el-option label="已完成" value="resolved" />
+            <el-option label="已终止" value="closed" />
             <el-option label="已合并" value="merged" />
           </el-select>
           <el-select v-model="queryParams.priority" placeholder="优先级" clearable class="filter-select-sm" @change="handleQuery">
@@ -371,7 +371,7 @@ const kanbanColumns = computed<KanbanColumn[]>(() => {
   const columns: KanbanColumn[] = [
     { status: 'open', label: '待处理', issues: [] },
     { status: 'in_progress', label: '进行中', issues: [] },
-    { status: 'resolved', label: '已解决', issues: [] },
+    { status: 'resolved', label: '已完成', issues: [] },
   ]
   issueList.value.forEach((issue) => {
     const column = columns.find((c) => c.status === issue.status)
@@ -553,16 +553,11 @@ const submitCreate = async () => {
           value: value,
         }))
 
-      console.log('=== 创建工单调试 ===')
-      console.log('customFieldValues.value:', customFieldValues.value)
-      console.log('customFields:', customFields)
-
       const requestData: CreateIssueRequest = {
         ...createForm,
         issue_type_id: createForm.issue_type_id,
         custom_fields: customFields.length > 0 ? customFields : undefined,
       }
-      console.log('requestData:', requestData)
       const { data } = await createIssue(requestData)
       ElMessage.success('创建成功')
       createDialogVisible.value = false
@@ -581,7 +576,7 @@ const getPriorityType = (priority: string): TagType => {
   return map[priority] || 'info'
 }
 const getStatusText = (status: string) => {
-  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已解决', closed: '已关闭', merged: '已合并' }
+  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已完成', closed: '已终止', merged: '已合并' }
   return map[status] || status
 }
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')

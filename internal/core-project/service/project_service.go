@@ -187,6 +187,19 @@ func (s *projectService) CreateProject(ctx context.Context, req *dto.CreateProje
 		}
 	}
 
+	// 模版项目：初始化字段方案和工作流方案；空项目跳过
+	if req.Template != "blank" {
+		// 初始化项目字段方案
+		if err := model.InitProjectFieldSchemes(s.db, project.ID); err != nil {
+			logger.Warn("failed to init project field schemes", zap.Error(err))
+		}
+
+		// 初始化项目工作流方案
+		if err := model.InitProjectWorkflowSchemes(s.db, project.ID); err != nil {
+			logger.Warn("failed to init project workflow schemes", zap.Error(err))
+		}
+	}
+
 	logger.Info("project created successfully",
 		zap.Uint64("project_id", project.ID),
 		zap.String("project_key", project.ProjectKey),

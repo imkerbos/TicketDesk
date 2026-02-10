@@ -118,3 +118,88 @@ export interface CreateEdgeRequest {
 export interface UpdateEdgeRequest {
   condition_expr?: string
 }
+
+// ============ 工作流实例相关类型 ============
+
+// 工作流实例状态
+export type WorkflowInstanceStatus = 'active' | 'completed' | 'cancelled'
+
+// 审批记录状态
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+// 工作流实例
+export interface WorkflowInstance {
+  id: number
+  issue_id: number
+  issue_key?: string
+  workflow_id: number
+  workflow_name?: string
+  current_node_id: number
+  current_node?: WorkflowNode
+  status: WorkflowInstanceStatus
+  started_at: string
+  completed_at?: string
+  approvals?: ApprovalRecord[]
+  created_at: string
+  updated_at: string
+}
+
+// 审批记录
+export interface ApprovalRecord {
+  id: number
+  instance_id: number
+  node_id: number
+  approver_id: number
+  approver_name?: string
+  status: ApprovalStatus
+  comment: string
+  approved_at?: string
+  created_at: string
+  updated_at: string
+}
+
+// 流转历史
+export interface WorkflowHistory {
+  id: number
+  instance_id: number
+  from_node_id?: number
+  from_node?: WorkflowNode
+  to_node_id: number
+  to_node?: WorkflowNode
+  action: string
+  operator_id: number
+  operator_name?: string
+  comment: string
+  operated_at: string
+  created_at: string
+}
+
+// 工作流方案
+export interface WorkflowScheme {
+  id: number
+  project_id: number
+  issue_type_id: number
+  issue_type_name?: string
+  workflow_id: number
+  workflow_name?: string
+  created_at: string
+  updated_at: string
+}
+
+// ============ 工作流实例请求类型 ============
+
+// 审批通过请求
+export interface ApproveRequest {
+  comment?: string
+}
+
+// 审批拒绝请求
+export interface RejectRequest {
+  comment: string
+}
+
+// 创建工作流方案请求
+export interface CreateWorkflowSchemeRequest {
+  issue_type_id: number
+  workflow_id: number
+}

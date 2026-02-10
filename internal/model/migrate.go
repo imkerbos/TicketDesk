@@ -124,6 +124,7 @@ func SeedData(db *gorm.DB) error {
 	issueTypes := []IssueType{
 		{Name: "Epic", DisplayName: "Epic", Description: "阶段性目标/大型需求", Icon: "lightning", Color: "#6554C0"},
 		{Name: "Task", DisplayName: "任务", Description: "普通任务", Icon: "check-square", Color: "#4FADE6"},
+		{Name: "Subtask", DisplayName: "子任务", Description: "子任务", Icon: "minus-square", Color: "#4FADE6"},
 		{Name: "Bug", DisplayName: "缺陷", Description: "研发缺陷", Icon: "bug", Color: "#E5493A"},
 		{Name: "Fault", DisplayName: "故障", Description: "生产故障/告警工单", Icon: "alert-triangle", Color: "#FF5630"},
 		{Name: "Change", DisplayName: "变更", Description: "变更工单", Icon: "git-branch", Color: "#36B37E"},
@@ -205,6 +206,16 @@ func SeedData(db *gorm.DB) error {
 	// 初始化系统字段
 	if err := SeedSystemFields(db); err != nil {
 		return err
+	}
+
+	// 初始化默认工作流
+	if err := SeedDefaultWorkflows(db); err != nil {
+		return err
+	}
+
+	// 为已有项目初始化工作流方案（幂等）
+	if err := seedExistingProjectWorkflowSchemes(db); err != nil {
+		logger.Warn("failed to seed workflow schemes for existing projects", zap.Error(err))
 	}
 
 	logger.Info("seed data completed")
@@ -522,6 +533,11 @@ func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
 			{FieldKey: "labels", IsRequired: false, SortOrder: 2},
 			{FieldKey: "components", IsRequired: false, SortOrder: 3},
 		},
+		"Subtask": {
+			{FieldKey: "original_estimate", IsRequired: false, SortOrder: 1},
+			{FieldKey: "remaining_estimate", IsRequired: false, SortOrder: 2},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 3},
+		},
 	}
 
 	// 为每个工单类型创建字段方案
@@ -562,5 +578,22 @@ func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
 	}
 
 	logger.Info("project field schemes initialized", zap.Uint64("project_id", projectID))
+	return nil
+}
+
+// seedExistingProjectWorkflowSchemes 为已有项目初始化工作流方案
+func seedExistingProjectWorkflowSchemes(db *gorm.DB) error {
+	var projects []Project
+	if err := db.Find(&projects).Error; err != nil {
+		return err
+	}
+
+	for _, project := range projects {
+		if err := InitProjectWorkflowSchemes(db, project.ID); err != nil {
+			logger.Warn("failed to init workflow schemes for project",
+				zap.Uint64("project_id", project.ID),
+				zap.Error(err))
+		}
+	}
 	return nil
 }

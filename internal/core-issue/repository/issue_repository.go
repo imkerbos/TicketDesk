@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/kerbos/ticketdesk/internal/model"
@@ -129,13 +130,21 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 	return issues, total, nil
 }
 
-// GetNextIssueNumber 获取项目下一个工单编号
+// GetNextIssueNumber 获取项目下一个工单编号（包含软删除记录，避免唯一键冲突）
 func (r *issueRepository) GetNextIssueNumber(ctx context.Context, projectID uint64) (int64, error) {
-	var maxNum int64
-	err := r.db.WithContext(ctx).Model(&model.Issue{}).
+	var maxNum sql.NullInt64
+	// 从 issue_key 中提取最大序号，格式为 "PROJECT-123"
+	err := r.db.WithContext(ctx).Unscoped().Model(&model.Issue{}).
 		Where("project_id = ?", projectID).
-		Count(&maxNum).Error
-	return maxNum + 1, err
+		Select("MAX(CAST(SUBSTRING_INDEX(issue_key, '-', -1) AS UNSIGNED))").
+		Scan(&maxNum).Error
+	if err != nil {
+		return 0, err
+	}
+	if !maxNum.Valid {
+		return 1, nil
+	}
+	return maxNum.Int64 + 1, nil
 }
 
 // ListByIDs 根据 ID 列表批量查询工单

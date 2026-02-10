@@ -406,6 +406,67 @@
             </div>
           </div>
         </el-tab-pane>
+
+        <!-- 工作流配置 -->
+        <el-tab-pane name="workflow">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Connection /></el-icon>
+              工作流配置
+            </span>
+          </template>
+          <div v-loading="schemesLoading" class="tab-content">
+            <div class="section-header">
+              <div class="section-title">
+                <el-icon><Connection /></el-icon>
+                <span>工作流方案</span>
+                <el-tag size="small" type="info" style="margin-left: 8px">{{ schemes.length }} 个</el-tag>
+              </div>
+              <el-button type="primary" @click="openSchemeDialog">
+                <el-icon><Plus /></el-icon>
+                添加配置
+              </el-button>
+            </div>
+
+            <div class="workflow-scheme-tip">
+              <el-icon><InfoFilled /></el-icon>
+              <span>工作流方案将工单类型与工作流绑定。创建对应类型的工单时，会自动启动关联的工作流实例。</span>
+            </div>
+
+            <div v-if="schemes.length > 0" class="schemes-list">
+              <div v-for="scheme in schemes" :key="scheme.id" class="scheme-row">
+                <div class="scheme-row-left">
+                  <div class="scheme-type-icon" :style="{ background: getIssueTypeColor(scheme.issue_type_id) }">
+                    <el-icon><Tickets /></el-icon>
+                  </div>
+                  <div class="scheme-row-info">
+                    <div class="scheme-row-name">
+                      <span class="scheme-type-name">{{ scheme.issue_type_name || `类型#${scheme.issue_type_id}` }}</span>
+                      <el-icon class="scheme-arrow"><ArrowLeft style="transform: rotate(180deg)" /></el-icon>
+                      <span class="scheme-workflow-name">{{ scheme.workflow_name || `工作流#${scheme.workflow_id}` }}</span>
+                    </div>
+                    <div class="scheme-row-detail">
+                      创建于 {{ formatSchemeTime(scheme.created_at) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="scheme-row-right">
+                  <el-button size="small" type="danger" plain @click="handleDeleteScheme(scheme)">
+                    <el-icon><Delete /></el-icon>
+                    删除
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <el-empty v-if="!schemesLoading && schemes.length === 0" description="暂未配置工作流方案">
+              <el-button type="primary" @click="openSchemeDialog">
+                <el-icon><Plus /></el-icon>
+                添加第一个配置
+              </el-button>
+            </el-empty>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -697,6 +758,56 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 添加工作流方案对话框 -->
+    <el-dialog v-model="schemeDialogVisible" title="添加工作流配置" width="520px" destroy-on-close class="custom-dialog">
+      <el-form ref="schemeFormRef" :model="schemeForm" :rules="schemeRules" label-width="100px">
+        <el-form-item label="工单类型" prop="issue_type_id">
+          <el-select v-model="schemeForm.issue_type_id" placeholder="请选择工单类型" style="width: 100%">
+            <el-option
+              v-for="t in availableIssueTypes"
+              :key="t.id"
+              :label="t.display_name"
+              :value="t.id"
+            >
+              <div class="scheme-option">
+                <div class="scheme-option-icon" :style="{ background: t.color || '#3b82f6' }">
+                  <el-icon :size="14"><component :is="getIssueTypeIcon(t.icon)" /></el-icon>
+                </div>
+                <span>{{ t.display_name }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="工作流" prop="workflow_id">
+          <el-select v-model="schemeForm.workflow_id" placeholder="请选择工作流" style="width: 100%" filterable>
+            <el-option
+              v-for="w in allWorkflows"
+              :key="w.id"
+              :label="w.name"
+              :value="w.id"
+            >
+              <div class="scheme-option">
+                <div class="scheme-option-icon workflow">
+                  <el-icon :size="14"><Connection /></el-icon>
+                </div>
+                <div class="scheme-option-info">
+                  <span class="scheme-option-name">{{ w.name }}</span>
+                  <span v-if="w.description" class="scheme-option-desc">{{ w.description }}</span>
+                </div>
+              </div>
+            </el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="schemeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="schemeSubmitLoading" @click="submitScheme">
+          <el-icon><Check /></el-icon>
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -753,6 +864,8 @@ import {
   deleteNotificationChannel,
   testNotificationChannel,
 } from '@/api/project'
+import { getWorkflowSchemes, createWorkflowScheme, deleteWorkflowScheme, getWorkflowList } from '@/api/workflow'
+import type { WorkflowScheme, Workflow } from '@/types/workflow'
 import { getAllUsers } from '@/api/user'
 import type {
   ProjectMember,
@@ -1096,6 +1209,110 @@ const maskUrl = (url: string | undefined) => {
   }
 }
 
+// 工作流方案
+const schemesLoading = ref(false)
+const schemes = ref<WorkflowScheme[]>([])
+const allWorkflows = ref<Workflow[]>([])
+const schemeDialogVisible = ref(false)
+const schemeSubmitLoading = ref(false)
+const schemeFormRef = ref<FormInstance>()
+const schemeForm = reactive({
+  issue_type_id: undefined as number | undefined,
+  workflow_id: undefined as number | undefined,
+})
+const schemeRules: FormRules = {
+  issue_type_id: [{ required: true, message: '请选择工单类型', trigger: 'change' }],
+  workflow_id: [{ required: true, message: '请选择工作流', trigger: 'change' }],
+}
+
+// 已绑定的工单类型不再显示
+const availableIssueTypes = computed(() => {
+  const boundTypeIds = schemes.value.map((s) => s.issue_type_id)
+  return issueTypes.value.filter((t) => !boundTypeIds.includes(t.id))
+})
+
+const loadSchemes = async () => {
+  schemesLoading.value = true
+  try {
+    const { data } = await getWorkflowSchemes(projectKey.value)
+    schemes.value = (data as any).data || []
+  } catch (error) {
+    console.error('Failed to load workflow schemes:', error)
+  } finally {
+    schemesLoading.value = false
+  }
+}
+
+const loadAllWorkflows = async () => {
+  try {
+    const { data } = await getWorkflowList()
+    allWorkflows.value = (data as any).data?.items || []
+  } catch (error) {
+    console.error('Failed to load workflows:', error)
+  }
+}
+
+const openSchemeDialog = () => {
+  schemeForm.issue_type_id = undefined
+  schemeForm.workflow_id = undefined
+  // 确保工作流列表已加载
+  if (allWorkflows.value.length === 0) {
+    loadAllWorkflows()
+  }
+  schemeDialogVisible.value = true
+}
+
+const submitScheme = async () => {
+  if (!schemeFormRef.value) return
+  await schemeFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    schemeSubmitLoading.value = true
+    try {
+      await createWorkflowScheme(projectKey.value, {
+        issue_type_id: schemeForm.issue_type_id!,
+        workflow_id: schemeForm.workflow_id!,
+      })
+      ElMessage.success('工作流配置添加成功')
+      schemeDialogVisible.value = false
+      loadSchemes()
+    } catch (error) {
+      console.error('Failed to create workflow scheme:', error)
+    } finally {
+      schemeSubmitLoading.value = false
+    }
+  })
+}
+
+const handleDeleteScheme = async (scheme: WorkflowScheme) => {
+  const typeName = scheme.issue_type_name || `类型#${scheme.issue_type_id}`
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除工单类型 "${typeName}" 的工作流配置吗？删除后该类型的新工单将不再自动启动工作流。`,
+      '删除确认',
+      { type: 'warning' }
+    )
+    await deleteWorkflowScheme(projectKey.value, scheme.issue_type_id)
+    ElMessage.success('删除成功')
+    loadSchemes()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete workflow scheme:', error)
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+const getIssueTypeColor = (typeId: number) => {
+  const t = issueTypes.value.find((it) => it.id === typeId)
+  return t?.color || '#3b82f6'
+}
+
+const formatSchemeTime = (time: string) => {
+  if (!time) return '-'
+  const d = new Date(time)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const saveBasicInfo = async () => {
   if (!basicFormRef.value) return
   await basicFormRef.value.validate(async (valid) => {
@@ -1368,6 +1585,8 @@ onMounted(() => {
   loadRoles()
   loadIssueTypes()
   loadChannels()
+  loadSchemes()
+  loadAllWorkflows()
 })
 </script>
 
@@ -2397,6 +2616,154 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+// 工作流方案
+.workflow-scheme-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #0369a1;
+  line-height: 1.5;
+
+  .el-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 16px;
+  }
+}
+
+.schemes-list {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.scheme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  transition: background 0.15s;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  &:hover {
+    background: #f9fafb;
+  }
+}
+
+.scheme-row-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.scheme-type-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.scheme-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.scheme-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+
+  .scheme-type-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .scheme-arrow {
+    color: #9ca3af;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .scheme-workflow-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #667eea;
+  }
+}
+
+.scheme-row-detail {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.scheme-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+.scheme-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.scheme-option-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+
+  &.workflow {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  }
+}
+
+.scheme-option-info {
+  display: flex;
+  flex-direction: column;
+
+  .scheme-option-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+  }
+
+  .scheme-option-desc {
+    font-size: 12px;
+    color: #9ca3af;
+    line-height: 1.3;
+  }
 }
 </style>
 

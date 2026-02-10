@@ -419,8 +419,8 @@ const getIssueStatusLabel = (status: string) => {
   const map: Record<string, string> = {
     open: '待处理',
     'in-progress': '进行中',
-    resolved: '已解决',
-    closed: '已关闭',
+    resolved: '已完成',
+    closed: '已终止',
     reopened: '重新打开',
   }
   return map[status] || status

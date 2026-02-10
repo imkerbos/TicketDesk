@@ -40,6 +40,7 @@ export interface CreateProjectRequest {
   name: string
   description?: string
   lead_user_id?: number
+  template?: 'standard' | 'blank' // standard=模版项目（默认），blank=空项目
 }
 
 export interface UpdateProjectRequest {
