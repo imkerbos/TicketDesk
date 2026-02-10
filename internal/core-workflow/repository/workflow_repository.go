@@ -428,6 +428,7 @@ type WorkflowSchemeRepository interface {
 	Update(ctx context.Context, scheme *model.WorkflowScheme) error
 	Delete(ctx context.Context, id uint64) error
 	DeleteByProjectAndIssueType(ctx context.Context, projectID, issueTypeID uint64) error
+	HardDeleteByProjectAndIssueType(ctx context.Context, projectID, issueTypeID uint64) error
 	ListByProject(ctx context.Context, projectID uint64) ([]*model.WorkflowScheme, error)
 }
 
@@ -479,6 +480,11 @@ func (r *workflowSchemeRepository) Delete(ctx context.Context, id uint64) error 
 // DeleteByProjectAndIssueType 根据项目和工单类型删除工作流方案
 func (r *workflowSchemeRepository) DeleteByProjectAndIssueType(ctx context.Context, projectID, issueTypeID uint64) error {
 	return r.db.WithContext(ctx).Where("project_id = ? AND issue_type_id = ?", projectID, issueTypeID).Delete(&model.WorkflowScheme{}).Error
+}
+
+// HardDeleteByProjectAndIssueType 根据项目和工单类型硬删除工作流方案（包括软删除的记录）
+func (r *workflowSchemeRepository) HardDeleteByProjectAndIssueType(ctx context.Context, projectID, issueTypeID uint64) error {
+	return r.db.WithContext(ctx).Unscoped().Where("project_id = ? AND issue_type_id = ? AND deleted_at IS NOT NULL", projectID, issueTypeID).Delete(&model.WorkflowScheme{}).Error
 }
 
 // ListByProject 获取项目的所有工作流方案

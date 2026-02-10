@@ -574,10 +574,15 @@ func (s *workflowService) toEdgeResponse(edge *model.WorkflowEdge) *dto.EdgeResp
 
 // CreateScheme 创建工作流方案
 func (s *workflowService) CreateScheme(ctx context.Context, projectID uint64, req *dto.CreateWorkflowSchemeRequest) (*dto.WorkflowSchemeResponse, error) {
-	// 检查是否已存在方案
+	// 检查是否已存在方案（未删除的）
 	existing, err := s.schemeRepo.GetByProjectAndIssueType(ctx, projectID, req.IssueTypeID)
 	if err == nil && existing != nil {
 		return nil, ErrSchemeExists
+	}
+
+	// 清理可能存在的软删除记录，避免唯一索引冲突
+	if err := s.schemeRepo.HardDeleteByProjectAndIssueType(ctx, projectID, req.IssueTypeID); err != nil {
+		logger.Error("failed to hard delete soft-deleted workflow scheme", zap.Error(err))
 	}
 
 	// 验证工作流是否存在
