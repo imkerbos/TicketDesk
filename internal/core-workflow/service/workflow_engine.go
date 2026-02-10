@@ -197,9 +197,24 @@ func (e *workflowEngine) Approve(ctx context.Context, instanceID, userID uint64,
 	record, err := e.approvalRepo.GetByInstanceNodeAndApprover(ctx, instanceID, currentNode.ID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrNotApprover
+			// 如果用户不是指定审批人，检查是否为系统管理员或项目管理员
+			if !e.isAdminOrProjectLead(ctx, userID, instance.IssueID) {
+				return ErrNotApprover
+			}
+			// 管理员：自动创建审批记录以便流程正常推进
+			record = &model.ApprovalRecord{
+				InstanceID: instanceID,
+				NodeID:     currentNode.ID,
+				ApproverID: userID,
+				Status:     "pending",
+			}
+			if createErr := e.approvalRepo.Create(ctx, record); createErr != nil {
+				logger.Error("failed to create admin approval record", zap.Error(createErr))
+				return fmt.Errorf("创建管理员审批记录失败: %w", createErr)
+			}
+		} else {
+			return fmt.Errorf("查询审批记录失败: %w", err)
 		}
-		return fmt.Errorf("查询审批记录失败: %w", err)
 	}
 
 	// 检查是否已审批
@@ -288,9 +303,24 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 	record, err := e.approvalRepo.GetByInstanceNodeAndApprover(ctx, instanceID, currentNode.ID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrNotApprover
+			// 如果用户不是指定审批人，检查是否为系统管理员或项目管理员
+			if !e.isAdminOrProjectLead(ctx, userID, instance.IssueID) {
+				return ErrNotApprover
+			}
+			// 管理员：自动创建审批记录以便流程正常推进
+			record = &model.ApprovalRecord{
+				InstanceID: instanceID,
+				NodeID:     currentNode.ID,
+				ApproverID: userID,
+				Status:     "pending",
+			}
+			if createErr := e.approvalRepo.Create(ctx, record); createErr != nil {
+				logger.Error("failed to create admin approval record for reject", zap.Error(createErr))
+				return fmt.Errorf("创建管理员审批记录失败: %w", createErr)
+			}
+		} else {
+			return fmt.Errorf("查询审批记录失败: %w", err)
 		}
-		return fmt.Errorf("查询审批记录失败: %w", err)
 	}
 
 	// 检查是否已审批
@@ -807,4 +837,33 @@ func (e *workflowEngine) TryCreateInstanceForIssue(ctx context.Context, issueID,
 
 	// 创建工作流实例
 	return e.CreateInstance(ctx, issueID, scheme.WorkflowID)
+}
+
+// isAdminOrProjectLead 检查用户是否为系统管理员或项目管理员/负责人
+// 系统管理员和项目管理员可以审批/完成任何工作流节点
+func (e *workflowEngine) isAdminOrProjectLead(ctx context.Context, userID uint64, issueID uint64) bool {
+	// 1. 检查是否为系统管理员（通过 user_roles 表关联的 roles 表）
+	var adminCount int64
+	e.db.WithContext(ctx).
+		Table("user_roles").
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("user_roles.user_id = ? AND roles.name = ?", userID, "admin").
+		Count(&adminCount)
+	if adminCount > 0 {
+		return true
+	}
+
+	// 2. 检查是否为项目管理员/负责人（通过 project_members 表）
+	var issue model.Issue
+	if err := e.db.WithContext(ctx).Select("project_id").First(&issue, issueID).Error; err != nil {
+		return false
+	}
+
+	var memberCount int64
+	e.db.WithContext(ctx).
+		Table("project_members").
+		Where("user_id = ? AND project_id = ? AND role IN ?", userID, issue.ProjectID, []string{"owner", "admin"}).
+		Count(&memberCount)
+
+	return memberCount > 0
 }
