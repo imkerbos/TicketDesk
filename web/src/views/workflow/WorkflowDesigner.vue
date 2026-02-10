@@ -238,7 +238,15 @@ const convertBackendNodeToFlow = (node: WorkflowNode): Node => {
   }
 }
 
+// 预设条件的显示名称映射
+const presetConditionLabels: Record<string, string> = {
+  approved: '通过',
+  rejected: '拒绝',
+}
+
 const convertBackendEdgeToFlow = (edge: WorkflowEdge): Edge => {
+  // 将条件表达式转为友好标签：预设条件用中文，自定义条件直接显示
+  const conditionLabel = presetConditionLabels[edge.condition_expr] || edge.condition_expr || ''
   return {
     id: String(edge.id),
     source: String(edge.source_node_id),
@@ -250,7 +258,7 @@ const convertBackendEdgeToFlow = (edge: WorkflowEdge): Edge => {
       type: MarkerType.ArrowClosed,
       color: '#94a3b8',
     },
-    label: edge.condition_expr || '',
+    label: conditionLabel,
     data: {
       conditionExpr: edge.condition_expr || '',
       backendId: edge.id,
@@ -390,12 +398,14 @@ const onNodeConfigUpdate = (payload: { id: string; name: string; config: NodeCon
   }
 }
 
-const onEdgeConfigUpdate = (payload: { id: string; conditionExpr: string }) => {
+const onEdgeConfigUpdate = (payload: { id: string; conditionExpr: string; label?: string }) => {
   const idx = edges.value.findIndex(e => e.id === payload.id)
   if (idx === -1) return
 
   const updated = { ...edges.value[idx] }
-  updated.label = payload.conditionExpr || ''
+  // 使用显式标签，如果没有则用条件表达式的友好名称
+  const conditionLabel = presetConditionLabels[payload.conditionExpr] || payload.conditionExpr
+  updated.label = payload.label || conditionLabel || ''
   updated.data = {
     ...updated.data,
     conditionExpr: payload.conditionExpr,

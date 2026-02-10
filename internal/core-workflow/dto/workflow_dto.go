@@ -155,6 +155,12 @@ type RejectRequest struct {
 	Comment string `json:"comment" binding:"required,max=1000"`
 }
 
+// CompleteRequest 完成工作节点请求
+type CompleteRequest struct {
+	Comment string `json:"comment" binding:"max=1000"`
+	Result  string `json:"result"` // 条件表达式值（如 approved, rejected, 或自定义条件名称），空=默认流转
+}
+
 // WorkflowInstanceResponse 工作流实例响应
 type WorkflowInstanceResponse struct {
 	ID            uint64                    `json:"id"`

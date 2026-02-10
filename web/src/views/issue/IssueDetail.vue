@@ -65,10 +65,26 @@
                 </template>
                 <!-- 工作节点操作 -->
                 <template v-else-if="isWorkNode && workflowInstance.status === 'active'">
-                  <el-dropdown-item command="complete">
-                    <el-icon style="color: #409eff"><Check /></el-icon>
-                    完成节点
-                  </el-dropdown-item>
+                  <!-- 有条件分支的工作节点：动态生成操作按钮 -->
+                  <template v-if="workNodeHasBranching">
+                    <el-dropdown-item
+                      v-for="action in workNodeOutgoingActions"
+                      :key="action.conditionExpr"
+                      :command="`complete-condition:${action.conditionExpr}`"
+                    >
+                      <el-icon :style="{ color: action.conditionExpr === 'rejected' ? '#f56c6c' : '#67c23a' }">
+                        <component :is="action.conditionExpr === 'rejected' ? Delete : Check" />
+                      </el-icon>
+                      {{ action.label }}{{ action.targetNodeName ? ` → ${action.targetNodeName}` : '' }}
+                    </el-dropdown-item>
+                  </template>
+                  <!-- 无分支的工作节点：显示完成 -->
+                  <template v-else>
+                    <el-dropdown-item command="complete">
+                      <el-icon style="color: #409eff"><Check /></el-icon>
+                      {{ nextNodeName ? `流转至: ${nextNodeName}` : '完成节点' }}
+                    </el-dropdown-item>
+                  </template>
                 </template>
                 <!-- 工作流已结束提示 -->
                 <template v-else-if="workflowInstance.status !== 'active'">
@@ -169,13 +185,29 @@
 
             <!-- 工作节点完成按钮 -->
             <div v-if="isWorkNode" class="workflow-actions">
-              <div class="actions-label">节点操作</div>
+              <div class="actions-label">{{ workNodeHasBranching ? '节点操作' : (nextNodeName ? '流转操作' : '节点操作') }}</div>
               <div class="actions-row">
-                <el-input v-model="completeComment" placeholder="完成备注（可选）" size="default" style="flex: 1; margin-right: 12px;" />
-                <el-button type="primary" :loading="completeLoading" @click="handleComplete">
-                  <el-icon><Check /></el-icon>
-                  完成节点
-                </el-button>
+                <el-input v-model="completeComment" placeholder="备注（可选）" size="default" style="flex: 1; margin-right: 12px;" />
+                <!-- 有条件分支的工作节点：动态生成操作按钮 -->
+                <template v-if="workNodeHasBranching">
+                  <el-button
+                    v-for="action in workNodeOutgoingActions"
+                    :key="action.conditionExpr"
+                    :type="action.conditionExpr === 'rejected' ? 'warning' : 'success'"
+                    :loading="completeLoading"
+                    @click="handleCompleteWithResult(action.conditionExpr)"
+                  >
+                    <el-icon><component :is="action.conditionExpr === 'rejected' ? Delete : Check" /></el-icon>
+                    {{ action.label }}{{ action.targetNodeName ? ` → ${action.targetNodeName}` : '' }}
+                  </el-button>
+                </template>
+                <!-- 无分支的工作节点：显示完成按钮 -->
+                <template v-else>
+                  <el-button type="primary" :loading="completeLoading" @click="handleComplete">
+                    <el-icon><Check /></el-icon>
+                    {{ nextNodeName ? `流转至: ${nextNodeName}` : '完成节点' }}
+                  </el-button>
+                </template>
               </div>
             </div>
 
@@ -909,27 +941,55 @@
     </el-dialog>
 
     <!-- 工作流流程图对话框 -->
-    <el-dialog v-model="diagramVisible" title="工单流程" width="800px" destroy-on-close>
+    <el-dialog v-model="diagramVisible" title="工单流程" width="860px" destroy-on-close>
       <div v-loading="diagramLoading" class="workflow-diagram">
-        <div v-if="diagramNodes.length > 0" class="diagram-flow">
-          <template v-for="(node, index) in diagramNodes" :key="node.id">
-            <div class="diagram-node" :class="getNodeDiagramClass(node)">
-              <div class="diagram-node-icon">
-                <span v-if="node.node_type === 'start'">▶</span>
-                <span v-else-if="node.node_type === 'end'">◉</span>
-                <span v-else-if="node.node_type === 'approval'">✓</span>
-                <span v-else-if="node.node_type === 'work'">⚙</span>
-                <span v-else>●</span>
-              </div>
-              <div class="diagram-node-name">{{ node.name }}</div>
-              <div class="diagram-node-type">{{ getNodeTypeText(node.node_type) }}</div>
-              <div v-if="getNodeDiagramClass(node).visited" class="diagram-node-check">✓</div>
+        <div v-if="diagramLayout.nodes.length > 0" class="diagram-graph" :style="{ minHeight: diagramLayout.height + 'px', minWidth: diagramLayout.width + 'px' }">
+          <!-- SVG 连线层 -->
+          <svg class="diagram-edges" :width="diagramLayout.width" :height="diagramLayout.height">
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#c0c4cc" />
+              </marker>
+              <marker id="arrowhead-visited" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#67c23a" />
+              </marker>
+            </defs>
+            <template v-for="edge in diagramLayout.edges" :key="`${edge.from}-${edge.to}`">
+              <line
+                :x1="edge.x1" :y1="edge.y1" :x2="edge.x2" :y2="edge.y2"
+                :stroke="edge.visited ? '#67c23a' : '#c0c4cc'"
+                stroke-width="2"
+                :marker-end="edge.visited ? 'url(#arrowhead-visited)' : 'url(#arrowhead)'"
+              />
+              <text
+                v-if="edge.label"
+                :x="(edge.x1 + edge.x2) / 2"
+                :y="(edge.y1 + edge.y2) / 2 - 6"
+                text-anchor="middle"
+                :fill="edge.visited ? '#67c23a' : '#909399'"
+                font-size="11"
+              >{{ edge.label }}</text>
+            </template>
+          </svg>
+          <!-- 节点层 -->
+          <div
+            v-for="ln in diagramLayout.nodes"
+            :key="ln.node.id"
+            class="diagram-node"
+            :class="getNodeDiagramClass(ln.node)"
+            :style="{ left: ln.x + 'px', top: ln.y + 'px' }"
+          >
+            <div class="diagram-node-icon">
+              <span v-if="ln.node.node_type === 'start'">▶</span>
+              <span v-else-if="ln.node.node_type === 'end'">◉</span>
+              <span v-else-if="ln.node.node_type === 'approval'">✓</span>
+              <span v-else-if="ln.node.node_type === 'work'">⚙</span>
+              <span v-else>●</span>
             </div>
-            <div v-if="index < diagramNodes.length - 1" class="diagram-arrow" :class="{ visited: isEdgeVisited(node.id, diagramNodes[index + 1]?.id) }">
-              <div class="arrow-line"></div>
-              <div class="arrow-head"></div>
-            </div>
-          </template>
+            <div class="diagram-node-name">{{ ln.node.name }}</div>
+            <div class="diagram-node-type">{{ getNodeTypeText(ln.node.node_type) }}</div>
+            <div v-if="getNodeDiagramClass(ln.node).visited" class="diagram-node-check">✓</div>
+          </div>
         </div>
         <div v-else-if="!diagramLoading" class="diagram-empty">
           <el-empty description="暂无流程节点" :image-size="80" />
@@ -1135,6 +1195,19 @@ const loadWorkflowData = async (key: string) => {
     return
   }
 
+  // 加载工作流节点和边（用于显示下一步节点名称）
+  try {
+    const workflowId = workflowInstance.value.workflow_id
+    const [nodesRes, edgesRes] = await Promise.all([
+      getWorkflowNodes(workflowId),
+      getWorkflowEdges(workflowId),
+    ])
+    diagramNodes.value = (nodesRes.data as any).data || []
+    diagramEdges.value = (edgesRes.data as any).data || []
+  } catch (e: any) {
+    // 静默处理
+  }
+
   // 只有工作流实例存在时才加载流转历史
   try {
     const { data } = await getWorkflowHistory(key)
@@ -1163,6 +1236,59 @@ const isWorkNode = computed(() => {
   return nodeType === 'work' || nodeType === 'start'
 })
 
+// 获取当前工作节点的所有出边（带条件和目标节点名称）
+interface OutgoingAction {
+  conditionExpr: string  // 条件表达式（如 approved, rejected, 自定义条件名称）
+  label: string          // 显示标签
+  targetNodeName: string // 目标节点名称
+}
+
+const workNodeOutgoingActions = computed<OutgoingAction[]>(() => {
+  if (!workflowInstance.value || !isWorkNode.value) return []
+  const currentNodeId = workflowInstance.value.current_node_id
+  if (!currentNodeId) return []
+
+  const outEdges = diagramEdges.value.filter(e => e.source_node_id === currentNodeId)
+
+  // 预设条件的显示名称
+  const presetLabels: Record<string, string> = {
+    approved: '通过',
+    rejected: '退回',
+  }
+
+  return outEdges
+    .filter(e => e.condition_expr) // 只取有条件的边
+    .map(e => {
+      const targetNode = diagramNodes.value.find(n => n.id === e.target_node_id)
+      return {
+        conditionExpr: e.condition_expr,
+        label: presetLabels[e.condition_expr] || e.condition_expr,
+        targetNodeName: targetNode?.name || '',
+      }
+    })
+})
+
+// 判断当前工作节点是否有多个条件分支
+const workNodeHasBranching = computed(() => {
+  return workNodeOutgoingActions.value.length > 0
+})
+
+// 获取下一个节点名称（无条件边的目标，用于单一流转）
+const nextNodeName = computed(() => {
+  if (!workflowInstance.value) return ''
+  const currentNodeId = workflowInstance.value.current_node_id
+  if (!currentNodeId) return ''
+
+  // 优先找无条件边
+  const outEdges = diagramEdges.value.filter(e => e.source_node_id === currentNodeId)
+  const unconditionalEdge = outEdges.find(e => !e.condition_expr)
+  const targetEdge = unconditionalEdge || outEdges[0]
+  if (!targetEdge) return ''
+
+  const targetNode = diagramNodes.value.find(n => n.id === targetEdge.target_node_id)
+  return targetNode?.name || ''
+})
+
 // 当前用户是否可以操作工作流
 const canOperateWorkflow = computed(() => {
   return isCurrentUserApprover.value || isWorkNode.value
@@ -1180,6 +1306,13 @@ const workflowActionBtnText = computed(() => {
 
 // 工作流下拉菜单命令处理
 const handleWorkflowCommand = (command: string) => {
+  // 处理动态条件命令：complete-condition:xxx
+  if (command.startsWith('complete-condition:')) {
+    const condition = command.replace('complete-condition:', '')
+    handleQuickCompleteWithResult(condition)
+    return
+  }
+
   switch (command) {
     case 'approve':
       handleQuickApprove()
@@ -1213,8 +1346,11 @@ const handleQuickApprove = async () => {
 // 快捷完成节点（从下拉菜单触发，弹确认框）
 const handleQuickComplete = async () => {
   try {
-    await ElMessageBox.confirm('确认完成当前节点？', '完成确认', {
-      confirmButtonText: '完成',
+    const confirmMsg = nextNodeName.value
+      ? `确认流转至「${nextNodeName.value}」？`
+      : '确认完成当前节点？'
+    await ElMessageBox.confirm(confirmMsg, '流转确认', {
+      confirmButtonText: '确认',
       cancelButtonText: '取消',
       type: 'info',
     })
@@ -1224,10 +1360,31 @@ const handleQuickComplete = async () => {
   }
 }
 
+// 快捷完成节点（带结果，从下拉菜单触发）
+const handleQuickCompleteWithResult = async (result: string) => {
+  // 从出边动作中找到对应的信息
+  const action = workNodeOutgoingActions.value.find(a => a.conditionExpr === result)
+  const actionLabel = action?.label || result
+  const targetName = action?.targetNodeName || ''
+  const confirmMsg = targetName
+    ? `确认「${actionLabel}」并流转至「${targetName}」？`
+    : `确认「${actionLabel}」？`
+  try {
+    await ElMessageBox.confirm(confirmMsg, '操作确认', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: result === 'rejected' ? 'warning' : 'success',
+    })
+    handleCompleteWithResult(result)
+  } catch {
+    // 用户取消
+  }
+}
+
 const completeLoading = ref(false)
 const completeComment = ref('')
 
-// 完成工作节点
+// 完成工作节点（默认流转）
 const handleComplete = async () => {
   if (!issue.value) return
   completeLoading.value = true
@@ -1239,6 +1396,29 @@ const handleComplete = async () => {
   } catch (error: any) {
     console.error('Failed to complete:', error)
     ElMessage.error(error.response?.data?.message || '完成操作失败')
+  } finally {
+    completeLoading.value = false
+  }
+}
+
+// 完成工作节点（带结果：任意条件）
+const handleCompleteWithResult = async (result: string) => {
+  if (!issue.value) return
+  completeLoading.value = true
+  try {
+    await completeWorkflow(issue.value.issue_key, {
+      comment: completeComment.value || undefined,
+      result: result,
+    })
+    // 从出边动作中找到对应的标签
+    const action = workNodeOutgoingActions.value.find(a => a.conditionExpr === result)
+    const actionLabel = action?.label || result
+    ElMessage.success(`已执行: ${actionLabel}`)
+    completeComment.value = ''
+    await loadIssue()
+  } catch (error: any) {
+    console.error('Failed to complete with result:', error)
+    ElMessage.error(error.response?.data?.message || '操作失败')
   } finally {
     completeLoading.value = false
   }
@@ -1829,54 +2009,122 @@ const diagramLoading = ref(false)
 const diagramNodes = ref<WorkflowNode[]>([])
 const diagramEdges = ref<WorkflowEdge[]>([])
 
-// 拓扑排序：按 edges 的 source→target 关系排序节点
-const topologicalSort = (nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] => {
-  if (nodes.length === 0) return []
+// 计算流程图布局（支持分支）
+interface LayoutNode { node: WorkflowNode; x: number; y: number }
+interface LayoutEdge { from: number; to: number; x1: number; y1: number; x2: number; y2: number; visited: boolean; label: string }
 
+const diagramLayout = computed(() => {
+  const nodes = diagramNodes.value
+  const edges = diagramEdges.value
+  const result = { nodes: [] as LayoutNode[], edges: [] as LayoutEdge[], width: 0, height: 0 }
+
+  if (nodes.length === 0) return result
+
+  const nodeW = 110
+  const nodeH = 80
+  const gapX = 160
+  const gapY = 120
+  const padX = 40
+  const padY = 30
+
+  // BFS 分层
   const nodeMap = new Map<number, WorkflowNode>()
   nodes.forEach(n => nodeMap.set(n.id, n))
 
-  const inDegree = new Map<number, number>()
   const adjacency = new Map<number, number[]>()
-  nodes.forEach(n => {
-    inDegree.set(n.id, 0)
-    adjacency.set(n.id, [])
-  })
-
+  nodes.forEach(n => adjacency.set(n.id, []))
   edges.forEach(e => {
-    if (nodeMap.has(e.source_node_id) && nodeMap.has(e.target_node_id)) {
-      inDegree.set(e.target_node_id, (inDegree.get(e.target_node_id) || 0) + 1)
-      adjacency.get(e.source_node_id)?.push(e.target_node_id)
+    if (adjacency.has(e.source_node_id)) {
+      adjacency.get(e.source_node_id)!.push(e.target_node_id)
     }
   })
 
-  // BFS 拓扑排序
-  const queue: number[] = []
-  inDegree.forEach((deg, id) => {
-    if (deg === 0) queue.push(id)
-  })
+  // 找开始节点
+  const startNode = nodes.find(n => n.node_type === 'start')
+  if (!startNode) return result
 
-  const sorted: WorkflowNode[] = []
+  const levels = new Map<number, number>()
+  const visited = new Set<number>()
+  const queue: { id: number; level: number }[] = [{ id: startNode.id, level: 0 }]
+  visited.add(startNode.id)
+
   while (queue.length > 0) {
-    const id = queue.shift()!
-    const node = nodeMap.get(id)
-    if (node) sorted.push(node)
+    const { id, level } = queue.shift()!
+    levels.set(id, Math.max(levels.get(id) || 0, level))
     for (const next of (adjacency.get(id) || [])) {
-      const newDeg = (inDegree.get(next) || 1) - 1
-      inDegree.set(next, newDeg)
-      if (newDeg === 0) queue.push(next)
+      if (!visited.has(next)) {
+        visited.add(next)
+        queue.push({ id: next, level: level + 1 })
+      }
     }
   }
 
-  // 如果有未排序的节点（可能有环），追加到末尾
-  if (sorted.length < nodes.length) {
-    nodes.forEach(n => {
-      if (!sorted.find(s => s.id === n.id)) sorted.push(n)
+  // 未连接的节点
+  const maxLevel = Math.max(...Array.from(levels.values()), 0)
+  nodes.forEach(n => {
+    if (!levels.has(n.id)) levels.set(n.id, maxLevel + 1)
+  })
+
+  // 按层分组
+  const levelGroups = new Map<number, number[]>()
+  for (const [nodeId, level] of levels) {
+    if (!levelGroups.has(level)) levelGroups.set(level, [])
+    levelGroups.get(level)!.push(nodeId)
+  }
+
+  // 计算节点位置（水平布局）
+  const nodePositions = new Map<number, { x: number; y: number }>()
+  const totalLevels = Math.max(...Array.from(levelGroups.keys())) + 1
+
+  for (let lvl = 0; lvl < totalLevels; lvl++) {
+    const group = levelGroups.get(lvl) || []
+    const startY = padY + (group.length > 1 ? 0 : (gapY - nodeH) / 2)
+
+    group.forEach((nodeId, idx) => {
+      const x = padX + lvl * gapX
+      const y = startY + idx * gapY
+      nodePositions.set(nodeId, { x, y })
     })
   }
 
-  return sorted
-}
+  // 生成布局节点
+  for (const [nodeId, pos] of nodePositions) {
+    const node = nodeMap.get(nodeId)
+    if (node) {
+      result.nodes.push({ node, x: pos.x, y: pos.y })
+    }
+  }
+
+  // 生成布局边
+  const presetConditionLabels: Record<string, string> = { approved: '通过', rejected: '拒绝' }
+  for (const edge of edges) {
+    const fromPos = nodePositions.get(edge.source_node_id)
+    const toPos = nodePositions.get(edge.target_node_id)
+    if (!fromPos || !toPos) continue
+
+    result.edges.push({
+      from: edge.source_node_id,
+      to: edge.target_node_id,
+      x1: fromPos.x + nodeW,
+      y1: fromPos.y + nodeH / 2,
+      x2: toPos.x,
+      y2: toPos.y + nodeH / 2,
+      visited: visitedEdgePairs.value.has(`${edge.source_node_id}-${edge.target_node_id}`),
+      label: presetConditionLabels[edge.condition_expr] || edge.condition_expr || '',
+    })
+  }
+
+  // 计算画布尺寸
+  let maxX = 0, maxY = 0
+  for (const pos of nodePositions.values()) {
+    maxX = Math.max(maxX, pos.x + nodeW)
+    maxY = Math.max(maxY, pos.y + nodeH)
+  }
+  result.width = maxX + padX
+  result.height = maxY + padY
+
+  return result
+})
 
 // 获取已访问的节点 ID 集合（从流转历史中提取）
 const visitedNodeIds = computed(() => {
@@ -1918,12 +2166,6 @@ const getNodeDiagramClass = (node: WorkflowNode) => {
   }
 }
 
-// 判断边是否已访问
-const isEdgeVisited = (fromId: number, toId: number | undefined) => {
-  if (!toId) return false
-  return visitedEdgePairs.value.has(`${fromId}-${toId}`)
-}
-
 // 获取节点类型文本
 const getNodeTypeText = (nodeType: string) => {
   const map: Record<string, string> = {
@@ -1939,6 +2181,11 @@ const getNodeTypeText = (nodeType: string) => {
 // 显示工作流流程图
 const showWorkflowDiagram = async () => {
   diagramVisible.value = true
+  // 如果节点数据已加载（loadWorkflowData 中已加载），直接显示
+  if (diagramNodes.value.length > 0) {
+    return
+  }
+  // 否则重新加载
   diagramLoading.value = true
   try {
     const workflowId = workflowInstance.value!.workflow_id
@@ -1946,10 +2193,8 @@ const showWorkflowDiagram = async () => {
       getWorkflowNodes(workflowId),
       getWorkflowEdges(workflowId),
     ])
-    const nodes = (nodesRes.data as any).data || []
-    const edges = (edgesRes.data as any).data || []
-    diagramEdges.value = edges
-    diagramNodes.value = topologicalSort(nodes, edges)
+    diagramNodes.value = (nodesRes.data as any).data || []
+    diagramEdges.value = (edgesRes.data as any).data || []
   } catch (e) {
     console.error('Failed to load workflow diagram', e)
     ElMessage.error('加载流程图失败')
@@ -3069,26 +3314,29 @@ const showWorkflowDiagram = async () => {
 // 工作流流程图
 .workflow-diagram {
   min-height: 120px;
-  overflow-x: auto;
+  overflow: auto;
   padding: 20px 0;
 
-  .diagram-flow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    min-width: max-content;
-    padding: 10px 20px;
+  .diagram-graph {
+    position: relative;
+    margin: 0 auto;
+  }
+
+  .diagram-edges {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
   }
 
   .diagram-node {
-    position: relative;
+    position: absolute;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-width: 100px;
-    padding: 12px 16px;
+    width: 110px;
+    height: 80px;
     border-radius: 10px;
     border: 2px solid #dcdfe6;
     background: #f5f7fa;
@@ -3106,7 +3354,7 @@ const showWorkflowDiagram = async () => {
       font-weight: 600;
       color: #303133;
       white-space: nowrap;
-      max-width: 120px;
+      max-width: 100px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -3173,31 +3421,6 @@ const showWorkflowDiagram = async () => {
       border-color: #dcdfe6;
       background: #f5f7fa;
       opacity: 0.7;
-    }
-  }
-
-  .diagram-arrow {
-    display: flex;
-    align-items: center;
-    margin: 0 4px;
-
-    .arrow-line {
-      width: 32px;
-      height: 2px;
-      background: #dcdfe6;
-    }
-
-    .arrow-head {
-      width: 0;
-      height: 0;
-      border-top: 6px solid transparent;
-      border-bottom: 6px solid transparent;
-      border-left: 8px solid #dcdfe6;
-    }
-
-    &.visited {
-      .arrow-line { background: #67c23a; }
-      .arrow-head { border-left-color: #67c23a; }
     }
   }
 

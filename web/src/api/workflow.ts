@@ -15,6 +15,7 @@ import type {
   UpdateEdgeRequest,
   ApproveRequest,
   RejectRequest,
+  CompleteRequest,
   CreateWorkflowSchemeRequest,
 } from '@/types/workflow'
 
@@ -153,7 +154,7 @@ export const rejectWorkflow = (issueKey: string, data: RejectRequest) => {
 /**
  * 完成工作节点
  */
-export const completeWorkflow = (issueKey: string, data: ApproveRequest) => {
+export const completeWorkflow = (issueKey: string, data: CompleteRequest) => {
   return request.post(`/issues/${issueKey}/workflow/complete`, data)
 }
 

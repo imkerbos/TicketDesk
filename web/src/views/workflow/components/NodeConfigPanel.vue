@@ -236,15 +236,15 @@ const nodeTypeText = computed(() => {
   return props.node ? map[props.node.data.nodeType] || props.node.data.nodeType : ''
 })
 
-const nodeTypeTagType = computed((): 'success' | 'info' | 'warning' | 'danger' | '' => {
-  const map: Record<string, 'success' | 'info' | 'warning' | 'danger' | ''> = {
+const nodeTypeTagType = computed((): 'primary' | 'success' | 'info' | 'warning' | 'danger' => {
+  const map: Record<string, 'primary' | 'success' | 'info' | 'warning' | 'danger'> = {
     start: 'success',
     end: 'info',
     approval: 'warning',
-    work: '',
+    work: 'primary',
     system: 'danger',
   }
-  return props.node ? (map[props.node.data.nodeType] || '') : ''
+  return props.node ? (map[props.node.data.nodeType] || 'info') : 'info'
 })
 </script>
 

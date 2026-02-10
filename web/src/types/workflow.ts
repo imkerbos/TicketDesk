@@ -199,6 +199,12 @@ export interface RejectRequest {
   comment: string
 }
 
+// 完成工作节点请求
+export interface CompleteRequest {
+  comment?: string
+  result?: string // 条件表达式值，如 approved, rejected, 或自定义条件名称，空=默认流转
+}
+
 // 创建工作流方案请求
 export interface CreateWorkflowSchemeRequest {
   issue_type_id: number

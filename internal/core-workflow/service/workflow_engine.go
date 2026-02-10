@@ -38,8 +38,8 @@ type WorkflowEngine interface {
 	Approve(ctx context.Context, instanceID, userID uint64, comment string) error
 	// 审批拒绝
 	Reject(ctx context.Context, instanceID, userID uint64, comment string) error
-	// 完成工作节点
-	Complete(ctx context.Context, instanceID, userID uint64, comment string) error
+	// 完成工作节点（result: 条件表达式值，如 approved, rejected, 或自定义条件名称，空=默认流转）
+	Complete(ctx context.Context, instanceID, userID uint64, comment string, result string) error
 	// 获取流转历史
 	GetHistory(ctx context.Context, instanceID uint64) ([]*dto.WorkflowHistoryResponse, error)
 	// 根据项目和工单类型查找工作流方案，如果存在则自动创建工作流实例
@@ -353,24 +353,81 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 		logger.Warn("failed to create workflow history", zap.Error(err))
 	}
 
-	// 拒绝后，工作流实例状态变为 cancelled
-	instance.Status = "cancelled"
-	completedAt := time.Now()
-	instance.CompletedAt = &completedAt
-
-	if err := e.instanceRepo.Update(ctx, instance); err != nil {
-		logger.Error("failed to update workflow instance", zap.Error(err))
-		return fmt.Errorf("更新工作流实例失败: %w", err)
+	// 查找是否有 "rejected" 条件的出边
+	edges, err := e.edgeRepo.GetOutgoingEdges(ctx, currentNode.ID)
+	if err != nil {
+		logger.Error("failed to get outgoing edges for reject", zap.Error(err))
 	}
 
-	// 联动更新工单状态为 closed
-	closedAt := time.Now()
-	e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", instance.IssueID).Updates(map[string]interface{}{
-		"status":          "closed",
-		"closed_at":       closedAt,
-		"actual_end_date": closedAt,
-		"updated_at":      closedAt,
-	})
+	var rejectEdge *model.WorkflowEdge
+	for _, edge := range edges {
+		if edge.ConditionExpr == "rejected" {
+			rejectEdge = edge
+			break
+		}
+	}
+
+	if rejectEdge != nil {
+		// 有拒绝分支边，流转到拒绝目标节点
+		nextNode, err := e.nodeRepo.GetByID(ctx, rejectEdge.TargetNodeID)
+		if err != nil {
+			logger.Error("failed to get reject target node", zap.Error(err))
+			return fmt.Errorf("查询拒绝目标节点失败: %w", err)
+		}
+
+		fromNodeID := instance.CurrentNodeID
+		instance.CurrentNodeID = nextNode.ID
+
+		if err := e.instanceRepo.Update(ctx, instance); err != nil {
+			return fmt.Errorf("更新工作流实例失败: %w", err)
+		}
+
+		// 记录流转历史
+		forwardHistory := &model.WorkflowHistory{
+			InstanceID: instance.ID,
+			FromNodeID: &fromNodeID,
+			ToNodeID:   nextNode.ID,
+			Action:     "forward",
+			OperatorID: userID,
+			Comment:    fmt.Sprintf("审批拒绝，流转到节点: %s", nextNode.Name),
+			OperatedAt: time.Now(),
+		}
+		if err := e.historyRepo.Create(ctx, forwardHistory); err != nil {
+			logger.Warn("failed to create reject forward history", zap.Error(err))
+		}
+
+		// 联动更新工单状态
+		e.syncIssueStatus(ctx, instance.IssueID, nextNode)
+
+		// 如果目标是结束节点，标记实例完成
+		if nextNode.NodeType == "end" {
+			instance.Status = "completed"
+			completedAt := time.Now()
+			instance.CompletedAt = &completedAt
+			if err := e.instanceRepo.Update(ctx, instance); err != nil {
+				return fmt.Errorf("更新工作流实例失败: %w", err)
+			}
+		}
+	} else {
+		// 没有拒绝分支边，回退到原来的行为：直接取消工作流
+		instance.Status = "cancelled"
+		completedAt := time.Now()
+		instance.CompletedAt = &completedAt
+
+		if err := e.instanceRepo.Update(ctx, instance); err != nil {
+			logger.Error("failed to update workflow instance", zap.Error(err))
+			return fmt.Errorf("更新工作流实例失败: %w", err)
+		}
+
+		// 联动更新工单状态为 closed
+		closedAt := time.Now()
+		e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", instance.IssueID).Updates(map[string]interface{}{
+			"status":          "closed",
+			"closed_at":       closedAt,
+			"actual_end_date": closedAt,
+			"updated_at":      closedAt,
+		})
+	}
 
 	logger.Info("approval rejected",
 		zap.Uint64("instance_id", instanceID),
@@ -381,7 +438,8 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 }
 
 // Complete 完成工作节点，推进到下一个节点
-func (e *workflowEngine) Complete(ctx context.Context, instanceID, userID uint64, comment string) error {
+// result: 条件表达式值（如 "approved", "rejected", 或自定义条件名称），空字符串表示默认流转
+func (e *workflowEngine) Complete(ctx context.Context, instanceID, userID uint64, comment string, result string) error {
 	instance, err := e.instanceRepo.GetByID(ctx, instanceID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -403,11 +461,15 @@ func (e *workflowEngine) Complete(ctx context.Context, instanceID, userID uint64
 
 	// 记录流转历史
 	now := time.Now()
+	actionText := "complete"
+	if result != "" && result != "approved" {
+		actionText = "forward"
+	}
 	history := &model.WorkflowHistory{
 		InstanceID: instanceID,
 		FromNodeID: &currentNode.ID,
 		ToNodeID:   currentNode.ID,
-		Action:     "complete",
+		Action:     actionText,
 		OperatorID: userID,
 		Comment:    comment,
 		OperatedAt: now,
@@ -416,14 +478,23 @@ func (e *workflowEngine) Complete(ctx context.Context, instanceID, userID uint64
 		logger.Warn("failed to create workflow history", zap.Error(err))
 	}
 
-	// 流转到下一个节点
-	if err := e.moveToNextNode(ctx, instance, userID); err != nil {
-		return fmt.Errorf("流转到下一节点失败: %w", err)
+	// 根据 result 选择出边流转
+	if result != "" {
+		// 有指定条件：查找匹配条件的出边
+		if err := e.moveToNextNodeByCondition(ctx, instance, userID, result); err != nil {
+			return fmt.Errorf("流转到目标节点失败: %w", err)
+		}
+	} else {
+		// 无条件：走默认流转（无条件边或第一条边）
+		if err := e.moveToNextNode(ctx, instance, userID); err != nil {
+			return fmt.Errorf("流转到下一节点失败: %w", err)
+		}
 	}
 
 	logger.Info("work node completed",
 		zap.Uint64("instance_id", instanceID),
 		zap.Uint64("user_id", userID),
+		zap.String("result", result),
 	)
 
 	return nil
@@ -468,8 +539,44 @@ func (e *workflowEngine) moveToNextNode(ctx context.Context, instance *model.Wor
 		return fmt.Errorf("当前节点没有出边")
 	}
 
-	// 简化处理：选择第一条边（实际应该根据条件表达式选择）
-	nextEdge := edges[0]
+	// 选择合适的出边
+	var nextEdge *model.WorkflowEdge
+
+	// 获取当前节点信息，判断是否是审批节点
+	currentNode, _ := e.nodeRepo.GetByID(ctx, instance.CurrentNodeID)
+
+	if currentNode != nil && currentNode.NodeType == "approval" {
+		// 审批节点：选择 "approved" 条件的边，或无条件的边
+		for _, edge := range edges {
+			if edge.ConditionExpr == "approved" {
+				nextEdge = edge
+				break
+			}
+		}
+		// 如果没有 "approved" 边，选择非 "rejected" 的边
+		if nextEdge == nil {
+			for _, edge := range edges {
+				if edge.ConditionExpr != "rejected" {
+					nextEdge = edge
+					break
+				}
+			}
+		}
+	}
+
+	// 非审批节点或未找到匹配边：选择无条件边或第一条边
+	if nextEdge == nil {
+		for _, edge := range edges {
+			if edge.ConditionExpr == "" {
+				nextEdge = edge
+				break
+			}
+		}
+	}
+	if nextEdge == nil {
+		nextEdge = edges[0]
+	}
+
 	nextNode, err := e.nodeRepo.GetByID(ctx, nextEdge.TargetNodeID)
 	if err != nil {
 		return fmt.Errorf("查询下一节点失败: %w", err)
@@ -491,6 +598,88 @@ func (e *workflowEngine) moveToNextNode(ctx context.Context, instance *model.Wor
 		Action:     "forward",
 		OperatorID: operatorID,
 		Comment:    fmt.Sprintf("流转到节点: %s", nextNode.Name),
+		OperatedAt: time.Now(),
+	}
+	if err := e.historyRepo.Create(ctx, history); err != nil {
+		logger.Warn("failed to create workflow history", zap.Error(err))
+	}
+
+	// 联动更新工单状态
+	e.syncIssueStatus(ctx, instance.IssueID, nextNode)
+
+	// 如果是审批节点，创建审批记录
+	if nextNode.NodeType == "approval" {
+		if err := e.createApprovalRecords(ctx, instance, nextNode); err != nil {
+			logger.Error("failed to create approval records", zap.Error(err))
+			return fmt.Errorf("创建审批记录失败: %w", err)
+		}
+	}
+
+	// 如果是结束节点，标记实例完成
+	if nextNode.NodeType == "end" {
+		instance.Status = "completed"
+		completedAt := time.Now()
+		instance.CompletedAt = &completedAt
+		if err := e.instanceRepo.Update(ctx, instance); err != nil {
+			return fmt.Errorf("更新工作流实例失败: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// moveToNextNodeByCondition 根据指定条件选择出边流转
+func (e *workflowEngine) moveToNextNodeByCondition(ctx context.Context, instance *model.WorkflowInstance, operatorID uint64, condition string) error {
+	// 获取当前节点的出边
+	edges, err := e.edgeRepo.GetOutgoingEdges(ctx, instance.CurrentNodeID)
+	if err != nil {
+		return fmt.Errorf("查询出边失败: %w", err)
+	}
+
+	// 查找匹配条件的边
+	var targetEdge *model.WorkflowEdge
+	for _, edge := range edges {
+		if edge.ConditionExpr == condition {
+			targetEdge = edge
+			break
+		}
+	}
+
+	if targetEdge == nil {
+		// 没有匹配的条件边，回退到默认流转
+		return e.moveToNextNode(ctx, instance, operatorID)
+	}
+
+	nextNode, err := e.nodeRepo.GetByID(ctx, targetEdge.TargetNodeID)
+	if err != nil {
+		return fmt.Errorf("查询目标节点失败: %w", err)
+	}
+
+	// 更新实例的当前节点
+	fromNodeID := instance.CurrentNodeID
+	instance.CurrentNodeID = nextNode.ID
+
+	if err := e.instanceRepo.Update(ctx, instance); err != nil {
+		return fmt.Errorf("更新工作流实例失败: %w", err)
+	}
+
+	// 记录流转历史
+	conditionText := condition
+	// 预设条件翻译为中文
+	presetLabels := map[string]string{
+		"approved": "通过",
+		"rejected": "退回",
+	}
+	if label, ok := presetLabels[condition]; ok {
+		conditionText = label
+	}
+	history := &model.WorkflowHistory{
+		InstanceID: instance.ID,
+		FromNodeID: &fromNodeID,
+		ToNodeID:   nextNode.ID,
+		Action:     "forward",
+		OperatorID: operatorID,
+		Comment:    fmt.Sprintf("%s，流转到节点: %s", conditionText, nextNode.Name),
 		OperatedAt: time.Now(),
 	}
 	if err := e.historyRepo.Create(ctx, history); err != nil {

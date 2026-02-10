@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vue-tsc --noEmit)",
+      "Bash(go vet:*)"
+    ]
+  }
+}

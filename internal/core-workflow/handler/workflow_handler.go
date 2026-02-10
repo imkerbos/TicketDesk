@@ -657,7 +657,7 @@ func (h *WorkflowHandler) HandleComplete(c *gin.Context) {
 		return
 	}
 
-	var req dto.ApproveRequest
+	var req dto.CompleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())
 		return
@@ -684,7 +684,7 @@ func (h *WorkflowHandler) HandleComplete(c *gin.Context) {
 	}
 
 	uid := userID.(uint64)
-	if err := h.workflowEngine.Complete(c.Request.Context(), instance.ID, uid, req.Comment); err != nil {
+	if err := h.workflowEngine.Complete(c.Request.Context(), instance.ID, uid, req.Comment, req.Result); err != nil {
 		response.InternalError(c, "完成操作失败: "+err.Error())
 		return
 	}
@@ -695,7 +695,20 @@ func (h *WorkflowHandler) HandleComplete(c *gin.Context) {
 	if instance.CurrentNode != nil {
 		nodeName = instance.CurrentNode.Name
 	}
-	details := "节点: " + nodeName
+	// 将条件值转为友好文本
+	resultText := "完成"
+	if req.Result != "" {
+		presetLabels := map[string]string{
+			"approved": "通过",
+			"rejected": "退回",
+		}
+		if label, ok := presetLabels[req.Result]; ok {
+			resultText = label
+		} else {
+			resultText = req.Result
+		}
+	}
+	details := "节点: " + nodeName + " (" + resultText + ")"
 	if req.Comment != "" {
 		details += " - " + req.Comment
 	}
