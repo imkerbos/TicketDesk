@@ -1144,9 +1144,12 @@ const loadWorkflowData = async (key: string) => {
   }
 }
 
-// 判断当前用户是否是审批人
+// 判断当前用户是否是审批人（包括系统管理员和项目管理员）
 const isCurrentUserApprover = computed(() => {
   if (!workflowInstance.value || !userStore.user) return false
+  // 系统管理员可以审批任何节点
+  if (userStore.isAdmin) return true
+  // 检查是否在审批人列表中
   const approvals = workflowInstance.value.approvals || []
   return approvals.some(
     a => a.approver_id === userStore.user!.id && a.status === 'pending'
