@@ -127,3 +127,40 @@ export interface UserRolesResponse {
   roles: ProjectRole[]
 }
 
+// ========== 项目通知渠道相关类型 ==========
+
+export interface NotificationChannel {
+  id: number
+  project_id: number
+  channel_type: 'lark' | 'telegram'
+  name: string
+  config: LarkChannelConfig | TelegramChannelConfig | Record<string, any>
+  enabled: boolean
+  created_by: number
+  created_at: string
+  updated_at: string
+}
+
+export interface LarkChannelConfig {
+  webhook_url: string
+  secret?: string
+}
+
+export interface TelegramChannelConfig {
+  bot_token?: string
+  chat_id: string
+}
+
+export interface CreateNotificationChannelRequest {
+  channel_type: 'lark' | 'telegram'
+  name: string
+  config: LarkChannelConfig | TelegramChannelConfig
+  enabled: boolean
+}
+
+export interface UpdateNotificationChannelRequest {
+  name?: string
+  config?: LarkChannelConfig | TelegramChannelConfig
+  enabled?: boolean
+}
+

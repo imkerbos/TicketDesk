@@ -9,6 +9,8 @@ import (
 
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/notification/email"
+	"github.com/kerbos/ticketdesk/internal/notification/lark"
+	"github.com/kerbos/ticketdesk/internal/notification/telegram"
 	"github.com/kerbos/ticketdesk/internal/notification/webhook"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/redis"
@@ -34,7 +36,7 @@ const (
 
 // NotificationMessage 通知消息
 type NotificationMessage struct {
-	Type      string      `json:"type"`       // email, webhook
+	Type      string      `json:"type"`       // email, webhook, lark, telegram
 	Event     string      `json:"event"`      // 事件类型
 	Data      interface{} `json:"data"`       // 数据
 	To        []string    `json:"to"`         // 收件人（邮件）
@@ -97,18 +99,24 @@ type NotificationService interface {
 
 // notificationService 通知服务实现
 type notificationService struct {
-	emailService   email.EmailService
-	webhookService webhook.WebhookService
+	emailService    email.EmailService
+	webhookService  webhook.WebhookService
+	larkService     lark.LarkService
+	telegramService telegram.TelegramService
 }
 
 // NewNotificationService 创建通知服务实例
 func NewNotificationService(
 	emailService email.EmailService,
 	webhookService webhook.WebhookService,
+	larkService lark.LarkService,
+	telegramService telegram.TelegramService,
 ) NotificationService {
 	return &notificationService{
-		emailService:   emailService,
-		webhookService: webhookService,
+		emailService:    emailService,
+		webhookService:  webhookService,
+		larkService:     larkService,
+		telegramService: telegramService,
 	}
 }
 
@@ -147,6 +155,28 @@ func (s *notificationService) QueueEmail(ctx context.Context, to []string, subje
 func (s *notificationService) QueueWebhook(ctx context.Context, event string, data interface{}) error {
 	msg := NotificationMessage{
 		Type:      "webhook",
+		Event:     event,
+		Data:      data,
+		CreatedAt: time.Now().Unix(),
+	}
+	return s.enqueue(ctx, msg)
+}
+
+// QueueLark 将飞书通知加入队列
+func (s *notificationService) QueueLark(ctx context.Context, event string, data interface{}) error {
+	msg := NotificationMessage{
+		Type:      "lark",
+		Event:     event,
+		Data:      data,
+		CreatedAt: time.Now().Unix(),
+	}
+	return s.enqueue(ctx, msg)
+}
+
+// QueueTelegram 将 Telegram 通知加入队列
+func (s *notificationService) QueueTelegram(ctx context.Context, event string, data interface{}) error {
+	msg := NotificationMessage{
+		Type:      "telegram",
 		Event:     event,
 		Data:      data,
 		CreatedAt: time.Now().Unix(),
@@ -222,12 +252,32 @@ func (s *notificationService) processMessage(ctx context.Context, msg Notificati
 		return s.emailService.SendEmail(ctx, msg.To, msg.Subject, msg.Body)
 	case "webhook":
 		return s.webhookService.SendEvent(ctx, msg.Event, msg.Data)
+	case "lark":
+		return s.larkService.SendNotification(ctx, msg.Event, msg.Data)
+	case "telegram":
+		return s.telegramService.SendNotification(ctx, msg.Event, msg.Data)
 	default:
 		return fmt.Errorf("unknown notification type: %s", msg.Type)
 	}
 }
 
 // ============ 事件通知 ============
+
+// notifyAllChannels 向所有渠道发送事件通知（Webhook + 飞书 + Telegram）
+func (s *notificationService) notifyAllChannels(ctx context.Context, event string, data interface{}) {
+	// Webhook
+	if err := s.QueueWebhook(ctx, event, data); err != nil {
+		logger.Warn("failed to queue webhook notification", zap.String("event", event), zap.Error(err))
+	}
+	// 飞书
+	if err := s.QueueLark(ctx, event, data); err != nil {
+		logger.Warn("failed to queue lark notification", zap.String("event", event), zap.Error(err))
+	}
+	// Telegram
+	if err := s.QueueTelegram(ctx, event, data); err != nil {
+		logger.Warn("failed to queue telegram notification", zap.String("event", event), zap.Error(err))
+	}
+}
 
 // NotifyIssueCreated 通知工单创建
 func (s *notificationService) NotifyIssueCreated(ctx context.Context, issue *model.Issue, projectKey, projectName string) error {
@@ -242,7 +292,8 @@ func (s *notificationService) NotifyIssueCreated(ctx context.Context, issue *mod
 		AssigneeID:  issue.AssigneeID,
 		UpdatedBy:   issue.ReporterID,
 	}
-	return s.QueueWebhook(ctx, EventIssueCreated, data)
+	s.notifyAllChannels(ctx, EventIssueCreated, data)
+	return nil
 }
 
 // NotifyIssueUpdated 通知工单更新
@@ -258,7 +309,8 @@ func (s *notificationService) NotifyIssueUpdated(ctx context.Context, issue *mod
 		AssigneeID:  issue.AssigneeID,
 		UpdatedBy:   updatedBy,
 	}
-	return s.QueueWebhook(ctx, EventIssueUpdated, data)
+	s.notifyAllChannels(ctx, EventIssueUpdated, data)
+	return nil
 }
 
 // NotifyIssueTransitioned 通知工单状态变更
@@ -272,7 +324,8 @@ func (s *notificationService) NotifyIssueTransitioned(ctx context.Context, issue
 		"new_status":   newStatus,
 		"updated_by":   updatedBy,
 	}
-	return s.QueueWebhook(ctx, EventIssueTransitioned, data)
+	s.notifyAllChannels(ctx, EventIssueTransitioned, data)
+	return nil
 }
 
 // NotifyIssueAssigned 通知工单指派
@@ -288,7 +341,8 @@ func (s *notificationService) NotifyIssueAssigned(ctx context.Context, issue *mo
 		AssigneeID:  issue.AssigneeID,
 		UpdatedBy:   assignedBy,
 	}
-	return s.QueueWebhook(ctx, EventIssueAssigned, data)
+	s.notifyAllChannels(ctx, EventIssueAssigned, data)
+	return nil
 }
 
 // NotifyIssueCommented 通知工单评论
@@ -305,7 +359,8 @@ func (s *notificationService) NotifyIssueCommented(ctx context.Context, issue *m
 		UpdatedBy:   commentBy,
 		Comment:     comment,
 	}
-	return s.QueueWebhook(ctx, EventIssueCommented, data)
+	s.notifyAllChannels(ctx, EventIssueCommented, data)
+	return nil
 }
 
 // NotifyAlertFiring 通知告警触发
@@ -319,7 +374,8 @@ func (s *notificationService) NotifyAlertFiring(ctx context.Context, alert *mode
 		Labels:      alert.Labels,
 		StartsAt:    alert.StartsAt,
 	}
-	return s.QueueWebhook(ctx, EventAlertFiring, data)
+	s.notifyAllChannels(ctx, EventAlertFiring, data)
+	return nil
 }
 
 // NotifyAlertResolved 通知告警恢复
@@ -334,7 +390,8 @@ func (s *notificationService) NotifyAlertResolved(ctx context.Context, alert *mo
 		StartsAt:    alert.StartsAt,
 		EndsAt:      alert.EndsAt,
 	}
-	return s.QueueWebhook(ctx, EventAlertResolved, data)
+	s.notifyAllChannels(ctx, EventAlertResolved, data)
+	return nil
 }
 
 // NotifyAlertAcked 通知告警确认
@@ -348,5 +405,6 @@ func (s *notificationService) NotifyAlertAcked(ctx context.Context, alert *model
 		"acked_by":    ackedBy,
 		"acked_at":    alert.AckAt,
 	}
-	return s.QueueWebhook(ctx, EventAlertAcked, data)
+	s.notifyAllChannels(ctx, EventAlertAcked, data)
+	return nil
 }

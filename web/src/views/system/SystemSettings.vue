@@ -219,72 +219,6 @@
         </el-card>
       </el-tab-pane>
 
-      <!-- Webhook 配置 -->
-      <el-tab-pane label="Webhook" name="webhook">
-        <el-card shadow="never" class="settings-card">
-          <template #header>
-            <div class="card-header">
-              <div class="card-title">
-                <div class="title-icon webhook-icon">
-                  <el-icon><Connection /></el-icon>
-                </div>
-                <div class="title-text">
-                  <span class="title">Webhook 配置</span>
-                  <span class="subtitle">配置外发 Webhook，将系统事件推送到第三方服务</span>
-                </div>
-              </div>
-              <el-button type="primary" @click="showWebhookDialog()">
-                <el-icon><Plus /></el-icon>
-                添加 Webhook
-              </el-button>
-            </div>
-          </template>
-
-          <div class="webhook-list" v-if="webhooks.length > 0">
-            <div class="webhook-item" v-for="webhook in webhooks" :key="webhook.id">
-              <div class="webhook-info">
-                <div class="webhook-header">
-                  <span class="webhook-name">{{ webhook.name }}</span>
-                  <el-tag :type="webhook.status === 1 ? 'success' : 'info'" size="small">
-                    {{ webhook.status === 1 ? '启用' : '禁用' }}
-                  </el-tag>
-                </div>
-                <div class="webhook-url">{{ webhook.url }}</div>
-                <div class="webhook-events">
-                  <el-tag
-                    v-for="event in webhook.events"
-                    :key="event"
-                    size="small"
-                    type="info"
-                    effect="plain"
-                    class="event-tag"
-                  >
-                    {{ getEventLabel(event) }}
-                  </el-tag>
-                </div>
-              </div>
-              <div class="webhook-actions">
-                <el-button link type="primary" @click="showWebhookDialog(webhook)">
-                  <el-icon><Edit /></el-icon>
-                  编辑
-                </el-button>
-                <el-button link type="danger" @click="handleDeleteWebhook(webhook)">
-                  <el-icon><Delete /></el-icon>
-                  删除
-                </el-button>
-              </div>
-            </div>
-          </div>
-
-          <el-empty v-else description="暂无 Webhook 配置">
-            <el-button type="primary" @click="showWebhookDialog()">
-              <el-icon><Plus /></el-icon>
-              添加 Webhook
-            </el-button>
-          </el-empty>
-        </el-card>
-      </el-tab-pane>
-
       <!-- 安全配置 -->
       <el-tab-pane label="安全设置" name="security">
         <el-row :gutter="20">
@@ -406,78 +340,6 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- Webhook 编辑对话框 -->
-    <el-dialog
-      v-model="webhookDialogVisible"
-      :title="webhookForm.id ? '编辑 Webhook' : '添加 Webhook'"
-      width="600px"
-    >
-      <el-form
-        ref="webhookFormRef"
-        :model="webhookForm"
-        :rules="webhookRules"
-        label-position="top"
-      >
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="名称" prop="name">
-              <el-input v-model="webhookForm.name" placeholder="Webhook 名称" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12" v-if="webhookForm.id">
-            <el-form-item label="状态">
-              <el-switch
-                v-model="webhookForm.status"
-                :active-value="1"
-                :inactive-value="0"
-                active-text="启用"
-                inactive-text="禁用"
-                inline-prompt
-                style="--el-switch-on-color: #67c23a"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="URL" prop="url">
-          <el-input v-model="webhookForm.url" placeholder="https://example.com/webhook" />
-        </el-form-item>
-        <el-form-item label="签名密钥" prop="secret">
-          <el-input
-            v-model="webhookForm.secret"
-            type="password"
-            placeholder="用于 HMAC-SHA256 签名验证（可选）"
-            show-password
-          />
-        </el-form-item>
-        <el-form-item label="订阅事件" prop="events">
-          <el-checkbox-group v-model="webhookForm.events" class="event-checkbox-group">
-            <el-checkbox
-              v-for="event in WebhookEvents"
-              :key="event.value"
-              :value="event.value"
-              border
-            >
-              {{ event.label }}
-            </el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input
-            v-model="webhookForm.description"
-            type="textarea"
-            :rows="2"
-            placeholder="Webhook 用途描述（可选）"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="webhookDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="webhookSaving" @click="saveWebhook">
-          保存
-        </el-button>
-      </template>
-    </el-dialog>
-
     <!-- 测试邮件对话框 -->
     <el-dialog v-model="testEmailDialog" title="发送测试邮件" width="400px">
       <el-form ref="testEmailFormRef" :model="testEmailForm" :rules="testEmailRules" label-position="top">
@@ -498,25 +360,19 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
-  Message, Connection, Lock, Plus, Check, Promotion, InfoFilled,
-  Edit, Delete, Key, Timer, Monitor, User, Setting, Link
+  Message, Lock, Check, Promotion, InfoFilled,
+  Key, Timer, Monitor, User, Setting, Link
 } from '@element-plus/icons-vue'
 import {
   getEmailConfig,
   updateEmailConfig,
   getSecurityConfig,
   updateSecurityConfig,
-  getWebhooks,
-  createWebhook,
-  updateWebhook,
-  deleteWebhook,
   getConfig,
   updateConfig,
 } from '@/api/system'
-import type { Webhook } from '@/types/system'
-import { WebhookEvents } from '@/types/system'
 
 const route = useRoute()
 const router = useRouter()
@@ -661,127 +517,6 @@ const sendTestEmail = async () => {
   })
 }
 
-// ============ Webhook 配置 ============
-const webhooks = ref<Webhook[]>([])
-const webhooksLoading = ref(false)
-const webhookDialogVisible = ref(false)
-const webhookFormRef = ref<FormInstance>()
-const webhookSaving = ref(false)
-const webhookForm = reactive({
-  id: 0,
-  name: '',
-  url: '',
-  secret: '',
-  events: [] as string[],
-  description: '',
-  status: 1,
-})
-
-const webhookRules: FormRules = {
-  name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-  url: [
-    { required: true, message: '请输入 URL', trigger: 'blur' },
-    { type: 'url', message: '请输入正确的 URL', trigger: 'blur' },
-  ],
-  events: [{ required: true, message: '请选择至少一个事件', trigger: 'change' }],
-}
-
-const loadWebhooks = async () => {
-  webhooksLoading.value = true
-  try {
-    const { data } = await getWebhooks()
-    webhooks.value = data.data.items || []
-  } catch (error) {
-    console.error('Failed to load webhooks:', error)
-  } finally {
-    webhooksLoading.value = false
-  }
-}
-
-const showWebhookDialog = (webhook?: Webhook) => {
-  if (webhook) {
-    Object.assign(webhookForm, {
-      id: webhook.id,
-      name: webhook.name,
-      url: webhook.url,
-      secret: '',
-      events: webhook.events,
-      description: webhook.description,
-      status: webhook.status,
-    })
-  } else {
-    Object.assign(webhookForm, {
-      id: 0,
-      name: '',
-      url: '',
-      secret: '',
-      events: [],
-      description: '',
-      status: 1,
-    })
-  }
-  webhookDialogVisible.value = true
-}
-
-const saveWebhook = async () => {
-  if (!webhookFormRef.value) return
-  await webhookFormRef.value.validate(async (valid) => {
-    if (!valid) return
-
-    webhookSaving.value = true
-    try {
-      if (webhookForm.id) {
-        await updateWebhook(webhookForm.id, {
-          name: webhookForm.name,
-          url: webhookForm.url,
-          secret: webhookForm.secret || undefined,
-          events: webhookForm.events,
-          description: webhookForm.description,
-          status: webhookForm.status,
-        })
-        ElMessage.success('Webhook 更新成功')
-      } else {
-        await createWebhook({
-          name: webhookForm.name,
-          url: webhookForm.url,
-          secret: webhookForm.secret || undefined,
-          events: webhookForm.events,
-          description: webhookForm.description,
-        })
-        ElMessage.success('Webhook 创建成功')
-      }
-      webhookDialogVisible.value = false
-      loadWebhooks()
-    } catch (error) {
-      console.error('Failed to save webhook:', error)
-    } finally {
-      webhookSaving.value = false
-    }
-  })
-}
-
-const handleDeleteWebhook = async (webhook: Webhook) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除 Webhook "${webhook.name}" 吗？`,
-      '删除确认',
-      { type: 'warning' }
-    )
-    await deleteWebhook(webhook.id)
-    ElMessage.success('删除成功')
-    loadWebhooks()
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete webhook:', error)
-    }
-  }
-}
-
-const getEventLabel = (event: string) => {
-  const found = WebhookEvents.find(e => e.value === event)
-  return found?.label || event
-}
-
 // ============ 安全配置 ============
 const securityFormRef = ref<FormInstance>()
 const securitySaving = ref(false)
@@ -819,7 +554,6 @@ const saveSecurityConfig = async () => {
 onMounted(() => {
   loadGeneralConfig()
   loadEmailConfig()
-  loadWebhooks()
   loadSecurityConfig()
 })
 </script>
@@ -871,11 +605,6 @@ onMounted(() => {
 
     &.email-icon {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-    }
-
-    &.webhook-icon {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
       color: #fff;
     }
 
@@ -987,68 +716,6 @@ onMounted(() => {
   }
 }
 
-// Webhook 列表样式
-.webhook-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.webhook-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: #d1d5db;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  }
-
-  .webhook-info {
-    flex: 1;
-
-    .webhook-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 6px;
-
-      .webhook-name {
-        font-size: 15px;
-        font-weight: 600;
-        color: #1f2937;
-      }
-    }
-
-    .webhook-url {
-      font-size: 13px;
-      color: #6b7280;
-      margin-bottom: 8px;
-      font-family: monospace;
-    }
-
-    .webhook-events {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-  }
-
-  .webhook-actions {
-    display: flex;
-    gap: 8px;
-  }
-}
-
-.event-tag {
-  font-size: 12px;
-}
-
 // 安全设置块
 .setting-block {
   border-radius: 12px;
@@ -1128,23 +795,6 @@ onMounted(() => {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #e5e7eb;
-}
-
-// Webhook 对话框样式
-.event-checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-
-  :deep(.el-checkbox) {
-    margin-right: 0;
-    height: auto;
-    padding: 8px 12px;
-
-    &.is-bordered {
-      border-radius: 6px;
-    }
-  }
 }
 
 // 响应式

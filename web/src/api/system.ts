@@ -3,6 +3,10 @@ import type {
   SystemConfig,
   EmailConfig,
   SecurityConfig,
+  LarkConfig,
+  UpdateLarkConfigRequest,
+  TelegramConfig,
+  UpdateTelegramConfigRequest,
   Webhook,
   CreateWebhookRequest,
   UpdateWebhookRequest,
@@ -124,4 +128,38 @@ export function getWebhookLogs(params?: {
       page_size: number
     }
   }>('/system/webhook-logs', { params })
+}
+
+// ============ 飞书配置 ============
+
+// 获取飞书配置
+export function getLarkConfig() {
+  return request.get<{ data: LarkConfig }>('/system/lark')
+}
+
+// 更新飞书配置
+export function updateLarkConfig(config: UpdateLarkConfigRequest) {
+  return request.put('/system/lark', config)
+}
+
+// 测试飞书通知
+export function testLark() {
+  return request.post('/system/lark/test')
+}
+
+// ============ Telegram 配置 ============
+
+// 获取 Telegram 配置
+export function getTelegramConfig() {
+  return request.get<{ data: TelegramConfig }>('/system/telegram')
+}
+
+// 更新 Telegram 配置
+export function updateTelegramConfig(config: UpdateTelegramConfigRequest) {
+  return request.put('/system/telegram', config)
+}
+
+// 测试 Telegram 通知
+export function testTelegram() {
+  return request.post('/system/telegram/test')
 }

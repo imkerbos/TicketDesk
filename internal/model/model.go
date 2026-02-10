@@ -628,6 +628,22 @@ func (AlertDatasource) TableName() string {
 	return "alert_datasources"
 }
 
+// ProjectNotificationChannel 项目通知渠道模型
+type ProjectNotificationChannel struct {
+	BaseModel
+	ProjectID   uint64 `gorm:"index;not null" json:"project_id"`
+	ChannelType string `gorm:"size:20;not null;index" json:"channel_type"` // lark, telegram
+	Name        string `gorm:"size:100;not null" json:"name"`              // 渠道名称，如"运维飞书群"
+	Config      string `gorm:"type:json;not null" json:"config"`           // JSON 配置
+	Enabled     bool   `gorm:"default:true" json:"enabled"`
+	CreatedBy   uint64 `gorm:"index" json:"created_by"`
+}
+
+// TableName 指定表名
+func (ProjectNotificationChannel) TableName() string {
+	return "project_notification_channels"
+}
+
 // 字段类型常量
 const (
 	FieldTypeText         = "text"          // 单行文本

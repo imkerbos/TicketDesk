@@ -286,6 +286,126 @@
             <FieldConfigTab :project-key="projectKey" />
           </div>
         </el-tab-pane>
+
+        <!-- 通知渠道 -->
+        <el-tab-pane name="notifications">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Bell /></el-icon>
+              通知渠道
+            </span>
+          </template>
+          <div v-loading="channelsLoading" class="tab-content">
+            <div class="section-header">
+              <div class="section-title">
+                <el-icon><Bell /></el-icon>
+                <span>通知渠道</span>
+                <el-tag size="small" type="info" style="margin-left: 8px">{{ channels.length }} 个</el-tag>
+              </div>
+              <el-button type="primary" @click="openChannelDialog">
+                <el-icon><Plus /></el-icon>
+                添加渠道
+              </el-button>
+            </div>
+
+            <!-- 内置通知提示 -->
+            <div class="notification-builtin-card">
+              <div class="builtin-icon">
+                <el-icon :size="20"><Connection /></el-icon>
+              </div>
+              <div class="builtin-content">
+                <div class="builtin-title">站内实时通知</div>
+                <div class="builtin-desc">WebSocket 实时推送默认开启，工单相关事件会自动通知到站内消息中心，无需额外配置。</div>
+              </div>
+              <el-tag type="success" size="small" effect="dark" class="builtin-tag">默认开启</el-tag>
+            </div>
+
+            <!-- 外部渠道说明 -->
+            <div class="notification-section-label">
+              <span class="section-label-text">外部通知渠道</span>
+              <span class="section-label-desc">工单创建、状态变更、指派、评论等事件会自动推送到已启用的渠道</span>
+            </div>
+
+            <!-- 渠道列表 -->
+            <div v-if="channels.length > 0" class="channels-list">
+              <div v-for="channel in channels" :key="channel.id" class="channel-row" :class="{ disabled: !channel.enabled }">
+                <div class="channel-row-left">
+                  <div class="channel-icon" :class="channel.channel_type">
+                    <span v-if="channel.channel_type === 'lark'" class="channel-icon-text">飞书</span>
+                    <span v-else-if="channel.channel_type === 'telegram'" class="channel-icon-text">TG</span>
+                  </div>
+                  <div class="channel-row-info">
+                    <div class="channel-row-name">
+                      <span>{{ channel.name }}</span>
+                      <el-tag
+                        :type="channel.channel_type === 'lark' ? 'primary' : 'info'"
+                        size="small"
+                        effect="plain"
+                        class="channel-type-tag"
+                      >
+                        {{ channel.channel_type === 'lark' ? '飞书群机器人' : 'Telegram Bot' }}
+                      </el-tag>
+                    </div>
+                    <div class="channel-row-detail">
+                      <span class="channel-config-text">
+                        <template v-if="channel.channel_type === 'lark'">
+                          Webhook: {{ maskUrl((channel.config as any)?.webhook_url) }}
+                        </template>
+                        <template v-else-if="channel.channel_type === 'telegram'">
+                          Chat ID: {{ (channel.config as any)?.chat_id || '-' }}
+                        </template>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div class="channel-row-right">
+                  <span class="channel-status-indicator" :class="channel.enabled ? 'active' : 'inactive'">
+                    <span class="status-dot"></span>
+                    {{ channel.enabled ? '运行中' : '已停用' }}
+                  </span>
+                  <el-button
+                    size="small"
+                    type="success"
+                    plain
+                    :loading="testingChannelId === channel.id"
+                    @click="handleTestChannel(channel)"
+                  >
+                    <el-icon><Promotion /></el-icon>
+                    测试
+                  </el-button>
+                  <el-button size="small" plain @click="handleEditChannel(channel)">
+                    <el-icon><Edit /></el-icon>
+                    编辑
+                  </el-button>
+                  <el-button size="small" plain type="danger" @click="handleDeleteChannel(channel)">
+                    <el-icon><Delete /></el-icon>
+                    删除
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="!channelsLoading && channels.length === 0" class="channels-empty">
+              <div class="empty-illustration">
+                <div class="empty-icon-wrapper">
+                  <el-icon :size="48"><Bell /></el-icon>
+                </div>
+                <div class="empty-decorations">
+                  <span class="deco deco-1"></span>
+                  <span class="deco deco-2"></span>
+                  <span class="deco deco-3"></span>
+                </div>
+              </div>
+              <div class="empty-title">还没有配置外部通知渠道</div>
+              <div class="empty-desc">添加飞书或 Telegram 通知渠道，让团队第一时间收到工单动态</div>
+              <el-button type="primary" @click="openChannelDialog">
+                <el-icon><Plus /></el-icon>
+                添加第一个渠道
+              </el-button>
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -435,6 +555,148 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 创建/编辑通知渠道对话框 -->
+    <el-dialog
+      v-model="channelDialogVisible"
+      :title="isEditingChannel ? '编辑通知渠道' : '添加通知渠道'"
+      width="600px"
+      destroy-on-close
+      class="custom-dialog channel-dialog"
+    >
+      <el-form ref="channelFormRef" :model="channelForm" :rules="channelRules" label-position="top">
+        <!-- 渠道类型选择 - 卡片式 -->
+        <el-form-item label="选择渠道类型" prop="channel_type" class="channel-type-form-item">
+          <div class="channel-type-cards" :class="{ disabled: isEditingChannel }">
+            <div
+              class="channel-type-card"
+              :class="{ active: channelForm.channel_type === 'lark', disabled: isEditingChannel }"
+              @click="!isEditingChannel && (channelForm.channel_type = 'lark')"
+            >
+              <div class="type-card-icon lark">
+                <span>飞书</span>
+              </div>
+              <div class="type-card-content">
+                <div class="type-card-name">飞书群机器人</div>
+                <div class="type-card-desc">通过 Webhook 推送消息到飞书群</div>
+              </div>
+              <div v-if="channelForm.channel_type === 'lark'" class="type-card-check">
+                <el-icon><CircleCheck /></el-icon>
+              </div>
+            </div>
+            <div
+              class="channel-type-card"
+              :class="{ active: channelForm.channel_type === 'telegram', disabled: isEditingChannel }"
+              @click="!isEditingChannel && (channelForm.channel_type = 'telegram')"
+            >
+              <div class="type-card-icon telegram">
+                <span>TG</span>
+              </div>
+              <div class="type-card-content">
+                <div class="type-card-name">Telegram Bot</div>
+                <div class="type-card-desc">通过 Bot API 推送消息到 Telegram 群组</div>
+              </div>
+              <div v-if="channelForm.channel_type === 'telegram'" class="type-card-check">
+                <el-icon><CircleCheck /></el-icon>
+              </div>
+            </div>
+          </div>
+        </el-form-item>
+
+        <!-- 基本信息 -->
+        <div class="dialog-section">
+          <div class="dialog-section-title">基本信息</div>
+          <el-form-item label="渠道名称" prop="name">
+            <el-input v-model="channelForm.name" placeholder="如: 运维飞书群、开发 Telegram 群" maxlength="100" show-word-limit>
+              <template #prefix>
+                <el-icon><Bell /></el-icon>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="启用状态">
+            <div class="enable-switch-row">
+              <el-switch
+                v-model="channelForm.enabled"
+                active-color="#10b981"
+                inactive-color="#d1d5db"
+              />
+              <span class="enable-switch-label" :class="{ active: channelForm.enabled }">
+                {{ channelForm.enabled ? '创建后立即启用' : '创建后暂不启用' }}
+              </span>
+            </div>
+          </el-form-item>
+        </div>
+
+        <!-- 飞书配置 -->
+        <div v-if="channelForm.channel_type === 'lark'" class="dialog-section">
+          <div class="dialog-section-title">
+            <span class="section-title-icon lark">飞书</span>
+            连接配置
+          </div>
+          <el-form-item label="Webhook URL" prop="lark_webhook_url">
+            <el-input v-model="channelForm.lark_webhook_url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx">
+              <template #prefix>
+                <el-icon><Connection /></el-icon>
+              </template>
+            </el-input>
+            <div class="form-tip-small">
+              <el-icon><InfoFilled /></el-icon>
+              <span>在飞书群设置 → 群机器人 → 添加自定义机器人，复制 Webhook 地址</span>
+            </div>
+          </el-form-item>
+          <el-form-item label="签名密钥（可选）">
+            <el-input v-model="channelForm.lark_secret" placeholder="开启签名校验时填写" show-password>
+              <template #prefix>
+                <el-icon><Key /></el-icon>
+              </template>
+            </el-input>
+            <div class="form-tip-small">
+              <el-icon><InfoFilled /></el-icon>
+              <span>如果机器人开启了签名校验，请填写对应的密钥</span>
+            </div>
+          </el-form-item>
+        </div>
+
+        <!-- Telegram 配置 -->
+        <div v-if="channelForm.channel_type === 'telegram'" class="dialog-section">
+          <div class="dialog-section-title">
+            <span class="section-title-icon telegram">TG</span>
+            连接配置
+          </div>
+          <el-form-item label="Bot Token" prop="telegram_bot_token">
+            <el-input v-model="channelForm.telegram_bot_token" placeholder="通过 @BotFather 创建 Bot 获取 Token" show-password>
+              <template #prefix>
+                <el-icon><Key /></el-icon>
+              </template>
+            </el-input>
+            <div class="form-tip-small">
+              <el-icon><InfoFilled /></el-icon>
+              <span>在 Telegram 中搜索 @BotFather，发送 /newbot 创建机器人并获取 Token</span>
+            </div>
+          </el-form-item>
+          <el-form-item label="Chat ID" prop="telegram_chat_id">
+            <el-input v-model="channelForm.telegram_chat_id" placeholder="群组或频道的 Chat ID（如 -1001234567890）">
+              <template #prefix>
+                <el-icon><Promotion /></el-icon>
+              </template>
+            </el-input>
+            <div class="form-tip-small">
+              <el-icon><InfoFilled /></el-icon>
+              <span>将 Bot 添加到群组后，通过 @userinfobot 或 getUpdates API 获取 Chat ID</span>
+            </div>
+          </el-form-item>
+        </div>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="channelDialogVisible = false" size="large">取消</el-button>
+          <el-button type="primary" :loading="channelSubmitLoading" @click="submitChannel" size="large">
+            <el-icon><Check /></el-icon>
+            {{ isEditingChannel ? '保存更改' : '添加渠道' }}
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -467,6 +729,7 @@ import {
   Connection,
   Memo,
   Grid,
+  Bell,
 } from '@element-plus/icons-vue'
 import FieldConfigTab from './components/FieldConfigTab.vue'
 import {
@@ -484,6 +747,11 @@ import {
   createProjectIssueType,
   updateProjectIssueType,
   deleteProjectIssueType,
+  getNotificationChannels,
+  createNotificationChannel,
+  updateNotificationChannel,
+  deleteNotificationChannel,
+  testNotificationChannel,
 } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import type {
@@ -493,6 +761,7 @@ import type {
   UpdateProjectRequest,
   CreateProjectRoleRequest,
   CreateIssueTypeRequest,
+  NotificationChannel,
 } from '@/types/project'
 import type { UserOption } from '@/types/user'
 
@@ -590,6 +859,32 @@ const issueTypeRules: FormRules = {
   display_name: [{ required: true, message: '请输入显示名称', trigger: 'blur' }],
 }
 
+// 通知渠道
+const channelsLoading = ref(false)
+const channels = ref<NotificationChannel[]>([])
+const channelDialogVisible = ref(false)
+const isEditingChannel = ref(false)
+const editingChannelId = ref<number | null>(null)
+const channelSubmitLoading = ref(false)
+const testingChannelId = ref<number | null>(null)
+const channelFormRef = ref<FormInstance>()
+const channelForm = reactive({
+  channel_type: 'lark' as 'lark' | 'telegram',
+  name: '',
+  enabled: true,
+  lark_webhook_url: '',
+  lark_secret: '',
+  telegram_bot_token: '',
+  telegram_chat_id: '',
+})
+const channelRules: FormRules = {
+  channel_type: [{ required: true, message: '请选择渠道类型', trigger: 'change' }],
+  name: [{ required: true, message: '请输入渠道名称', trigger: 'blur' }],
+  lark_webhook_url: [{ required: true, message: '请输入飞书 Webhook URL', trigger: 'blur' }],
+  telegram_bot_token: [{ required: true, message: '请输入 Telegram Bot Token', trigger: 'blur' }],
+  telegram_chat_id: [{ required: true, message: '请输入 Telegram Chat ID', trigger: 'blur' }],
+}
+
 const loadProjectDetail = async () => {
   loading.value = true
   try {
@@ -651,6 +946,153 @@ const loadIssueTypes = async () => {
     console.error('Failed to load issue types:', error)
   } finally {
     issueTypesLoading.value = false
+  }
+}
+
+const loadChannels = async () => {
+  channelsLoading.value = true
+  try {
+    const { data } = await getNotificationChannels(projectKey.value)
+    channels.value = data.data || []
+  } catch (error) {
+    console.error('Failed to load notification channels:', error)
+  } finally {
+    channelsLoading.value = false
+  }
+}
+
+const openChannelDialog = () => {
+  isEditingChannel.value = false
+  editingChannelId.value = null
+  Object.assign(channelForm, {
+    channel_type: 'lark',
+    name: '',
+    enabled: true,
+    lark_webhook_url: '',
+    lark_secret: '',
+    telegram_bot_token: '',
+    telegram_chat_id: '',
+  })
+  channelDialogVisible.value = true
+}
+
+const handleEditChannel = (channel: NotificationChannel) => {
+  isEditingChannel.value = true
+  editingChannelId.value = channel.id
+  const config = channel.config as any
+  Object.assign(channelForm, {
+    channel_type: channel.channel_type,
+    name: channel.name,
+    enabled: channel.enabled,
+    lark_webhook_url: channel.channel_type === 'lark' ? (config?.webhook_url || '') : '',
+    lark_secret: '', // 密钥不回显
+    telegram_bot_token: '', // Token 不回显
+    telegram_chat_id: channel.channel_type === 'telegram' ? (config?.chat_id || '') : '',
+  })
+  channelDialogVisible.value = true
+}
+
+const handleDeleteChannel = async (channel: NotificationChannel) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除通知渠道 "${channel.name}" 吗？`, '删除确认', {
+      type: 'warning',
+    })
+    await deleteNotificationChannel(projectKey.value, channel.id)
+    ElMessage.success('删除成功')
+    loadChannels()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete channel:', error)
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+const handleTestChannel = async (channel: NotificationChannel) => {
+  testingChannelId.value = channel.id
+  try {
+    await testNotificationChannel(projectKey.value, channel.id)
+    ElMessage.success('测试消息发送成功，请检查对应渠道')
+  } catch (error: any) {
+    console.error('Failed to test channel:', error)
+    ElMessage.error(error?.response?.data?.message || '测试发送失败')
+  } finally {
+    testingChannelId.value = null
+  }
+}
+
+const submitChannel = async () => {
+  if (!channelFormRef.value) return
+  await channelFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    channelSubmitLoading.value = true
+    try {
+      // 构建 config
+      let config: any = {}
+      if (channelForm.channel_type === 'lark') {
+        config = {
+          webhook_url: channelForm.lark_webhook_url,
+        }
+        if (channelForm.lark_secret) {
+          config.secret = channelForm.lark_secret
+        }
+      } else if (channelForm.channel_type === 'telegram') {
+        config = {
+          chat_id: channelForm.telegram_chat_id,
+        }
+        if (channelForm.telegram_bot_token) {
+          config.bot_token = channelForm.telegram_bot_token
+        }
+      }
+
+      if (isEditingChannel.value && editingChannelId.value) {
+        const updateData: any = {
+          name: channelForm.name,
+          enabled: channelForm.enabled,
+        }
+        // 只有填写了配置才更新 config
+        const hasConfig = channelForm.channel_type === 'lark'
+          ? channelForm.lark_webhook_url
+          : channelForm.telegram_chat_id
+        if (hasConfig) {
+          updateData.config = config
+        }
+        await updateNotificationChannel(projectKey.value, editingChannelId.value, updateData)
+        ElMessage.success('更新成功')
+      } else {
+        await createNotificationChannel(projectKey.value, {
+          channel_type: channelForm.channel_type,
+          name: channelForm.name,
+          config,
+          enabled: channelForm.enabled,
+        })
+        ElMessage.success('创建成功')
+      }
+      channelDialogVisible.value = false
+      loadChannels()
+    } catch (error: any) {
+      console.error('Failed to submit channel:', error)
+      ElMessage.error(error?.response?.data?.message || (isEditingChannel.value ? '更新失败' : '创建失败'))
+    } finally {
+      channelSubmitLoading.value = false
+    }
+  })
+}
+
+const maskUrl = (url: string | undefined) => {
+  if (!url) return '-'
+  try {
+    const u = new URL(url)
+    const path = u.pathname
+    if (path.length > 20) {
+      return u.origin + path.substring(0, 10) + '...' + path.substring(path.length - 6)
+    }
+    return url
+  } catch {
+    if (url.length > 30) {
+      return url.substring(0, 15) + '...' + url.substring(url.length - 10)
+    }
+    return url
   }
 }
 
@@ -925,6 +1367,7 @@ onMounted(() => {
   loadMembers()
   loadRoles()
   loadIssueTypes()
+  loadChannels()
 })
 </script>
 
@@ -1515,6 +1958,446 @@ onMounted(() => {
     color: #3b82f6;
   }
 }
+
+// 通知渠道
+.notification-builtin-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  margin-bottom: 24px;
+
+  .builtin-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .builtin-content {
+    flex: 1;
+
+    .builtin-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #065f46;
+      margin-bottom: 2px;
+    }
+
+    .builtin-desc {
+      font-size: 12px;
+      color: #047857;
+      line-height: 1.5;
+    }
+  }
+
+  .builtin-tag {
+    flex-shrink: 0;
+  }
+}
+
+.notification-section-label {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+
+  .section-label-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .section-label-desc {
+    font-size: 12px;
+    color: #9ca3af;
+  }
+}
+
+// 通知渠道列表
+.channels-list {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.channel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  transition: background 0.15s;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  &:hover {
+    background: #f9fafb;
+  }
+
+  &.disabled {
+    .channel-row-left {
+      opacity: 0.5;
+    }
+  }
+}
+
+.channel-row-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-weight: 700;
+
+  &.lark {
+    background: linear-gradient(135deg, #3370ff 0%, #2b5fd9 100%);
+  }
+
+  &.telegram {
+    background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+  }
+}
+
+.channel-icon-text {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.channel-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+
+  > span {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .channel-type-tag {
+    font-size: 11px;
+  }
+}
+
+.channel-row-detail {
+  .channel-config-text {
+    font-size: 12px;
+    color: #9ca3af;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  }
+}
+
+.channel-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+.channel-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 2px 10px 2px 8px;
+  border-radius: 12px;
+  margin-right: 8px;
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &.active {
+    color: #059669;
+    background: #ecfdf5;
+
+    .status-dot {
+      background: #10b981;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+    }
+  }
+
+  &.inactive {
+    color: #6b7280;
+    background: #f3f4f6;
+
+    .status-dot {
+      background: #9ca3af;
+    }
+  }
+}
+
+// 空状态
+.channels-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+
+  .empty-illustration {
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .empty-icon-wrapper {
+    width: 96px;
+    height: 96px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #667eea;
+  }
+
+  .empty-decorations {
+    position: absolute;
+    inset: -12px;
+    pointer-events: none;
+
+    .deco {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .deco-1 {
+      width: 8px;
+      height: 8px;
+      background: #a5b4fc;
+      top: -4px;
+      right: 8px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .deco-2 {
+      width: 6px;
+      height: 6px;
+      background: #c4b5fd;
+      bottom: 4px;
+      left: -4px;
+      animation: float 3s ease-in-out infinite 1s;
+    }
+
+    .deco-3 {
+      width: 10px;
+      height: 10px;
+      background: #818cf8;
+      opacity: 0.5;
+      bottom: -6px;
+      right: -2px;
+      animation: float 3s ease-in-out infinite 2s;
+    }
+  }
+
+  .empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+  }
+
+  .empty-desc {
+    font-size: 13px;
+    color: #9ca3af;
+    margin-bottom: 24px;
+    text-align: center;
+    line-height: 1.6;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+// 通知渠道对话框
+.channel-type-form-item {
+  :deep(.el-form-item__label) {
+    font-weight: 600 !important;
+    font-size: 14px !important;
+  }
+}
+
+.channel-type-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+
+  &.disabled {
+    pointer-events: none;
+  }
+}
+
+.channel-type-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fff;
+
+  &:hover:not(.disabled) {
+    border-color: #c7d2fe;
+    background: #fafafe;
+  }
+
+  &.active {
+    border-color: #667eea;
+    background: #f5f7ff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+  }
+
+  &.disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .type-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+
+    &.lark {
+      background: linear-gradient(135deg, #3370ff 0%, #2b5fd9 100%);
+    }
+
+    &.telegram {
+      background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+    }
+  }
+
+  .type-card-content {
+    flex: 1;
+    min-width: 0;
+
+    .type-card-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 2px;
+    }
+
+    .type-card-desc {
+      font-size: 11px;
+      color: #9ca3af;
+      line-height: 1.4;
+    }
+  }
+
+  .type-card-check {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    color: #667eea;
+    font-size: 18px;
+  }
+}
+
+.dialog-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.dialog-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16px;
+
+  .section-title-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+
+    &.lark {
+      background: linear-gradient(135deg, #3370ff 0%, #2b5fd9 100%);
+    }
+
+    &.telegram {
+      background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+    }
+  }
+}
+
+.enable-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .enable-switch-label {
+    font-size: 13px;
+    color: #9ca3af;
+    transition: color 0.2s;
+
+    &.active {
+      color: #059669;
+    }
+  }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
 </style>
 
 <style lang="scss">
@@ -1524,6 +2407,40 @@ onMounted(() => {
     height: auto !important;
     padding: 8px 12px !important;
     line-height: normal !important;
+  }
+}
+
+// 通知渠道对话框样式（dialog teleport 到 body，需要非 scoped）
+.channel-dialog {
+  .el-dialog__header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e5e7eb;
+
+    .el-dialog__title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .el-form-item__label {
+    font-weight: 500;
+    color: #374151;
+    padding-bottom: 6px;
+  }
+
+  .el-input__wrapper {
+    border-radius: 8px;
   }
 }
 </style>

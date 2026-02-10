@@ -1,0 +1,628 @@
+// Package lark 提供飞书（Lark）通知服务
+package lark
+
+import (
+	"bytes"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
+	"github.com/kerbos/ticketdesk/pkg/logger"
+	"go.uber.org/zap"
+)
+
+// LarkService 飞书通知服务接口
+type LarkService interface {
+	// SendNotification 发送飞书通知
+	SendNotification(ctx context.Context, event string, data interface{}) error
+	// SendTestMessage 发送测试消息
+	SendTestMessage(ctx context.Context) error
+	// IsEnabled 检查飞书通知是否启用
+	IsEnabled(ctx context.Context) bool
+}
+
+// larkService 飞书通知服务实现
+type larkService struct {
+	configSvc  configService.ConfigService
+	httpClient *http.Client
+}
+
+// NewLarkService 创建飞书通知服务实例
+func NewLarkService(configSvc configService.ConfigService) LarkService {
+	return &larkService{
+		configSvc: configSvc,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+}
+
+// IsEnabled 检查飞书通知是否启用
+func (s *larkService) IsEnabled(ctx context.Context) bool {
+	enabled, err := s.configSvc.GetConfigValue(ctx, configService.KeyLarkEnabled)
+	if err != nil {
+		return false
+	}
+	return enabled == "true"
+}
+
+// SendNotification 发送飞书通知
+func (s *larkService) SendNotification(ctx context.Context, event string, data interface{}) error {
+	if !s.IsEnabled(ctx) {
+		logger.Debug("lark notification is disabled, skip sending")
+		return nil
+	}
+
+	webhookURL, err := s.configSvc.GetConfigValue(ctx, configService.KeyLarkWebhookURL)
+	if err != nil || webhookURL == "" {
+		return fmt.Errorf("飞书 Webhook URL 未配置")
+	}
+
+	// 构建卡片消息
+	card := s.buildCard(event, data)
+
+	// 构建请求体
+	body := map[string]interface{}{
+		"msg_type": "interactive",
+		"card":     card,
+	}
+
+	// 添加签名（如果配置了密钥）
+	secret, _ := s.configSvc.GetConfigValue(ctx, configService.KeyLarkSecret)
+	if secret != "" {
+		timestamp := time.Now().Unix()
+		sign, signErr := s.generateSign(secret, timestamp)
+		if signErr != nil {
+			return fmt.Errorf("生成飞书签名失败: %w", signErr)
+		}
+		body["timestamp"] = fmt.Sprintf("%d", timestamp)
+		body["sign"] = sign
+	}
+
+	return s.doSend(ctx, webhookURL, body)
+}
+
+// SendTestMessage 发送测试消息
+func (s *larkService) SendTestMessage(ctx context.Context) error {
+	webhookURL, err := s.configSvc.GetConfigValue(ctx, configService.KeyLarkWebhookURL)
+	if err != nil || webhookURL == "" {
+		return fmt.Errorf("飞书 Webhook URL 未配置")
+	}
+
+	// 获取站点 URL
+	siteURL, _ := s.configSvc.GetConfigValue(ctx, configService.KeyGeneralSiteURL)
+	if siteURL == "" {
+		siteURL = "https://ticketdesk.example.com"
+	}
+
+	card := map[string]interface{}{
+		"config": map[string]interface{}{
+			"wide_screen_mode": true,
+		},
+		"header": map[string]interface{}{
+			"title": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "🔔 TicketDesk 通知测试",
+			},
+			"template": "blue",
+		},
+		"elements": []interface{}{
+			map[string]interface{}{
+				"tag": "div",
+				"text": map[string]interface{}{
+					"tag":     "lark_md",
+					"content": "✅ 恭喜！飞书通知配置成功。\n\n此消息由 TicketDesk 系统发送，用于验证飞书通知功能是否正常工作。",
+				},
+			},
+			map[string]interface{}{
+				"tag": "hr",
+			},
+			map[string]interface{}{
+				"tag": "note",
+				"elements": []interface{}{
+					map[string]interface{}{
+						"tag":     "plain_text",
+						"content": fmt.Sprintf("来自 TicketDesk · %s", time.Now().Format("2006-01-02 15:04:05")),
+					},
+				},
+			},
+		},
+	}
+
+	body := map[string]interface{}{
+		"msg_type": "interactive",
+		"card":     card,
+	}
+
+	// 添加签名
+	secret, _ := s.configSvc.GetConfigValue(ctx, configService.KeyLarkSecret)
+	if secret != "" {
+		timestamp := time.Now().Unix()
+		sign, signErr := s.generateSign(secret, timestamp)
+		if signErr != nil {
+			return fmt.Errorf("生成飞书签名失败: %w", signErr)
+		}
+		body["timestamp"] = fmt.Sprintf("%d", timestamp)
+		body["sign"] = sign
+	}
+
+	return s.doSend(ctx, webhookURL, body)
+}
+
+// buildCard 根据事件类型构建飞书卡片消息
+func (s *larkService) buildCard(event string, data interface{}) map[string]interface{} {
+	// 获取站点 URL
+	ctx := context.Background()
+	siteURL, _ := s.configSvc.GetConfigValue(ctx, configService.KeyGeneralSiteURL)
+	if siteURL == "" {
+		siteURL = "https://ticketdesk.example.com"
+	}
+
+	// 解析事件数据
+	dataMap := toMap(data)
+
+	// 根据事件类型确定标题和颜色
+	title, template := s.getEventMeta(event)
+
+	// 构建内容字段
+	contentLines := s.buildContentLines(event, dataMap)
+
+	elements := []interface{}{
+		map[string]interface{}{
+			"tag": "div",
+			"text": map[string]interface{}{
+				"tag":     "lark_md",
+				"content": contentLines,
+			},
+		},
+	}
+
+	// 如果有工单链接，添加按钮
+	if issueKey, ok := dataMap["issue_key"].(string); ok && issueKey != "" {
+		elements = append(elements,
+			map[string]interface{}{
+				"tag": "hr",
+			},
+			map[string]interface{}{
+				"tag": "action",
+				"actions": []interface{}{
+					map[string]interface{}{
+						"tag": "button",
+						"text": map[string]interface{}{
+							"tag":     "plain_text",
+							"content": "查看工单",
+						},
+						"url":  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
+						"type": "primary",
+					},
+				},
+			},
+		)
+	}
+
+	// 添加底部备注
+	elements = append(elements,
+		map[string]interface{}{
+			"tag": "note",
+			"elements": []interface{}{
+				map[string]interface{}{
+					"tag":     "plain_text",
+					"content": fmt.Sprintf("TicketDesk · %s", time.Now().Format("2006-01-02 15:04:05")),
+				},
+			},
+		},
+	)
+
+	return map[string]interface{}{
+		"config": map[string]interface{}{
+			"wide_screen_mode": true,
+		},
+		"header": map[string]interface{}{
+			"title": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": title,
+			},
+			"template": template,
+		},
+		"elements": elements,
+	}
+}
+
+// getEventMeta 获取事件的标题和卡片颜色模板
+func (s *larkService) getEventMeta(event string) (title, template string) {
+	switch event {
+	case "issue.created":
+		return "🎫 工单创建", "blue"
+	case "issue.updated":
+		return "✏️ 工单更新", "wathet"
+	case "issue.transitioned":
+		return "🔄 工单状态变更", "turquoise"
+	case "issue.assigned":
+		return "👤 工单指派", "indigo"
+	case "issue.commented":
+		return "💬 工单评论", "violet"
+	case "alert.firing":
+		return "🔥 告警触发", "red"
+	case "alert.resolved":
+		return "✅ 告警恢复", "green"
+	case "alert.acked":
+		return "👁️ 告警确认", "orange"
+	default:
+		return "📢 系统通知", "blue"
+	}
+}
+
+// buildContentLines 根据事件类型构建消息内容
+func (s *larkService) buildContentLines(event string, data map[string]interface{}) string {
+	var content string
+
+	switch {
+	case len(event) > 6 && event[:6] == "issue.":
+		issueKey, _ := data["issue_key"].(string)
+		issueTitle, _ := data["issue_title"].(string)
+		projectName, _ := data["project_name"].(string)
+		status, _ := data["status"].(string)
+		priority, _ := data["priority"].(string)
+
+		content = fmt.Sprintf("**%s** %s\n", issueKey, issueTitle)
+		if projectName != "" {
+			content += fmt.Sprintf("📁 项目：%s\n", projectName)
+		}
+		if status != "" {
+			content += fmt.Sprintf("📊 状态：%s\n", status)
+		}
+		if priority != "" {
+			content += fmt.Sprintf("🔴 优先级：%s\n", priority)
+		}
+		if comment, ok := data["comment"].(string); ok && comment != "" {
+			// 截断过长的评论
+			if len(comment) > 200 {
+				comment = comment[:200] + "..."
+			}
+			content += fmt.Sprintf("💬 评论：%s\n", comment)
+		}
+
+	case len(event) > 6 && event[:6] == "alert.":
+		alertName, _ := data["alert_name"].(string)
+		severity, _ := data["severity"].(string)
+		alertStatus, _ := data["status"].(string)
+		issueKey, _ := data["issue_key"].(string)
+
+		content = fmt.Sprintf("**%s**\n", alertName)
+		if severity != "" {
+			content += fmt.Sprintf("⚠️ 级别：%s\n", severity)
+		}
+		if alertStatus != "" {
+			content += fmt.Sprintf("📊 状态：%s\n", alertStatus)
+		}
+		if issueKey != "" {
+			content += fmt.Sprintf("🎫 关联工单：%s\n", issueKey)
+		}
+
+	default:
+		// 通用格式
+		jsonBytes, _ := json.MarshalIndent(data, "", "  ")
+		content = string(jsonBytes)
+	}
+
+	return content
+}
+
+// generateSign 生成飞书签名
+func (s *larkService) generateSign(secret string, timestamp int64) (string, error) {
+	stringToSign := fmt.Sprintf("%v", timestamp) + "\n" + secret
+	h := hmac.New(sha256.New, []byte(stringToSign))
+	_, err := h.Write([]byte{})
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// doSend 执行 HTTP 发送
+func (s *larkService) doSend(ctx context.Context, webhookURL string, body map[string]interface{}) error {
+	payloadBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("序列化飞书消息失败: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhookURL, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("创建飞书请求失败: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		logger.Error("failed to send lark notification", zap.Error(err))
+		return fmt.Errorf("发送飞书通知失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	// 飞书返回 200 但可能 code != 0
+	var result struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	if err := json.Unmarshal(respBody, &result); err == nil && result.Code != 0 {
+		logger.Error("lark webhook returned error",
+			zap.Int("code", result.Code),
+			zap.String("msg", result.Msg),
+		)
+		return fmt.Errorf("飞书返回错误: code=%d, msg=%s", result.Code, result.Msg)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("飞书返回 HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	logger.Info("lark notification sent successfully", zap.String("webhook_url", webhookURL))
+	return nil
+}
+
+// ============ Direct Sender（项目级通知渠道使用，不依赖 ConfigService）============
+
+// DirectLarkSender 直接飞书发送器（接受凭据参数，不依赖系统配置）
+type DirectLarkSender struct {
+	webhookURL string
+	secret     string
+	httpClient *http.Client
+}
+
+// NewDirectLarkSender 创建直接飞书发送器
+func NewDirectLarkSender(webhookURL, secret string) *DirectLarkSender {
+	return &DirectLarkSender{
+		webhookURL: webhookURL,
+		secret:     secret,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+}
+
+// SendNotification 发送飞书通知
+func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, data interface{}) error {
+	dataMap := toMap(data)
+	title, template := directGetEventMeta(event)
+	contentLines := directBuildContentLines(event, dataMap)
+
+	siteURL := "https://ticketdesk.example.com"
+
+	elements := []interface{}{
+		map[string]interface{}{
+			"tag": "div",
+			"text": map[string]interface{}{
+				"tag":     "lark_md",
+				"content": contentLines,
+			},
+		},
+	}
+
+	// 如果有工单链接，添加按钮
+	if issueKey, ok := dataMap["issue_key"].(string); ok && issueKey != "" {
+		elements = append(elements,
+			map[string]interface{}{
+				"tag": "hr",
+			},
+			map[string]interface{}{
+				"tag": "action",
+				"actions": []interface{}{
+					map[string]interface{}{
+						"tag": "button",
+						"text": map[string]interface{}{
+							"tag":     "plain_text",
+							"content": "查看工单",
+						},
+						"url":  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
+						"type": "primary",
+					},
+				},
+			},
+		)
+	}
+
+	elements = append(elements,
+		map[string]interface{}{
+			"tag": "note",
+			"elements": []interface{}{
+				map[string]interface{}{
+					"tag":     "plain_text",
+					"content": fmt.Sprintf("TicketDesk · %s", time.Now().Format("2006-01-02 15:04:05")),
+				},
+			},
+		},
+	)
+
+	card := map[string]interface{}{
+		"config": map[string]interface{}{
+			"wide_screen_mode": true,
+		},
+		"header": map[string]interface{}{
+			"title": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": title,
+			},
+			"template": template,
+		},
+		"elements": elements,
+	}
+
+	body := map[string]interface{}{
+		"msg_type": "interactive",
+		"card":     card,
+	}
+
+	if d.secret != "" {
+		timestamp := time.Now().Unix()
+		sign, signErr := directGenerateSign(d.secret, timestamp)
+		if signErr != nil {
+			return fmt.Errorf("生成飞书签名失败: %w", signErr)
+		}
+		body["timestamp"] = fmt.Sprintf("%d", timestamp)
+		body["sign"] = sign
+	}
+
+	return d.doSend(ctx, body)
+}
+
+// SendTestMessage 发送测试消息（使用与真实通知相同的模板）
+func (d *DirectLarkSender) SendTestMessage(ctx context.Context) error {
+	testData := map[string]interface{}{
+		"issue_key":    "TEST-1",
+		"issue_title":  "这是一条测试通知，用于验证飞书通知渠道是否配置正确",
+		"project_name": "测试项目",
+		"status":       "待处理",
+		"priority":     "P2",
+	}
+	return d.SendNotification(ctx, "issue.created", testData)
+}
+
+// doSend 执行 HTTP 发送
+func (d *DirectLarkSender) doSend(ctx context.Context, body map[string]interface{}) error {
+	payloadBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("序列化飞书消息失败: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.webhookURL, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("创建飞书请求失败: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := d.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("发送飞书通知失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	var result struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	if err := json.Unmarshal(respBody, &result); err == nil && result.Code != 0 {
+		return fmt.Errorf("飞书返回错误: code=%d, msg=%s", result.Code, result.Msg)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("飞书返回 HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+// ============ Direct 辅助函数 ============
+
+func directGetEventMeta(event string) (title, template string) {
+	switch event {
+	case "issue.created":
+		return "🎫 工单创建", "blue"
+	case "issue.updated":
+		return "✏️ 工单更新", "wathet"
+	case "issue.transitioned":
+		return "🔄 工单状态变更", "turquoise"
+	case "issue.assigned":
+		return "👤 工单指派", "indigo"
+	case "issue.commented":
+		return "💬 工单评论", "violet"
+	case "alert.firing":
+		return "🔥 告警触发", "red"
+	case "alert.resolved":
+		return "✅ 告警恢复", "green"
+	case "alert.acked":
+		return "👁️ 告警确认", "orange"
+	default:
+		return "📢 系统通知", "blue"
+	}
+}
+
+func directBuildContentLines(event string, data map[string]interface{}) string {
+	var content string
+
+	switch {
+	case len(event) > 6 && event[:6] == "issue.":
+		issueKey, _ := data["issue_key"].(string)
+		issueTitle, _ := data["issue_title"].(string)
+		projectName, _ := data["project_name"].(string)
+		status, _ := data["status"].(string)
+		priority, _ := data["priority"].(string)
+
+		content = fmt.Sprintf("**%s** %s\n", issueKey, issueTitle)
+		if projectName != "" {
+			content += fmt.Sprintf("📁 项目：%s\n", projectName)
+		}
+		if status != "" {
+			content += fmt.Sprintf("📊 状态：%s\n", status)
+		}
+		if priority != "" {
+			content += fmt.Sprintf("🔴 优先级：%s\n", priority)
+		}
+		if comment, ok := data["comment"].(string); ok && comment != "" {
+			if len(comment) > 200 {
+				comment = comment[:200] + "..."
+			}
+			content += fmt.Sprintf("💬 评论：%s\n", comment)
+		}
+
+	case len(event) > 6 && event[:6] == "alert.":
+		alertName, _ := data["alert_name"].(string)
+		severity, _ := data["severity"].(string)
+		alertStatus, _ := data["status"].(string)
+		issueKey, _ := data["issue_key"].(string)
+
+		content = fmt.Sprintf("**%s**\n", alertName)
+		if severity != "" {
+			content += fmt.Sprintf("⚠️ 级别：%s\n", severity)
+		}
+		if alertStatus != "" {
+			content += fmt.Sprintf("📊 状态：%s\n", alertStatus)
+		}
+		if issueKey != "" {
+			content += fmt.Sprintf("🎫 关联工单：%s\n", issueKey)
+		}
+
+	default:
+		jsonBytes, _ := json.MarshalIndent(data, "", "  ")
+		content = string(jsonBytes)
+	}
+
+	return content
+}
+
+func directGenerateSign(secret string, timestamp int64) (string, error) {
+	stringToSign := fmt.Sprintf("%v", timestamp) + "\n" + secret
+	h := hmac.New(sha256.New, []byte(stringToSign))
+	_, err := h.Write([]byte{})
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// toMap 将 interface{} 转换为 map[string]interface{}
+func toMap(data interface{}) map[string]interface{} {
+	if m, ok := data.(map[string]interface{}); ok {
+		return m
+	}
+	// 通过 JSON 序列化/反序列化转换
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &m); err != nil {
+		return map[string]interface{}{}
+	}
+	return m
+}

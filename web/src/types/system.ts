@@ -97,3 +97,35 @@ export const WebhookEvents = [
 ] as const
 
 export type WebhookEventType = typeof WebhookEvents[number]['value']
+
+// ============ 飞书配置 ============
+
+// 飞书配置
+export interface LarkConfig {
+  enabled: boolean
+  webhook_url: string
+  secret?: string
+}
+
+// 更新飞书配置请求
+export interface UpdateLarkConfigRequest {
+  enabled: boolean
+  webhook_url: string
+  secret?: string
+}
+
+// ============ Telegram 配置 ============
+
+// Telegram 配置
+export interface TelegramConfig {
+  enabled: boolean
+  bot_token?: string
+  chat_id: string
+}
+
+// 更新 Telegram 配置请求
+export interface UpdateTelegramConfigRequest {
+  enabled: boolean
+  bot_token?: string
+  chat_id: string
+}

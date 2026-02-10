@@ -52,6 +52,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&ProjectComponent{},
 		&IssueLabel{},
 		&AlertDatasource{},
+		&ProjectNotificationChannel{},
 	}
 
 	for _, model := range models {

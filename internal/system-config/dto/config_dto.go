@@ -185,3 +185,35 @@ type UpdateSecurityConfigRequest struct {
 	PasswordRequireNumber *bool `json:"password_require_number"`
 	SessionTimeout      *int  `json:"session_timeout" binding:"omitempty,min=5,max=1440"`
 }
+
+// ============ 飞书配置 DTO ============
+
+// LarkConfig 飞书配置
+type LarkConfig struct {
+	Enabled    bool   `json:"enabled"`               // 是否启用飞书通知
+	WebhookURL string `json:"webhook_url"`           // 飞书机器人 Webhook URL
+	Secret     string `json:"secret,omitempty"`      // 签名密钥（返回时隐藏）
+}
+
+// UpdateLarkConfigRequest 更新飞书配置请求
+type UpdateLarkConfigRequest struct {
+	Enabled    bool   `json:"enabled"`
+	WebhookURL string `json:"webhook_url" binding:"required_if=Enabled true"`
+	Secret     string `json:"secret"`                // 为空时不更新
+}
+
+// ============ Telegram 配置 DTO ============
+
+// TelegramConfig Telegram 配置
+type TelegramConfig struct {
+	Enabled  bool   `json:"enabled"`              // 是否启用 Telegram 通知
+	BotToken string `json:"bot_token,omitempty"`  // Bot Token（返回时隐藏）
+	ChatID   string `json:"chat_id"`              // Chat ID
+}
+
+// UpdateTelegramConfigRequest 更新 Telegram 配置请求
+type UpdateTelegramConfigRequest struct {
+	Enabled  bool   `json:"enabled"`
+	BotToken string `json:"bot_token"`            // 为空时不更新
+	ChatID   string `json:"chat_id" binding:"required_if=Enabled true"`
+}

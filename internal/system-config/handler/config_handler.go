@@ -7,18 +7,32 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kerbos/ticketdesk/internal/api/response"
+	"github.com/kerbos/ticketdesk/internal/notification/lark"
+	"github.com/kerbos/ticketdesk/internal/notification/telegram"
 	"github.com/kerbos/ticketdesk/internal/system-config/dto"
 	"github.com/kerbos/ticketdesk/internal/system-config/service"
 )
 
 // ConfigHandler 系统配置处理器
 type ConfigHandler struct {
-	configService service.ConfigService
+	configService   service.ConfigService
+	larkService     lark.LarkService
+	telegramService telegram.TelegramService
 }
 
 // NewConfigHandler 创建系统配置处理器
 func NewConfigHandler(configService service.ConfigService) *ConfigHandler {
 	return &ConfigHandler{configService: configService}
+}
+
+// SetLarkService 设置飞书服务（用于测试发送）
+func (h *ConfigHandler) SetLarkService(larkService lark.LarkService) {
+	h.larkService = larkService
+}
+
+// SetTelegramService 设置 Telegram 服务（用于测试发送）
+func (h *ConfigHandler) SetTelegramService(telegramService telegram.TelegramService) {
+	h.telegramService = telegramService
 }
 
 // ============ 配置管理 ============
@@ -297,4 +311,94 @@ func (h *ConfigHandler) HandleListWebhookLogs(c *gin.Context) {
 	}
 
 	response.SuccessWithPage(c, logs, total, req.GetDefaultPage(), req.GetDefaultPageSize())
+}
+
+// ============ 飞书配置 ============
+
+// HandleGetLarkConfig 获取飞书配置
+func (h *ConfigHandler) HandleGetLarkConfig(c *gin.Context) {
+	config, err := h.configService.GetLarkConfig(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, config)
+}
+
+// HandleUpdateLarkConfig 更新飞书配置
+func (h *ConfigHandler) HandleUpdateLarkConfig(c *gin.Context) {
+	var req dto.UpdateLarkConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+	if err := h.configService.UpdateLarkConfig(c.Request.Context(), &req, userID); err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// HandleTestLark 测试飞书通知
+func (h *ConfigHandler) HandleTestLark(c *gin.Context) {
+	if h.larkService == nil {
+		response.InternalError(c, "飞书服务未初始化")
+		return
+	}
+
+	if err := h.larkService.SendTestMessage(c.Request.Context()); err != nil {
+		response.InternalError(c, "飞书测试消息发送失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// ============ Telegram 配置 ============
+
+// HandleGetTelegramConfig 获取 Telegram 配置
+func (h *ConfigHandler) HandleGetTelegramConfig(c *gin.Context) {
+	config, err := h.configService.GetTelegramConfig(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, config)
+}
+
+// HandleUpdateTelegramConfig 更新 Telegram 配置
+func (h *ConfigHandler) HandleUpdateTelegramConfig(c *gin.Context) {
+	var req dto.UpdateTelegramConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+	if err := h.configService.UpdateTelegramConfig(c.Request.Context(), &req, userID); err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// HandleTestTelegram 测试 Telegram 通知
+func (h *ConfigHandler) HandleTestTelegram(c *gin.Context) {
+	if h.telegramService == nil {
+		response.InternalError(c, "Telegram 服务未初始化")
+		return
+	}
+
+	if err := h.telegramService.SendTestMessage(c.Request.Context()); err != nil {
+		response.InternalError(c, "Telegram 测试消息发送失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, nil)
 }

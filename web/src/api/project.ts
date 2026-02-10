@@ -15,6 +15,9 @@ import type {
   ProjectRoleMember,
   AddRoleMemberRequest,
   UserRolesResponse,
+  NotificationChannel,
+  CreateNotificationChannelRequest,
+  UpdateNotificationChannelRequest,
 } from '@/types/project'
 
 // 项目列表
@@ -127,5 +130,32 @@ export const removeRoleMember = (key: string, roleId: number, userId: number) =>
 // 获取用户在项目中的角色
 export const getUserRoles = (key: string, userId: number) => {
   return request.get<ApiResponse<UserRolesResponse>>(`/projects/${key}/users/${userId}/roles`)
+}
+
+// ========== 项目通知渠道管理 ==========
+
+// 获取项目通知渠道列表
+export const getNotificationChannels = (key: string) => {
+  return request.get<ApiResponse<NotificationChannel[]>>(`/projects/${key}/notification-channels`)
+}
+
+// 创建通知渠道
+export const createNotificationChannel = (key: string, data: CreateNotificationChannelRequest) => {
+  return request.post<ApiResponse<NotificationChannel>>(`/projects/${key}/notification-channels`, data)
+}
+
+// 更新通知渠道
+export const updateNotificationChannel = (key: string, channelId: number, data: UpdateNotificationChannelRequest) => {
+  return request.put<ApiResponse<NotificationChannel>>(`/projects/${key}/notification-channels/${channelId}`, data)
+}
+
+// 删除通知渠道
+export const deleteNotificationChannel = (key: string, channelId: number) => {
+  return request.delete(`/projects/${key}/notification-channels/${channelId}`)
+}
+
+// 测试通知渠道
+export const testNotificationChannel = (key: string, channelId: number) => {
+  return request.post(`/projects/${key}/notification-channels/${channelId}/test`)
 }
 

@@ -25,6 +25,8 @@ const (
 	CategoryWebhook  = "webhook"
 	CategorySecurity = "security"
 	CategoryGeneral  = "general"
+	CategoryLark     = "lark"
+	CategoryTelegram = "telegram"
 )
 
 // 配置键常量
@@ -49,6 +51,16 @@ const (
 
 	// 通用配置键
 	KeyGeneralSiteURL = "general.site_url" // 站点域名
+
+	// 飞书配置键
+	KeyLarkEnabled    = "lark.enabled"
+	KeyLarkWebhookURL = "lark.webhook_url"
+	KeyLarkSecret     = "lark.secret"
+
+	// Telegram 配置键
+	KeyTelegramEnabled  = "telegram.enabled"
+	KeyTelegramBotToken = "telegram.bot_token"
+	KeyTelegramChatID   = "telegram.chat_id"
 )
 
 // 业务错误定义
@@ -74,6 +86,14 @@ type ConfigService interface {
 	// 安全配置
 	GetSecurityConfig(ctx context.Context) (*dto.SecurityConfig, error)
 	UpdateSecurityConfig(ctx context.Context, req *dto.UpdateSecurityConfigRequest, userID uint64) error
+
+	// 飞书配置
+	GetLarkConfig(ctx context.Context) (*dto.LarkConfig, error)
+	UpdateLarkConfig(ctx context.Context, req *dto.UpdateLarkConfigRequest, userID uint64) error
+
+	// Telegram 配置
+	GetTelegramConfig(ctx context.Context) (*dto.TelegramConfig, error)
+	UpdateTelegramConfig(ctx context.Context, req *dto.UpdateTelegramConfigRequest, userID uint64) error
 
 	// Webhook 管理
 	CreateWebhook(ctx context.Context, req *dto.CreateWebhookRequest, userID uint64) (*dto.WebhookResponse, error)
@@ -448,6 +468,124 @@ func (s *configService) UpdateSecurityConfig(ctx context.Context, req *dto.Updat
 	s.InvalidateAllCache(ctx)
 
 	logger.Info("security config updated", zap.Uint64("updated_by", userID))
+
+	return nil
+}
+
+// ============ 飞书配置 ============
+
+// GetLarkConfig 获取飞书配置
+func (s *configService) GetLarkConfig(ctx context.Context) (*dto.LarkConfig, error) {
+	configs, err := s.configRepo.GetByCategory(ctx, CategoryLark)
+	if err != nil {
+		return nil, fmt.Errorf("获取飞书配置失败: %w", err)
+	}
+
+	config := &dto.LarkConfig{}
+	for _, c := range configs {
+		switch c.ConfigKey {
+		case KeyLarkEnabled:
+			config.Enabled = c.ConfigValue == "true"
+		case KeyLarkWebhookURL:
+			config.WebhookURL = c.ConfigValue
+		case KeyLarkSecret:
+			// 密钥不返回
+		}
+	}
+
+	return config, nil
+}
+
+// UpdateLarkConfig 更新飞书配置
+func (s *configService) UpdateLarkConfig(ctx context.Context, req *dto.UpdateLarkConfigRequest, userID uint64) error {
+	configs := []*model.SystemConfig{
+		{ConfigKey: KeyLarkEnabled, ConfigValue: strconv.FormatBool(req.Enabled), ConfigType: "boolean", Category: CategoryLark, Description: "是否启用飞书通知"},
+		{ConfigKey: KeyLarkWebhookURL, ConfigValue: req.WebhookURL, ConfigType: "string", Category: CategoryLark, Description: "飞书机器人 Webhook URL"},
+	}
+
+	// 如果密钥不为空，则更新密钥
+	if req.Secret != "" {
+		configs = append(configs, &model.SystemConfig{
+			ConfigKey:   KeyLarkSecret,
+			ConfigValue: req.Secret,
+			ConfigType:  "string",
+			Category:    CategoryLark,
+			Description: "飞书机器人签名密钥",
+			IsSecret:    true,
+		})
+	}
+
+	for _, c := range configs {
+		c.UpdatedBy = &userID
+	}
+
+	if err := s.configRepo.BatchUpsert(ctx, configs); err != nil {
+		return fmt.Errorf("更新飞书配置失败: %w", err)
+	}
+
+	// 清除缓存
+	s.InvalidateAllCache(ctx)
+
+	logger.Info("lark config updated", zap.Uint64("updated_by", userID))
+
+	return nil
+}
+
+// ============ Telegram 配置 ============
+
+// GetTelegramConfig 获取 Telegram 配置
+func (s *configService) GetTelegramConfig(ctx context.Context) (*dto.TelegramConfig, error) {
+	configs, err := s.configRepo.GetByCategory(ctx, CategoryTelegram)
+	if err != nil {
+		return nil, fmt.Errorf("获取 Telegram 配置失败: %w", err)
+	}
+
+	config := &dto.TelegramConfig{}
+	for _, c := range configs {
+		switch c.ConfigKey {
+		case KeyTelegramEnabled:
+			config.Enabled = c.ConfigValue == "true"
+		case KeyTelegramBotToken:
+			// Token 不返回
+		case KeyTelegramChatID:
+			config.ChatID = c.ConfigValue
+		}
+	}
+
+	return config, nil
+}
+
+// UpdateTelegramConfig 更新 Telegram 配置
+func (s *configService) UpdateTelegramConfig(ctx context.Context, req *dto.UpdateTelegramConfigRequest, userID uint64) error {
+	configs := []*model.SystemConfig{
+		{ConfigKey: KeyTelegramEnabled, ConfigValue: strconv.FormatBool(req.Enabled), ConfigType: "boolean", Category: CategoryTelegram, Description: "是否启用 Telegram 通知"},
+		{ConfigKey: KeyTelegramChatID, ConfigValue: req.ChatID, ConfigType: "string", Category: CategoryTelegram, Description: "Telegram Chat ID"},
+	}
+
+	// 如果 Token 不为空，则更新 Token
+	if req.BotToken != "" {
+		configs = append(configs, &model.SystemConfig{
+			ConfigKey:   KeyTelegramBotToken,
+			ConfigValue: req.BotToken,
+			ConfigType:  "string",
+			Category:    CategoryTelegram,
+			Description: "Telegram Bot Token",
+			IsSecret:    true,
+		})
+	}
+
+	for _, c := range configs {
+		c.UpdatedBy = &userID
+	}
+
+	if err := s.configRepo.BatchUpsert(ctx, configs); err != nil {
+		return fmt.Errorf("更新 Telegram 配置失败: %w", err)
+	}
+
+	// 清除缓存
+	s.InvalidateAllCache(ctx)
+
+	logger.Info("telegram config updated", zap.Uint64("updated_by", userID))
 
 	return nil
 }

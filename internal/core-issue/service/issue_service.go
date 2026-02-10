@@ -86,6 +86,7 @@ type issueService struct {
 	workflowEngine  WorkflowEngine     // 工作流引擎（可选）
 	fieldValueSaver FieldValueSaver    // 字段值保存服务（可选）
 	epicLinkGetter  EpicLinkGetter     // Epic 链接获取服务（可选）
+	projectNotifier ProjectNotifier    // 项目外部通知服务（可选）
 }
 
 // WorkflowEngine 工作流引擎接口（避免循环依赖）
@@ -101,6 +102,11 @@ type ActivityLogger interface {
 // EpicLinkGetter Epic 链接获取接口（避免循环依赖）
 type EpicLinkGetter interface {
 	GetIssueIDsByEpicLink(ctx context.Context, epicID uint64) ([]uint64, error)
+}
+
+// ProjectNotifier 项目通知接口（向项目的外部渠道发送通知，避免循环依赖）
+type ProjectNotifier interface {
+	NotifyProject(ctx context.Context, projectID uint64, event string, data any) error
 }
 
 // NotificationSender 通知发送接口（避免循环依赖）
@@ -183,6 +189,27 @@ func (s *issueService) SetFieldValueSaver(fieldValueSaver FieldValueSaver) {
 // SetEpicLinkGetter 设置 Epic 链接获取服务（用于避免循环依赖）
 func (s *issueService) SetEpicLinkGetter(epicLinkGetter EpicLinkGetter) {
 	s.epicLinkGetter = epicLinkGetter
+}
+
+// SetProjectNotifier 设置项目外部通知服务（用于避免循环依赖）
+func (s *issueService) SetProjectNotifier(projectNotifier ProjectNotifier) {
+	s.projectNotifier = projectNotifier
+}
+
+// notifyProjectChannels 向项目的外部通知渠道发送通知（异步不阻塞主流程）
+func (s *issueService) notifyProjectChannels(projectID uint64, event string, data map[string]interface{}) {
+	if s.projectNotifier == nil {
+		return
+	}
+	go func() {
+		if err := s.projectNotifier.NotifyProject(context.Background(), projectID, event, data); err != nil {
+			logger.Warn("failed to notify project channels",
+				zap.Uint64("project_id", projectID),
+				zap.String("event", event),
+				zap.Error(err),
+			)
+		}
+	}()
 }
 
 // sendNotification 发送通知（内部辅助方法，异步不阻塞主流程）
@@ -387,6 +414,15 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 			EntityKey:  issue.IssueKey,
 		})
 	}
+
+	// 通知项目外部渠道（飞书/Telegram）
+	s.notifyProjectChannels(project.ID, "issue.created", map[string]interface{}{
+		"issue_key":    issue.IssueKey,
+		"issue_title":  issue.Title,
+		"project_name": project.Name,
+		"status":       issue.Status,
+		"priority":     issue.Priority,
+	})
 
 	// TODO: 创建工作流实例（需要先实现工作流方案功能）
 	// 暂时跳过工作流实例创建，等工作流方案实现后再集成
@@ -933,6 +969,17 @@ func (s *issueService) TransitionIssue(ctx context.Context, key string, req *dto
 		projectKey = project.ProjectKey
 	}
 
+	// 通知项目外部渠道（飞书/Telegram）
+	if project != nil {
+		s.notifyProjectChannels(project.ID, "issue.transitioned", map[string]interface{}{
+			"issue_key":    issue.IssueKey,
+			"issue_title":  issue.Title,
+			"project_name": project.Name,
+			"status":       req.Status,
+			"priority":     issue.Priority,
+		})
+	}
+
 	logger.Info("issue transitioned successfully",
 		zap.String("issue_key", key),
 		zap.String("new_status", req.Status),
@@ -1005,6 +1052,17 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 	projectKey := ""
 	if project != nil {
 		projectKey = project.ProjectKey
+	}
+
+	// 通知项目外部渠道（飞书/Telegram）
+	if project != nil {
+		s.notifyProjectChannels(project.ID, "issue.assigned", map[string]interface{}{
+			"issue_key":    issue.IssueKey,
+			"issue_title":  issue.Title,
+			"project_name": project.Name,
+			"status":       issue.Status,
+			"priority":     issue.Priority,
+		})
 	}
 
 	return s.toIssueResponse(ctx, issue, projectKey), nil
@@ -1117,6 +1175,16 @@ func (s *issueService) AddComment(ctx context.Context, issueKey string, req *dto
 			EntityType: "issue",
 			EntityID:   issue.ID,
 			EntityKey:  issue.IssueKey,
+		})
+	}
+
+	// 通知项目外部渠道（飞书/Telegram）
+	if project, _ := s.projectRepo.GetByID(ctx, issue.ProjectID); project != nil {
+		s.notifyProjectChannels(project.ID, "issue.commented", map[string]interface{}{
+			"issue_key":    issue.IssueKey,
+			"issue_title":  issue.Title,
+			"project_name": project.Name,
+			"comment":      req.Content,
 		})
 	}
 

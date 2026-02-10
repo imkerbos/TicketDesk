@@ -75,6 +75,7 @@ type Router struct {
 	rbac                   *middleware.RBACMiddleware
 	datasourceHandler      *alertHandler.DatasourceHandler
 	datasourceService      alertService.DatasourceService
+	notifChannelHandler    *projectHandler.NotificationChannelHandler
 }
 
 // NewRouter 创建路由管理器
@@ -298,6 +299,18 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		issueServiceImpl.SetEpicLinkGetter(fieldSvc)
 	}
 
+	// ============ 初始化项目通知渠道模块 ============
+	notifChannelRepo := projectRepo.NewNotificationChannelRepository(db)
+	notifChannelSvc := projectService.NewNotificationChannelService(notifChannelRepo, projectRepository)
+	notifChannelHdl := projectHandler.NewNotificationChannelHandler(notifChannelSvc, projectSvc)
+
+	// ============ 设置项目通知服务（避免循环依赖）============
+	if issueServiceImpl, ok := issueSvc.(interface {
+		SetProjectNotifier(issueService.ProjectNotifier)
+	}); ok {
+		issueServiceImpl.SetProjectNotifier(notifChannelSvc)
+	}
+
 	// ============ 初始化 RBAC 中间件 ============
 	rbac := middleware.NewRBACMiddleware(userRoleRepository)
 
@@ -338,6 +351,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		rbac:                   rbac,
 		datasourceHandler:      datasourceHdl,
 		datasourceService:      datasourceSvc,
+		notifChannelHandler:    notifChannelHdl,
 	}
 }
 
@@ -521,6 +535,17 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 
 		// 用户角色查询
 		projects.GET("/:key/users/:user_id/roles", r.projectHandler.HandleGetUserRoles)
+
+		// 通知渠道管理
+		notifChannels := projects.Group("/:key/notification-channels")
+		{
+			notifChannels.GET("", r.notifChannelHandler.HandleListChannels)
+			notifChannels.POST("", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleCreateChannel)
+			notifChannels.GET("/:id", r.notifChannelHandler.HandleGetChannel)
+			notifChannels.PUT("/:id", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleUpdateChannel)
+			notifChannels.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleDeleteChannel)
+			notifChannels.POST("/:id/test", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleTestChannel)
+		}
 	}
 }
 
