@@ -151,8 +151,8 @@
               </div>
             </div>
 
-            <!-- 审批操作按钮 -->
-            <div v-if="isCurrentUserApprover && workflowInstance.status === 'active'" class="workflow-actions">
+            <!-- 审批操作按钮（仅审批节点显示） -->
+            <div v-if="isCurrentUserApprover && workflowInstance.status === 'active' && workflowInstance.current_node?.node_type === 'approval'" class="workflow-actions">
               <div class="actions-label">审批操作</div>
               <div class="actions-row">
                 <el-input v-model="approveComment" placeholder="审批意见（可选）" size="default" style="flex: 1; margin-right: 12px;" />
