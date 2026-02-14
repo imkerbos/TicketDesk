@@ -1010,7 +1010,7 @@ import {
 import {
   getIssueDetail, updateIssue, deleteIssue, createIssue, getIssueList,
   getIssueComments, addIssueComment, getIssueActivities, getIssueWatchers,
-  getWorklogs, addWorklog, updateWorklog, deleteWorklog,
+  getWorklogs, addWorklog, deleteWorklog,
   addIssueWatcher, removeIssueWatcher, getEpicIssues, getSubtasks,
 } from '@/api/issue'
 import { listAttachments } from '@/api/attachment'
@@ -1023,9 +1023,9 @@ import { getAllUsers } from '@/api/user'
 import { getIssueFieldValues, getFieldScheme } from '@/api/field'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { useUserStore } from '@/stores/user'
-import type { Issue, IssueComment, IssueActivity, IssueWatcher, UpdateIssueRequest, Worklog, CreateWorklogRequest, CreateIssueRequest, IssuePriority, CustomFieldValue } from '@/types/issue'
+import type { Issue, IssueComment, IssueActivity, IssueWatcher, UpdateIssueRequest, Worklog, CreateWorklogRequest, CreateIssueRequest, IssuePriority } from '@/types/issue'
 import type { UserOption } from '@/types/user'
-import type { FieldValue, FieldSchemeItem } from '@/types/field'
+import type { FieldValue, FieldSchemeItem, FieldTypeValue } from '@/types/field'
 import type { Project, ProjectIssueType } from '@/types/project'
 import FieldRenderer from '@/components/field/FieldRenderer.vue'
 import dayjs from 'dayjs'
@@ -1197,7 +1197,7 @@ const loadWorkflowData = async (key: string) => {
 
   // 加载工作流节点和边（用于显示下一步节点名称）
   try {
-    const workflowId = workflowInstance.value.workflow_id
+    const workflowId = workflowInstance.value!.workflow_id
     const [nodesRes, edgesRes] = await Promise.all([
       getWorkflowNodes(workflowId),
       getWorkflowEdges(workflowId),
@@ -1540,7 +1540,7 @@ const loadCustomFields = async (issueId: number) => {
         field_id: item.field_id,
         field_key: item.field?.field_key || '',
         field_name: item.field?.field_name || '',
-        field_type: item.field?.field_type || '',
+        field_type: (item.field?.field_type || 'text') as FieldTypeValue,
         value: savedValue?.value ?? null,
         display_value: savedValue?.display_value || ''
       }
@@ -1694,11 +1694,11 @@ const submitCreateSubtask = async () => {
         custom_fields: customFields.length > 0 ? customFields : undefined,
       }
 
-      const { data } = await createIssue(requestData)
+      await createIssue(requestData)
       ElMessage.success('子任务创建成功')
       createSubtaskDialogVisible.value = false
       // 重新加载子任务列表
-      await loadSubtasks(issue.value.issue_key)
+      await loadSubtasks(issue.value!.issue_key)
     } catch (error) {
       console.error('Failed to create subtask:', error)
       ElMessage.error('创建子任务失败')
@@ -1905,9 +1905,7 @@ const submitWorklog = async () => {
   if (!issue.value || !canSubmitWorklog.value) return
   worklogLoading.value = true
   try {
-    const workedAtDate = worklogForm.worked_at instanceof Date
-      ? worklogForm.worked_at
-      : new Date(worklogForm.worked_at)
+    const workedAtDate = new Date(worklogForm.worked_at)
 
     await addWorklog(issue.value.issue_key, {
       description: worklogForm.description,
@@ -1931,7 +1929,7 @@ const submitWorklog = async () => {
   }
 }
 
-const handleEditWorklog = (worklog: Worklog) => {
+const handleEditWorklog = (_worklog: Worklog) => {
   ElMessage.info('编辑功能开发中')
 }
 

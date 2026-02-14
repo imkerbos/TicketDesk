@@ -8,13 +8,15 @@ WORKDIR /app
 
 # 复制依赖文件（从项目根目录的 web/ 子目录）
 COPY web/package*.json ./
-RUN npm ci --production=false
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --production=false
 
 # 复制前端源代码
 COPY web/ .
 
 # 构建生产版本
-RUN npm run build
+RUN --mount=type=cache,target=/root/.npm \
+    npm run build
 
 # ============ 运行阶段 ============
 FROM nginx:1.25-alpine

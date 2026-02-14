@@ -15,13 +15,16 @@ ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
 
 # 先复制依赖文件（利用 Docker 层缓存）
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 # 复制源代码
 COPY . .
 
-# 编译（静态链接，去除调试信息）
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+# 编译（静态链接，去除调试信息，使用构建缓存）
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev)" \
     -o /app/bin/ticketdesk ./cmd/ticketdesk
 

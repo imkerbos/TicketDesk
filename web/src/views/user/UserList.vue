@@ -287,8 +287,8 @@
             </template>
           </el-input>
         </el-form-item>
-        <el-form-item label="角色" prop="role">
-          <el-radio-group v-model="form.role" class="role-radio-group">
+        <el-form-item label="角色" prop="roles">
+          <el-radio-group v-model="selectedRole" class="role-radio-group">
             <el-radio value="user" border>
               <div class="role-option">
                 <el-icon class="role-icon user"><User /></el-icon>
@@ -392,7 +392,7 @@ const stats = computed(() => {
   return {
     total: total.value,
     active: users.filter(u => u.status === 1).length,
-    admin: users.filter(u => u.role === 'admin').length,
+    admin: users.filter(u => u.roles?.includes('admin')).length,
     disabled: users.filter(u => u.status === 0).length,
   }
 })
@@ -418,8 +418,9 @@ const form = reactive<CreateUserRequest>({
   email: '',
   password: '',
   display_name: '',
-  role: 'user',
+  roles: ['user'],
 })
+const selectedRole = ref('user')
 
 const rules: FormRules = {
   username: [
@@ -533,8 +534,9 @@ const handleEdit = (user: UserType) => {
     email: user.email,
     password: '',
     display_name: user.display_name,
-    role: user.role,
+    roles: user.roles || ['user'],
   })
+  selectedRole.value = user.roles?.includes('admin') ? 'admin' : 'user'
   dialogVisible.value = true
 }
 
@@ -551,10 +553,11 @@ const submitForm = async () => {
         await updateUser(editingUser.value.id, {
           email: form.email,
           display_name: form.display_name,
-          role: form.role,
+          roles: [selectedRole.value],
         })
         ElMessage.success('更新成功')
       } else {
+        form.roles = [selectedRole.value]
         await createUser(form)
         ElMessage.success('创建成功')
       }

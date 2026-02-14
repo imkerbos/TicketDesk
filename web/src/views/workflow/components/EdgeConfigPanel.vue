@@ -91,7 +91,9 @@ interface FlowNode {
   data: {
     label: string
     nodeType?: string
+    [key: string]: any
   }
+  [key: string]: any
 }
 
 const props = defineProps<{

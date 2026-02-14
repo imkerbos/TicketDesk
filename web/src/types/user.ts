@@ -41,6 +41,7 @@ export interface UpdateUserRequest {
   email?: string
   display_name?: string
   avatar_url?: string
+  roles?: string[]
 }
 
 export interface UpdatePasswordRequest {
