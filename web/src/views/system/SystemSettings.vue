@@ -518,7 +518,6 @@ const sendTestEmail = async () => {
 }
 
 // ============ 安全配置 ============
-const _securityFormRef = ref<FormInstance>()
 const securitySaving = ref(false)
 const securityForm = reactive({
   mfa_enabled: false,

@@ -62,7 +62,7 @@
                 inline-prompt
                 active-text="ON"
                 inactive-text="OFF"
-                @change="(val: boolean) => handleToggleStatus(ds, val)"
+                @change="(val: string | number | boolean) => handleToggleStatus(ds, val as boolean)"
               />
             </div>
 
@@ -268,11 +268,6 @@ const fetchDatasources = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const getTypeIcon = (type: string) => {
-  const found = DatasourceTypes.find((t) => t.value === type)
-  return found?.icon || '📡'
 }
 
 const getTypeLogo = (type: string) => {

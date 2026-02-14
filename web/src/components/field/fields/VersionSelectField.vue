@@ -75,8 +75,8 @@ const versionGroups = computed(() => {
 const loadVersions = async () => {
   if (!props.projectKey) return
   try {
-    const data = await getVersions(props.projectKey)
-    versions.value = data
+    const res = await getVersions(props.projectKey)
+    versions.value = res.data.data || []
   } catch (error) {
     console.error('Failed to load versions:', error)
   }

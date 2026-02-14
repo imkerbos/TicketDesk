@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
 import { deleteAttachment, getAttachmentDownloadUrl } from '@/api/attachment'
@@ -191,7 +191,7 @@ const canDelete = (attachment: Attachment) => {
 // 下载附件
 const handleDownload = async (attachmentId: number) => {
   try {
-    const url = getDownloadUrl(attachmentId)
+    const url = getAttachmentDownloadUrl(props.issueKey, attachmentId)
     const token = localStorage.getItem('token')
 
     console.log('下载附件:', { url, hasToken: !!token })

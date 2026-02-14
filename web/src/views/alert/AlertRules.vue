@@ -358,16 +358,6 @@ const handleDialogClose = () => {
   formRef.value?.resetFields()
 }
 
-const getPriorityType = (priority: string) => {
-  const map: Record<string, any> = {
-    P0: 'danger',
-    P1: 'warning',
-    P2: 'primary',
-    P3: 'info',
-  }
-  return map[priority] || 'info'
-}
-
 const formatMergeWindow = (seconds: number) => {
   if (seconds === 0) return '不合并'
   if (seconds < 60) return `${seconds}秒`

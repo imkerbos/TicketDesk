@@ -53,8 +53,8 @@ const labels = ref<IssueLabel[]>([])
 const loadLabels = async () => {
   if (!props.projectKey) return
   try {
-    const data = await getLabels(props.projectKey)
-    labels.value = data
+    const res = await getLabels(props.projectKey)
+    labels.value = res.data.data || []
   } catch (error) {
     console.error('Failed to load labels:', error)
   }

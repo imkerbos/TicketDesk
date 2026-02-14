@@ -51,8 +51,8 @@ const components = ref<ProjectComponent[]>([])
 const loadComponents = async () => {
   if (!props.projectKey) return
   try {
-    const data = await getComponents(props.projectKey)
-    components.value = data
+    const res = await getComponents(props.projectKey)
+    components.value = res.data.data || []
   } catch (error) {
     console.error('Failed to load components:', error)
   }

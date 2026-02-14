@@ -77,7 +77,7 @@
       <EdgeConfigPanel
         v-if="selectedEdge"
         :edge="selectedEdge"
-        :nodes="nodes"
+        :nodes="(nodes as any)"
         @update="onEdgeConfigUpdate"
         @delete="onDeleteEdge"
         @close="selectedEdge = null"
