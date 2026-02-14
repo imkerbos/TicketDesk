@@ -60,7 +60,16 @@ build/
 
 # Air hot reload
 tmp/
+.air.toml
+.air.docker.toml
 
-# Claude.md - AI 开发规范文档（不提交到远程仓库）
+# Lint
+.golangci.yml
+
+# Plan
+.plan.md
+plan.md
+
+# AI 开发规范文档
 Claude.md
 CLAUDE.md
