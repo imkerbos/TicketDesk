@@ -38,7 +38,7 @@ ENV TZ=Asia/Shanghai
 
 # 从构建阶段复制二进制和配置
 COPY --from=builder /app/bin/ticketdesk /app/ticketdesk
-COPY --from=builder /app/configs/config.prod.yaml /app/configs/config.yaml
+COPY --from=builder /app/configs/config-example.yaml /app/configs/config.yaml
 
 # 创建必要目录
 RUN mkdir -p /app/logs /app/uploads

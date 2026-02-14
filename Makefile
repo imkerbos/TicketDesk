@@ -4,7 +4,7 @@
 APP_NAME := ticketdesk
 BUILD_DIR := bin
 MAIN_FILE := cmd/ticketdesk/main.go
-CONFIG_FILE := configs/config.yaml
+CONFIG_FILE := configs/config-dev.yaml
 
 # Go 相关
 GOCMD := go

@@ -44,7 +44,7 @@ logs/
 *.log
 build-errors.log
 
-# Config
+# Config（config.yaml 为线上配置，不提交）
 configs/config.yaml
 configs/*.local.yaml
 .env

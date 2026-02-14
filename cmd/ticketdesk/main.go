@@ -24,7 +24,7 @@ import (
 var configPath string
 
 func init() {
-	flag.StringVar(&configPath, "config", "configs/config.yaml", "配置文件路径")
+	flag.StringVar(&configPath, "config", "configs/config-dev.yaml", "配置文件路径")
 }
 
 func main() {
