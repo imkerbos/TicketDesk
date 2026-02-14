@@ -11,13 +11,15 @@ services:
     image: mysql:8.0
     container_name: ticketdesk-mysql
     restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-ticketdesk_root_2026}
       MYSQL_DATABASE: ${DB_NAME:-ticketdesk}
       MYSQL_USER: ${DB_USER:-ticketdesk}
       MYSQL_PASSWORD: ${DB_PASSWORD:-ticketdesk_pwd_2026}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ./data/mysql:/var/lib/mysql
     command: >
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
@@ -39,9 +41,11 @@ services:
     image: redis:7-alpine
     container_name: ticketdesk-redis
     restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-ticketdesk_redis_2026}
     volumes:
-      - redis_data:/data
+      - ./data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-ticketdesk_redis_2026}", "ping"]
       interval: 10s
@@ -58,6 +62,8 @@ services:
       dockerfile: deploy/docker/Dockerfile.prod
     container_name: ticketdesk-backend
     restart: unless-stopped
+    ports:
+      - "${APP_PORT:-10010}:10010"
     environment:
       - TZ=Asia/Shanghai
       # Viper 环境变量覆盖（格式：配置路径用 _ 替代 .）
@@ -87,8 +93,8 @@ services:
       - NIGHTINGALE_TOKEN=${N9E_TOKEN:-}
       - NIGHTINGALE_POLL_INTERVAL=${N9E_POLL_INTERVAL:-30}
     volumes:
-      - backend_logs:/app/logs
-      - backend_uploads:/app/uploads
+      - ./data/logs:/app/logs
+      - ./data/uploads:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -127,13 +133,3 @@ networks:
   ticketdesk-internal:
     name: ticketdesk-internal
     driver: bridge
-
-volumes:
-  mysql_data:
-    name: ticketdesk-mysql-data
-  redis_data:
-    name: ticketdesk-redis-data
-  backend_logs:
-    name: ticketdesk-backend-logs
-  backend_uploads:
-    name: ticketdesk-backend-uploads
