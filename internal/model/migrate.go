@@ -2,6 +2,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -205,6 +207,11 @@ func SeedData(db *gorm.DB) error {
 
 	// 初始化系统字段
 	if err := SeedSystemFields(db); err != nil {
+		return err
+	}
+
+	// 初始化默认告警静默规则模板
+	if err := seedDefaultAlertSilences(db, adminUser.ID); err != nil {
 		return err
 	}
 
@@ -595,5 +602,101 @@ func seedExistingProjectWorkflowSchemes(db *gorm.DB) error {
 				zap.Error(err))
 		}
 	}
+	return nil
+}
+
+// seedDefaultAlertSilences 初始化默认告警静默规则模板
+func seedDefaultAlertSilences(db *gorm.DB, adminUserID uint64) error {
+	logger.Info("seeding default alert silence templates...")
+
+	// 使用固定的过去时间作为模板时间，状态为已取消(0)，用户使用时需修改时间并启用
+	templateStart := time.Date(2025, 1, 1, 22, 0, 0, 0, time.Local)
+	templateEnd := time.Date(2025, 1, 2, 6, 0, 0, 0, time.Local)
+	templateStart2 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.Local)
+	templateEnd2 := time.Date(2025, 1, 2, 0, 0, 0, 0, time.Local)
+	templateEnd7d := time.Date(2025, 1, 8, 0, 0, 0, 0, time.Local)
+
+	silences := []AlertSilence{
+		{
+			Name:          "例行维护窗口 - 全局静默",
+			Description:   "用于每周例行维护期间静默所有告警，避免维护操作触发大量无意义工单。使用时修改时间并启用。",
+			LabelMatchers: `[{"key":"severity","value":"critical|warning|info","operator":"=~"}]`,
+			StartsAt:      templateStart,
+			EndsAt:        templateEnd,
+			CreatedBy:     adminUserID,
+			Comment:       "模板规则：例行维护期间静默所有告警，使用前请修改时间并启用",
+			Status:        0,
+		},
+		{
+			Name:          "例行维护窗口 - 指定主机",
+			Description:   "用于对特定主机进行维护时静默该主机的所有告警。使用时修改 instance 为目标主机IP，修改时间并启用。",
+			LabelMatchers: `[{"key":"instance","value":"10.0.0.1.*","operator":"=~"}]`,
+			StartsAt:      templateStart,
+			EndsAt:        templateEnd,
+			CreatedBy:     adminUserID,
+			Comment:       "模板规则：指定主机维护静默，使用前请修改主机IP、时间并启用",
+			Status:        0,
+		},
+		{
+			Name:          "例行维护窗口 - 指定业务组",
+			Description:   "用于对特定业务组进行维护时静默该组的所有告警。使用时修改 group_name 为目标业务组，修改时间并启用。",
+			LabelMatchers: `[{"key":"group_name","value":"prod-app","operator":"=="}]`,
+			StartsAt:      templateStart,
+			EndsAt:        templateEnd,
+			CreatedBy:     adminUserID,
+			Comment:       "模板规则：指定业务组维护静默，使用前请修改业务组名、时间并启用",
+			Status:        0,
+		},
+		{
+			Name:          "临时静默 - 指定告警名称",
+			Description:   "用于临时屏蔽某个已知告警（如误报、正在处理中的告警）。使用时修改 alertname 为目标告警名称，修改时间并启用。",
+			LabelMatchers: `[{"key":"alertname","value":"HostHighCpuUsage-level-1","operator":"=="}]`,
+			StartsAt:      templateStart2,
+			EndsAt:        templateEnd2,
+			CreatedBy:     adminUserID,
+			Comment:       "模板规则：临时屏蔽指定告警，使用前请修改告警名称、时间并启用",
+			Status:        0,
+		},
+		{
+			Name:          "临时静默 - Falco安全告警",
+			Description:   "用于临时屏蔽 Falco 容器安全告警，例如在部署或调试期间容器行为可能触发大量安全告警。使用时修改时间并启用。",
+			LabelMatchers: `[{"key":"alertname","value":".*Falco.*","operator":"=~"}]`,
+			StartsAt:      templateStart2,
+			EndsAt:        templateEnd2,
+			CreatedBy:     adminUserID,
+			Comment:       "模板规则：临时屏蔽Falco安全告警，使用前请修改时间并启用",
+			Status:        0,
+		},
+		{
+			Name:          "临时静默 - 低级别告警",
+			Description:   "用于故障高峰期只关注严重告警，临时屏蔽 warning 和 info 级别告警，减少噪音。使用时修改时间并启用。",
+			LabelMatchers: `[{"key":"severity","value":"warning|info","operator":"=~"}]`,
+			StartsAt:      templateStart2,
+			EndsAt:        templateEnd7d,
+			CreatedBy:     adminUserID,
+			Comment:       "模板规则：屏蔽低级别告警只保留critical，使用前请修改时间并启用",
+			Status:        0,
+		},
+		{
+			Name:          "临时静默 - 测试/UAT环境",
+			Description:   "用于临时屏蔽测试和UAT环境的所有告警，例如在测试环境大规模变更期间。使用时修改时间并启用。",
+			LabelMatchers: `[{"key":"group_name","value":".*uat.*|.*test.*","operator":"=~"}]`,
+			StartsAt:      templateStart2,
+			EndsAt:        templateEnd7d,
+			CreatedBy:     adminUserID,
+			Comment:       "模板规则：屏蔽测试/UAT环境告警，使用前请修改时间并启用",
+			Status:        0,
+		},
+	}
+
+	for _, silence := range silences {
+		result := db.Where("name = ?", silence.Name).FirstOrCreate(&silence)
+		if result.Error != nil {
+			logger.Error("failed to seed alert silence", zap.String("name", silence.Name), zap.Error(result.Error))
+			return result.Error
+		}
+	}
+
+	logger.Info("default alert silence templates seeded")
 	return nil
 }

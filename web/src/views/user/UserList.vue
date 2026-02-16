@@ -123,6 +123,7 @@
           </el-select>
         </div>
         <div class="filter-right">
+          <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
           <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </div>
       </div>

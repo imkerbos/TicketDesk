@@ -470,30 +470,22 @@
       </el-tabs>
     </el-card>
 
-    <!-- 添加成员对话框 -->
-    <el-dialog v-model="memberDialogVisible" title="添加成员" width="500px" destroy-on-close class="custom-dialog">
-      <el-form ref="memberFormRef" :model="memberForm" :rules="memberRules" label-width="80px">
-        <el-form-item label="用户" prop="user_id">
-          <el-select
-            v-model="memberForm.user_id"
-            placeholder="请选择用户"
-            filterable
-            style="width: 100%"
-            popper-class="user-select-popper"
+    <!-- 批量添加成员对话框 -->
+    <el-dialog v-model="memberDialogVisible" title="添加成员" width="680px" destroy-on-close class="custom-dialog batch-member-dialog">
+      <div class="batch-member-content">
+        <!-- 搜索和角色选择 -->
+        <div class="batch-member-toolbar">
+          <el-input
+            v-model="memberSearchKeyword"
+            placeholder="搜索用户名、显示名称"
+            clearable
+            class="member-search-input"
           >
-            <el-option v-for="u in availableUsers" :key="u.id" :label="u.display_name" :value="u.id">
-              <div class="user-option">
-                <div class="user-option-avatar">{{ u.display_name?.charAt(0) || '?' }}</div>
-                <div class="user-option-info">
-                  <span class="user-option-name">{{ u.display_name }}</span>
-                  <span class="user-option-username">@{{ u.username }}</span>
-                </div>
-              </div>
-            </el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="角色" prop="role">
-          <el-select v-model="memberForm.role" placeholder="请选择角色" style="width: 100%">
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <el-select v-model="memberForm.role" style="width: 140px">
             <el-option label="所有者" value="owner">
               <div class="role-option">
                 <el-icon><Star /></el-icon>
@@ -513,13 +505,48 @@
               </div>
             </el-option>
           </el-select>
-        </el-form-item>
-      </el-form>
+        </div>
+        <!-- 已选提示 -->
+        <div v-if="selectedUserIds.length > 0" class="batch-member-selected-hint">
+          已选择 <strong>{{ selectedUserIds.length }}</strong> 个用户
+          <el-button type="primary" link size="small" @click="selectedUserIds = []">清空</el-button>
+        </div>
+        <!-- 用户列表 -->
+        <div class="batch-member-list">
+          <el-table
+            ref="memberTableRef"
+            :data="filteredAvailableUsers"
+            max-height="400"
+            @selection-change="handleMemberSelectionChange"
+            row-key="id"
+            size="small"
+          >
+            <el-table-column type="selection" width="40" :reserve-selection="true" />
+            <el-table-column label="用户" min-width="200">
+              <template #default="{ row }">
+                <div class="user-option">
+                  <div class="user-option-avatar">{{ row.display_name?.charAt(0) || '?' }}</div>
+                  <div class="user-option-info">
+                    <span class="user-option-name">{{ row.display_name }}</span>
+                    <span class="user-option-username">@{{ row.username }}</span>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-if="filteredAvailableUsers.length === 0 && memberSearchKeyword" description="无匹配用户" :image-size="60" />
+        </div>
+      </div>
       <template #footer>
         <el-button @click="memberDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="addMemberLoading" @click="submitAddMember">
+        <el-button
+          type="primary"
+          :loading="addMemberLoading"
+          :disabled="selectedUserIds.length === 0"
+          @click="submitAddMember"
+        >
           <el-icon><Check /></el-icon>
-          确定
+          添加{{ selectedUserIds.length > 0 ? ` (${selectedUserIds.length})` : '' }}
         </el-button>
       </template>
     </el-dialog>
@@ -841,6 +868,7 @@ import {
   Memo,
   Grid,
   Bell,
+  Search,
 } from '@element-plus/icons-vue'
 import FieldConfigTab from './components/FieldConfigTab.vue'
 import {
@@ -913,20 +941,31 @@ const membersLoading = ref(false)
 const members = ref<ProjectMember[]>([])
 const memberDialogVisible = ref(false)
 const addMemberLoading = ref(false)
-const memberFormRef = ref<FormInstance>()
+const memberTableRef = ref()
+const memberSearchKeyword = ref('')
+const selectedUserIds = ref<number[]>([])
 const memberForm = reactive({
-  user_id: undefined as number | undefined,
   role: 'member',
 })
-const memberRules: FormRules = {
-  user_id: [{ required: true, message: '请选择用户', trigger: 'change' }],
-  role: [{ required: true, message: '请选择角色', trigger: 'change' }],
-}
 
 const availableUsers = computed(() => {
   const memberIds = members.value.map((m) => m.user_id)
   return users.value.filter((u) => !memberIds.includes(u.id))
 })
+
+const filteredAvailableUsers = computed(() => {
+  const keyword = memberSearchKeyword.value.trim().toLowerCase()
+  if (!keyword) return availableUsers.value
+  return availableUsers.value.filter(
+    (u) =>
+      u.display_name?.toLowerCase().includes(keyword) ||
+      u.username?.toLowerCase().includes(keyword),
+  )
+})
+
+const handleMemberSelectionChange = (rows: UserOption[]) => {
+  selectedUserIds.value = rows.map((r) => r.id)
+}
 
 // 项目角色
 const rolesLoading = ref(false)
@@ -1335,29 +1374,38 @@ const saveBasicInfo = async () => {
 }
 
 const submitAddMember = async () => {
-  if (!memberFormRef.value) return
-  await memberFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    addMemberLoading.value = true
-    try {
-      await addProjectMember(projectKey.value, {
-        user_id: memberForm.user_id!,
-        role: memberForm.role,
-      })
-      ElMessage.success('添加成功')
-      memberDialogVisible.value = false
-      loadMembers()
-    } catch (error) {
-      console.error('Failed to add member:', error)
-    } finally {
-      addMemberLoading.value = false
+  if (selectedUserIds.value.length === 0) return
+  addMemberLoading.value = true
+  try {
+    let successCount = 0
+    let failCount = 0
+    for (const userId of selectedUserIds.value) {
+      try {
+        await addProjectMember(projectKey.value, {
+          user_id: userId,
+          role: memberForm.role,
+        })
+        successCount++
+      } catch {
+        failCount++
+      }
     }
-  })
+    if (successCount > 0) {
+      ElMessage.success(`成功添加 ${successCount} 个成员${failCount > 0 ? `，${failCount} 个失败` : ''}`)
+    } else {
+      ElMessage.error('添加失败')
+    }
+    memberDialogVisible.value = false
+    loadMembers()
+  } finally {
+    addMemberLoading.value = false
+  }
 }
 
 const openMemberDialog = () => {
-  memberForm.user_id = undefined
   memberForm.role = 'member'
+  memberSearchKeyword.value = ''
+  selectedUserIds.value = []
   memberDialogVisible.value = true
 }
 
@@ -2035,6 +2083,50 @@ onMounted(() => {
 
   :deep(.el-dialog__body) {
     padding: 24px;
+  }
+}
+
+// 批量添加成员对话框
+.batch-member-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.batch-member-toolbar {
+  display: flex;
+  gap: 10px;
+
+  .member-search-input {
+    flex: 1;
+  }
+}
+
+.batch-member-selected-hint {
+  font-size: 13px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  strong {
+    color: var(--el-color-primary);
+  }
+}
+
+.batch-member-list {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+
+  :deep(.el-table) {
+    --el-table-border-color: #f3f4f6;
+
+    th.el-table__cell {
+      background: #f9fafb;
+      font-weight: 500;
+      font-size: 13px;
+    }
   }
 }
 
