@@ -52,6 +52,7 @@ type ListIssuesRequest struct {
 	AssigneeID  *uint64  `form:"assignee_id"`
 	ReporterID  *uint64  `form:"reporter_id"`
 	IssueTypeID *uint64  `form:"issue_type_id"`
+	EpicID      *uint64  `form:"epic_id"`
 	Keyword     string   `form:"keyword" binding:"omitempty,max=100"`
 	ProjectIDs  []uint64 `form:"-" json:"-"` // 内部使用：限定可访问的项目范围
 }
@@ -142,6 +143,7 @@ type IssueResponse struct {
 	ParentKey    string                   `json:"parent_key,omitempty"`
 	EpicID           *uint64                  `json:"epic_id"`
 	EpicKey          string                   `json:"epic_key,omitempty"`
+	EpicTitle        string                   `json:"epic_title,omitempty"`
 	DueDate          *time.Time               `json:"due_date"`
 	PlannedStartDate *time.Time               `json:"planned_start_date"`
 	PlannedEndDate   *time.Time               `json:"planned_end_date"`

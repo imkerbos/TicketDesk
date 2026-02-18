@@ -41,6 +41,7 @@ export interface Issue {
   parent_key?: string
   epic_id?: number
   epic_key?: string
+  epic_title?: string
   due_date?: string
   planned_start_date?: string
   planned_end_date?: string
@@ -63,6 +64,7 @@ export interface IssueListRequest {
   assignee_id?: number
   reporter_id?: number
   issue_type_id?: number
+  epic_id?: number
   keyword?: string
 }
 

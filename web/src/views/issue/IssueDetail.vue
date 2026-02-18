@@ -369,6 +369,23 @@
             </div>
           </el-card>
 
+          <!-- 附件 -->
+          <el-card shadow="never" class="content-card">
+            <template #header>
+              <div class="card-header-group">
+                <div class="card-icon attachment">
+                  <el-icon><Paperclip /></el-icon>
+                </div>
+                <span class="card-title">附件</span>
+                <span class="card-count">{{ attachments.length }}</span>
+              </div>
+            </template>
+            <div class="attachment-section">
+              <AttachmentUpload v-if="issue" :issue-key="issue.issue_key" @success="loadAttachments(issue.issue_key)" />
+              <AttachmentList v-if="issue" :issue-key="issue.issue_key" :attachments="attachments" @refresh="loadAttachments(issue.issue_key)" />
+            </div>
+          </el-card>
+
           <!-- 评论和工作日志 -->
           <el-card shadow="never" class="content-card">
             <el-tabs v-model="activeTab" class="detail-tabs">
@@ -503,24 +520,7 @@
             </el-tabs>
           </el-card>
 
-          <!-- 附件 -->
-          <el-card shadow="never" class="content-card">
-            <template #header>
-              <div class="card-header-group">
-                <div class="card-icon attachment">
-                  <el-icon><Paperclip /></el-icon>
-                </div>
-                <span class="card-title">附件</span>
-                <span class="card-count">{{ attachments.length }}</span>
-              </div>
-            </template>
-            <div class="attachment-section">
-              <AttachmentUpload v-if="issue" :issue-key="issue.issue_key" @success="loadAttachments(issue.issue_key)" />
-              <AttachmentList v-if="issue" :issue-key="issue.issue_key" :attachments="attachments" @refresh="loadAttachments(issue.issue_key)" />
-            </div>
-          </el-card>
-
-          <!-- 活动记录 -->
+          <!-- 评论和工作日志 -->
           <el-card shadow="never" class="content-card">
             <template #header>
               <div class="card-header-group">
@@ -581,7 +581,7 @@
                 <span class="info-label">Epic</span>
                 <el-link type="primary" @click="$router.push(`/issues/${issue.epic_key}`)">
                   <el-icon><Link /></el-icon>
-                  {{ issue.epic_key }}
+                  {{ issue.epic_key }}{{ issue.epic_title ? ' - ' + issue.epic_title : '' }}
                 </el-link>
               </div>
               <div class="info-item">

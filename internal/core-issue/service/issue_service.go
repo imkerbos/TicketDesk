@@ -709,6 +709,7 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 		AssigneeID:      req.AssigneeID,
 		ReporterID:      req.ReporterID,
 		IssueTypeID:     req.IssueTypeID,
+		EpicID:          req.EpicID,
 		Keyword:         req.Keyword,
 		ProjectIDs:      req.ProjectIDs,
 		LimitByProjects: req.ProjectIDs != nil,
@@ -1318,6 +1319,7 @@ func (s *issueService) toIssueResponseCached(issue *model.Issue, cache *relatedC
 	if issue.EpicID != nil {
 		if epic, ok := cache.issues[*issue.EpicID]; ok {
 			resp.EpicKey = epic.IssueKey
+			resp.EpicTitle = epic.Title
 		}
 	}
 
@@ -1406,6 +1408,7 @@ func (s *issueService) toIssueResponse(ctx context.Context, issue *model.Issue, 
 	if issue.EpicID != nil {
 		if epicIssue, err := s.issueRepo.GetByID(ctx, *issue.EpicID); err == nil {
 			resp.EpicKey = epicIssue.IssueKey
+			resp.EpicTitle = epicIssue.Title
 		}
 	}
 

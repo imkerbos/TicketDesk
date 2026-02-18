@@ -33,7 +33,7 @@
               <el-icon><Search /></el-icon>
             </template>
           </el-input>
-          <el-select v-model="queryParams.project_key" placeholder="项目" clearable class="filter-select" @change="handleQuery">
+          <el-select v-model="queryParams.project_key" placeholder="项目" clearable class="filter-select" @change="handleProjectFilterChange">
             <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
           </el-select>
           <el-select v-model="queryParams.status" placeholder="状态" clearable class="filter-select" @change="handleQuery">
@@ -51,6 +51,15 @@
           </el-select>
           <el-select v-model="queryParams.assignee_id" placeholder="指派人" clearable filterable class="filter-select" @change="handleQuery">
             <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+          </el-select>
+          <el-select v-model="queryParams.reporter_id" placeholder="报告人" clearable filterable class="filter-select" @change="handleQuery">
+            <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+          </el-select>
+          <el-select v-model="queryParams.issue_type_id" placeholder="工单类型" clearable class="filter-select" @change="handleQuery">
+            <el-option v-for="t in filterIssueTypes" :key="t.id" :label="t.display_name" :value="t.id" />
+          </el-select>
+          <el-select v-model="queryParams.epic_id" placeholder="Epic" clearable filterable class="filter-select" @change="handleQuery">
+            <el-option v-for="e in filterEpics" :key="e.id" :label="`${e.issue_key}: ${e.title}`" :value="e.id" />
           </el-select>
         </div>
         <div class="filter-right">
@@ -352,6 +361,8 @@ const viewMode = ref<'table' | 'kanban'>('table')
 const projects = ref<Project[]>([])
 const users = ref<UserOption[]>([])
 const issueTypes = ref<ProjectIssueType[]>([])
+const filterIssueTypes = ref<ProjectIssueType[]>([])
+const filterEpics = ref<Issue[]>([])
 const fieldScheme = ref<FieldSchemeItem[]>([])
 const customFieldValues = ref<Record<number, any>>({})
 const fieldSchemeLoading = ref(false)
@@ -363,6 +374,9 @@ const queryParams = reactive({
   status: undefined as IssueStatus | undefined,
   priority: undefined as IssuePriority | undefined,
   assignee_id: undefined as number | undefined,
+  reporter_id: undefined as number | undefined,
+  issue_type_id: undefined as number | undefined,
+  epic_id: undefined as number | undefined,
   keyword: undefined as string | undefined,
 })
 
@@ -441,8 +455,49 @@ const loadFilterOptions = async () => {
   }
 }
 
+const loadFilterIssueTypes = async () => {
+  if (!queryParams.project_key) {
+    filterIssueTypes.value = []
+    return
+  }
+  try {
+    const { data } = await getProjectIssueTypes(queryParams.project_key)
+    filterIssueTypes.value = data.data || []
+  } catch (error) {
+    console.error('Failed to load issue types:', error)
+  }
+}
+
+const loadFilterEpics = async () => {
+  if (!queryParams.project_key) {
+    filterEpics.value = []
+    return
+  }
+  try {
+    // 查询该项目下所有 Epic 类型的工单
+    const epicType = filterIssueTypes.value.find(t => t.name.toLowerCase() === 'epic')
+    if (!epicType) {
+      filterEpics.value = []
+      return
+    }
+    const { data } = await getIssueList({ project_key: queryParams.project_key, issue_type_id: epicType.id, page_size: 100 })
+    filterEpics.value = data.data.items || []
+  } catch (error) {
+    console.error('Failed to load epics:', error)
+  }
+}
+
 const handleQuery = () => { queryParams.page = 1; loadData() }
 const handlePageChange = () => { loadData() }
+
+const handleProjectFilterChange = async () => {
+  queryParams.issue_type_id = undefined
+  queryParams.epic_id = undefined
+  queryParams.page = 1
+  await loadFilterIssueTypes()
+  loadFilterEpics()
+  loadData()
+}
 
 const handleReset = () => {
   queryParams.page = 1
@@ -451,7 +506,12 @@ const handleReset = () => {
   queryParams.status = undefined
   queryParams.priority = undefined
   queryParams.assignee_id = undefined
+  queryParams.reporter_id = undefined
+  queryParams.issue_type_id = undefined
+  queryParams.epic_id = undefined
   queryParams.keyword = undefined
+  filterIssueTypes.value = []
+  filterEpics.value = []
   loadData()
 }
 

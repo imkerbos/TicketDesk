@@ -35,6 +35,7 @@ type IssueFilter struct {
 	AssigneeID       *uint64
 	ReporterID       *uint64
 	IssueTypeID      *uint64
+	EpicID           *uint64
 	Keyword          string
 }
 
@@ -119,6 +120,9 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 		}
 		if filter.IssueTypeID != nil {
 			query = query.Where("issue_type_id = ?", *filter.IssueTypeID)
+		}
+		if filter.EpicID != nil {
+			query = query.Where("epic_id = ?", *filter.EpicID)
 		}
 		if filter.Keyword != "" {
 			keyword := "%" + filter.Keyword + "%"
