@@ -49,12 +49,12 @@ func (r *ListProjectsRequest) GetDefaultPageSize() int {
 // AddMemberRequest 添加项目成员请求
 type AddMemberRequest struct {
 	UserID uint64 `json:"user_id" binding:"required"`
-	Role   string `json:"role" binding:"required,oneof=owner admin member"`
+	Role   string `json:"role" binding:"required"`
 }
 
 // UpdateMemberRequest 更新项目成员请求
 type UpdateMemberRequest struct {
-	Role string `json:"role" binding:"required,oneof=owner admin member"`
+	Role string `json:"role" binding:"required"`
 }
 
 // CreateIssueTypeRequest 创建工单类型请求
@@ -105,6 +105,7 @@ type ProjectMemberResponse struct {
 	UserID    uint64     `json:"user_id"`
 	User      *UserBrief `json:"user,omitempty"`
 	Role      string     `json:"role"`
+	RoleName  string     `json:"role_name"`
 	CreatedAt time.Time  `json:"created_at"`
 }
 

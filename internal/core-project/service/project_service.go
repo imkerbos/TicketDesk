@@ -158,10 +158,10 @@ func (s *projectService) CreateProject(ctx context.Context, req *dto.CreateProje
 		leadMember := &model.ProjectMember{
 			ProjectID: project.ID,
 			UserID:    req.LeadUserID,
-			Role:      "admin",
+			Role:      "administrators",
 		}
 		if err := s.memberRepo.Create(ctx, leadMember); err != nil {
-			logger.Warn("failed to add lead as admin", zap.Error(err))
+			logger.Warn("failed to add lead as administrator", zap.Error(err))
 		}
 	}
 
@@ -369,6 +369,21 @@ func (s *projectService) AddMember(ctx context.Context, projectKey string, req *
 		return nil, ErrMemberAlreadyExists
 	}
 
+	// 验证角色：owner 是特殊角色，其他必须是项目中存在的角色 key
+	roleName := ""
+	if req.Role == "owner" {
+		roleName = "所有者"
+	} else {
+		role, err := s.roleRepo.GetByProjectAndKey(ctx, project.ID, req.Role)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("角色 %s 不存在", req.Role)
+			}
+			return nil, fmt.Errorf("查询角色失败: %w", err)
+		}
+		roleName = role.RoleName
+	}
+
 	// 创建成员
 	member := &model.ProjectMember{
 		ProjectID: project.ID,
@@ -386,7 +401,9 @@ func (s *projectService) AddMember(ctx context.Context, projectKey string, req *
 		zap.Uint64("user_id", req.UserID),
 	)
 
-	return s.toMemberResponse(member, user), nil
+	resp := s.toMemberResponse(member, user)
+	resp.RoleName = roleName
+	return resp, nil
 }
 
 // UpdateMember 更新项目成员角色
@@ -407,6 +424,21 @@ func (s *projectService) UpdateMember(ctx context.Context, projectKey string, us
 		return nil, fmt.Errorf("查询成员失败: %w", err)
 	}
 
+	// 验证角色：owner 是特殊角色，其他必须是项目中存在的角色 key
+	roleName := ""
+	if req.Role == "owner" {
+		roleName = "所有者"
+	} else {
+		role, err := s.roleRepo.GetByProjectAndKey(ctx, project.ID, req.Role)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("角色 %s 不存在", req.Role)
+			}
+			return nil, fmt.Errorf("查询角色失败: %w", err)
+		}
+		roleName = role.RoleName
+	}
+
 	member.Role = req.Role
 
 	if err := s.memberRepo.Update(ctx, member); err != nil {
@@ -416,7 +448,9 @@ func (s *projectService) UpdateMember(ctx context.Context, projectKey string, us
 
 	user, _ := s.userRepo.GetByID(ctx, userID)
 
-	return s.toMemberResponse(member, user), nil
+	resp := s.toMemberResponse(member, user)
+	resp.RoleName = roleName
+	return resp, nil
 }
 
 // RemoveMember 移除项目成员
@@ -470,10 +504,25 @@ func (s *projectService) ListMembers(ctx context.Context, projectKey string) ([]
 		return nil, fmt.Errorf("查询成员列表失败: %w", err)
 	}
 
+	// 构建角色名称映射
+	roleNameMap := map[string]string{"owner": "所有者"}
+	roles, err := s.roleRepo.ListByProject(ctx, project.ID)
+	if err == nil {
+		for _, r := range roles {
+			roleNameMap[r.RoleKey] = r.RoleName
+		}
+	}
+
 	responses := make([]*dto.ProjectMemberResponse, len(members))
 	for i, member := range members {
 		user, _ := s.userRepo.GetByID(ctx, member.UserID)
-		responses[i] = s.toMemberResponse(member, user)
+		resp := s.toMemberResponse(member, user)
+		if name, ok := roleNameMap[member.Role]; ok {
+			resp.RoleName = name
+		} else {
+			resp.RoleName = member.Role
+		}
+		responses[i] = resp
 	}
 
 	return responses, nil

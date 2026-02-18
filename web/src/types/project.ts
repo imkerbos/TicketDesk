@@ -55,7 +55,8 @@ export interface ProjectMember {
   project_id: number
   user_id: number
   user?: UserBrief
-  role: string // owner, admin, member
+  role: string // owner 或项目角色 role_key（如 administrators, developers, testers, viewers）
+  role_name: string
   created_at: string
 }
 

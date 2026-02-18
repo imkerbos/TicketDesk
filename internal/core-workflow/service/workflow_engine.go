@@ -1051,7 +1051,7 @@ func (e *workflowEngine) isAdminOrProjectLead(ctx context.Context, userID uint64
 	var memberCount int64
 	e.db.WithContext(ctx).
 		Table("project_members").
-		Where("user_id = ? AND project_id = ? AND role IN ?", userID, issue.ProjectID, []string{"owner", "admin"}).
+		Where("user_id = ? AND project_id = ? AND role IN ?", userID, issue.ProjectID, []string{"owner", "administrators"}).
 		Count(&memberCount)
 
 	return memberCount > 0

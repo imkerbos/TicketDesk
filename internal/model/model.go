@@ -83,7 +83,7 @@ type ProjectMember struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ProjectID uint64    `gorm:"uniqueIndex:uk_project_member;index;not null" json:"project_id"`
 	UserID    uint64    `gorm:"uniqueIndex:uk_project_member;index;not null" json:"user_id"`
-	Role      string    `gorm:"size:20;default:member;index" json:"role"` // owner, admin, member
+	Role      string    `gorm:"size:50;default:viewers;index" json:"role"` // owner 或项目角色 role_key（如 administrators, developers, testers, viewers）
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }

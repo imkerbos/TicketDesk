@@ -297,7 +297,6 @@
             >
               <el-form-item
                 :required="item.is_required"
-                :prop="'custom_' + item.field_id"
               >
                 <template #label>
                   <span>{{ item.field?.field_name }}</span>

@@ -139,7 +139,7 @@
               <el-table-column label="角色" width="120">
                 <template #default="{ row }">
                   <el-tag :type="getRoleType(row.role)" size="small">
-                    {{ getRoleText(row.role) }}
+                    {{ row.role_name || row.role }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -156,13 +156,13 @@
                           <el-icon><Star /></el-icon>
                           所有者
                         </el-dropdown-item>
-                        <el-dropdown-item command="admin" :disabled="row.role === 'admin'">
-                          <el-icon><Key /></el-icon>
-                          管理员
-                        </el-dropdown-item>
-                        <el-dropdown-item command="member" :disabled="row.role === 'member'">
-                          <el-icon><User /></el-icon>
-                          成员
+                        <el-dropdown-item
+                          v-for="r in roles"
+                          :key="r.role_key"
+                          :command="r.role_key"
+                          :disabled="row.role === r.role_key"
+                        >
+                          {{ r.role_name }}
                         </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
@@ -508,24 +508,12 @@
             </template>
           </el-input>
           <el-select v-model="memberForm.role" style="width: 140px">
-            <el-option label="所有者" value="owner">
-              <div class="role-option">
-                <el-icon><Star /></el-icon>
-                <span>所有者</span>
-              </div>
-            </el-option>
-            <el-option label="管理员" value="admin">
-              <div class="role-option">
-                <el-icon><Key /></el-icon>
-                <span>管理员</span>
-              </div>
-            </el-option>
-            <el-option label="成员" value="member">
-              <div class="role-option">
-                <el-icon><User /></el-icon>
-                <span>成员</span>
-              </div>
-            </el-option>
+            <el-option
+              v-for="r in roles"
+              :key="r.role_key"
+              :label="r.role_name"
+              :value="r.role_key"
+            />
           </el-select>
         </div>
         <!-- 已选提示 -->
@@ -1061,7 +1049,7 @@ const memberTableRef = ref()
 const memberSearchKeyword = ref('')
 const selectedUserIds = ref<number[]>([])
 const memberForm = reactive({
-  role: 'member',
+  role: 'developers',
 })
 
 const availableUsers = computed(() => {
@@ -1613,7 +1601,7 @@ const submitAddMember = async () => {
 }
 
 const openMemberDialog = () => {
-  memberForm.role = 'member'
+  memberForm.role = roles.value.length > 0 ? roles.value[roles.value.length - 1].role_key : 'viewers'
   memberSearchKeyword.value = ''
   selectedUserIds.value = []
   memberDialogVisible.value = true
@@ -1842,13 +1830,8 @@ const handleDeleteIssueType = async (issueType: ProjectIssueType) => {
 }
 
 const getRoleType = (role: string) => {
-  const map: Record<string, any> = { owner: 'danger', admin: 'warning', member: 'info' }
+  const map: Record<string, any> = { owner: 'danger', administrators: 'warning', developers: '', testers: 'success', viewers: 'info' }
   return map[role] || 'info'
-}
-
-const getRoleText = (role: string) => {
-  const map: Record<string, string> = { owner: '所有者', admin: '管理员', member: '成员' }
-  return map[role] || role
 }
 
 const getRoleIconClass = (roleKey: string) => {

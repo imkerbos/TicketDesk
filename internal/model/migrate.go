@@ -76,6 +76,12 @@ func AutoMigrate(db *gorm.DB) error {
 		return err
 	}
 
+	// 迁移项目成员旧角色值到项目角色 key
+	if err := migrateMemberRoles(db); err != nil {
+		logger.Error("failed to migrate member roles", zap.Error(err))
+		return err
+	}
+
 	return nil
 }
 
@@ -124,6 +130,32 @@ func migrateRequirementStatus(db *gorm.DB) error {
 			logger.Info("migrated requirement status",
 				zap.String("from", oldStatus),
 				zap.String("to", newStatus),
+				zap.Int64("count", result.RowsAffected),
+			)
+		}
+	}
+
+	return nil
+}
+
+// migrateMemberRoles 迁移项目成员旧角色值（admin/member）到项目角色 key
+func migrateMemberRoles(db *gorm.DB) error {
+	roleMapping := map[string]string{
+		"admin":  "administrators",
+		"member": "viewers",
+	}
+
+	for oldRole, newRole := range roleMapping {
+		result := db.Model(&ProjectMember{}).
+			Where("role = ?", oldRole).
+			Update("role", newRole)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected > 0 {
+			logger.Info("migrated member role",
+				zap.String("from", oldRole),
+				zap.String("to", newRole),
 				zap.Int64("count", result.RowsAffected),
 			)
 		}
