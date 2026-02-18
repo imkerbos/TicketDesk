@@ -128,6 +128,13 @@ func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 		return
 	}
 
+	// 从中间件注入的项目 ID 列表（非管理员且未指定 project_key 时）
+	if projectIDs, exists := c.Get("user_project_ids"); exists {
+		if ids, ok := projectIDs.([]uint64); ok {
+			req.ProjectIDs = ids
+		}
+	}
+
 	issues, total, err := h.issueService.ListIssues(c.Request.Context(), &req)
 	if err != nil {
 		if errors.Is(err, service.ErrProjectNotFound) {
@@ -337,7 +344,15 @@ func (h *IssueHandler) HandleListMyTodoIssues(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	issues, total, err := h.issueService.ListMyTodoIssues(c.Request.Context(), userID, page, pageSize)
+	// 从中间件注入的项目 ID 列表（非管理员用户）
+	var projectIDs []uint64
+	if ids, exists := c.Get("user_project_ids"); exists {
+		if v, ok := ids.([]uint64); ok {
+			projectIDs = v
+		}
+	}
+
+	issues, total, err := h.issueService.ListMyTodoIssues(c.Request.Context(), userID, page, pageSize, projectIDs)
 	if err != nil {
 		response.InternalError(c, "获取我的待办工单失败")
 		return
@@ -353,7 +368,15 @@ func (h *IssueHandler) HandleListMyCreatedIssues(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	issues, total, err := h.issueService.ListMyCreatedIssues(c.Request.Context(), userID, page, pageSize)
+	// 从中间件注入的项目 ID 列表（非管理员用户）
+	var projectIDs []uint64
+	if ids, exists := c.Get("user_project_ids"); exists {
+		if v, ok := ids.([]uint64); ok {
+			projectIDs = v
+		}
+	}
+
+	issues, total, err := h.issueService.ListMyCreatedIssues(c.Request.Context(), userID, page, pageSize, projectIDs)
 	if err != nil {
 		response.InternalError(c, "获取我创建的工单失败")
 		return

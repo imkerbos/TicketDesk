@@ -782,3 +782,61 @@ func (h *ProjectHandler) HandleGetUserRoles(c *gin.Context) {
 
 	response.Success(c, roles)
 }
+
+// ============ 角色权限管理 ============
+
+// HandleGetRolePermissions 获取角色权限
+func (h *ProjectHandler) HandleGetRolePermissions(c *gin.Context) {
+	key := c.Param("key")
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的角色 ID")
+		return
+	}
+
+	perms, err := h.projectService.GetRolePermissions(c.Request.Context(), key, roleID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "获取角色权限失败")
+		}
+		return
+	}
+
+	response.Success(c, perms)
+}
+
+// HandleSetRolePermissions 设置角色权限
+func (h *ProjectHandler) HandleSetRolePermissions(c *gin.Context) {
+	key := c.Param("key")
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的角色 ID")
+		return
+	}
+
+	var req dto.SetRolePermissionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	err = h.projectService.SetRolePermissions(c.Request.Context(), key, roleID, req.Permissions)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrProjectNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrRoleNotFound):
+			response.NotFound(c, err.Error())
+		default:
+			response.InternalError(c, "设置角色权限失败")
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"message": "权限设置成功"})
+}

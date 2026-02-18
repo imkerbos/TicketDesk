@@ -2,6 +2,9 @@
 package middleware
 
 import (
+	"context"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-user/repository"
@@ -113,4 +116,150 @@ func HasRole(c *gin.Context, role string) bool {
 // IsAdmin 检查上下文中的用户是否是管理员
 func IsAdmin(c *gin.Context) bool {
 	return HasRole(c, "admin")
+}
+
+// ProjectPermissionChecker 项目权限检查接口（用于 RequireProjectPermission）
+type ProjectPermissionChecker interface {
+	CheckUserPermission(ctx context.Context, projectKey string, userID uint64, permission string) (bool, error)
+}
+
+// RequireProjectPermission 要求用户在项目中拥有指定权限（本期实现但不接入路由）
+func RequireProjectPermission(checker ProjectPermissionChecker, permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetUint64("user_id")
+		if userID == 0 {
+			response.Unauthorized(c, "未获取到用户信息")
+			c.Abort()
+			return
+		}
+
+		// 系统管理员直接放行
+		if IsAdmin(c) {
+			c.Next()
+			return
+		}
+
+		projectKey := c.Param("key")
+		if projectKey == "" {
+			response.BadRequest(c, "缺少项目标识")
+			c.Abort()
+			return
+		}
+
+		has, err := checker.CheckUserPermission(c.Request.Context(), projectKey, userID, permission)
+		if err != nil {
+			response.InternalError(c, "权限检查失败")
+			c.Abort()
+			return
+		}
+
+		if !has {
+			response.Forbidden(c, "权限不足")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// RequireIssuePermission 通过工单 key 提取项目 key 并检查权限
+// 工单 key 格式为 "PROJ-123"，提取 "-" 前面的部分作为项目 key
+func RequireIssuePermission(checker ProjectPermissionChecker, permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetUint64("user_id")
+		if userID == 0 {
+			response.Unauthorized(c, "未获取到用户信息")
+			c.Abort()
+			return
+		}
+
+		// 系统管理员直接放行
+		if IsAdmin(c) {
+			c.Next()
+			return
+		}
+
+		issueKey := c.Param("key")
+		if issueKey == "" {
+			c.Next()
+			return
+		}
+
+		// 从工单 key 提取项目 key（PROJ-123 → PROJ）
+		parts := strings.SplitN(issueKey, "-", 2)
+		if len(parts) < 2 {
+			response.BadRequest(c, "无效的工单标识")
+			c.Abort()
+			return
+		}
+		projectKey := parts[0]
+
+		has, err := checker.CheckUserPermission(c.Request.Context(), projectKey, userID, permission)
+		if err != nil {
+			response.InternalError(c, "权限检查失败")
+			c.Abort()
+			return
+		}
+
+		if !has {
+			response.Forbidden(c, "权限不足")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// MemberProjectLister 获取用户所属项目 ID 列表的接口
+type MemberProjectLister interface {
+	ListUserProjectIDs(ctx context.Context, userID uint64) ([]uint64, error)
+}
+
+// RequireIssueListPermission 检查工单列表查询的项目权限
+// 如果指定了 project_key，检查该项目的 issue:view 权限
+// 如果未指定，将用户可访问的项目 ID 列表注入上下文
+func RequireIssueListPermission(checker ProjectPermissionChecker, lister MemberProjectLister) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetUint64("user_id")
+		if userID == 0 {
+			response.Unauthorized(c, "未获取到用户信息")
+			c.Abort()
+			return
+		}
+
+		// 系统管理员直接放行
+		if IsAdmin(c) {
+			c.Next()
+			return
+		}
+
+		projectKey := c.Query("project_key")
+		if projectKey != "" {
+			has, err := checker.CheckUserPermission(c.Request.Context(), projectKey, userID, "issue:view")
+			if err != nil {
+				response.InternalError(c, "权限检查失败")
+				c.Abort()
+				return
+			}
+			if !has {
+				response.Forbidden(c, "权限不足")
+				c.Abort()
+				return
+			}
+			c.Next()
+			return
+		}
+
+		// 未指定项目，注入用户可访问的项目 ID 列表
+		projectIDs, err := lister.ListUserProjectIDs(c.Request.Context(), userID)
+		if err != nil {
+			response.InternalError(c, "获取用户项目失败")
+			c.Abort()
+			return
+		}
+		c.Set("user_project_ids", projectIDs)
+		c.Next()
+	}
 }

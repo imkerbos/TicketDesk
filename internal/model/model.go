@@ -644,6 +644,19 @@ func (ProjectNotificationChannel) TableName() string {
 	return "project_notification_channels"
 }
 
+// ProjectRolePermission 项目角色权限关联模型
+type ProjectRolePermission struct {
+	ID            uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	RoleID        uint64    `gorm:"not null;uniqueIndex:uk_role_permission,priority:1" json:"role_id"`
+	PermissionKey string    `gorm:"size:100;not null;uniqueIndex:uk_role_permission,priority:2" json:"permission_key"`
+	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+// TableName 指定表名
+func (ProjectRolePermission) TableName() string {
+	return "project_role_permissions"
+}
+
 // 字段类型常量
 const (
 	FieldTypeText         = "text"          // 单行文本

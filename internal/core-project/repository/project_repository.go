@@ -15,7 +15,7 @@ type ProjectRepository interface {
 	GetByKey(ctx context.Context, key string) (*model.Project, error)
 	Update(ctx context.Context, project *model.Project) error
 	Delete(ctx context.Context, id uint64) error
-	List(ctx context.Context, offset, limit int, keyword string, status *int8) ([]*model.Project, int64, error)
+	List(ctx context.Context, offset, limit int, keyword string, status *int8, projectIDs []uint64) ([]*model.Project, int64, error)
 	ExistsByKey(ctx context.Context, key string) (bool, error)
 	GetNextIssueNumber(ctx context.Context, projectID uint64) (int64, error)
 }
@@ -66,11 +66,16 @@ func (r *projectRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 // List 分页查询项目列表
-func (r *projectRepository) List(ctx context.Context, offset, limit int, keyword string, status *int8) ([]*model.Project, int64, error) {
+func (r *projectRepository) List(ctx context.Context, offset, limit int, keyword string, status *int8, projectIDs []uint64) ([]*model.Project, int64, error) {
 	var projects []*model.Project
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&model.Project{})
+
+	// 项目 ID 过滤（非管理员只能看到自己的项目）
+	if projectIDs != nil {
+		query = query.Where("id IN ?", projectIDs)
+	}
 
 	// 关键字搜索
 	if keyword != "" {
@@ -218,6 +223,7 @@ func (r *projectMemberRepository) GetUserRole(ctx context.Context, projectID, us
 type IssueTypeRepository interface {
 	Create(ctx context.Context, issueType *model.IssueType) error
 	GetByID(ctx context.Context, id uint64) (*model.IssueType, error)
+	GetByIDs(ctx context.Context, ids []uint64) ([]*model.IssueType, error)
 	Update(ctx context.Context, issueType *model.IssueType) error
 	Delete(ctx context.Context, id uint64) error
 	ListByProject(ctx context.Context, projectID *uint64) ([]*model.IssueType, error)
@@ -248,6 +254,16 @@ func (r *issueTypeRepository) GetByID(ctx context.Context, id uint64) (*model.Is
 		return nil, err
 	}
 	return &issueType, nil
+}
+
+// GetByIDs 根据 ID 列表批量获取工单类型
+func (r *issueTypeRepository) GetByIDs(ctx context.Context, ids []uint64) ([]*model.IssueType, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var issueTypes []*model.IssueType
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&issueTypes).Error
+	return issueTypes, err
 }
 
 // Update 更新工单类型
@@ -437,4 +453,69 @@ func (r *projectRoleMemberRepository) GetByRoleAndUser(ctx context.Context, role
 		return nil, err
 	}
 	return &member, nil
+}
+
+// ProjectRolePermissionRepository 项目角色权限数据访问接口
+type ProjectRolePermissionRepository interface {
+	ListByRole(ctx context.Context, roleID uint64) ([]string, error)
+	SetPermissions(ctx context.Context, roleID uint64, keys []string) error
+	ListByRoles(ctx context.Context, roleIDs []uint64) ([]string, error)
+}
+
+// projectRolePermissionRepository 项目角色权限数据访问实现
+type projectRolePermissionRepository struct {
+	db *gorm.DB
+}
+
+// NewProjectRolePermissionRepository 创建项目角色权限数据访问实例
+func NewProjectRolePermissionRepository(db *gorm.DB) ProjectRolePermissionRepository {
+	return &projectRolePermissionRepository{db: db}
+}
+
+// ListByRole 获取角色的所有权限 Key
+func (r *projectRolePermissionRepository) ListByRole(ctx context.Context, roleID uint64) ([]string, error) {
+	var keys []string
+	err := r.db.WithContext(ctx).Model(&model.ProjectRolePermission{}).
+		Where("role_id = ?", roleID).
+		Pluck("permission_key", &keys).Error
+	return keys, err
+}
+
+// SetPermissions 全量设置角色权限（事务：删全量+批量创建）
+func (r *projectRolePermissionRepository) SetPermissions(ctx context.Context, roleID uint64, keys []string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 删除现有权限
+		if err := tx.Where("role_id = ?", roleID).Delete(&model.ProjectRolePermission{}).Error; err != nil {
+			return err
+		}
+
+		// 批量创建新权限
+		if len(keys) > 0 {
+			perms := make([]model.ProjectRolePermission, len(keys))
+			for i, key := range keys {
+				perms[i] = model.ProjectRolePermission{
+					RoleID:        roleID,
+					PermissionKey: key,
+				}
+			}
+			if err := tx.Create(&perms).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// ListByRoles 获取多个角色的合并权限（去重）
+func (r *projectRolePermissionRepository) ListByRoles(ctx context.Context, roleIDs []uint64) ([]string, error) {
+	if len(roleIDs) == 0 {
+		return nil, nil
+	}
+	var keys []string
+	err := r.db.WithContext(ctx).Model(&model.ProjectRolePermission{}).
+		Where("role_id IN ?", roleIDs).
+		Distinct("permission_key").
+		Pluck("permission_key", &keys).Error
+	return keys, err
 }

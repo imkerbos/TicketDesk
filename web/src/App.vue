@@ -40,7 +40,7 @@
             <el-menu-item index="/projects">
               <span>项目列表</span>
             </el-menu-item>
-            <el-menu-item index="/workflows">
+            <el-menu-item v-if="userStore.isProjectAdmin" index="/workflows">
               <span>工作流管理</span>
             </el-menu-item>
           </el-sub-menu>
@@ -57,8 +57,8 @@
             />
           </el-menu-item>
 
-          <!-- 需求池 -->
-          <el-sub-menu index="requirement-center">
+          <!-- 需求池（项目管理员及以上可见） -->
+          <el-sub-menu v-if="userStore.isProjectAdmin" index="requirement-center">
             <template #title>
               <el-icon><Document /></el-icon>
               <span>需求池</span>
@@ -83,10 +83,10 @@
             <el-menu-item index="/alerts">
               <span>告警列表</span>
             </el-menu-item>
-            <el-menu-item index="/alert-rules">
+            <el-menu-item v-if="userStore.isProjectAdmin" index="/alert-rules">
               <span>告警规则</span>
             </el-menu-item>
-            <el-menu-item index="/alert-silences">
+            <el-menu-item v-if="userStore.isProjectAdmin" index="/alert-silences">
               <span>告警静默</span>
             </el-menu-item>
             <el-menu-item v-if="userStore.isAdmin" index="/alert-datasources">

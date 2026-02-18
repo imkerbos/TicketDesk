@@ -55,6 +55,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&IssueLabel{},
 		&AlertDatasource{},
 		&ProjectNotificationChannel{},
+		&ProjectRolePermission{},
 	}
 
 	for _, model := range models {
@@ -66,6 +67,9 @@ func AutoMigrate(db *gorm.DB) error {
 
 	logger.Info("database auto migration completed")
 
+	// 创建复合索引（提升工单查询性能）
+	createCompositeIndexes(db)
+
 	// 迁移需求旧状态值到新状态值
 	if err := migrateRequirementStatus(db); err != nil {
 		logger.Error("failed to migrate requirement status", zap.Error(err))
@@ -73,6 +77,31 @@ func AutoMigrate(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+// createCompositeIndexes 创建复合索引（提升工单查询性能）
+func createCompositeIndexes(db *gorm.DB) {
+	indexes := []struct {
+		table string
+		name  string
+		cols  string
+	}{
+		{"issues", "idx_issues_project_status", "project_id, status"},
+		{"issues", "idx_issues_assignee_status", "assignee_id, status"},
+		{"issues", "idx_issues_reporter_created", "reporter_id, created_at DESC"},
+		{"issues", "idx_issues_project_created", "project_id, created_at DESC"},
+		{"issues", "idx_issues_status_created", "status, created_at DESC"},
+	}
+
+	for _, idx := range indexes {
+		sql := "CREATE INDEX IF NOT EXISTS " + idx.name + " ON " + idx.table + " (" + idx.cols + ")"
+		if err := db.Exec(sql).Error; err != nil {
+			logger.Warn("failed to create composite index",
+				zap.String("index", idx.name),
+				zap.Error(err),
+			)
+		}
+	}
 }
 
 // migrateRequirementStatus 迁移需求表中旧的状态值
@@ -225,6 +254,11 @@ func SeedData(db *gorm.DB) error {
 		logger.Warn("failed to seed workflow schemes for existing projects", zap.Error(err))
 	}
 
+	// 为已有项目初始化角色权限（幂等）
+	if err := seedExistingProjectRolePermissions(db); err != nil {
+		logger.Warn("failed to seed role permissions for existing projects", zap.Error(err))
+	}
+
 	logger.Info("seed data completed")
 	return nil
 }
@@ -281,6 +315,70 @@ func InitProjectRoles(db *gorm.DB, projectID uint64) error {
 	}
 
 	logger.Info("project roles initialized", zap.Uint64("project_id", projectID))
+
+	// 初始化角色默认权限
+	if err := InitProjectRolePermissions(db, projectID); err != nil {
+		logger.Warn("failed to init project role permissions", zap.Uint64("project_id", projectID), zap.Error(err))
+	}
+
+	return nil
+}
+
+// 系统角色默认权限定义
+var defaultRolePermissions = map[string][]string{
+	"administrators": {
+		"project:view", "project:manage",
+		"issue:view", "issue:create", "issue:edit", "issue:delete", "issue:assign",
+		"member:view", "member:manage",
+		"role:view", "role:manage",
+		"workflow:view", "workflow:manage",
+		"alert:view", "alert:manage",
+	},
+	"developers": {
+		"project:view",
+		"issue:view", "issue:create", "issue:edit", "issue:assign",
+		"member:view",
+		"role:view",
+		"workflow:view",
+		"alert:view",
+	},
+	"testers": {
+		"project:view",
+		"issue:view", "issue:create", "issue:edit",
+		"member:view",
+		"role:view",
+		"workflow:view",
+		"alert:view",
+	},
+	"viewers": {
+		"project:view",
+		"issue:view",
+		"member:view",
+		"role:view",
+		"alert:view",
+	},
+}
+
+// InitProjectRolePermissions 初始化项目角色的默认权限
+func InitProjectRolePermissions(db *gorm.DB, projectID uint64) error {
+	logger.Info("initializing project role permissions", zap.Uint64("project_id", projectID))
+
+	for roleKey, permissions := range defaultRolePermissions {
+		var role ProjectRole
+		if err := db.Where("project_id = ? AND role_key = ?", projectID, roleKey).First(&role).Error; err != nil {
+			continue // 角色不存在，跳过
+		}
+
+		for _, permKey := range permissions {
+			perm := ProjectRolePermission{
+				RoleID:        role.ID,
+				PermissionKey: permKey,
+			}
+			db.Where("role_id = ? AND permission_key = ?", role.ID, permKey).FirstOrCreate(&perm)
+		}
+	}
+
+	logger.Info("project role permissions initialized", zap.Uint64("project_id", projectID))
 	return nil
 }
 
@@ -598,6 +696,23 @@ func seedExistingProjectWorkflowSchemes(db *gorm.DB) error {
 	for _, project := range projects {
 		if err := InitProjectWorkflowSchemes(db, project.ID); err != nil {
 			logger.Warn("failed to init workflow schemes for project",
+				zap.Uint64("project_id", project.ID),
+				zap.Error(err))
+		}
+	}
+	return nil
+}
+
+// seedExistingProjectRolePermissions 为已有项目初始化角色权限
+func seedExistingProjectRolePermissions(db *gorm.DB) error {
+	var projects []Project
+	if err := db.Find(&projects).Error; err != nil {
+		return err
+	}
+
+	for _, project := range projects {
+		if err := InitProjectRolePermissions(db, project.ID); err != nil {
+			logger.Warn("failed to init role permissions for project",
 				zap.Uint64("project_id", project.ID),
 				zap.Error(err))
 		}

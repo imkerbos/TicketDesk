@@ -12,6 +12,7 @@ import (
 type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error
 	GetByID(ctx context.Context, id uint64) (*model.User, error)
+	GetByIDs(ctx context.Context, ids []uint64) ([]*model.User, error)
 	GetByUsername(ctx context.Context, username string) (*model.User, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
 	GetByResetToken(ctx context.Context, token string) (*model.User, error)
@@ -45,6 +46,16 @@ func (r *userRepository) GetByID(ctx context.Context, id uint64) (*model.User, e
 		return nil, err
 	}
 	return &user, nil
+}
+
+// GetByIDs 根据 ID 列表批量获取用户
+func (r *userRepository) GetByIDs(ctx context.Context, ids []uint64) ([]*model.User, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var users []*model.User
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&users).Error
+	return users, err
 }
 
 // GetByUsername 根据用户名获取用户

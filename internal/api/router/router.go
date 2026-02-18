@@ -73,6 +73,8 @@ type Router struct {
 	requirementHandler     *reqPoolHandler.RequirementHandler
 	fieldHandler           *fieldHandler.FieldHandler
 	rbac                   *middleware.RBACMiddleware
+	permChecker            middleware.ProjectPermissionChecker
+	memberLister           middleware.MemberProjectLister
 	datasourceHandler      *alertHandler.DatasourceHandler
 	datasourceService      alertService.DatasourceService
 	notifChannelHandler    *projectHandler.NotificationChannelHandler
@@ -107,12 +109,14 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	issueTypeRepository := projectRepo.NewIssueTypeRepository(db)
 	projectRoleRepository := projectRepo.NewProjectRoleRepository(db)
 	projectRoleMemberRepository := projectRepo.NewProjectRoleMemberRepository(db)
+	projectRolePermissionRepository := projectRepo.NewProjectRolePermissionRepository(db)
 	projectSvc := projectService.NewProjectService(
 		projectRepository,
 		projectMemberRepository,
 		issueTypeRepository,
 		projectRoleRepository,
 		projectRoleMemberRepository,
+		projectRolePermissionRepository,
 		userRepository,
 		db,
 	)
@@ -351,10 +355,27 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		requirementHandler:     reqHdl,
 		fieldHandler:           fieldHdl,
 		rbac:                   rbac,
+		permChecker:            projectSvc,
+		memberLister:           &memberProjectListerAdapter{memberRepo: projectMemberRepository},
 		datasourceHandler:      datasourceHdl,
 		datasourceService:      datasourceSvc,
 		notifChannelHandler:    notifChannelHdl,
 	}
+}
+
+// requirePerm 创建项目权限中间件的快捷方法
+func (r *Router) requirePerm(permission string) gin.HandlerFunc {
+	return middleware.RequireProjectPermission(r.permChecker, permission)
+}
+
+// requireIssuePerm 创建工单权限中间件的快捷方法（从工单 key 提取项目 key）
+func (r *Router) requireIssuePerm(permission string) gin.HandlerFunc {
+	return middleware.RequireIssuePermission(r.permChecker, permission)
+}
+
+// requireIssueListPerm 创建工单列表权限中间件
+func (r *Router) requireIssueListPerm() gin.HandlerFunc {
+	return middleware.RequireIssueListPermission(r.permChecker, r.memberLister)
 }
 
 // StopPollers 停止所有数据源轮询器（用于优雅关闭）
@@ -508,51 +529,55 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 		// 项目 CRUD
 		projects.GET("", r.projectHandler.HandleListProjects)
 		projects.POST("", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateProject)
-		projects.GET("/:key", r.projectHandler.HandleGetProject)
-		projects.PUT("/:key", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateProject)
+		projects.GET("/:key", r.requirePerm("project:view"), r.projectHandler.HandleGetProject)
+		projects.PUT("/:key", r.requirePerm("project:manage"), r.projectHandler.HandleUpdateProject)
 		projects.DELETE("/:key", r.rbac.RequireAdmin(), r.projectHandler.HandleDeleteProject)
 
 		// 项目成员管理
-		projects.GET("/:key/members", r.projectHandler.HandleListMembers)
-		projects.POST("/:key/members", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleAddMember)
-		projects.PUT("/:key/members/:user_id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateMember)
-		projects.DELETE("/:key/members/:user_id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleRemoveMember)
+		projects.GET("/:key/members", r.requirePerm("member:view"), r.projectHandler.HandleListMembers)
+		projects.POST("/:key/members", r.requirePerm("member:manage"), r.projectHandler.HandleAddMember)
+		projects.PUT("/:key/members/:user_id", r.requirePerm("member:manage"), r.projectHandler.HandleUpdateMember)
+		projects.DELETE("/:key/members/:user_id", r.requirePerm("member:manage"), r.projectHandler.HandleRemoveMember)
 
 		// 工单类型管理
-		projects.GET("/:key/issue-types", r.projectHandler.HandleListIssueTypes)
-		projects.POST("/:key/issue-types", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateIssueType)
-		projects.PUT("/:key/issue-types/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateIssueType)
-		projects.DELETE("/:key/issue-types/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleDeleteIssueType)
+		projects.GET("/:key/issue-types", r.requirePerm("project:view"), r.projectHandler.HandleListIssueTypes)
+		projects.POST("/:key/issue-types", r.requirePerm("project:manage"), r.projectHandler.HandleCreateIssueType)
+		projects.PUT("/:key/issue-types/:id", r.requirePerm("project:manage"), r.projectHandler.HandleUpdateIssueType)
+		projects.DELETE("/:key/issue-types/:id", r.requirePerm("project:manage"), r.projectHandler.HandleDeleteIssueType)
 
 		// 项目角色管理
-		projects.GET("/:key/roles", r.projectHandler.HandleListRoles)
-		projects.POST("/:key/roles", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleCreateRole)
-		projects.PUT("/:key/roles/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleUpdateRole)
-		projects.DELETE("/:key/roles/:id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleDeleteRole)
+		projects.GET("/:key/roles", r.requirePerm("role:view"), r.projectHandler.HandleListRoles)
+		projects.POST("/:key/roles", r.requirePerm("role:manage"), r.projectHandler.HandleCreateRole)
+		projects.PUT("/:key/roles/:id", r.requirePerm("role:manage"), r.projectHandler.HandleUpdateRole)
+		projects.DELETE("/:key/roles/:id", r.requirePerm("role:manage"), r.projectHandler.HandleDeleteRole)
 
 		// 角色成员管理
-		projects.GET("/:key/roles/:id/members", r.projectHandler.HandleListRoleMembers)
-		projects.POST("/:key/roles/:id/members", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleAddRoleMember)
-		projects.DELETE("/:key/roles/:id/members/:user_id", r.rbac.RequireProjectAdmin(), r.projectHandler.HandleRemoveRoleMember)
+		projects.GET("/:key/roles/:id/members", r.requirePerm("role:view"), r.projectHandler.HandleListRoleMembers)
+		projects.POST("/:key/roles/:id/members", r.requirePerm("role:manage"), r.projectHandler.HandleAddRoleMember)
+		projects.DELETE("/:key/roles/:id/members/:user_id", r.requirePerm("role:manage"), r.projectHandler.HandleRemoveRoleMember)
+
+		// 角色权限管理
+		projects.GET("/:key/roles/:id/permissions", r.requirePerm("role:view"), r.projectHandler.HandleGetRolePermissions)
+		projects.PUT("/:key/roles/:id/permissions", r.requirePerm("role:manage"), r.projectHandler.HandleSetRolePermissions)
 
 		// 用户角色查询
-		projects.GET("/:key/users/:user_id/roles", r.projectHandler.HandleGetUserRoles)
+		projects.GET("/:key/users/:user_id/roles", r.requirePerm("member:view"), r.projectHandler.HandleGetUserRoles)
 
 		// 通知渠道管理
 		notifChannels := projects.Group("/:key/notification-channels")
 		{
-			notifChannels.GET("", r.notifChannelHandler.HandleListChannels)
-			notifChannels.POST("", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleCreateChannel)
-			notifChannels.GET("/:id", r.notifChannelHandler.HandleGetChannel)
-			notifChannels.PUT("/:id", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleUpdateChannel)
-			notifChannels.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleDeleteChannel)
-			notifChannels.POST("/:id/test", r.rbac.RequireProjectAdmin(), r.notifChannelHandler.HandleTestChannel)
+			notifChannels.GET("", r.requirePerm("project:view"), r.notifChannelHandler.HandleListChannels)
+			notifChannels.POST("", r.requirePerm("project:manage"), r.notifChannelHandler.HandleCreateChannel)
+			notifChannels.GET("/:id", r.requirePerm("project:view"), r.notifChannelHandler.HandleGetChannel)
+			notifChannels.PUT("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleUpdateChannel)
+			notifChannels.DELETE("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleDeleteChannel)
+			notifChannels.POST("/:id/test", r.requirePerm("project:manage"), r.notifChannelHandler.HandleTestChannel)
 		}
 
 		// 工作流方案管理
-		projects.GET("/:key/workflow-schemes", r.workflowHandler.HandleListSchemes)
-		projects.POST("/:key/workflow-schemes", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateScheme)
-		projects.DELETE("/:key/workflow-schemes/:type_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleDeleteScheme)
+		projects.GET("/:key/workflow-schemes", r.requirePerm("workflow:view"), r.workflowHandler.HandleListSchemes)
+		projects.POST("/:key/workflow-schemes", r.requirePerm("workflow:manage"), r.workflowHandler.HandleCreateScheme)
+		projects.DELETE("/:key/workflow-schemes/:type_id", r.requirePerm("workflow:manage"), r.workflowHandler.HandleDeleteScheme)
 	}
 }
 
@@ -561,79 +586,82 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 	issues := rg.Group("/issues")
 	{
 		// Dashboard 专用（必须放在 /:key 路由之前，避免被匹配为 key）
-		issues.GET("/my-todo", r.issueHandler.HandleListMyTodoIssues)
-		issues.GET("/my-created", r.issueHandler.HandleListMyCreatedIssues)
+		issues.GET("/my-todo", r.requireIssueListPerm(), r.issueHandler.HandleListMyTodoIssues)
+		issues.GET("/my-created", r.requireIssueListPerm(), r.issueHandler.HandleListMyCreatedIssues)
 
-		// 工单 CRUD
-		issues.GET("", r.issueHandler.HandleListIssues)
+		// 工单列表（通过 query 参数 project_key 检查权限）
+		issues.GET("", r.requireIssueListPerm(), r.issueHandler.HandleListIssues)
 		issues.POST("", r.issueHandler.HandleCreateIssue)
-		issues.GET("/:key", r.issueHandler.HandleGetIssue)
-		issues.PUT("/:key", r.issueHandler.HandleUpdateIssue)
-		issues.DELETE("/:key", r.issueHandler.HandleDeleteIssue)
 
-		issues.POST("/:key/assign", r.issueHandler.HandleAssignIssue)
+		// 工单 CRUD（通过工单 key 提取项目 key 检查权限）
+		issues.GET("/:key", r.requireIssuePerm("issue:view"), r.issueHandler.HandleGetIssue)
+		issues.PUT("/:key", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleUpdateIssue)
+		issues.DELETE("/:key", r.requireIssuePerm("issue:delete"), r.issueHandler.HandleDeleteIssue)
+
+		issues.POST("/:key/assign", r.requireIssuePerm("issue:assign"), r.issueHandler.HandleAssignIssue)
 
 		// Epic 相关
-		issues.GET("/:key/epic-issues", r.issueHandler.HandleListIssuesInEpic)
+		issues.GET("/:key/epic-issues", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListIssuesInEpic)
 
 		// 子任务相关
-		issues.GET("/:key/subtasks", r.issueHandler.HandleListSubtasks)
+		issues.GET("/:key/subtasks", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListSubtasks)
 
 		// 评论管理
-		issues.GET("/:key/comments", r.issueHandler.HandleListComments)
-		issues.POST("/:key/comments", r.issueHandler.HandleAddComment)
-		issues.DELETE("/:key/comments/:comment_id", r.issueHandler.HandleDeleteComment)
+		issues.GET("/:key/comments", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListComments)
+		issues.POST("/:key/comments", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddComment)
+		issues.DELETE("/:key/comments/:comment_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleDeleteComment)
 
 		// 关注人管理
-		issues.GET("/:key/watchers", r.issueHandler.HandleListWatchers)
-		issues.POST("/:key/watchers", r.issueHandler.HandleAddWatcher)
-		issues.DELETE("/:key/watchers/:user_id", r.issueHandler.HandleRemoveWatcher)
+		issues.GET("/:key/watchers", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListWatchers)
+		issues.POST("/:key/watchers", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddWatcher)
+		issues.DELETE("/:key/watchers/:user_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleRemoveWatcher)
 
 		// 工作日志管理
-		issues.GET("/:key/worklogs", r.issueHandler.HandleListWorklogs)
-		issues.POST("/:key/worklogs", r.issueHandler.HandleAddWorklog)
-		issues.PUT("/:key/worklogs/:worklog_id", r.issueHandler.HandleUpdateWorklog)
-		issues.DELETE("/:key/worklogs/:worklog_id", r.issueHandler.HandleDeleteWorklog)
+		issues.GET("/:key/worklogs", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListWorklogs)
+		issues.POST("/:key/worklogs", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddWorklog)
+		issues.PUT("/:key/worklogs/:worklog_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleUpdateWorklog)
+		issues.DELETE("/:key/worklogs/:worklog_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleDeleteWorklog)
 
 		// 附件管理
-		issues.POST("/:key/attachments", r.attachmentHandler.HandleUploadAttachment)
-		issues.GET("/:key/attachments", r.attachmentHandler.HandleListAttachments)
-		issues.DELETE("/:key/attachments/:id", r.attachmentHandler.HandleDeleteAttachment)
-		issues.GET("/:key/attachments/:id/download", r.attachmentHandler.HandleDownloadAttachment)
+		issues.POST("/:key/attachments", r.requireIssuePerm("issue:edit"), r.attachmentHandler.HandleUploadAttachment)
+		issues.GET("/:key/attachments", r.requireIssuePerm("issue:view"), r.attachmentHandler.HandleListAttachments)
+		issues.DELETE("/:key/attachments/:id", r.requireIssuePerm("issue:edit"), r.attachmentHandler.HandleDeleteAttachment)
+		issues.GET("/:key/attachments/:id/download", r.requireIssuePerm("issue:view"), r.attachmentHandler.HandleDownloadAttachment)
 
 		// 工作流实例（通过工单 key 访问）
-		issues.GET("/:key/workflow", r.workflowHandler.HandleGetInstanceByIssue)
-		issues.POST("/:key/workflow/approve", r.workflowHandler.HandleApprove)
-		issues.POST("/:key/workflow/reject", r.workflowHandler.HandleReject)
-		issues.POST("/:key/workflow/complete", r.workflowHandler.HandleComplete)
-		issues.GET("/:key/workflow/history", r.workflowHandler.HandleGetHistory)
+		issues.GET("/:key/workflow", r.requireIssuePerm("issue:view"), r.workflowHandler.HandleGetInstanceByIssue)
+		issues.POST("/:key/workflow/approve", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleApprove)
+		issues.POST("/:key/workflow/reject", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleReject)
+		issues.POST("/:key/workflow/complete", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleComplete)
+		issues.GET("/:key/workflow/history", r.requireIssuePerm("issue:view"), r.workflowHandler.HandleGetHistory)
 	}
 }
 
 // registerWorkflowRoutes 注册工作流路由
 func (r *Router) registerWorkflowRoutes(rg *gin.RouterGroup) {
 	workflows := rg.Group("/workflows")
+	workflows.Use(r.rbac.RequireProjectAdmin())
 	{
 		// 工作流 CRUD
 		workflows.GET("", r.workflowHandler.HandleListWorkflows)
-		workflows.POST("", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateWorkflow)
+		workflows.POST("", r.workflowHandler.HandleCreateWorkflow)
 		workflows.GET("/:id", r.workflowHandler.HandleGetWorkflow)
-		workflows.PUT("/:id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleUpdateWorkflow)
+		workflows.PUT("/:id", r.workflowHandler.HandleUpdateWorkflow)
 		workflows.DELETE("/:id", r.rbac.RequireAdmin(), r.workflowHandler.HandleDeleteWorkflow)
 
 		// 节点管理
 		workflows.GET("/:id/nodes", r.workflowHandler.HandleListNodes)
-		workflows.POST("/:id/nodes", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateNode)
+		workflows.POST("/:id/nodes", r.workflowHandler.HandleCreateNode)
 		workflows.GET("/:id/nodes/:node_id", r.workflowHandler.HandleGetNode)
-		workflows.PUT("/:id/nodes/:node_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleUpdateNode)
-		workflows.DELETE("/:id/nodes/:node_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleDeleteNode)
+		workflows.PUT("/:id/nodes/:node_id", r.workflowHandler.HandleUpdateNode)
+		workflows.DELETE("/:id/nodes/:node_id", r.workflowHandler.HandleDeleteNode)
 
 		// 边管理
 		workflows.GET("/:id/edges", r.workflowHandler.HandleListEdges)
-		workflows.POST("/:id/edges", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleCreateEdge)
+		workflows.POST("/:id/edges", r.workflowHandler.HandleCreateEdge)
 		workflows.GET("/:id/edges/:edge_id", r.workflowHandler.HandleGetEdge)
-		workflows.PUT("/:id/edges/:edge_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleUpdateEdge)
-		workflows.DELETE("/:id/edges/:edge_id", r.rbac.RequireProjectAdmin(), r.workflowHandler.HandleDeleteEdge)
+		workflows.PUT("/:id/edges/:edge_id", r.workflowHandler.HandleUpdateEdge)
+		workflows.DELETE("/:id/edges/:edge_id", r.workflowHandler.HandleDeleteEdge)
 	}
 }
 
@@ -655,13 +683,14 @@ func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 		// 这里暂时放在受保护路由中，实际使用时可能需要移到公开路由
 	}
 
-	// 告警规则管理
+	// 告警规则管理（需要项目管理员权限）
 	alertRules := rg.Group("/alert-rules")
+	alertRules.Use(r.rbac.RequireProjectAdmin())
 	{
 		alertRules.GET("", r.alertHandler.HandleListAlertRules)
-		alertRules.POST("", r.rbac.RequireProjectAdmin(), r.alertHandler.HandleCreateAlertRule)
+		alertRules.POST("", r.alertHandler.HandleCreateAlertRule)
 		alertRules.GET("/:id", r.alertHandler.HandleGetAlertRule)
-		alertRules.PUT("/:id", r.rbac.RequireProjectAdmin(), r.alertHandler.HandleUpdateAlertRule)
+		alertRules.PUT("/:id", r.alertHandler.HandleUpdateAlertRule)
 		alertRules.DELETE("/:id", r.rbac.RequireAdmin(), r.alertHandler.HandleDeleteAlertRule)
 	}
 
@@ -678,8 +707,9 @@ func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 		alertDatasources.POST("/:id/test", r.datasourceHandler.HandleTestConnectionByID)
 	}
 
-	// 告警静默管理
+	// 告警静默管理（需要项目管理员权限）
 	alertSilences := rg.Group("/alert-silences")
+	alertSilences.Use(r.rbac.RequireProjectAdmin())
 	{
 		alertSilences.GET("", r.alertHandler.HandleListAlertSilences)
 		alertSilences.POST("", r.alertHandler.HandleCreateAlertSilence)
@@ -815,6 +845,24 @@ func (a *fieldValueSaverAdapter) SaveIssueFieldValues(ctx context.Context, issue
 
 // ============ 兼容旧的 Setup 函数 ============
 
+// memberProjectListerAdapter 将 ProjectMemberRepository 适配为 middleware.MemberProjectLister
+type memberProjectListerAdapter struct {
+	memberRepo projectRepo.ProjectMemberRepository
+}
+
+// ListUserProjectIDs 获取用户所属项目 ID 列表
+func (a *memberProjectListerAdapter) ListUserProjectIDs(ctx context.Context, userID uint64) ([]uint64, error) {
+	members, err := a.memberRepo.ListByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]uint64, len(members))
+	for i, m := range members {
+		ids[i] = m.ProjectID
+	}
+	return ids, nil
+}
+
 // Setup 设置路由（兼容旧接口）
 func Setup(cfg *config.Config, jwtManager *jwt.Manager) *gin.Engine {
 	panic("请使用 NewRouter(cfg, jwtManager, db).Setup() 方式初始化路由")
@@ -875,10 +923,10 @@ func (r *Router) registerRequirementPoolRoutes(rg *gin.RouterGroup) {
 	pools := rg.Group("/requirement-pools")
 	{
 		pools.GET("", r.requirementPoolHandler.List)
-		pools.POST("", r.requirementPoolHandler.Create)
+		pools.POST("", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.Create)
 		pools.GET("/:id", r.requirementPoolHandler.GetByID)
-		pools.PUT("/:id", r.requirementPoolHandler.Update)
-		pools.DELETE("/:id", r.requirementPoolHandler.Delete)
+		pools.PUT("/:id", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.Update)
+		pools.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.Delete)
 	}
 
 	// 需求管理
@@ -890,13 +938,13 @@ func (r *Router) registerRequirementPoolRoutes(rg *gin.RouterGroup) {
 
 		// 需求 CRUD
 		requirements.GET("", r.requirementHandler.List)
-		requirements.POST("", r.requirementHandler.Create)
+		requirements.POST("", r.rbac.RequireProjectAdmin(), r.requirementHandler.Create)
 		requirements.GET("/:id", r.requirementHandler.GetByID)
-		requirements.PUT("/:id", r.requirementHandler.Update)
-		requirements.DELETE("/:id", r.requirementHandler.Delete)
+		requirements.PUT("/:id", r.rbac.RequireProjectAdmin(), r.requirementHandler.Update)
+		requirements.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.requirementHandler.Delete)
 
 		// 需求操作
-		requirements.POST("/:id/convert", r.requirementHandler.ConvertToIssue)
+		requirements.POST("/:id/convert", r.rbac.RequireProjectAdmin(), r.requirementHandler.ConvertToIssue)
 		requirements.POST("/:id/comments", r.requirementHandler.AddComment)
 	}
 }

@@ -132,6 +132,16 @@ export const getUserRoles = (key: string, userId: number) => {
   return request.get<ApiResponse<UserRolesResponse>>(`/projects/${key}/users/${userId}/roles`)
 }
 
+// 获取角色权限
+export const getRolePermissions = (key: string, roleId: number) => {
+  return request.get<ApiResponse<string[]>>(`/projects/${key}/roles/${roleId}/permissions`)
+}
+
+// 设置角色权限
+export const setRolePermissions = (key: string, roleId: number, data: { permissions: string[] }) => {
+  return request.put<ApiResponse<any>>(`/projects/${key}/roles/${roleId}/permissions`, data)
+}
+
 // ========== 项目通知渠道管理 ==========
 
 // 获取项目通知渠道列表

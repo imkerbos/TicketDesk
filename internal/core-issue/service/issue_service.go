@@ -43,8 +43,8 @@ type IssueService interface {
 	AssignIssue(ctx context.Context, key string, assigneeID uint64) (*dto.IssueResponse, error)
 
 	// Dashboard 专用
-	ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error)
-	ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error)
+	ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error)
+	ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error)
 
 	// Epic 相关
 	ListIssuesInEpic(ctx context.Context, epicKey string) ([]*dto.IssueResponse, error)
@@ -704,12 +704,14 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 	offset := (page - 1) * pageSize
 
 	filter := &repository.IssueFilter{
-		Status:      req.Status,
-		Priority:    req.Priority,
-		AssigneeID:  req.AssigneeID,
-		ReporterID:  req.ReporterID,
-		IssueTypeID: req.IssueTypeID,
-		Keyword:     req.Keyword,
+		Status:          req.Status,
+		Priority:        req.Priority,
+		AssigneeID:      req.AssigneeID,
+		ReporterID:      req.ReporterID,
+		IssueTypeID:     req.IssueTypeID,
+		Keyword:         req.Keyword,
+		ProjectIDs:      req.ProjectIDs,
+		LimitByProjects: req.ProjectIDs != nil,
 	}
 
 	// 如果指定了项目 Key，获取项目 ID
@@ -730,26 +732,11 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 		return nil, 0, fmt.Errorf("查询工单列表失败: %w", err)
 	}
 
-	// 缓存项目信息
-	projectCache := make(map[uint64]*model.Project)
-
-	responses := make([]*dto.IssueResponse, len(issues))
-	for i, issue := range issues {
-		projectKey := ""
-		if project, ok := projectCache[issue.ProjectID]; ok {
-			projectKey = project.ProjectKey
-		} else if project, err := s.projectRepo.GetByID(ctx, issue.ProjectID); err == nil {
-			projectCache[issue.ProjectID] = project
-			projectKey = project.ProjectKey
-		}
-		responses[i] = s.toIssueResponse(ctx, issue, projectKey)
-	}
-
-	return responses, total, nil
+	return s.batchToIssueResponses(ctx, issues), total, nil
 }
 
 // ListMyTodoIssues 获取我的待办工单（指派给我的待处理/进行中工单）
-func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error) {
+func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -759,8 +746,10 @@ func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page
 	offset := (page - 1) * pageSize
 
 	filter := &repository.IssueFilter{
-		AssigneeID:   &userID,
-		StatusNotIn:  []string{"closed", "resolved"},
+		AssigneeID:      &userID,
+		StatusNotIn:     []string{"closed", "resolved"},
+		ProjectIDs:      projectIDs,
+		LimitByProjects: projectIDs != nil,
 	}
 
 	issues, total, err := s.issueRepo.List(ctx, filter, offset, pageSize)
@@ -769,26 +758,11 @@ func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page
 		return nil, 0, fmt.Errorf("查询我的待办工单失败: %w", err)
 	}
 
-	// 缓存项目信息
-	projectCache := make(map[uint64]*model.Project)
-
-	responses := make([]*dto.IssueResponse, len(issues))
-	for i, issue := range issues {
-		projectKey := ""
-		if project, ok := projectCache[issue.ProjectID]; ok {
-			projectKey = project.ProjectKey
-		} else if project, err := s.projectRepo.GetByID(ctx, issue.ProjectID); err == nil {
-			projectCache[issue.ProjectID] = project
-			projectKey = project.ProjectKey
-		}
-		responses[i] = s.toIssueResponse(ctx, issue, projectKey)
-	}
-
-	return responses, total, nil
+	return s.batchToIssueResponses(ctx, issues), total, nil
 }
 
 // ListMyCreatedIssues 获取我创建的工单
-func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int) ([]*dto.IssueResponse, int64, error) {
+func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -798,7 +772,9 @@ func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, p
 	offset := (page - 1) * pageSize
 
 	filter := &repository.IssueFilter{
-		ReporterID: &userID,
+		ReporterID:      &userID,
+		ProjectIDs:      projectIDs,
+		LimitByProjects: projectIDs != nil,
 	}
 
 	issues, total, err := s.issueRepo.List(ctx, filter, offset, pageSize)
@@ -807,22 +783,7 @@ func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, p
 		return nil, 0, fmt.Errorf("查询我创建的工单失败: %w", err)
 	}
 
-	// 缓存项目信息
-	projectCache := make(map[uint64]*model.Project)
-
-	responses := make([]*dto.IssueResponse, len(issues))
-	for i, issue := range issues {
-		projectKey := ""
-		if project, ok := projectCache[issue.ProjectID]; ok {
-			projectKey = project.ProjectKey
-		} else if project, err := s.projectRepo.GetByID(ctx, issue.ProjectID); err == nil {
-			projectCache[issue.ProjectID] = project
-			projectKey = project.ProjectKey
-		}
-		responses[i] = s.toIssueResponse(ctx, issue, projectKey)
-	}
-
-	return responses, total, nil
+	return s.batchToIssueResponses(ctx, issues), total, nil
 }
 
 // ListIssuesInEpic 获取 Epic 下的所有 Issues
@@ -859,20 +820,7 @@ func (s *issueService) ListIssuesInEpic(ctx context.Context, epicKey string) ([]
 		return []*dto.IssueResponse{}, nil
 	}
 
-	// 获取项目信息
-	project, err := s.projectRepo.GetByID(ctx, epicIssue.ProjectID)
-	if err != nil {
-		logger.Error("failed to get project", zap.Error(err))
-		return nil, fmt.Errorf("查询项目失败: %w", err)
-	}
-
-	// 转换为响应格式
-	responses := make([]*dto.IssueResponse, len(issues))
-	for i, issue := range issues {
-		responses[i] = s.toIssueResponse(ctx, issue, project.ProjectKey)
-	}
-
-	return responses, nil
+	return s.batchToIssueResponses(ctx, issues), nil
 }
 
 // AssignIssue 指派工单
@@ -977,20 +925,7 @@ func (s *issueService) ListSubtasks(ctx context.Context, parentKey string) ([]*d
 		return []*dto.IssueResponse{}, nil
 	}
 
-	// 获取项目信息
-	project, err := s.projectRepo.GetByID(ctx, parentIssue.ProjectID)
-	if err != nil {
-		logger.Error("failed to get project", zap.Error(err))
-		return nil, fmt.Errorf("查询项目失败: %w", err)
-	}
-
-	// 转换为响应格式
-	responses := make([]*dto.IssueResponse, len(subtasks))
-	for i, subtask := range subtasks {
-		responses[i] = s.toIssueResponse(ctx, subtask, project.ProjectKey)
-	}
-
-	return responses, nil
+	return s.batchToIssueResponses(ctx, subtasks), nil
 }
 
 // AddComment 添加评论
@@ -1252,6 +1187,191 @@ func extractMentions(content string) []string {
 		}
 	}
 	return usernames
+}
+
+// relatedCache 批量预加载的关联数据缓存
+type relatedCache struct {
+	users      map[uint64]*model.User
+	issueTypes map[uint64]*model.IssueType
+	issues     map[uint64]*model.Issue // Epic/Parent 关联工单
+	projects   map[uint64]*model.Project
+}
+
+// batchPreload 批量预加载工单列表的关联数据，消除 N+1 查询
+func (s *issueService) batchPreload(ctx context.Context, issues []*model.Issue) *relatedCache {
+	cache := &relatedCache{
+		users:      make(map[uint64]*model.User),
+		issueTypes: make(map[uint64]*model.IssueType),
+		issues:     make(map[uint64]*model.Issue),
+		projects:   make(map[uint64]*model.Project),
+	}
+
+	if len(issues) == 0 {
+		return cache
+	}
+
+	// 收集所有需要的 ID
+	userIDSet := make(map[uint64]struct{})
+	issueTypeIDSet := make(map[uint64]struct{})
+	relatedIssueIDSet := make(map[uint64]struct{})
+	projectIDSet := make(map[uint64]struct{})
+
+	for _, issue := range issues {
+		userIDSet[issue.ReporterID] = struct{}{}
+		if issue.AssigneeID != nil {
+			userIDSet[*issue.AssigneeID] = struct{}{}
+		}
+		issueTypeIDSet[issue.IssueTypeID] = struct{}{}
+		if issue.EpicID != nil {
+			relatedIssueIDSet[*issue.EpicID] = struct{}{}
+		}
+		if issue.ParentID != nil {
+			relatedIssueIDSet[*issue.ParentID] = struct{}{}
+		}
+		projectIDSet[issue.ProjectID] = struct{}{}
+	}
+
+	// 批量加载用户
+	userIDs := mapKeysToSlice(userIDSet)
+	if len(userIDs) > 0 {
+		if users, err := s.userRepo.GetByIDs(ctx, userIDs); err == nil {
+			for _, u := range users {
+				cache.users[u.ID] = u
+			}
+		}
+	}
+
+	// 批量加载工单类型
+	issueTypeIDs := mapKeysToSlice(issueTypeIDSet)
+	if len(issueTypeIDs) > 0 {
+		if types, err := s.issueTypeRepo.GetByIDs(ctx, issueTypeIDs); err == nil {
+			for _, t := range types {
+				cache.issueTypes[t.ID] = t
+			}
+		}
+	}
+
+	// 批量加载关联工单（Epic/Parent）
+	relatedIssueIDs := mapKeysToSlice(relatedIssueIDSet)
+	if len(relatedIssueIDs) > 0 {
+		if relIssues, err := s.issueRepo.ListByIDs(ctx, relatedIssueIDs); err == nil {
+			for _, ri := range relIssues {
+				cache.issues[ri.ID] = ri
+			}
+		}
+	}
+
+	// 批量加载项目
+	projectIDs := mapKeysToSlice(projectIDSet)
+	for _, pid := range projectIDs {
+		if p, err := s.projectRepo.GetByID(ctx, pid); err == nil {
+			cache.projects[p.ID] = p
+		}
+	}
+
+	return cache
+}
+
+// mapKeysToSlice 将 map 的 key 转为 slice
+func mapKeysToSlice(m map[uint64]struct{}) []uint64 {
+	s := make([]uint64, 0, len(m))
+	for k := range m {
+		s = append(s, k)
+	}
+	return s
+}
+
+// toIssueResponseCached 使用预加载缓存转换工单（无额外 DB 查询）
+func (s *issueService) toIssueResponseCached(issue *model.Issue, cache *relatedCache) *dto.IssueResponse {
+	projectKey := ""
+	if p, ok := cache.projects[issue.ProjectID]; ok {
+		projectKey = p.ProjectKey
+	}
+
+	resp := &dto.IssueResponse{
+		ID:               issue.ID,
+		IssueKey:         issue.IssueKey,
+		ProjectID:        issue.ProjectID,
+		ProjectKey:       projectKey,
+		IssueTypeID:      issue.IssueTypeID,
+		Title:            issue.Title,
+		Description:      issue.Description,
+		Priority:         issue.Priority,
+		Status:           issue.Status,
+		Resolution:       issue.Resolution,
+		ReporterID:       issue.ReporterID,
+		AssigneeID:       issue.AssigneeID,
+		ParentID:         issue.ParentID,
+		EpicID:           issue.EpicID,
+		DueDate:          issue.DueDate,
+		PlannedStartDate: issue.PlannedStartDate,
+		PlannedEndDate:   issue.PlannedEndDate,
+		ActualStartDate:  issue.ActualStartDate,
+		ActualEndDate:    issue.ActualEndDate,
+		ResolvedAt:       issue.ResolvedAt,
+		ClosedAt:         issue.ClosedAt,
+		CreatedAt:        issue.CreatedAt,
+		UpdatedAt:        issue.UpdatedAt,
+	}
+
+	// 从缓存加载 Epic Key
+	if issue.EpicID != nil {
+		if epic, ok := cache.issues[*issue.EpicID]; ok {
+			resp.EpicKey = epic.IssueKey
+		}
+	}
+
+	// 从缓存加载工单类型
+	if it, ok := cache.issueTypes[issue.IssueTypeID]; ok {
+		resp.IssueType = &dto.IssueTypeBrief{
+			ID:          it.ID,
+			Name:        it.Name,
+			DisplayName: it.DisplayName,
+			Icon:        it.Icon,
+			Color:       it.Color,
+		}
+	}
+
+	// 从缓存加载报告人
+	if reporter, ok := cache.users[issue.ReporterID]; ok {
+		resp.Reporter = &dto.UserBrief{
+			ID:          reporter.ID,
+			Username:    reporter.Username,
+			DisplayName: reporter.DisplayName,
+			AvatarURL:   reporter.AvatarURL,
+		}
+	}
+
+	// 从缓存加载指派人
+	if issue.AssigneeID != nil {
+		if assignee, ok := cache.users[*issue.AssigneeID]; ok {
+			resp.Assignee = &dto.UserBrief{
+				ID:          assignee.ID,
+				Username:    assignee.Username,
+				DisplayName: assignee.DisplayName,
+				AvatarURL:   assignee.AvatarURL,
+			}
+		}
+	}
+
+	// 从缓存加载父工单 Key
+	if issue.ParentID != nil {
+		if parent, ok := cache.issues[*issue.ParentID]; ok {
+			resp.ParentKey = parent.IssueKey
+		}
+	}
+
+	return resp
+}
+
+// batchToIssueResponses 批量转换工单列表为响应（预加载 + 零额外查询）
+func (s *issueService) batchToIssueResponses(ctx context.Context, issues []*model.Issue) []*dto.IssueResponse {
+	cache := s.batchPreload(ctx, issues)
+	responses := make([]*dto.IssueResponse, len(issues))
+	for i, issue := range issues {
+		responses[i] = s.toIssueResponseCached(issue, cache)
+	}
+	return responses
 }
 
 // toIssueResponse 将工单模型转换为响应 DTO

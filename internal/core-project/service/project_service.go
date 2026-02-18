@@ -63,17 +63,23 @@ type ProjectService interface {
 	RemoveRoleMember(ctx context.Context, projectKey string, roleID, userID uint64) error
 	ListRoleMembers(ctx context.Context, projectKey string, roleID uint64) ([]*dto.ProjectRoleMemberResponse, error)
 	GetUserRoles(ctx context.Context, projectKey string, userID uint64) ([]*dto.ProjectRoleResponse, error)
+
+	// 角色权限管理
+	GetRolePermissions(ctx context.Context, projectKey string, roleID uint64) ([]string, error)
+	SetRolePermissions(ctx context.Context, projectKey string, roleID uint64, permissions []string) error
+	CheckUserPermission(ctx context.Context, projectKey string, userID uint64, permission string) (bool, error)
 }
 
 // projectService 项目服务实现
 type projectService struct {
-	projectRepo       repository.ProjectRepository
-	memberRepo        repository.ProjectMemberRepository
-	issueTypeRepo     repository.IssueTypeRepository
-	roleRepo          repository.ProjectRoleRepository
-	roleMemberRepo    repository.ProjectRoleMemberRepository
-	userRepo          userRepo.UserRepository
-	db                *gorm.DB
+	projectRepo    repository.ProjectRepository
+	memberRepo     repository.ProjectMemberRepository
+	issueTypeRepo  repository.IssueTypeRepository
+	roleRepo       repository.ProjectRoleRepository
+	roleMemberRepo repository.ProjectRoleMemberRepository
+	permissionRepo repository.ProjectRolePermissionRepository
+	userRepo       userRepo.UserRepository
+	db             *gorm.DB
 }
 
 // NewProjectService 创建项目服务实例
@@ -83,6 +89,7 @@ func NewProjectService(
 	issueTypeRepo repository.IssueTypeRepository,
 	roleRepo repository.ProjectRoleRepository,
 	roleMemberRepo repository.ProjectRoleMemberRepository,
+	permissionRepo repository.ProjectRolePermissionRepository,
 	userRepo userRepo.UserRepository,
 	db *gorm.DB,
 ) ProjectService {
@@ -92,6 +99,7 @@ func NewProjectService(
 		issueTypeRepo:  issueTypeRepo,
 		roleRepo:       roleRepo,
 		roleMemberRepo: roleMemberRepo,
+		permissionRepo: permissionRepo,
 		userRepo:       userRepo,
 		db:             db,
 	}
@@ -303,7 +311,23 @@ func (s *projectService) ListProjects(ctx context.Context, req *dto.ListProjects
 	pageSize := req.GetDefaultPageSize()
 	offset := (page - 1) * pageSize
 
-	projects, total, err := s.projectRepo.List(ctx, offset, pageSize, req.Keyword, req.Status)
+	// 非管理员只能看到自己是成员的项目
+	var projectIDs []uint64
+	if !isAdmin {
+		members, err := s.memberRepo.ListByUser(ctx, userID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("查询用户项目失败: %w", err)
+		}
+		if len(members) == 0 {
+			return []*dto.ProjectResponse{}, 0, nil
+		}
+		projectIDs = make([]uint64, len(members))
+		for i, m := range members {
+			projectIDs[i] = m.ProjectID
+		}
+	}
+
+	projects, total, err := s.projectRepo.List(ctx, offset, pageSize, req.Keyword, req.Status, projectIDs)
 	if err != nil {
 		logger.Error("failed to list projects", zap.Error(err))
 		return nil, 0, fmt.Errorf("查询项目列表失败: %w", err)
@@ -987,6 +1011,11 @@ func (s *projectService) toRoleResponse(ctx context.Context, role *model.Project
 		resp.MemberCount = int(count)
 	}
 
+	// 获取角色权限
+	if perms, err := s.permissionRepo.ListByRole(ctx, role.ID); err == nil {
+		resp.Permissions = perms
+	}
+
 	return resp
 }
 
@@ -1010,4 +1039,124 @@ func (s *projectService) toRoleMemberResponse(member *model.ProjectRoleMember, u
 	}
 
 	return resp
+}
+
+// ============ 角色权限管理 ============
+
+// GetRolePermissions 获取角色权限
+func (s *projectService) GetRolePermissions(ctx context.Context, projectKey string, roleID uint64) ([]string, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	if role.ProjectID != project.ID {
+		return nil, ErrRoleNotFound
+	}
+
+	perms, err := s.permissionRepo.ListByRole(ctx, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色权限失败: %w", err)
+	}
+
+	return perms, nil
+}
+
+// SetRolePermissions 设置角色权限
+func (s *projectService) SetRolePermissions(ctx context.Context, projectKey string, roleID uint64, permissions []string) error {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrProjectNotFound
+		}
+		return fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	role, err := s.roleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
+		}
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	if role.ProjectID != project.ID {
+		return ErrRoleNotFound
+	}
+
+	if err := s.permissionRepo.SetPermissions(ctx, roleID, permissions); err != nil {
+		logger.Error("failed to set role permissions", zap.Error(err))
+		return fmt.Errorf("设置角色权限失败: %w", err)
+	}
+
+	logger.Info("role permissions updated",
+		zap.String("project_key", projectKey),
+		zap.Uint64("role_id", roleID),
+		zap.Int("permission_count", len(permissions)),
+	)
+
+	return nil
+}
+
+// CheckUserPermission 检查用户在项目中是否有指定权限
+func (s *projectService) CheckUserPermission(ctx context.Context, projectKey string, userID uint64, permission string) (bool, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, ErrProjectNotFound
+		}
+		return false, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	// 检查是否为项目 owner，owner 拥有全部权限
+	member, err := s.memberRepo.GetByProjectAndUser(ctx, project.ID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("查询成员失败: %w", err)
+	}
+	if member.Role == "owner" {
+		return true, nil
+	}
+
+	// 获取用户在项目中的所有角色
+	roleMembers, err := s.roleMemberRepo.ListByProjectAndUser(ctx, project.ID, userID)
+	if err != nil {
+		return false, fmt.Errorf("查询用户角色失败: %w", err)
+	}
+
+	if len(roleMembers) == 0 {
+		return false, nil
+	}
+
+	roleIDs := make([]uint64, len(roleMembers))
+	for i, rm := range roleMembers {
+		roleIDs[i] = rm.RoleID
+	}
+
+	// 获取合并权限
+	perms, err := s.permissionRepo.ListByRoles(ctx, roleIDs)
+	if err != nil {
+		return false, fmt.Errorf("查询角色权限失败: %w", err)
+	}
+
+	for _, p := range perms {
+		if p == permission {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

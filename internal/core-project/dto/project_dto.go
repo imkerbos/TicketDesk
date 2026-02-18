@@ -145,9 +145,15 @@ type ProjectRoleResponse struct {
 	Description string    `json:"description"`
 	IsSystem    bool      `json:"is_system"`
 	SortOrder   int       `json:"sort_order"`
+	Permissions []string  `json:"permissions,omitempty"`
 	MemberCount int       `json:"member_count,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// SetRolePermissionsRequest 设置角色权限请求
+type SetRolePermissionsRequest struct {
+	Permissions []string `json:"permissions" binding:"required"`
 }
 
 // AddRoleMemberRequest 添加角色成员请求

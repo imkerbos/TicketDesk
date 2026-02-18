@@ -11,6 +11,7 @@ export const useUserStore = defineStore('user', () => {
   // 计算属性
   const isLoggedIn = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.roles?.includes('admin') || false)
+  const isProjectAdmin = computed(() => user.value?.roles?.includes('admin') || user.value?.roles?.includes('project_admin') || false)
   const username = computed(() => user.value?.username || '')
   const displayName = computed(() => user.value?.display_name || user.value?.username || '')
   const avatarUrl = computed(() => user.value?.avatar_url || '')
@@ -81,6 +82,7 @@ export const useUserStore = defineStore('user', () => {
     // 计算属性
     isLoggedIn,
     isAdmin,
+    isProjectAdmin,
     username,
     displayName,
     avatarUrl,

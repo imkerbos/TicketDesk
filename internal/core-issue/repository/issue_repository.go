@@ -26,14 +26,16 @@ type IssueRepository interface {
 
 // IssueFilter 工单过滤条件
 type IssueFilter struct {
-	ProjectID   *uint64
-	Status      string
-	StatusNotIn []string // 排除的状态列表
-	Priority    string
-	AssigneeID  *uint64
-	ReporterID  *uint64
-	IssueTypeID *uint64
-	Keyword     string
+	ProjectID        *uint64
+	ProjectIDs       []uint64 // 限定项目范围（非管理员用户可访问的项目列表）
+	LimitByProjects  bool     // 是否启用 ProjectIDs 过滤（区分 nil 和空切片）
+	Status           string
+	StatusNotIn      []string // 排除的状态列表
+	Priority         string
+	AssigneeID       *uint64
+	ReporterID       *uint64
+	IssueTypeID      *uint64
+	Keyword          string
 }
 
 // issueRepository 工单数据访问实现
@@ -92,6 +94,13 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 	if filter != nil {
 		if filter.ProjectID != nil {
 			query = query.Where("project_id = ?", *filter.ProjectID)
+		}
+		if filter.LimitByProjects {
+			if len(filter.ProjectIDs) == 0 {
+				// 用户没有任何项目权限，直接返回空结果
+				return nil, 0, nil
+			}
+			query = query.Where("project_id IN ?", filter.ProjectIDs)
 		}
 		if filter.Status != "" {
 			query = query.Where("status = ?", filter.Status)

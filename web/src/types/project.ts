@@ -94,6 +94,8 @@ export interface ProjectRole {
   description: string
   is_system: boolean
   sort_order: number
+  permissions?: string[]
+  member_count?: number
   created_at: string
   updated_at: string
 }

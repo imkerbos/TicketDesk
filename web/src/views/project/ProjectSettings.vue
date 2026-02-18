@@ -198,28 +198,50 @@
               </el-button>
             </div>
             <div class="roles-grid">
-              <div v-for="role in roles" :key="role.id" class="role-card">
-                <div class="role-icon" :class="getRoleIconClass(role.role_key)">
-                  <el-icon><Avatar /></el-icon>
-                </div>
-                <div class="role-info">
-                  <div class="role-header">
-                    <span class="role-name">{{ role.role_name }}</span>
-                    <el-tag v-if="role.is_system" size="small" type="info">系统</el-tag>
+              <div v-for="role in roles" :key="role.id" class="role-card" :class="getRoleIconClass(role.role_key)">
+                <!-- 卡片头部 -->
+                <div class="role-card-top">
+                  <div class="role-icon" :class="getRoleIconClass(role.role_key)">
+                    <el-icon :size="22"><Avatar /></el-icon>
                   </div>
-                  <div class="role-key">{{ role.role_key }}</div>
-                  <div v-if="role.description" class="role-desc">{{ role.description }}</div>
+                  <div class="role-card-title">
+                    <div class="role-name-row">
+                      <span class="role-name">{{ role.role_name }}</span>
+                      <el-tag v-if="role.is_system" size="small" effect="plain" round>系统</el-tag>
+                    </div>
+                    <div class="role-key">{{ role.role_key }}</div>
+                  </div>
                 </div>
+                <!-- 描述 -->
+                <div class="role-desc">{{ role.description || '暂无描述' }}</div>
+                <!-- 统计标签 -->
+                <div class="role-stats">
+                  <div class="role-stat-item">
+                    <el-icon :size="13"><User /></el-icon>
+                    <span>{{ role.member_count || 0 }} 成员</span>
+                  </div>
+                  <div class="role-stat-item">
+                    <el-icon :size="13"><Lock /></el-icon>
+                    <span>{{ role.permissions?.length || 0 }} 项权限</span>
+                  </div>
+                </div>
+                <!-- 操作按钮 -->
                 <div class="role-actions">
-                  <el-button size="small" @click="handleManageRoleMembers(role)">
+                  <el-button size="small" class="role-action-btn" @click="handleManageRoleMembers(role)">
                     <el-icon><User /></el-icon>
                     成员
                   </el-button>
-                  <el-button v-if="!role.is_system" size="small" @click="handleEditRole(role)">
-                    <el-icon><Edit /></el-icon>
+                  <el-button size="small" class="role-action-btn" @click="handleConfigPermissions(role)">
+                    <el-icon><Lock /></el-icon>
+                    权限
                   </el-button>
-                  <el-button v-if="!role.is_system" size="small" type="danger" @click="handleDeleteRole(role)">
+                  <el-button v-if="!role.is_system" size="small" class="role-action-btn" @click="handleEditRole(role)">
+                    <el-icon><Edit /></el-icon>
+                    编辑
+                  </el-button>
+                  <el-button v-if="!role.is_system" size="small" type="danger" plain class="role-action-btn" @click="handleDeleteRole(role)">
                     <el-icon><Delete /></el-icon>
+                    删除
                   </el-button>
                 </div>
               </div>
@@ -580,6 +602,93 @@
       </template>
     </el-dialog>
 
+    <!-- 角色成员管理对话框 -->
+    <el-dialog
+      v-model="memberMgmtDialogVisible"
+      :title="`${currentMgmtRole?.role_name} - 成员管理`"
+      width="600px"
+      destroy-on-close
+      class="custom-dialog"
+      @close="closeMemberMgmtDialog"
+    >
+      <div class="member-mgmt-content">
+        <div class="member-mgmt-add">
+          <el-select v-model="selectedRoleMemberUserId" placeholder="选择用户" filterable style="flex: 1">
+            <el-option v-for="u in availableRoleUsers" :key="u.id" :label="u.display_name" :value="u.id">
+              <div class="user-option">
+                <div class="user-option-avatar">{{ u.display_name?.charAt(0) || '?' }}</div>
+                <div class="user-option-info">
+                  <span class="user-option-name">{{ u.display_name }}</span>
+                  <span class="user-option-username">@{{ u.username }}</span>
+                </div>
+              </div>
+            </el-option>
+          </el-select>
+          <el-button type="primary" :loading="addRoleMemberLoading" :disabled="!selectedRoleMemberUserId" @click="handleAddRoleMember">
+            <el-icon><Plus /></el-icon>
+            添加成员
+          </el-button>
+        </div>
+        <el-divider />
+        <div v-loading="roleMembersLoading" class="member-mgmt-list">
+          <div v-for="member in roleMembers" :key="member.id" class="member-mgmt-item">
+            <div class="member-mgmt-info">
+              <div class="member-mgmt-avatar">{{ member.user?.display_name?.charAt(0) || '?' }}</div>
+              <div class="member-mgmt-details">
+                <span class="member-mgmt-name">{{ member.user?.display_name }}</span>
+                <span class="member-mgmt-username">@{{ member.user?.username }}</span>
+              </div>
+            </div>
+            <el-button size="small" type="danger" text @click="handleRemoveRoleMember(member)">
+              <el-icon><Delete /></el-icon>
+              移除
+            </el-button>
+          </div>
+          <el-empty v-if="!roleMembersLoading && roleMembers.length === 0" description="暂无成员" />
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 角色权限配置对话框 -->
+    <el-dialog
+      v-model="permDialogVisible"
+      :title="`${currentPermRole?.role_name} - 权限配置`"
+      width="640px"
+      destroy-on-close
+      class="custom-dialog"
+    >
+      <div v-loading="permLoading" class="perm-config-content">
+        <div v-for="group in PERMISSION_GROUPS" :key="group.module" class="perm-group">
+          <div class="perm-group-header">
+            <el-checkbox
+              :model-value="isModuleAllChecked(group)"
+              :indeterminate="isModuleIndeterminate(group)"
+              @change="handleToggleModuleAll(group)"
+            >
+              {{ group.module }}
+            </el-checkbox>
+          </div>
+          <div class="perm-group-items">
+            <el-checkbox
+              v-for="perm in group.permissions"
+              :key="perm.key"
+              :model-value="rolePermissions.includes(perm.key)"
+              @change="(val: string | number | boolean) => handleTogglePermission(perm.key, !!val)"
+            >
+              {{ perm.label }}
+            </el-checkbox>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="permDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="permSaveLoading" @click="handleSavePermissions">
+          <el-icon><Check /></el-icon>
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 创建/编辑工单类型对话框 -->
     <el-dialog
       v-model="issueTypeDialogVisible"
@@ -869,6 +978,7 @@ import {
   Grid,
   Bell,
   Search,
+  Lock,
 } from '@element-plus/icons-vue'
 import FieldConfigTab from './components/FieldConfigTab.vue'
 import {
@@ -891,6 +1001,11 @@ import {
   updateNotificationChannel,
   deleteNotificationChannel,
   testNotificationChannel,
+  getRoleMembers,
+  addRoleMember,
+  removeRoleMember,
+  getRolePermissions,
+  setRolePermissions,
 } from '@/api/project'
 import { getWorkflowSchemes, createWorkflowScheme, deleteWorkflowScheme, getWorkflowList } from '@/api/workflow'
 import type { WorkflowScheme, Workflow } from '@/types/workflow'
@@ -903,6 +1018,7 @@ import type {
   CreateProjectRoleRequest,
   CreateIssueTypeRequest,
   NotificationChannel,
+  ProjectRoleMember,
 } from '@/types/project'
 import type { UserOption } from '@/types/user'
 
@@ -986,6 +1102,100 @@ const roleRules: FormRules = {
     { pattern: /^[a-z_]+$/, message: '只能包含小写字母和下划线', trigger: 'blur' },
   ],
   role_name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
+}
+
+// 角色成员管理
+const memberMgmtDialogVisible = ref(false)
+const currentMgmtRole = ref<ProjectRole | null>(null)
+const roleMembers = ref<ProjectRoleMember[]>([])
+const roleMembersLoading = ref(false)
+const selectedRoleMemberUserId = ref<number | null>(null)
+const addRoleMemberLoading = ref(false)
+
+const availableRoleUsers = computed(() => {
+  const memberIds = roleMembers.value.map((m) => m.user_id)
+  return users.value.filter((u) => !memberIds.includes(u.id))
+})
+
+// 角色权限配置
+const PERMISSION_GROUPS = [
+  { module: '项目', permissions: [{ key: 'project:view', label: '访问项目' }, { key: 'project:manage', label: '管理设置' }] },
+  { module: '工单', permissions: [{ key: 'issue:view', label: '查看工单' }, { key: 'issue:create', label: '创建工单' }, { key: 'issue:edit', label: '编辑工单' }, { key: 'issue:delete', label: '删除工单' }, { key: 'issue:assign', label: '指派工单' }] },
+  { module: '成员', permissions: [{ key: 'member:view', label: '查看成员' }, { key: 'member:manage', label: '管理成员' }] },
+  { module: '角色', permissions: [{ key: 'role:view', label: '查看角色' }, { key: 'role:manage', label: '管理角色和权限' }] },
+  { module: '工作流', permissions: [{ key: 'workflow:view', label: '查看工作流' }, { key: 'workflow:manage', label: '管理工作流' }] },
+  { module: '告警', permissions: [{ key: 'alert:view', label: '查看告警' }, { key: 'alert:manage', label: '管理告警规则' }] },
+]
+const permDialogVisible = ref(false)
+const currentPermRole = ref<ProjectRole | null>(null)
+const rolePermissions = ref<string[]>([])
+const permLoading = ref(false)
+const permSaveLoading = ref(false)
+
+const handleConfigPermissions = async (role: ProjectRole) => {
+  currentPermRole.value = role
+  permDialogVisible.value = true
+  permLoading.value = true
+  try {
+    const { data } = await getRolePermissions(projectKey.value, role.id)
+    rolePermissions.value = data.data || []
+  } catch (error) {
+    console.error('Failed to load role permissions:', error)
+    rolePermissions.value = role.permissions || []
+  } finally {
+    permLoading.value = false
+  }
+}
+
+const handleTogglePermission = (key: string, checked: boolean) => {
+  if (checked) {
+    if (!rolePermissions.value.includes(key)) {
+      rolePermissions.value = [...rolePermissions.value, key]
+    }
+  } else {
+    rolePermissions.value = rolePermissions.value.filter((k) => k !== key)
+  }
+}
+
+const isModuleAllChecked = (group: typeof PERMISSION_GROUPS[number]) => {
+  return group.permissions.every((p) => rolePermissions.value.includes(p.key))
+}
+
+const isModuleIndeterminate = (group: typeof PERMISSION_GROUPS[number]) => {
+  const checked = group.permissions.filter((p) => rolePermissions.value.includes(p.key)).length
+  return checked > 0 && checked < group.permissions.length
+}
+
+const handleToggleModuleAll = (group: typeof PERMISSION_GROUPS[number]) => {
+  const allChecked = isModuleAllChecked(group)
+  const keys = group.permissions.map((p) => p.key)
+  if (allChecked) {
+    rolePermissions.value = rolePermissions.value.filter((k) => !keys.includes(k))
+  } else {
+    const newPerms = [...rolePermissions.value]
+    for (const key of keys) {
+      if (!newPerms.includes(key)) {
+        newPerms.push(key)
+      }
+    }
+    rolePermissions.value = newPerms
+  }
+}
+
+const handleSavePermissions = async () => {
+  if (!currentPermRole.value) return
+  permSaveLoading.value = true
+  try {
+    await setRolePermissions(projectKey.value, currentPermRole.value.id, { permissions: rolePermissions.value })
+    ElMessage.success('权限保存成功')
+    permDialogVisible.value = false
+    loadRoles()
+  } catch (error) {
+    console.error('Failed to save permissions:', error)
+    ElMessage.error('权限保存失败')
+  } finally {
+    permSaveLoading.value = false
+  }
 }
 
 // 工单类型
@@ -1473,8 +1683,65 @@ const handleDeleteRole = async (role: ProjectRole) => {
   }
 }
 
-const handleManageRoleMembers = (role: ProjectRole) => {
-  ElMessage.info(`管理角色 "${role.role_name}" 的成员功能开发中`)
+const handleManageRoleMembers = async (role: ProjectRole) => {
+  currentMgmtRole.value = role
+  selectedRoleMemberUserId.value = null
+  memberMgmtDialogVisible.value = true
+  router.replace({ query: { ...route.query, roleId: String(role.id) } })
+  await loadRoleMembers(role.id)
+}
+
+const loadRoleMembers = async (roleId: number) => {
+  roleMembersLoading.value = true
+  try {
+    const { data } = await getRoleMembers(projectKey.value, roleId)
+    roleMembers.value = data.data
+  } catch (error) {
+    console.error('Failed to load role members:', error)
+  } finally {
+    roleMembersLoading.value = false
+  }
+}
+
+const handleAddRoleMember = async () => {
+  if (!selectedRoleMemberUserId.value || !currentMgmtRole.value) return
+  addRoleMemberLoading.value = true
+  try {
+    await addRoleMember(projectKey.value, currentMgmtRole.value.id, { user_id: selectedRoleMemberUserId.value })
+    ElMessage.success('添加成功')
+    selectedRoleMemberUserId.value = null
+    await loadRoleMembers(currentMgmtRole.value.id)
+  } catch (error) {
+    console.error('Failed to add role member:', error)
+    ElMessage.error('添加失败')
+  } finally {
+    addRoleMemberLoading.value = false
+  }
+}
+
+const handleRemoveRoleMember = async (member: ProjectRoleMember) => {
+  if (!currentMgmtRole.value) return
+  try {
+    await ElMessageBox.confirm(`确定要移除成员 "${member.user?.display_name}" 吗？`, '移除确认', {
+      type: 'warning',
+    })
+    await removeRoleMember(projectKey.value, currentMgmtRole.value.id, member.user_id)
+    ElMessage.success('移除成功')
+    await loadRoleMembers(currentMgmtRole.value.id)
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to remove role member:', error)
+      ElMessage.error('移除失败')
+    }
+  }
+}
+
+const closeMemberMgmtDialog = () => {
+  memberMgmtDialogVisible.value = false
+  currentMgmtRole.value = null
+  roleMembers.value = []
+  const { roleId, ...rest } = route.query
+  router.replace({ query: rest })
 }
 
 const submitRole = async () => {
@@ -1626,15 +1893,34 @@ const availableIcons = [
   { name: 'alert', label: 'Alert', icon: Promotion },
 ]
 
-onMounted(() => {
+const tryRestoreRoleMemberDialog = () => {
+  const roleId = route.query.roleId
+  if (roleId && activeTab.value === 'roles') {
+    const id = Number(roleId)
+    const role = roles.value.find((r) => r.id === id)
+    if (role) {
+      handleManageRoleMembers(role)
+    }
+  }
+}
+
+// 监听 tab 切换到 roles 时，检查是否需要恢复对话框
+watch(activeTab, (newTab) => {
+  if (newTab === 'roles') {
+    tryRestoreRoleMemberDialog()
+  }
+})
+
+onMounted(async () => {
   loadProjectDetail()
   loadUsers()
   loadMembers()
-  loadRoles()
+  await loadRoles()
   loadIssueTypes()
   loadChannels()
   loadSchemes()
   loadAllWorkflows()
+  tryRestoreRoleMemberDialog()
 })
 </script>
 
@@ -1924,33 +2210,65 @@ onMounted(() => {
 // 角色网格
 .roles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
 .role-card {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
   padding: 20px;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   transition: all 0.2s;
+  position: relative;
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     border-color: #d1d5db;
+  }
+
+  // 左侧色条
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 16px;
+    bottom: 16px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: #667eea;
+  }
+
+  &.admin::before {
+    background: linear-gradient(180deg, #f59e0b, #d97706);
+  }
+  &.dev::before {
+    background: linear-gradient(180deg, #3b82f6, #2563eb);
+  }
+  &.test::before {
+    background: linear-gradient(180deg, #10b981, #059669);
+  }
+  &.view::before {
+    background: linear-gradient(180deg, #6b7280, #4b5563);
   }
 }
 
+.role-card-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
 .role-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
   color: #fff;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   flex-shrink: 0;
@@ -1969,15 +2287,14 @@ onMounted(() => {
   }
 }
 
-.role-info {
+.role-card-title {
   flex: 1;
   min-width: 0;
 
-  .role-header {
+  .role-name-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
   }
 
   .role-name {
@@ -1989,22 +2306,54 @@ onMounted(() => {
   .role-key {
     font-size: 12px;
     color: #9ca3af;
-    font-family: monospace;
-    margin-bottom: 4px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    margin-top: 2px;
   }
+}
 
-  .role-desc {
-    font-size: 13px;
+.role-desc {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.role-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border-radius: 8px;
+
+  .role-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
     color: #6b7280;
-    line-height: 1.5;
+
+    .el-icon {
+      color: #9ca3af;
+    }
   }
 }
 
 .role-actions {
   display: flex;
   gap: 8px;
-  flex-shrink: 0;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 14px;
+
+  .role-action-btn {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 // 工单类型网格
@@ -2072,6 +2421,70 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+}
+
+// 角色成员管理对话框
+.member-mgmt-content {
+  .member-mgmt-add {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .member-mgmt-list {
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .member-mgmt-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+
+    &:hover {
+      background: #f1f5f9;
+    }
+  }
+
+  .member-mgmt-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .member-mgmt-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .member-mgmt-details {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .member-mgmt-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+  }
+
+  .member-mgmt-username {
+    font-size: 12px;
+    color: #9ca3af;
+  }
 }
 
 // 对话框样式
@@ -2855,6 +3268,44 @@ onMounted(() => {
     font-size: 12px;
     color: #9ca3af;
     line-height: 1.3;
+  }
+}
+
+// 权限配置对话框
+.perm-config-content {
+  min-height: 200px;
+}
+
+.perm-group {
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.perm-group-header {
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  margin-bottom: 8px;
+
+  :deep(.el-checkbox__label) {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 14px;
+  }
+}
+
+.perm-group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 4px 12px 4px 28px;
+
+  :deep(.el-checkbox__label) {
+    font-size: 13px;
+    color: #4b5563;
   }
 }
 </style>

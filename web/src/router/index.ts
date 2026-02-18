@@ -65,18 +65,18 @@ const router = createRouter({
       component: () => import('@/views/project/ProjectRoles.vue'),
       meta: { title: '项目角色' },
     },
-    // 工作流管理
+    // 工作流管理（需要项目管理员权限）
     {
       path: '/workflows',
       name: 'WorkflowList',
       component: () => import('@/views/workflow/WorkflowList.vue'),
-      meta: { title: '工作流管理' },
+      meta: { title: '工作流管理', requiresProjectAdmin: true },
     },
     {
       path: '/workflows/:id/designer',
       name: 'WorkflowDesigner',
       component: () => import('@/views/workflow/WorkflowDesigner.vue'),
-      meta: { title: '工作流设计器' },
+      meta: { title: '工作流设计器', requiresProjectAdmin: true },
     },
     // 告警中心
     {
@@ -95,13 +95,13 @@ const router = createRouter({
       path: '/alert-rules',
       name: 'AlertRules',
       component: () => import('@/views/alert/AlertRules.vue'),
-      meta: { title: '告警规则' },
+      meta: { title: '告警规则', requiresProjectAdmin: true },
     },
     {
       path: '/alert-silences',
       name: 'AlertSilences',
       component: () => import('@/views/alert/AlertSilences.vue'),
-      meta: { title: '告警静默' },
+      meta: { title: '告警静默', requiresProjectAdmin: true },
     },
     {
       path: '/alert-datasources',
@@ -116,24 +116,24 @@ const router = createRouter({
       component: () => import('@/views/notification/NotificationList.vue'),
       meta: { title: '通知中心' },
     },
-    // 需求池管理
+    // 需求池管理（需要项目管理员权限）
     {
       path: '/requirement-pools',
       name: 'RequirementPoolList',
       component: () => import('@/views/requirement/RequirementPoolList.vue'),
-      meta: { title: '需求池管理' },
+      meta: { title: '需求池管理', requiresProjectAdmin: true },
     },
     {
       path: '/requirements',
       name: 'RequirementList',
       component: () => import('@/views/requirement/RequirementList.vue'),
-      meta: { title: '需求管理' },
+      meta: { title: '需求管理', requiresProjectAdmin: true },
     },
     {
       path: '/requirements/kanban',
       name: 'RequirementKanban',
       component: () => import('@/views/requirement/RequirementKanban.vue'),
-      meta: { title: '需求看板' },
+      meta: { title: '需求看板', requiresProjectAdmin: true },
     },
     // 报表统计
     {
@@ -185,7 +185,12 @@ router.beforeEach((to, _from, next) => {
 
   // 检查是否需要管理员权限
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
-    // 无权限，重定向到首页
+    next('/dashboard')
+    return
+  }
+
+  // 检查是否需要项目管理员权限
+  if (to.meta.requiresProjectAdmin && !userStore.isProjectAdmin) {
     next('/dashboard')
     return
   }

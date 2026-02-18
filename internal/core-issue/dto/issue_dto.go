@@ -44,15 +44,16 @@ type UpdateIssueRequest struct {
 
 // ListIssuesRequest 工单列表请求
 type ListIssuesRequest struct {
-	Page        int     `form:"page" binding:"omitempty,min=1"`
-	PageSize    int     `form:"page_size" binding:"omitempty,min=1,max=100"`
-	ProjectKey  string  `form:"project_key" binding:"omitempty,max=20"`
-	Status      string  `form:"status" binding:"omitempty"`
-	Priority    string  `form:"priority" binding:"omitempty"`
-	AssigneeID  *uint64 `form:"assignee_id"`
-	ReporterID  *uint64 `form:"reporter_id"`
-	IssueTypeID *uint64 `form:"issue_type_id"`
-	Keyword     string  `form:"keyword" binding:"omitempty,max=100"`
+	Page        int      `form:"page" binding:"omitempty,min=1"`
+	PageSize    int      `form:"page_size" binding:"omitempty,min=1,max=100"`
+	ProjectKey  string   `form:"project_key" binding:"omitempty,max=20"`
+	Status      string   `form:"status" binding:"omitempty"`
+	Priority    string   `form:"priority" binding:"omitempty"`
+	AssigneeID  *uint64  `form:"assignee_id"`
+	ReporterID  *uint64  `form:"reporter_id"`
+	IssueTypeID *uint64  `form:"issue_type_id"`
+	Keyword     string   `form:"keyword" binding:"omitempty,max=100"`
+	ProjectIDs  []uint64 `form:"-" json:"-"` // 内部使用：限定可访问的项目范围
 }
 
 // GetDefaultPage 获取默认页码
