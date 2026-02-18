@@ -123,6 +123,53 @@
             <div v-else class="empty-placeholder">暂无描述</div>
           </el-card>
 
+          <!-- Epic 下的 Issues（仅当当前工单是 Epic 类型时显示）-->
+          <el-card v-if="issue.issue_type?.name?.toLowerCase() === 'epic'" shadow="never" class="content-card epic-issues-card">
+            <template #header>
+              <div class="card-header-group">
+                <div class="card-icon epic">
+                  <el-icon><Document /></el-icon>
+                </div>
+                <span class="card-title">长篇故事中的事物 ({{ epicIssues.length }})</span>
+              </div>
+            </template>
+            <div class="epic-issues-list">
+              <div v-if="epicIssues.length === 0" class="empty-state">
+                <el-empty description="暂无关联的工单" :image-size="80" />
+              </div>
+              <div v-for="epicIssue in epicIssues" :key="epicIssue.id" class="epic-issue-item">
+                <div class="issue-left">
+                  <div class="issue-type-icon" :class="epicIssue.issue_type?.name?.toLowerCase() || 'task'">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <router-link :to="`/issues/${epicIssue.issue_key}`" class="issue-link">
+                    <span class="issue-key">{{ epicIssue.issue_key }}</span>
+                  </router-link>
+                  <div class="issue-title">{{ epicIssue.title }}</div>
+                </div>
+                <div class="issue-right">
+                  <el-tag :type="getPriorityType(epicIssue.priority)" size="small" effect="dark" class="priority-tag">
+                    {{ epicIssue.priority }}
+                  </el-tag>
+                  <div class="status-badge" :class="epicIssue.status">
+                    <span class="status-dot"></span>
+                    <span>{{ getStatusText(epicIssue.status) }}</span>
+                  </div>
+                  <div v-if="epicIssue.assignee" class="assignee-info">
+                    <div class="assignee-avatar" :title="epicIssue.assignee.display_name">
+                      {{ epicIssue.assignee.display_name?.charAt(0) || '?' }}
+                    </div>
+                    <span class="assignee-name">{{ epicIssue.assignee.display_name }}</span>
+                  </div>
+                  <div v-else class="assignee-info">
+                    <div class="assignee-avatar unassigned" title="未分配">?</div>
+                    <span class="assignee-name unassigned">未分配</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-card>
+
           <!-- 工作流卡片 -->
           <el-card v-if="workflowInstance" shadow="never" class="content-card workflow-card">
             <template #header>
@@ -264,53 +311,6 @@
                     </template>
                   </template>
                   <span v-else class="empty-value">未设置</span>
-                </div>
-              </div>
-            </div>
-          </el-card>
-
-          <!-- Epic 下的 Issues（仅当当前工单是 Epic 类型时显示）-->
-          <el-card v-if="issue.issue_type?.name?.toLowerCase() === 'epic'" shadow="never" class="content-card epic-issues-card">
-            <template #header>
-              <div class="card-header-group">
-                <div class="card-icon epic">
-                  <el-icon><Document /></el-icon>
-                </div>
-                <span class="card-title">长篇故事中的事物 ({{ epicIssues.length }})</span>
-              </div>
-            </template>
-            <div class="epic-issues-list">
-              <div v-if="epicIssues.length === 0" class="empty-state">
-                <el-empty description="暂无关联的工单" :image-size="80" />
-              </div>
-              <div v-for="epicIssue in epicIssues" :key="epicIssue.id" class="epic-issue-item">
-                <div class="issue-left">
-                  <div class="issue-type-icon" :class="epicIssue.issue_type?.name?.toLowerCase() || 'task'">
-                    <el-icon><Document /></el-icon>
-                  </div>
-                  <router-link :to="`/issues/${epicIssue.issue_key}`" class="issue-link">
-                    <span class="issue-key">{{ epicIssue.issue_key }}</span>
-                  </router-link>
-                  <div class="issue-title">{{ epicIssue.title }}</div>
-                </div>
-                <div class="issue-right">
-                  <el-tag :type="getPriorityType(epicIssue.priority)" size="small" effect="dark" class="priority-tag">
-                    {{ epicIssue.priority }}
-                  </el-tag>
-                  <div class="status-badge" :class="epicIssue.status">
-                    <span class="status-dot"></span>
-                    <span>{{ getStatusText(epicIssue.status) }}</span>
-                  </div>
-                  <div v-if="epicIssue.assignee" class="assignee-info">
-                    <div class="assignee-avatar" :title="epicIssue.assignee.display_name">
-                      {{ epicIssue.assignee.display_name?.charAt(0) || '?' }}
-                    </div>
-                    <span class="assignee-name">{{ epicIssue.assignee.display_name }}</span>
-                  </div>
-                  <div v-else class="assignee-info">
-                    <div class="assignee-avatar unassigned" title="未分配">?</div>
-                    <span class="assignee-name unassigned">未分配</span>
-                  </div>
                 </div>
               </div>
             </div>

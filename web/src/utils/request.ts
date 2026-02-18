@@ -57,9 +57,14 @@ request.interceptors.response.use(
       if (!silent) {
         switch (status) {
           case 401:
-            ElMessage.error('未登录或登录已过期')
-            localStorage.removeItem('token')
-            window.location.href = '/login'
+            // 登录页面的 401 只显示错误信息，不跳转
+            if (window.location.pathname === '/login') {
+              ElMessage.error(data?.message || '用户名或密码错误')
+            } else {
+              ElMessage.error('未登录或登录已过期')
+              localStorage.removeItem('token')
+              window.location.href = '/login'
+            }
             break
           case 403:
             ElMessage.error('没有权限访问')
