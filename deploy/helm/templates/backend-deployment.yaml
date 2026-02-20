@@ -17,6 +17,15 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: backend
     spec:
+      {{- if .Values.mysql.enabled }}
+      initContainers:
+        - name: wait-mysql
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z {{ .Release.Name }}-mysql {{ .Values.mysql.port }}; do echo "waiting for mysql..."; sleep 3; done']
+        - name: wait-redis
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z {{ .Release.Name }}-redis {{ .Values.redis.port }}; do echo "waiting for redis..."; sleep 3; done']
+      {{- end }}
       containers:
         - name: backend
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
