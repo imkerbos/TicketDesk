@@ -6,7 +6,7 @@
 backend:
   replicas: 2
   image:
-    repository: ghcr.io/<owner>/ticketdesk/backend  # 替换 <owner> 为你的 GitHub 用户名或组织名
+    repository: ghcr.io/imkerbos/ticketdesk/backend
     tag: latest
     pullPolicy: IfNotPresent
   port: 10010
@@ -27,7 +27,7 @@ backend:
 frontend:
   replicas: 2
   image:
-    repository: ghcr.io/<owner>/ticketdesk/frontend  # 替换 <owner> 为你的 GitHub 用户名或组织名
+    repository: ghcr.io/imkerbos/ticketdesk/frontend
     tag: latest
     pullPolicy: IfNotPresent
   port: 80
