@@ -59,7 +59,9 @@ TicketDesk 是一个面向运维与技术团队的 **项目化工单与告警联
 | **日志** | Zap（结构化日志） |
 | **配置** | Viper（YAML + 环境变量覆盖） |
 | **ORM** | GORM |
-| **部署** | Docker Compose |
+| **部署** | Docker Compose / Kubernetes (Helm) |
+| **CI/CD** | GitHub Actions |
+| **镜像仓库** | GitHub Container Registry (ghcr.io) |
 
 ---
 
@@ -95,7 +97,8 @@ ticketdesk/
 │   ├── docker-compose.yaml      # 生产环境（全栈）
 │   ├── docker-compose.dev.yaml  # 开发环境（热更新）
 │   ├── .env.example             # 环境变量模板
-│   └── docker/                  # Dockerfile 集合
+│   ├── docker/                  # Dockerfile 集合
+│   └── helm/                    # Helm Chart（Kubernetes 部署）
 ├── web/                     # 前端代码（Vue 3）
 ├── scripts/                 # 脚本
 ├── Makefile                 # 构建命令
@@ -182,6 +185,61 @@ open http://localhost:3100
 make docker-dev
 ```
 
+### 方式四：Kubernetes 部署（Helm）
+
+使用 Helm Chart 部署到 Kubernetes 集群，支持 Gateway API 和 Istio 两种流量入口。
+
+```bash
+# 1. 配置 values.yaml
+vim deploy/helm/values.yaml
+
+# 2. 安装
+make helm-install
+
+# 3. 查看状态
+kubectl get pods -n ticketdesk
+```
+
+**流量入口切换：**
+
+```yaml
+# Gateway API（默认，K8s 新标准）
+ingress:
+  className: gateway
+
+# Istio VirtualService
+ingress:
+  className: istio
+  istio:
+    gateway: istio-system/default-gateway
+```
+
+**使用外部数据库：**
+
+```yaml
+mysql:
+  enabled: false
+  external:
+    host: rds.xxx.com
+    password: xxx
+
+redis:
+  enabled: false
+  external:
+    host: redis.xxx.com
+    password: xxx
+```
+
+**管理命令：**
+
+```bash
+make helm-lint      # 校验 Chart
+make helm-template  # 预览渲染结果
+make helm-install   # 首次安装
+make helm-upgrade   # 升级部署
+make helm-uninstall # 卸载
+```
+
 ---
 
 ## 环境变量说明
@@ -230,6 +288,29 @@ make docker-dev
   (Prometheus/N9E)
 ```
 
+**Kubernetes 架构：**
+
+```
+                    ┌─────────────┐
+                    │   Browser   │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │  Gateway /  │  Gateway API 或
+                    │  Istio VS   │  Istio VirtualService
+                    └──┬──────┬───┘
+                /api/* │      │ /*
+             ┌─────────▼┐   ┌▼─────────┐
+             │ Backend  │   │ Frontend │
+             │ (Pod x2) │   │ (Pod x2) │
+             └────┬──┬──┘   └──────────┘
+                  │  │
+           ┌─────▼┐ ┌▼─────┐
+           │MySQL │ │Redis │  集群内 StatefulSet
+           │(STS) │ │(STS) │  或外部托管服务
+           └──────┘ └──────┘
+```
+
 ---
 
 ## 常用命令
@@ -248,12 +329,19 @@ make swagger         # 生成 API 文档
 make docker-dev      # 容器化开发（热更新）
 make docker-dev-stop # 停止开发容器
 
-# ============ 生产部署 ============
+# ============ 生产部署（Docker Compose）============
 make prod-d          # 后台启动
 make prod-stop       # 停止
 make prod-logs       # 查看日志
 make prod-rebuild    # 重建并启动
 make prod-ps         # 容器状态
+
+# ============ 生产部署（Kubernetes）============
+make helm-lint       # 校验 Chart
+make helm-template   # 预览渲染结果
+make helm-install    # 首次安装
+make helm-upgrade    # 升级部署
+make helm-uninstall  # 卸载
 ```
 
 ---
