@@ -123,16 +123,25 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="项目" prop="project_id">
-              <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%">
-                <el-option label="示例项目" :value="1" />
+              <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%" @change="handleProjectChange" filterable>
+                <el-option
+                  v-for="p in projectList"
+                  :key="p.id"
+                  :label="`${p.project_key} - ${p.name}`"
+                  :value="p.id"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="工单类型" prop="issue_type_id">
-              <el-select v-model="form.issue_type_id" placeholder="请选择工单类型" style="width: 100%">
-                <el-option label="故障" :value="4" />
-                <el-option label="任务" :value="2" />
+              <el-select v-model="form.issue_type_id" placeholder="请先选择项目" style="width: 100%" :disabled="!form.project_id" filterable>
+                <el-option
+                  v-for="t in issueTypeList"
+                  :key="t.id"
+                  :label="t.display_name || t.name"
+                  :value="t.id"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -140,6 +149,10 @@
         <el-row :gutter="16">
           <el-col :span="24">
             <el-form-item label="标签匹配器" prop="label_matchers">
+              <div class="form-tip" style="margin-bottom: 8px;">
+                匹配告警标签，所有条件需同时满足。常用标签：alertname（告警名称）、severity（等级）、instance（实例）、group_name（业务组）。
+                操作符：== 精确匹配、!= 不等于、=~ 正则匹配、!~ 正则排除。
+              </div>
               <div class="matchers-container">
                 <div
                   v-for="(matcher, index) in form.label_matchers"
@@ -224,6 +237,7 @@ import {
   updateAlertRule,
   deleteAlertRule,
 } from '@/api/alert'
+import { getProjectList } from '@/api/project'
 import type { AlertRule, LabelMatcher } from '@/types/alert'
 
 const loading = ref(false)
@@ -233,6 +247,38 @@ const queryParams = reactive({
   page: 1,
   page_size: 20,
 })
+
+// 项目和工单类型选项
+const projectList = ref<{ id: number; name: string; project_key: string }[]>([])
+const issueTypeList = ref<{ id: number; name: string; display_name: string }[]>([])
+
+const loadProjects = async () => {
+  try {
+    const { data } = await getProjectList({ page: 1, page_size: 100 })
+    projectList.value = data.data.items || []
+  } catch (error) {
+    console.error('Failed to load projects:', error)
+  }
+}
+
+const loadIssueTypes = async (projectKey: string) => {
+  try {
+    const { getProjectIssueTypes } = await import('@/api/project')
+    const { data } = await getProjectIssueTypes(projectKey)
+    issueTypeList.value = data.data || []
+  } catch (error) {
+    console.error('Failed to load issue types:', error)
+  }
+}
+
+const handleProjectChange = (projectId: number) => {
+  form.issue_type_id = undefined
+  issueTypeList.value = []
+  const project = projectList.value.find(p => p.id === projectId)
+  if (project) {
+    loadIssueTypes(project.project_key)
+  }
+}
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('创建规则')
@@ -286,7 +332,7 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: AlertRule) => {
+const handleEdit = async (row: AlertRule) => {
   dialogTitle.value = '编辑规则'
   form.id = row.id
   form.name = row.name
@@ -298,6 +344,11 @@ const handleEdit = (row: AlertRule) => {
   form.assignee_id = row.assignee_id
   form.auto_resolve = row.auto_resolve
   form.merge_window = row.merge_window
+  // 加载该项目的工单类型
+  const project = projectList.value.find(p => p.id === row.project_id)
+  if (project) {
+    await loadIssueTypes(project.project_key)
+  }
   dialogVisible.value = true
 }
 
@@ -367,6 +418,7 @@ const formatMergeWindow = (seconds: number) => {
 
 onMounted(() => {
   loadData()
+  loadProjects()
 })
 </script>
 

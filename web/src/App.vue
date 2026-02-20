@@ -94,6 +94,12 @@
             </el-menu-item>
           </el-sub-menu>
 
+          <!-- 报表统计 -->
+          <el-menu-item index="/reports">
+            <el-icon><DataAnalysis /></el-icon>
+            <span>报表统计</span>
+          </el-menu-item>
+
           <!-- 系统管理（仅管理员可见） -->
           <el-sub-menu v-if="userStore.isAdmin" index="system">
             <template #title>
@@ -148,7 +154,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton, Document } from '@element-plus/icons-vue'
+import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton, Document, DataAnalysis } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import NotificationBell from '@/components/NotificationBell.vue'

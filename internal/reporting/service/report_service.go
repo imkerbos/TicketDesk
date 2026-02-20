@@ -168,6 +168,14 @@ func (s *reportService) GetIssueStats(ctx context.Context, req *dto.IssueStatsRe
 	// 获取状态分布
 	resp.StatusDistribution = s.mapToDistribution(statusMap)
 
+	// 获取指派人分布
+	assigneeMap, _ := s.reportRepo.CountIssuesByAssignee(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	resp.AssigneeDistribution = s.mapToDistribution(assigneeMap)
+
+	// 获取 Epic 分布
+	epicMap, _ := s.reportRepo.CountIssuesByEpic(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	resp.EpicDistribution = s.mapToDistribution(epicMap)
+
 	return resp, nil
 }
 

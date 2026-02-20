@@ -14,6 +14,8 @@ type ReportRepository interface {
 	CountIssuesByStatus(ctx context.Context, projectID *uint64) (map[string]int64, error)
 	CountIssuesByPriority(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error)
 	CountIssuesByType(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error)
+	CountIssuesByAssignee(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error)
+	CountIssuesByEpic(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error)
 	CountIssuesCreatedByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error)
 	CountIssuesResolvedByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error)
 	CountIssuesClosedByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error)
@@ -175,6 +177,68 @@ func (r *reportRepository) CountIssuesByType(ctx context.Context, projectID *uin
 	}
 
 	return typeMap, nil
+}
+
+// CountIssuesByAssignee 按指派人统计工单数量
+func (r *reportRepository) CountIssuesByAssignee(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error) {
+	type Result struct {
+		DisplayName string
+		Count       int64
+	}
+
+	var results []Result
+	query := r.db.WithContext(ctx).Table("issues").
+		Select("COALESCE(users.display_name, users.username, '未指派') as display_name, COUNT(*) as count").
+		Joins("LEFT JOIN users ON issues.assignee_id = users.id").
+		Where("issues.deleted_at IS NULL").
+		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Where("issues.project_id = ?", *projectID)
+	}
+
+	err := query.Group("COALESCE(users.display_name, users.username, '未指派')").Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	assigneeMap := make(map[string]int64)
+	for _, res := range results {
+		assigneeMap[res.DisplayName] = res.Count
+	}
+
+	return assigneeMap, nil
+}
+
+// CountIssuesByEpic 按 Epic 统计工单数量
+func (r *reportRepository) CountIssuesByEpic(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error) {
+	type Result struct {
+		EpicTitle string
+		Count     int64
+	}
+
+	var results []Result
+	query := r.db.WithContext(ctx).Table("issues").
+		Select("COALESCE(epics.title, '无 Epic') as epic_title, COUNT(*) as count").
+		Joins("LEFT JOIN issues AS epics ON issues.epic_id = epics.id").
+		Where("issues.deleted_at IS NULL").
+		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Where("issues.project_id = ?", *projectID)
+	}
+
+	err := query.Group("COALESCE(epics.title, '无 Epic')").Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	epicMap := make(map[string]int64)
+	for _, res := range results {
+		epicMap[res.EpicTitle] = res.Count
+	}
+
+	return epicMap, nil
 }
 
 // CountIssuesCreatedByDate 按日期统计创建的工单数量

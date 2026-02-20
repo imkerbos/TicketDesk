@@ -95,6 +95,12 @@ type IssueStatsResponse struct {
 
 	// 按状态分布
 	StatusDistribution []DistributionItem `json:"status_distribution"`
+
+	// 按指派人分布
+	AssigneeDistribution []DistributionItem `json:"assignee_distribution"`
+
+	// 按 Epic 分布
+	EpicDistribution []DistributionItem `json:"epic_distribution"`
 }
 
 // TimelineItem 时间线统计项

@@ -36,6 +36,8 @@ export interface IssueStats {
   priority_distribution: DistributionItem[]
   type_distribution: DistributionItem[]
   status_distribution: DistributionItem[]
+  assignee_distribution: DistributionItem[]
+  epic_distribution: DistributionItem[]
 }
 
 // 时间线统计项

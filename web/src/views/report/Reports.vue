@@ -23,8 +23,8 @@
           :shortcuts="dateShortcuts"
           @change="handleDateChange"
         />
-        <el-select v-model="selectedProject" placeholder="全部项目" clearable style="width: 160px" @change="loadData">
-          <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
+        <el-select v-model="selectedProject" placeholder="全部项目" clearable style="width: 200px" @change="loadData" filterable>
+          <el-option v-for="p in projects" :key="p.project_key" :label="`${p.project_key} - ${p.name}`" :value="p.project_key" />
         </el-select>
       </div>
     </div>
@@ -34,64 +34,152 @@
       <el-tab-pane label="工单统计" name="issues">
         <div v-loading="loading.issues" class="tab-content">
           <!-- 汇总卡片 -->
-          <el-row :gutter="20" class="summary-row">
+          <el-row :gutter="16" class="summary-row">
             <el-col :xs="12" :sm="6">
-              <div class="summary-card">
-                <div class="summary-value">{{ issueStats.summary?.total || 0 }}</div>
-                <div class="summary-label">工单总数</div>
+              <div class="summary-card accent-default">
+                <div class="summary-icon-wrap default"><el-icon :size="20"><Tickets /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ issueStats.summary?.total || 0 }}</div>
+                  <div class="summary-label">工单总数</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card success">
-                <div class="summary-value">{{ issueStats.summary?.resolved || 0 }}</div>
-                <div class="summary-label">已完成</div>
+              <div class="summary-card accent-success">
+                <div class="summary-icon-wrap success"><el-icon :size="20"><CircleCheck /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ issueStats.summary?.resolved || 0 }}</div>
+                  <div class="summary-label">已完成</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card warning">
-                <div class="summary-value">{{ issueStats.summary?.in_progress || 0 }}</div>
-                <div class="summary-label">进行中</div>
+              <div class="summary-card accent-warning">
+                <div class="summary-icon-wrap warning"><el-icon :size="20"><Loading /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ issueStats.summary?.in_progress || 0 }}</div>
+                  <div class="summary-label">进行中</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card info">
-                <div class="summary-value">{{ formatHours(issueStats.summary?.avg_resolve_time || 0) }}</div>
-                <div class="summary-label">平均解决时间</div>
+              <div class="summary-card accent-info">
+                <div class="summary-icon-wrap info"><el-icon :size="20"><Timer /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ formatHours(issueStats.summary?.avg_resolve_time || 0) }}</div>
+                  <div class="summary-label">平均解决时间</div>
+                </div>
               </div>
             </el-col>
           </el-row>
 
-          <!-- 图表 -->
-          <el-row :gutter="20">
-            <el-col :xs="24" :lg="12">
+          <!-- 分布图表 -->
+          <el-row :gutter="16">
+            <el-col :xs="24" :lg="8">
               <el-card shadow="never" class="chart-card">
                 <template #header>
-                  <span class="card-title">状态分布</span>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #67C23A"></span>
+                    <span class="card-title">状态分布</span>
+                  </div>
                 </template>
                 <div class="distribution-list">
                   <div v-for="item in issueStats.status_distribution" :key="item.name" class="distribution-item">
-                    <div class="dist-label">
+                    <div class="dist-header">
+                      <span class="dist-dot" :style="{ background: getStatusColor(item.name) }"></span>
                       <span class="dist-name">{{ getStatusLabel(item.name) }}</span>
-                      <span class="dist-value">{{ item.value }}</span>
+                      <span class="dist-value">{{ item.value }}<span class="dist-ratio">{{ item.ratio.toFixed(1) }}%</span></span>
                     </div>
-                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="8" :color="getStatusColor(item.name)" />
+                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="getStatusColor(item.name)" />
                   </div>
+                  <el-empty v-if="!issueStats.status_distribution?.length" description="暂无数据" :image-size="60" />
+                </div>
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :lg="8">
+              <el-card shadow="never" class="chart-card">
+                <template #header>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #409EFF"></span>
+                    <span class="card-title">优先级分布</span>
+                  </div>
+                </template>
+                <div class="distribution-list">
+                  <div v-for="item in issueStats.priority_distribution" :key="item.name" class="distribution-item">
+                    <div class="dist-header">
+                      <span class="dist-dot" :style="{ background: getPriorityColor(item.name) }"></span>
+                      <span class="dist-name">{{ item.name }}</span>
+                      <span class="dist-value">{{ item.value }}<span class="dist-ratio">{{ item.ratio.toFixed(1) }}%</span></span>
+                    </div>
+                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="getPriorityColor(item.name)" />
+                  </div>
+                  <el-empty v-if="!issueStats.priority_distribution?.length" description="暂无数据" :image-size="60" />
+                </div>
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :lg="8">
+              <el-card shadow="never" class="chart-card">
+                <template #header>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #667eea"></span>
+                    <span class="card-title">工单类型分布</span>
+                  </div>
+                </template>
+                <div class="distribution-list">
+                  <div v-for="(item, idx) in issueStats.type_distribution" :key="item.name" class="distribution-item">
+                    <div class="dist-header">
+                      <span class="dist-dot" :style="{ background: typeColors[idx % typeColors.length] }"></span>
+                      <span class="dist-name">{{ item.name }}</span>
+                      <span class="dist-value">{{ item.value }}<span class="dist-ratio">{{ item.ratio.toFixed(1) }}%</span></span>
+                    </div>
+                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="typeColors[idx % typeColors.length]" />
+                  </div>
+                  <el-empty v-if="!issueStats.type_distribution?.length" description="暂无数据" :image-size="60" />
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="16">
+            <el-col :xs="24" :lg="12">
+              <el-card shadow="never" class="chart-card">
+                <template #header>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #8b5cf6"></span>
+                    <span class="card-title">指派人分布</span>
+                  </div>
+                </template>
+                <div class="distribution-list">
+                  <div v-for="(item, idx) in issueStats.assignee_distribution" :key="item.name" class="distribution-item">
+                    <div class="dist-header">
+                      <el-avatar :size="22" class="dist-avatar">{{ item.name?.charAt(0) }}</el-avatar>
+                      <span class="dist-name">{{ item.name }}</span>
+                      <span class="dist-value">{{ item.value }}<span class="dist-ratio">{{ item.ratio.toFixed(1) }}%</span></span>
+                    </div>
+                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="assigneeColors[idx % assigneeColors.length]" />
+                  </div>
+                  <el-empty v-if="!issueStats.assignee_distribution?.length" description="暂无数据" :image-size="60" />
                 </div>
               </el-card>
             </el-col>
             <el-col :xs="24" :lg="12">
               <el-card shadow="never" class="chart-card">
                 <template #header>
-                  <span class="card-title">优先级分布</span>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #f59e0b"></span>
+                    <span class="card-title">Epic 分布</span>
+                  </div>
                 </template>
                 <div class="distribution-list">
-                  <div v-for="item in issueStats.priority_distribution" :key="item.name" class="distribution-item">
-                    <div class="dist-label">
+                  <div v-for="(item, idx) in issueStats.epic_distribution" :key="item.name" class="distribution-item">
+                    <div class="dist-header">
+                      <span class="dist-dot" :style="{ background: epicColors[idx % epicColors.length] }"></span>
                       <span class="dist-name">{{ item.name }}</span>
-                      <span class="dist-value">{{ item.value }}</span>
+                      <span class="dist-value">{{ item.value }}<span class="dist-ratio">{{ item.ratio.toFixed(1) }}%</span></span>
                     </div>
-                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="8" :color="getPriorityColor(item.name)" />
+                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="epicColors[idx % epicColors.length]" />
                   </div>
+                  <el-empty v-if="!issueStats.epic_distribution?.length" description="暂无数据" :image-size="60" />
                 </div>
               </el-card>
             </el-col>
@@ -100,15 +188,35 @@
           <!-- 时间趋势 -->
           <el-card shadow="never" class="chart-card">
             <template #header>
-              <span class="card-title">工单趋势</span>
+              <div class="card-header">
+                <span class="card-dot" style="background: #6366f1"></span>
+                <span class="card-title">工单趋势</span>
+              </div>
             </template>
             <div class="timeline-list">
-              <el-table :data="issueStats.timeline || []" stripe>
-                <el-table-column prop="date" label="日期" width="120" />
-                <el-table-column prop="created" label="创建" width="100" />
-                <el-table-column prop="resolved" label="解决" width="100" />
-                <el-table-column prop="closed" label="关闭" width="100" />
+              <el-table :data="issueStats.timeline || []" stripe size="small" :header-cell-style="{ background: '#f8fafc', color: '#475569', fontWeight: 600 }">
+                <el-table-column label="日期" min-width="120">
+                  <template #default="{ row }">
+                    <span class="timeline-date">{{ formatDate(row.date) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="创建" min-width="100">
+                  <template #default="{ row }">
+                    <span class="timeline-badge created">{{ row.created }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="解决" min-width="100">
+                  <template #default="{ row }">
+                    <span class="timeline-badge resolved">{{ row.resolved }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="关闭" min-width="100">
+                  <template #default="{ row }">
+                    <span class="timeline-badge closed">{{ row.closed }}</span>
+                  </template>
+                </el-table-column>
               </el-table>
+              <el-empty v-if="!issueStats.timeline?.length" description="暂无趋势数据" :image-size="60" />
             </div>
           </el-card>
         </div>
@@ -280,12 +388,17 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { DataAnalysis } from '@element-plus/icons-vue'
+import { DataAnalysis, Tickets, CircleCheck, Loading, Timer } from '@element-plus/icons-vue'
 import { getIssueStats, getSLAReport, getAlertStats, getUserPerformance } from '@/api/report'
 import { getAllProjects } from '@/api/project'
 import type { IssueStats, SLAReport, AlertStats, UserPerformance } from '@/types/report'
 import type { Project } from '@/types/project'
 import dayjs from 'dayjs'
+
+// 多色调色板
+const typeColors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a']
+const assigneeColors = ['#8b5cf6', '#6366f1', '#a78bfa', '#7c3aed', '#c084fc', '#818cf8']
+const epicColors = ['#f59e0b', '#f97316', '#fbbf24', '#fb923c', '#d97706', '#ea580c']
 
 // 日期范围
 const dateRange = ref<[string, string]>([
@@ -434,6 +547,11 @@ const formatMinutes = (minutes: number) => {
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`
 
+const formatDate = (date: string) => {
+  if (!date) return '-'
+  return dayjs(date).format('YYYY-MM-DD')
+}
+
 // 状态相关
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 
@@ -491,9 +609,9 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding: 24px;
+  padding: 24px 28px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  border-radius: 16px;
   color: #fff;
 
   .header-info {
@@ -522,7 +640,7 @@ onMounted(() => {
   .header-desc {
     font-size: 14px;
     margin: 0;
-    opacity: 0.9;
+    opacity: 0.85;
   }
 
   .header-actions {
@@ -531,9 +649,14 @@ onMounted(() => {
   }
 }
 
+// Tabs
 .report-tabs {
   :deep(.el-tabs__header) {
     margin-bottom: 20px;
+  }
+  :deep(.el-tabs__item) {
+    font-size: 14px;
+    font-weight: 500;
   }
 }
 
@@ -541,135 +664,251 @@ onMounted(() => {
   min-height: 400px;
 }
 
+// ========== 汇总卡片 ==========
 .summary-row {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .summary-card {
   background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s;
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+  transition: transform 0.2s, box-shadow 0.2s;
 
   &:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .summary-icon-wrap {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &.default { background: #eef2ff; color: #6366f1; }
+    &.success { background: #ecfdf5; color: #10b981; }
+    &.warning { background: #fffbeb; color: #f59e0b; }
+    &.info    { background: #eff6ff; color: #3b82f6; }
+    &.danger  { background: #fef2f2; color: #ef4444; }
+  }
+
+  .summary-body {
+    min-width: 0;
   }
 
   .summary-value {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
-    color: #1f2937;
+    color: #1e293b;
     line-height: 1.2;
   }
 
   .summary-label {
-    font-size: 13px;
-    color: #6b7280;
-    margin-top: 8px;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+    white-space: nowrap;
   }
-
-  &.success .summary-value { color: #67C23A; }
-  &.warning .summary-value { color: #E6A23C; }
-  &.danger .summary-value { color: #F56C6C; }
-  &.info .summary-value { color: #409EFF; }
 }
 
+// ========== 图表卡片 ==========
 .chart-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1px solid #f0f0f0;
 
   :deep(.el-card__header) {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  :deep(.el-card__body) {
     padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
   .card-title {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
-    color: #1f2937;
+    color: #1e293b;
   }
 }
 
+// ========== 分布列表 ==========
 .distribution-list {
-  padding: 16px 0;
-
   .distribution-item {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
 
     &:last-child {
       margin-bottom: 0;
     }
 
-    .dist-label {
+    .dist-header {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+      gap: 8px;
+    }
 
-      .dist-name {
-        font-size: 14px;
-        color: #4b5563;
-      }
+    .dist-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
 
-      .dist-value {
-        font-size: 14px;
-        font-weight: 600;
-        color: #1f2937;
+    .dist-avatar {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      font-size: 11px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .dist-name {
+      flex: 1;
+      font-size: 13px;
+      color: #475569;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dist-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+
+      .dist-ratio {
+        font-weight: 400;
+        font-size: 11px;
+        color: #94a3b8;
+        margin-left: 4px;
       }
+    }
+
+    :deep(.el-progress-bar__outer) {
+      border-radius: 4px;
+      background: #f1f5f9;
+    }
+
+    :deep(.el-progress-bar__inner) {
+      border-radius: 4px;
     }
   }
 }
 
-.top-list {
-  padding: 8px 0;
+// ========== 时间线表格 ==========
+.timeline-list {
+  max-height: 420px;
+  overflow-y: auto;
 
+  .timeline-date {
+    font-size: 13px;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .timeline-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+
+    &.created {
+      background: #eef2ff;
+      color: #6366f1;
+    }
+    &.resolved {
+      background: #ecfdf5;
+      color: #10b981;
+    }
+    &.closed {
+      background: #eff6ff;
+      color: #3b82f6;
+    }
+  }
+
+  :deep(.el-table) {
+    border-radius: 8px;
+    --el-table-border-color: #f1f5f9;
+  }
+}
+
+// ========== Top 列表 ==========
+.top-list {
   .top-item {
     display: flex;
     align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5f5;
 
     &:last-child {
       border-bottom: none;
     }
 
     .top-rank {
-      width: 24px;
-      height: 24px;
-      background: #f3f4f6;
+      width: 22px;
+      height: 22px;
+      background: #f1f5f9;
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
-      font-weight: 600;
-      color: #6b7280;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
       margin-right: 12px;
+      flex-shrink: 0;
     }
+
+    &:nth-child(1) .top-rank { background: #fef3c7; color: #d97706; }
+    &:nth-child(2) .top-rank { background: #e2e8f0; color: #475569; }
+    &:nth-child(3) .top-rank { background: #fed7aa; color: #c2410c; }
 
     .top-name {
       flex: 1;
-      font-size: 14px;
-      color: #1f2937;
+      font-size: 13px;
+      color: #334155;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .top-count {
-      font-size: 14px;
-      font-weight: 600;
-      color: #667eea;
+      font-size: 13px;
+      font-weight: 700;
+      color: #6366f1;
     }
   }
 }
 
-.timeline-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
+// ========== 响应式 ==========
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
@@ -679,6 +918,14 @@ onMounted(() => {
     .header-actions {
       width: 100%;
       flex-direction: column;
+    }
+  }
+
+  .summary-card {
+    padding: 14px;
+
+    .summary-value {
+      font-size: 20px;
     }
   }
 }
