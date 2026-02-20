@@ -17,6 +17,7 @@ type ReportRepository interface {
 	CountIssuesByAssignee(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error)
 	CountIssuesByEpic(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (map[string]int64, error)
 	CountIssuesCreatedByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error)
+	CountIssuesInProgressByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error)
 	CountIssuesResolvedByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error)
 	CountIssuesClosedByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error)
 	GetAverageResolveTime(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (float64, error)
@@ -254,6 +255,23 @@ func (r *reportRepository) CountIssuesCreatedByDate(ctx context.Context, project
 	}
 
 	err := query.Group("DATE(created_at)").Order("date").Find(&results).Error
+	return results, err
+}
+
+// CountIssuesInProgressByDate 按日期统计进入进行中状态的工单数量（以 actual_start_date 为准）
+func (r *reportRepository) CountIssuesInProgressByDate(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]DateCount, error) {
+	var results []DateCount
+	query := r.db.WithContext(ctx).Table("issues").
+		Select("DATE(actual_start_date) as date, COUNT(*) as count").
+		Where("deleted_at IS NULL").
+		Where("actual_start_date IS NOT NULL").
+		Where("actual_start_date BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Where("project_id = ?", *projectID)
+	}
+
+	err := query.Group("DATE(actual_start_date)").Order("date").Find(&results).Error
 	return results, err
 }
 

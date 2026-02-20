@@ -151,11 +151,12 @@ func (s *reportService) GetIssueStats(ctx context.Context, req *dto.IssueStatsRe
 
 	// 获取时间线数据
 	createdByDate, _ := s.reportRepo.CountIssuesCreatedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	inProgressByDate, _ := s.reportRepo.CountIssuesInProgressByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
 	resolvedByDate, _ := s.reportRepo.CountIssuesResolvedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
 	closedByDate, _ := s.reportRepo.CountIssuesClosedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
 
 	// 合并时间线数据
-	resp.Timeline = s.mergeTimelineData(createdByDate, resolvedByDate, closedByDate)
+	resp.Timeline = s.mergeTimelineData(createdByDate, inProgressByDate, resolvedByDate, closedByDate)
 
 	// 获取优先级分布
 	priorityMap, _ := s.reportRepo.CountIssuesByPriority(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
@@ -357,7 +358,7 @@ func (s *reportService) parseDateRange(startDateStr, endDateStr string) dto.Date
 }
 
 // mergeTimelineData 合并时间线数据
-func (s *reportService) mergeTimelineData(created, resolved, closed []repository.DateCount) []dto.TimelineItem {
+func (s *reportService) mergeTimelineData(created, inProgress, resolved, closed []repository.DateCount) []dto.TimelineItem {
 	dateMap := make(map[string]*dto.TimelineItem)
 
 	for _, item := range created {
@@ -365,6 +366,13 @@ func (s *reportService) mergeTimelineData(created, resolved, closed []repository
 			dateMap[item.Date] = &dto.TimelineItem{Date: item.Date}
 		}
 		dateMap[item.Date].Created = item.Count
+	}
+
+	for _, item := range inProgress {
+		if _, exists := dateMap[item.Date]; !exists {
+			dateMap[item.Date] = &dto.TimelineItem{Date: item.Date}
+		}
+		dateMap[item.Date].InProgress = item.Count
 	}
 
 	for _, item := range resolved {

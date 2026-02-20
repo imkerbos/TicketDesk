@@ -44,6 +44,7 @@ export interface IssueStats {
 export interface TimelineItem {
   date: string
   created: number
+  in_progress: number
   resolved: number
   closed: number
 }

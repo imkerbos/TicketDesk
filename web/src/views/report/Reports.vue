@@ -205,6 +205,11 @@
                     <span class="timeline-badge created">{{ row.created }}</span>
                   </template>
                 </el-table-column>
+                <el-table-column label="进行中" min-width="100">
+                  <template #default="{ row }">
+                    <span class="timeline-badge in-progress">{{ row.in_progress }}</span>
+                  </template>
+                </el-table-column>
                 <el-table-column label="解决" min-width="100">
                   <template #default="{ row }">
                     <span class="timeline-badge resolved">{{ row.resolved }}</span>
@@ -843,6 +848,10 @@ onMounted(() => {
     &.created {
       background: #eef2ff;
       color: #6366f1;
+    }
+    &.in-progress {
+      background: #fffbeb;
+      color: #d97706;
     }
     &.resolved {
       background: #ecfdf5;

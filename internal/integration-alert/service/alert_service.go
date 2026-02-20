@@ -421,6 +421,23 @@ func (s *alertService) createIssueFromAlert(
 		return 0, "", fmt.Errorf("failed to generate issue key: %w", err)
 	}
 
+	// 确定指派人：规则配置 > 项目负责人
+	assigneeID := rule.AssigneeID
+	if assigneeID == nil {
+		// 查找项目 owner 作为默认指派人
+		var ownerMember model.ProjectMember
+		if err := s.db.Where("project_id = ? AND role = ?", rule.ProjectID, "owner").First(&ownerMember).Error; err == nil {
+			assigneeID = &ownerMember.UserID
+		}
+	}
+
+	// 获取告警机器人用户 ID 作为创建人
+	var reporterID uint64 = 1
+	var botUser model.User
+	if err := s.db.Where("username = ?", "alert-bot").First(&botUser).Error; err == nil {
+		reporterID = botUser.ID
+	}
+
 	// 创建工单
 	issue := &model.Issue{
 		IssueKey:    issueKey,
@@ -430,8 +447,8 @@ func (s *alertService) createIssueFromAlert(
 		Description: description,
 		Priority:    rule.Priority,
 		Status:      "open",
-		ReporterID:  1, // 系统用户 ID，可以配置
-		AssigneeID:  rule.AssigneeID,
+		ReporterID:  reporterID,
+		AssigneeID:  assigneeID,
 	}
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
@@ -885,7 +902,7 @@ func (s *alertService) toAlertRuleResponse(rule *model.AlertRule) *dto.AlertRule
 	var matchers []dto.LabelMatcher
 	json.Unmarshal([]byte(rule.LabelMatchers), &matchers)
 
-	return &dto.AlertRuleResponse{
+	resp := &dto.AlertRuleResponse{
 		ID:            rule.ID,
 		Name:          rule.Name,
 		Description:   rule.Description,
@@ -900,5 +917,21 @@ func (s *alertService) toAlertRuleResponse(rule *model.AlertRule) *dto.AlertRule
 		CreatedAt:     rule.CreatedAt,
 		UpdatedAt:     rule.UpdatedAt,
 	}
+
+	// 填充项目名称
+	if project, err := s.projectRepo.GetByID(context.Background(), rule.ProjectID); err == nil && project != nil {
+		resp.ProjectName = project.Name
+	}
+
+	// 填充工单类型名称
+	if issueType, err := s.issueTypeRepo.GetByID(context.Background(), rule.IssueTypeID); err == nil && issueType != nil {
+		if issueType.DisplayName != "" {
+			resp.IssueTypeName = issueType.DisplayName
+		} else {
+			resp.IssueTypeName = issueType.Name
+		}
+	}
+
+	return resp
 }
 

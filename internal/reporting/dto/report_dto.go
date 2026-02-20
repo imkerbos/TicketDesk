@@ -105,10 +105,11 @@ type IssueStatsResponse struct {
 
 // TimelineItem 时间线统计项
 type TimelineItem struct {
-	Date     string `json:"date"`     // 日期
-	Created  int64  `json:"created"`  // 创建数量
-	Resolved int64  `json:"resolved"` // 解决数量
-	Closed   int64  `json:"closed"`   // 关闭数量
+	Date       string `json:"date"`        // 日期
+	Created    int64  `json:"created"`     // 创建数量
+	InProgress int64  `json:"in_progress"` // 进行中数量
+	Resolved   int64  `json:"resolved"`    // 解决数量
+	Closed     int64  `json:"closed"`      // 关闭数量
 }
 
 // DistributionItem 分布统计项

@@ -297,6 +297,34 @@ func SeedData(db *gorm.DB) error {
 		}
 	}
 
+	// 初始化告警机器人用户
+	var botUser User
+	botResult := db.Where("username = ?", "alert-bot").First(&botUser)
+	if botResult.Error != nil {
+		if botResult.Error == gorm.ErrRecordNotFound {
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte("alert-bot-no-login"), bcrypt.DefaultCost)
+			if err != nil {
+				logger.Error("failed to hash bot password", zap.Error(err))
+				return err
+			}
+
+			botUser = User{
+				Username:     "alert-bot",
+				Email:        "alert-bot@ticketdesk.local",
+				PasswordHash: string(hashedPassword),
+				DisplayName:  "告警机器人",
+				Status:       1,
+			}
+
+			if err := db.Create(&botUser).Error; err != nil {
+				logger.Error("failed to create alert bot user", zap.Error(err))
+				return err
+			}
+
+			logger.Info("alert bot user created", zap.Uint64("user_id", botUser.ID))
+		}
+	}
+
 	// 初始化默认系统配置
 	defaultConfigs := []SystemConfig{
 		{
