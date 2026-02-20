@@ -12,8 +12,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/frontend
 
 jobs:
   build:
@@ -24,6 +22,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set image names
+        id: images
+        run: |
+          REPO="${{ github.repository }}"
+          REPO_LOWER="${REPO,,}"
+          echo "backend=ghcr.io/${REPO_LOWER}/backend" >> $GITHUB_OUTPUT
+          echo "frontend=ghcr.io/${REPO_LOWER}/frontend" >> $GITHUB_OUTPUT
 
       - uses: docker/setup-buildx-action@v3
 
@@ -51,8 +57,8 @@ jobs:
           file: deploy/docker/Dockerfile.prod
           push: true
           tags: |
-            ${{ env.BACKEND_IMAGE }}:${{ steps.tag.outputs.version }}
-            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ steps.images.outputs.backend }}:${{ steps.tag.outputs.version }}
+            ${{ steps.images.outputs.backend }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -63,7 +69,7 @@ jobs:
           file: deploy/docker/Dockerfile.frontend.prod
           push: true
           tags: |
-            ${{ env.FRONTEND_IMAGE }}:${{ steps.tag.outputs.version }}
-            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ steps.images.outputs.frontend }}:${{ steps.tag.outputs.version }}
+            ${{ steps.images.outputs.frontend }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
