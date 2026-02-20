@@ -39,12 +39,12 @@ type IssueService interface {
 	GetIssue(ctx context.Context, key string) (*dto.IssueResponse, error)
 	UpdateIssue(ctx context.Context, key string, req *dto.UpdateIssueRequest) (*dto.IssueResponse, error)
 	DeleteIssue(ctx context.Context, key string) error
-	ListIssues(ctx context.Context, req *dto.ListIssuesRequest) ([]*dto.IssueResponse, int64, error)
+	ListIssues(ctx context.Context, req *dto.ListIssuesRequest) ([]*dto.IssueResponse, int64, bool, error)
 	AssignIssue(ctx context.Context, key string, assigneeID uint64) (*dto.IssueResponse, error)
 
 	// Dashboard 专用
-	ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error)
-	ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error)
+	ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, bool, error)
+	ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, bool, error)
 
 	// Epic 相关
 	ListIssuesInEpic(ctx context.Context, epicKey string) ([]*dto.IssueResponse, error)
@@ -698,7 +698,7 @@ func (s *issueService) DeleteIssue(ctx context.Context, key string) error {
 }
 
 // ListIssues 分页查询工单列表
-func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesRequest) ([]*dto.IssueResponse, int64, error) {
+func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesRequest) ([]*dto.IssueResponse, int64, bool, error) {
 	page := req.GetDefaultPage()
 	pageSize := req.GetDefaultPageSize()
 	offset := (page - 1) * pageSize
@@ -720,24 +720,24 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 		project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(req.ProjectKey))
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, 0, ErrProjectNotFound
+				return nil, 0, false, ErrProjectNotFound
 			}
-			return nil, 0, fmt.Errorf("查询项目失败: %w", err)
+			return nil, 0, false, fmt.Errorf("查询项目失败: %w", err)
 		}
 		filter.ProjectID = &project.ID
 	}
 
-	issues, total, err := s.issueRepo.List(ctx, filter, offset, pageSize)
+	result, err := s.issueRepo.List(ctx, filter, offset, pageSize)
 	if err != nil {
 		logger.Error("failed to list issues", zap.Error(err))
-		return nil, 0, fmt.Errorf("查询工单列表失败: %w", err)
+		return nil, 0, false, fmt.Errorf("查询工单列表失败: %w", err)
 	}
 
-	return s.batchToIssueResponses(ctx, issues), total, nil
+	return s.batchToIssueResponses(ctx, result.Issues), result.Total, result.HasMore, nil
 }
 
 // ListMyTodoIssues 获取我的待办工单（指派给我的待处理/进行中工单）
-func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error) {
+func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, bool, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -753,17 +753,17 @@ func (s *issueService) ListMyTodoIssues(ctx context.Context, userID uint64, page
 		LimitByProjects: projectIDs != nil,
 	}
 
-	issues, total, err := s.issueRepo.List(ctx, filter, offset, pageSize)
+	result, err := s.issueRepo.List(ctx, filter, offset, pageSize)
 	if err != nil {
 		logger.Error("failed to list my todo issues", zap.Error(err))
-		return nil, 0, fmt.Errorf("查询我的待办工单失败: %w", err)
+		return nil, 0, false, fmt.Errorf("查询我的待办工单失败: %w", err)
 	}
 
-	return s.batchToIssueResponses(ctx, issues), total, nil
+	return s.batchToIssueResponses(ctx, result.Issues), result.Total, result.HasMore, nil
 }
 
 // ListMyCreatedIssues 获取我创建的工单
-func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, error) {
+func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, page, pageSize int, projectIDs []uint64) ([]*dto.IssueResponse, int64, bool, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -778,13 +778,13 @@ func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, p
 		LimitByProjects: projectIDs != nil,
 	}
 
-	issues, total, err := s.issueRepo.List(ctx, filter, offset, pageSize)
+	result, err := s.issueRepo.List(ctx, filter, offset, pageSize)
 	if err != nil {
 		logger.Error("failed to list my created issues", zap.Error(err))
-		return nil, 0, fmt.Errorf("查询我创建的工单失败: %w", err)
+		return nil, 0, false, fmt.Errorf("查询我创建的工单失败: %w", err)
 	}
 
-	return s.batchToIssueResponses(ctx, issues), total, nil
+	return s.batchToIssueResponses(ctx, result.Issues), result.Total, result.HasMore, nil
 }
 
 // ListIssuesInEpic 获取 Epic 下的所有 Issues

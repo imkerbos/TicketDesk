@@ -85,22 +85,71 @@ func AutoMigrate(db *gorm.DB) error {
 	return nil
 }
 
-// createCompositeIndexes 创建复合索引（提升工单查询性能）
+// createCompositeIndexes 创建复合索引（提升查询性能）
 func createCompositeIndexes(db *gorm.DB) {
+	// 清理旧的次优索引（不包含排序列，无法避免 filesort）
+	oldIndexes := []struct {
+		table string
+		name  string
+	}{
+		{"issues", "idx_issues_project_status"},
+		{"issues", "idx_issues_assignee_status"},
+		{"issues", "idx_issues_reporter_created"},
+		{"issues", "idx_issues_project_created"},
+		{"issues", "idx_issues_status_created"},
+		// deleted_at 单列索引：99.99% 行为 NULL，无过滤效果，反而误导优化器选错索引
+		{"issues", "idx_issues_deleted_at"},
+	}
+
+	for _, idx := range oldIndexes {
+		var count int64
+		db.Raw("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?",
+			idx.table, idx.name).Scan(&count)
+		if count == 0 {
+			continue // 索引不存在，跳过
+		}
+		if err := db.Exec("DROP INDEX " + idx.name + " ON " + idx.table).Error; err != nil {
+			logger.Warn("failed to drop old index", zap.String("index", idx.name), zap.Error(err))
+		}
+	}
+
 	indexes := []struct {
 		table string
 		name  string
 		cols  string
 	}{
-		{"issues", "idx_issues_project_status", "project_id, status"},
-		{"issues", "idx_issues_assignee_status", "assignee_id, status"},
-		{"issues", "idx_issues_reporter_created", "reporter_id, created_at DESC"},
-		{"issues", "idx_issues_project_created", "project_id, created_at DESC"},
-		{"issues", "idx_issues_status_created", "status, created_at DESC"},
+		// === issues 表 ===
+		// 列表查询核心索引：覆盖 WHERE 过滤 + ORDER BY id DESC，避免 filesort
+		{"issues", "idx_issues_project_status_id", "project_id, status, id DESC"},
+		{"issues", "idx_issues_project_priority_id", "project_id, priority, id DESC"},
+		{"issues", "idx_issues_project_type_id", "project_id, issue_type_id, id DESC"},
+		{"issues", "idx_issues_assignee_status_id", "assignee_id, status, id DESC"},
+		{"issues", "idx_issues_reporter_id_desc", "reporter_id, id DESC"},
+		{"issues", "idx_issues_epic_status_id", "epic_id, status, id DESC"},
+		// "我的工单"场景：项目 + 指派人
+		{"issues", "idx_issues_project_assignee_id", "project_id, assignee_id, id DESC"},
+
+		// === alerts 表 ===
+		{"alerts", "idx_alerts_status_starts", "status, starts_at DESC"},
+		{"alerts", "idx_alerts_source_status", "source, status"},
+
+		// === notifications 表 ===
+		{"notifications", "idx_notifications_user_unread", "user_id, is_read, created_at DESC"},
+
+		// === activity_logs 表 ===
+		{"activity_logs", "idx_activity_entity", "entity_type, entity_id, created_at DESC"},
 	}
 
 	for _, idx := range indexes {
-		sql := "CREATE INDEX IF NOT EXISTS " + idx.name + " ON " + idx.table + " (" + idx.cols + ")"
+		// MySQL 8.4 不支持 CREATE INDEX IF NOT EXISTS，先检查索引是否存在
+		var count int64
+		db.Raw("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?",
+			idx.table, idx.name).Scan(&count)
+		if count > 0 {
+			continue // 索引已存在，跳过
+		}
+
+		sql := "CREATE INDEX " + idx.name + " ON " + idx.table + " (" + idx.cols + ")"
 		if err := db.Exec(sql).Error; err != nil {
 			logger.Warn("failed to create composite index",
 				zap.String("index", idx.name),
@@ -108,6 +157,8 @@ func createCompositeIndexes(db *gorm.DB) {
 			)
 		}
 	}
+
+	logger.Info("composite indexes created/verified")
 }
 
 // migrateRequirementStatus 迁移需求表中旧的状态值

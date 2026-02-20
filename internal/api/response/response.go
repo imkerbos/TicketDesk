@@ -20,6 +20,7 @@ type PageData struct {
 	Total    int64       `json:"total"`
 	Page     int         `json:"page"`
 	PageSize int         `json:"page_size"`
+	HasMore  bool        `json:"has_more,omitempty"` // true 表示实际总数超过 Total，前端显示 "10,000+"
 }
 
 // ErrorResponse 错误响应结构
@@ -57,6 +58,21 @@ func SuccessWithPage(c *gin.Context, items interface{}, total int64, page, pageS
 			Total:    total,
 			Page:     page,
 			PageSize: pageSize,
+		},
+	})
+}
+
+// SuccessWithPageHasMore 分页成功响应（带封顶计数标记）
+func SuccessWithPageHasMore(c *gin.Context, items interface{}, total int64, page, pageSize int, hasMore bool) {
+	c.JSON(http.StatusOK, Response{
+		Code:    0,
+		Message: "success",
+		Data: PageData{
+			Items:    items,
+			Total:    total,
+			Page:     page,
+			PageSize: pageSize,
+			HasMore:  hasMore,
 		},
 	})
 }

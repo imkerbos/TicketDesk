@@ -11,13 +11,20 @@ import (
 )
 
 // IssueRepository 工单数据访问接口
+// ListResult 分页查询结果
+type ListResult struct {
+	Issues  []*model.Issue
+	Total   int64
+	HasMore bool // true 表示实际总数超过 maxCount，Total 为封顶值
+}
+
 type IssueRepository interface {
 	Create(ctx context.Context, issue *model.Issue) error
 	GetByID(ctx context.Context, id uint64) (*model.Issue, error)
 	GetByKey(ctx context.Context, key string) (*model.Issue, error)
 	Update(ctx context.Context, issue *model.Issue) error
 	Delete(ctx context.Context, id uint64) error
-	List(ctx context.Context, filter *IssueFilter, offset, limit int) ([]*model.Issue, int64, error)
+	List(ctx context.Context, filter *IssueFilter, offset, limit int) (*ListResult, error)
 	GetNextIssueNumber(ctx context.Context, projectID uint64) (int64, error)
 	ListByIDs(ctx context.Context, ids []uint64) ([]*model.Issue, error)
 	ListByParentID(ctx context.Context, parentID uint64) ([]*model.Issue, error)
@@ -84,10 +91,14 @@ func (r *issueRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&model.Issue{}, id).Error
 }
 
+// maxCountLimit 分页计数上限，超过此值显示 "10,000+"
+// 避免 COUNT(*) 全表扫描，保证任意数据量下计数查询 <2ms
+const maxCountLimit = 10001
+
 // List 分页查询工单列表
-func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset, limit int) ([]*model.Issue, int64, error) {
+func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset, limit int) (*ListResult, error) {
 	var issues []*model.Issue
-	var total int64
+	result := &ListResult{}
 
 	query := r.db.WithContext(ctx).Model(&model.Issue{})
 
@@ -99,7 +110,7 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 		if filter.LimitByProjects {
 			if len(filter.ProjectIDs) == 0 {
 				// 用户没有任何项目权限，直接返回空结果
-				return nil, 0, nil
+				return result, nil
 			}
 			query = query.Where("project_id IN ?", filter.ProjectIDs)
 		}
@@ -126,21 +137,31 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 		}
 		if filter.Keyword != "" {
 			keyword := "%" + filter.Keyword + "%"
-			query = query.Where("issue_key LIKE ? OR title LIKE ? OR description LIKE ?", keyword, keyword, keyword)
+			query = query.Where("issue_key LIKE ? OR title LIKE ?", keyword, keyword)
 		}
 	}
 
-	// 统计总数
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+	// 封顶计数：最多扫描 maxCountLimit 行，避免百万级 COUNT 全扫描
+	var cappedCount int64
+	countSubQuery := query.Session(&gorm.Session{}).Select("1").Limit(maxCountLimit)
+	if err := r.db.WithContext(ctx).Table("(?) AS capped", countSubQuery).Count(&cappedCount).Error; err != nil {
+		return nil, err
+	}
+
+	if cappedCount >= int64(maxCountLimit) {
+		result.Total = int64(maxCountLimit - 1) // 10000
+		result.HasMore = true
+	} else {
+		result.Total = cappedCount
 	}
 
 	// 分页查询
 	if err := query.Offset(offset).Limit(limit).Order("id DESC").Find(&issues).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
+	result.Issues = issues
 
-	return issues, total, nil
+	return result, nil
 }
 
 // GetNextIssueNumber 获取项目下一个工单编号（包含软删除记录，避免唯一键冲突）

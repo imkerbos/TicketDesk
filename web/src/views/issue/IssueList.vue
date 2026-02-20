@@ -169,10 +169,12 @@
             v-model:page-size="queryParams.page_size"
             :total="total"
             :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
+            layout="slot, sizes, prev, pager, next, jumper"
             @size-change="handleQuery"
             @current-change="handlePageChange"
-          />
+          >
+            <span class="el-pagination__total">共 {{ hasMore ? `${total.toLocaleString()}+` : total.toLocaleString() }} 条</span>
+          </el-pagination>
         </div>
       </div>
 
@@ -357,6 +359,7 @@ const router = useRouter()
 const loading = ref(false)
 const issueList = ref<Issue[]>([])
 const total = ref(0)
+const hasMore = ref(false)
 const viewMode = ref<'table' | 'kanban'>('table')
 const projects = ref<Project[]>([])
 const users = ref<UserOption[]>([])
@@ -438,6 +441,7 @@ const loadData = async () => {
     const { data } = await getIssueList(params)
     issueList.value = data.data.items
     total.value = data.data.total
+    hasMore.value = data.data.has_more || false
   } catch (error) {
     console.error('Failed to load issues:', error)
   } finally {

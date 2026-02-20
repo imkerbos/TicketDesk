@@ -135,7 +135,7 @@ func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 		}
 	}
 
-	issues, total, err := h.issueService.ListIssues(c.Request.Context(), &req)
+	issues, total, hasMore, err := h.issueService.ListIssues(c.Request.Context(), &req)
 	if err != nil {
 		if errors.Is(err, service.ErrProjectNotFound) {
 			response.NotFound(c, err.Error())
@@ -145,7 +145,7 @@ func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 		return
 	}
 
-	response.SuccessWithPage(c, issues, total, req.GetDefaultPage(), req.GetDefaultPageSize())
+	response.SuccessWithPageHasMore(c, issues, total, req.GetDefaultPage(), req.GetDefaultPageSize(), hasMore)
 }
 
 // HandleListIssuesInEpic 获取 Epic 下的所有 Issues
@@ -352,13 +352,13 @@ func (h *IssueHandler) HandleListMyTodoIssues(c *gin.Context) {
 		}
 	}
 
-	issues, total, err := h.issueService.ListMyTodoIssues(c.Request.Context(), userID, page, pageSize, projectIDs)
+	issues, total, hasMore, err := h.issueService.ListMyTodoIssues(c.Request.Context(), userID, page, pageSize, projectIDs)
 	if err != nil {
 		response.InternalError(c, "获取我的待办工单失败")
 		return
 	}
 
-	response.SuccessWithPage(c, issues, total, page, pageSize)
+	response.SuccessWithPageHasMore(c, issues, total, page, pageSize, hasMore)
 }
 
 // HandleListMyCreatedIssues 获取我创建的工单
@@ -376,13 +376,13 @@ func (h *IssueHandler) HandleListMyCreatedIssues(c *gin.Context) {
 		}
 	}
 
-	issues, total, err := h.issueService.ListMyCreatedIssues(c.Request.Context(), userID, page, pageSize, projectIDs)
+	issues, total, hasMore, err := h.issueService.ListMyCreatedIssues(c.Request.Context(), userID, page, pageSize, projectIDs)
 	if err != nil {
 		response.InternalError(c, "获取我创建的工单失败")
 		return
 	}
 
-	response.SuccessWithPage(c, issues, total, page, pageSize)
+	response.SuccessWithPageHasMore(c, issues, total, page, pageSize, hasMore)
 }
 
 // ============ 工作日志相关处理器 ============

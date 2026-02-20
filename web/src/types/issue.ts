@@ -73,6 +73,7 @@ export interface IssueListResponse {
   total: number
   page: number
   page_size: number
+  has_more?: boolean // true 表示实际总数超过 total，显示 "10,000+"
 }
 
 // Custom field value for issue creation/update
