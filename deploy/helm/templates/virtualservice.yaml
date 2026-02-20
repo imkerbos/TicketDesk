@@ -1,0 +1,28 @@
+{{- if and .Values.ingress.enabled (eq .Values.ingress.className "istio") }}
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ .Release.Name }}-vs
+  labels:
+    {{- include "ticketdesk.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - {{ .Values.ingress.host }}
+  gateways:
+    - {{ .Values.ingress.istio.gateway }}
+  http:
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: {{ .Release.Name }}-backend
+            port:
+              number: {{ .Values.backend.port }}
+      timeout: 120s
+    - route:
+        - destination:
+            host: {{ .Release.Name }}-frontend
+            port:
+              number: 80
+{{- end }}

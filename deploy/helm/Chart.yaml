@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ticketdesk
+description: TicketDesk - 项目化工单与告警联动系统
+version: 1.0.0
+appVersion: "1.0.0"
+type: application

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    {{- include "ticketdesk.labels" . | nindent 4 }}
+data:
+  DATABASE_HOST: {{ include "ticketdesk.mysql.host" . | quote }}
+  DATABASE_PORT: {{ include "ticketdesk.mysql.port" . | quote }}
+  DATABASE_USER: {{ include "ticketdesk.mysql.user" . | quote }}
+  DATABASE_NAME: {{ include "ticketdesk.mysql.database" . | quote }}
+  REDIS_HOST: {{ include "ticketdesk.redis.host" . | quote }}
+  REDIS_PORT: {{ include "ticketdesk.redis.port" . | quote }}
+  REDIS_DB: "0"
+  APP_PORT: {{ .Values.backend.port | quote }}
+  APP_ENV: {{ .Values.app.env | quote }}
+  APP_DEBUG: {{ .Values.app.debug | quote }}
+  LOG_LEVEL: {{ .Values.app.logLevel | quote }}
+  JWT_ACCESS_EXPIRE: {{ .Values.jwt.accessExpire | quote }}
+  JWT_REFRESH_EXPIRE: {{ .Values.jwt.refreshExpire | quote }}
+  NIGHTINGALE_ENABLE: {{ .Values.nightingale.enabled | quote }}
+  {{- if .Values.nightingale.enabled }}
+  NIGHTINGALE_BASE_URL: {{ .Values.nightingale.baseUrl | quote }}
+  NIGHTINGALE_POLL_INTERVAL: {{ .Values.nightingale.pollInterval | quote }}
+  {{- end }}

@@ -1,4 +1,4 @@
-.PHONY: all build run dev test clean lint fmt swagger wire docker-dev docker-dev-d docker-dev-stop docker-dev-logs docker-dev-rebuild prod prod-d prod-stop prod-logs prod-rebuild prod-ps init migrate help
+.PHONY: all build run dev test clean lint fmt swagger wire docker-dev docker-dev-d docker-dev-stop docker-dev-logs docker-dev-rebuild prod prod-d prod-stop prod-logs prod-rebuild prod-ps helm-lint helm-template helm-install helm-upgrade helm-uninstall init migrate help
 
 # 变量定义
 APP_NAME := ticketdesk
@@ -52,6 +52,13 @@ help:
 	@echo "  make prod-logs     - 查看生产环境日志"
 	@echo "  make prod-rebuild  - 重建生产环境镜像并启动"
 	@echo "  make prod-ps       - 查看生产环境容器状态"
+	@echo ""
+	@echo "Kubernetes（Helm 部署）:"
+	@echo "  make helm-lint     - 校验 Helm chart"
+	@echo "  make helm-template - 预览渲染结果"
+	@echo "  make helm-install  - 首次安装"
+	@echo "  make helm-upgrade  - 升级部署"
+	@echo "  make helm-uninstall- 卸载"
 	@echo ""
 	@echo "  make clean         - 清理构建产物"
 	@echo ""
@@ -204,6 +211,32 @@ prod-rebuild:
 # 生产环境容器状态
 prod-ps:
 	docker compose -f deploy/docker-compose.yaml --env-file deploy/.env ps
+
+# ============ Kubernetes Helm 部署 ============
+
+HELM_RELEASE := ticketdesk
+HELM_CHART := deploy/helm
+HELM_NAMESPACE := ticketdesk
+
+# Helm 校验
+helm-lint:
+	helm lint $(HELM_CHART)
+
+# Helm 预览渲染结果
+helm-template:
+	helm template $(HELM_RELEASE) $(HELM_CHART) -n $(HELM_NAMESPACE)
+
+# Helm 首次安装
+helm-install:
+	helm install $(HELM_RELEASE) $(HELM_CHART) -n $(HELM_NAMESPACE) --create-namespace
+
+# Helm 升级
+helm-upgrade:
+	helm upgrade $(HELM_RELEASE) $(HELM_CHART) -n $(HELM_NAMESPACE)
+
+# Helm 卸载
+helm-uninstall:
+	helm uninstall $(HELM_RELEASE) -n $(HELM_NAMESPACE)
 
 # 清理
 clean:

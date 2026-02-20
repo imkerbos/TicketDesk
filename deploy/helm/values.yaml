@@ -1,0 +1,133 @@
+# ============================================================
+# TicketDesk Helm Values
+# ============================================================
+
+# ============ 后端 ============
+backend:
+  replicas: 2
+  image:
+    repository: ghcr.io/<owner>/ticketdesk/backend  # 替换 <owner> 为你的 GitHub 用户名或组织名
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 10010
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 80
+
+# ============ 前端 ============
+frontend:
+  replicas: 2
+  image:
+    repository: ghcr.io/<owner>/ticketdesk/frontend  # 替换 <owner> 为你的 GitHub 用户名或组织名
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ============ 流量入口 ============
+# className: gateway → Gateway API + HTTPRoute（推荐，K8s 新标准）
+# className: istio   → Istio Gateway + VirtualService
+ingress:
+  enabled: true
+  className: istio
+  host: ticketdesk.example.com
+  tls:
+    enabled: false
+    secretName: ticketdesk-tls
+  # Gateway API 配置（className=gateway 时生效）
+  gateway:
+    create: true                            # 是否创建 Gateway（false 则引用已有的）
+    name: ticketdesk-gateway                # Gateway 名称
+    gatewayClassName: ""                    # GatewayClass 名称（如 istio、cilium、envoy-gateway 等，留空使用集群默认）
+  # Istio 配置（className=istio 时生效）
+  istio:
+    gateway: istio-system/default-gateway   # 引用已有的 Istio Gateway（namespace/name）
+
+# ============ MySQL ============
+# enabled=true: 集群内部署 MySQL
+# enabled=false: 使用外部 MySQL（配置 external 部分）
+mysql:
+  enabled: true
+  image: mysql:8.0
+  port: 3306
+  rootPassword: ticketdesk_root_2026
+  database: ticketdesk
+  user: ticketdesk
+  password: ticketdesk_pwd_2026
+  storage: 20Gi
+  storageClass: ""
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  external:
+    host: ""
+    port: 3306
+    user: ticketdesk
+    password: ""
+    database: ticketdesk
+
+# ============ Redis ============
+# enabled=true: 集群内部署 Redis
+# enabled=false: 使用外部 Redis（配置 external 部分）
+redis:
+  enabled: true
+  image: redis:7-alpine
+  port: 6379
+  password: ticketdesk_redis_2026
+  storage: 5Gi
+  storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  external:
+    host: ""
+    port: 6379
+    password: ""
+
+# ============ 应用配置 ============
+app:
+  env: production
+  debug: false
+  logLevel: info
+
+# ============ JWT ============
+jwt:
+  secret: change-this-to-a-random-secret-in-production
+  accessExpire: 7200
+  refreshExpire: 604800
+
+# ============ 夜莺告警（可选）============
+nightingale:
+  enabled: false
+  baseUrl: ""
+  token: ""
+  pollInterval: 30
+
+# ============ 持久化（上传文件）============
+persistence:
+  uploads:
+    size: 10Gi
+    storageClass: ""
