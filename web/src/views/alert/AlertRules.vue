@@ -31,19 +31,30 @@
             <span class="type-text">{{ row.issue_type_name }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="标签匹配器" min-width="200">
+        <el-table-column label="告警等级" width="90" align="center">
           <template #default="{ row }">
             <el-tag
-              v-for="(matcher, index) in row.label_matchers.slice(0, 2)"
-              :key="index"
+              v-if="getSeverityFromMatchers(row.label_matchers)"
+              :type="getSeverityTagType(getSeverityFromMatchers(row.label_matchers))"
               size="small"
-              style="margin-right: 4px"
+              effect="dark"
             >
-              {{ matcher.key }} {{ matcher.operator }} {{ matcher.value }}
+              {{ getSeverityLabel(getSeverityFromMatchers(row.label_matchers)) }}
             </el-tag>
-            <el-tag v-if="row.label_matchers.length > 2" size="small">
-              +{{ row.label_matchers.length - 2 }}
+            <span v-else class="type-text">全部</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="额外匹配" min-width="180">
+          <template #default="{ row }">
+            <template v-for="(matcher, index) in getExtraMatchers(row.label_matchers)" :key="index">
+              <el-tag v-if="index < 2" size="small" style="margin-right: 4px">
+                {{ matcher.key }} {{ matcher.operator }} {{ matcher.value }}
+              </el-tag>
+            </template>
+            <el-tag v-if="getExtraMatchers(row.label_matchers).length > 2" size="small">
+              +{{ getExtraMatchers(row.label_matchers).length - 2 }}
             </el-tag>
+            <span v-if="getExtraMatchers(row.label_matchers).length === 0" class="type-text">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="priority" label="优先级" width="80" align="center">
@@ -147,10 +158,33 @@
           </el-col>
         </el-row>
         <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="告警等级" prop="severity">
+              <el-select v-model="form.severity" placeholder="全部等级（不限）" style="width: 100%" clearable>
+                <el-option label="严重 (critical)" value="critical" />
+                <el-option label="警告 (warning)" value="warning" />
+                <el-option label="信息 (info)" value="info" />
+              </el-select>
+              <div class="form-tip">选择要匹配的告警等级，留空则匹配所有等级</div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="工单优先级" prop="priority">
+              <el-select v-model="form.priority" placeholder="请选择优先级" style="width: 100%">
+                <el-option label="P0 - 紧急" value="P0" />
+                <el-option label="P1 - 高" value="P1" />
+                <el-option label="P2 - 中" value="P2" />
+                <el-option label="P3 - 低" value="P3" />
+              </el-select>
+              <div class="form-tip">匹配到的告警创建工单时使用的优先级</div>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
           <el-col :span="24">
-            <el-form-item label="标签匹配器" prop="label_matchers">
+            <el-form-item label="额外标签匹配器（可选）" prop="label_matchers">
               <div class="form-tip" style="margin-bottom: 8px;">
-                匹配告警标签，所有条件需同时满足。常用标签：alertname（告警名称）、severity（等级）、instance（实例）、group_name（业务组）。
+                除告警等级外的额外过滤条件，所有条件需同时满足。常用标签：alertname（告警名称）、instance（实例）、group_name（业务组）。
                 操作符：== 精确匹配、!= 不等于、=~ 正则匹配、!~ 正则排除。
               </div>
               <div class="matchers-container">
@@ -184,16 +218,6 @@
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="优先级" prop="priority">
-              <el-select v-model="form.priority" placeholder="请选择优先级" style="width: 100%">
-                <el-option label="P0 - 紧急" value="P0" />
-                <el-option label="P1 - 高" value="P1" />
-                <el-option label="P2 - 中" value="P2" />
-                <el-option label="P3 - 低" value="P3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="合并窗口（秒）" prop="merge_window">
               <el-input-number
                 v-model="form.merge_window"
@@ -204,9 +228,7 @@
               />
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="24">
+          <el-col :span="12">
             <el-form-item label="自动解决" prop="auto_resolve">
               <el-switch v-model="form.auto_resolve" />
               <div class="form-tip">
@@ -289,6 +311,7 @@ const form = reactive({
   description: '',
   project_id: undefined as number | undefined,
   issue_type_id: undefined as number | undefined,
+  severity: '' as string,
   label_matchers: [] as LabelMatcher[],
   priority: 'P2' as 'P0' | 'P1' | 'P2' | 'P3',
   assignee_id: undefined as number | undefined,
@@ -300,7 +323,6 @@ const rules: FormRules = {
   name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
   project_id: [{ required: true, message: '请选择项目', trigger: 'change' }],
   issue_type_id: [{ required: true, message: '请选择工单类型', trigger: 'change' }],
-  label_matchers: [{ required: true, message: '请添加至少一个标签匹配器', trigger: 'change' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
 }
 
@@ -324,7 +346,8 @@ const handleCreate = () => {
   form.description = ''
   form.project_id = undefined
   form.issue_type_id = undefined
-  form.label_matchers = [{ key: 'alertname', operator: '==', value: '' }]
+  form.severity = ''
+  form.label_matchers = []
   form.priority = 'P2'
   form.assignee_id = undefined
   form.auto_resolve = true
@@ -339,7 +362,16 @@ const handleEdit = async (row: AlertRule) => {
   form.description = row.description
   form.project_id = row.project_id
   form.issue_type_id = row.issue_type_id
-  form.label_matchers = JSON.parse(JSON.stringify(row.label_matchers))
+  const matchers: LabelMatcher[] = JSON.parse(JSON.stringify(row.label_matchers))
+  // 从 label_matchers 中提取 severity 到独立字段
+  const severityIdx = matchers.findIndex(m => m.key === 'severity' && m.operator === '==')
+  if (severityIdx >= 0) {
+    form.severity = matchers[severityIdx].value
+    matchers.splice(severityIdx, 1)
+  } else {
+    form.severity = ''
+  }
+  form.label_matchers = matchers
   form.priority = row.priority
   form.assignee_id = row.assignee_id
   form.auto_resolve = row.auto_resolve
@@ -357,20 +389,30 @@ const handleSubmit = async () => {
   await formRef.value.validate(async (valid) => {
     if (!valid) return
 
+    // 合并 severity 到 label_matchers
+    const matchers: LabelMatcher[] = [...form.label_matchers]
+    if (form.severity) {
+      matchers.unshift({ key: 'severity', operator: '==', value: form.severity })
+    }
+
+    const submitData = {
+      ...form,
+      label_matchers: matchers,
+    }
+
     try {
       if (form.id) {
-        await updateAlertRule(form.id, form)
+        await updateAlertRule(form.id, submitData)
         ElMessage.success('更新成功')
       } else {
-        // Validate required fields before creating
         if (!form.project_id || !form.issue_type_id) {
           ElMessage.error('请选择项目和工单类型')
           return
         }
         await createAlertRule({
-          ...form,
-          project_id: form.project_id,
-          issue_type_id: form.issue_type_id,
+          ...submitData,
+          project_id: form.project_id!,
+          issue_type_id: form.issue_type_id!,
         })
         ElMessage.success('创建成功')
       }
@@ -414,6 +456,30 @@ const formatMergeWindow = (seconds: number) => {
   if (seconds < 60) return `${seconds}秒`
   if (seconds < 3600) return `${Math.floor(seconds / 60)}分钟`
   return `${Math.floor(seconds / 3600)}小时`
+}
+
+// 从 label_matchers 中提取 severity 值
+const getSeverityFromMatchers = (matchers: LabelMatcher[]) => {
+  const m = matchers?.find(m => m.key === 'severity' && m.operator === '==')
+  return m?.value || ''
+}
+
+// 获取除 severity 外的额外匹配器
+const getExtraMatchers = (matchers: LabelMatcher[]) => {
+  return (matchers || []).filter(m => !(m.key === 'severity' && m.operator === '=='))
+}
+
+// 告警等级标签
+const getSeverityLabel = (severity: string) => {
+  const map: Record<string, string> = { critical: '严重', warning: '警告', info: '信息' }
+  return map[severity] || severity
+}
+
+type TagType = 'success' | 'warning' | 'info' | 'danger'
+
+const getSeverityTagType = (severity: string): TagType => {
+  const map: Record<string, TagType> = { critical: 'danger', warning: 'warning', info: 'info' }
+  return map[severity] || 'info'
 }
 
 onMounted(() => {
