@@ -279,6 +279,16 @@ func (p *N9ePoller) detectRecoveredAlerts(ctx context.Context, activeHashes map[
 				zap.String("alert_name", alert.AlertName),
 				zap.String("fingerprint", alert.Fingerprint),
 			)
+
+			// 如果告警关联了工单，尝试自动关闭工单（所有告警都恢复时）
+			if alert.IssueID != nil {
+				if err := p.alertService.TryAutoResolveIssue(ctx, *alert.IssueID); err != nil {
+					logger.Error("nightingale poller: failed to try auto resolve issue",
+						zap.Uint64("issue_id", *alert.IssueID),
+						zap.Error(err),
+					)
+				}
+			}
 		}
 	}
 

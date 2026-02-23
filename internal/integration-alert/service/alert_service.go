@@ -58,6 +58,9 @@ type AlertService interface {
 	SyncIssueStatus(ctx context.Context, issueID uint64, issueStatus string) error
 	// SyncMergedIssueStatus 同步状态到被合并的旧工单
 	SyncMergedIssueStatus(ctx context.Context, issueID uint64, issueStatus string) error
+
+	// TryAutoResolveIssue 检查工单下所有告警是否都已恢复，如果是则自动关闭工单
+	TryAutoResolveIssue(ctx context.Context, issueID uint64) error
 }
 
 // alertService 告警服务实现
@@ -240,26 +243,26 @@ func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Ale
 	alert.Status = alertItem.Status
 	alert.EndsAt = alertItem.EndsAt
 
-	// 如果告警恢复，自动解决关联的工单
+	// 如果告警恢复，检查是否所有关联告警都已恢复，若是则自动解决工单
 	if alertItem.Status == "resolved" && oldStatus != "resolved" && alert.IssueID != nil {
-		logger.Info("alert resolved, auto-resolving issue",
+		logger.Info("alert resolved, checking if all alerts resolved for issue",
 			zap.Uint64("alert_id", alert.ID),
 			zap.Uint64("issue_id", *alert.IssueID),
 		)
 
-		// 获取告警规则，检查是否启用自动解决
-		rule, err := s.getMatchedRule(ctx, alert)
-		if err != nil {
-			logger.Error("failed to get matched rule", zap.Error(err))
-		} else if rule != nil && rule.AutoResolve {
-			// 自动解决工单
-			if err := s.autoResolveIssue(ctx, *alert.IssueID); err != nil {
-				logger.Error("failed to auto resolve issue",
-					zap.Uint64("issue_id", *alert.IssueID),
-					zap.Error(err),
-				)
-			}
+		// 先保存当前告警状态（因为 TryAutoResolveIssue 需要读到最新状态）
+		if err := s.alertRepo.Update(ctx, alert); err != nil {
+			return fmt.Errorf("failed to update alert: %w", err)
 		}
+
+		if err := s.TryAutoResolveIssue(ctx, *alert.IssueID); err != nil {
+			logger.Error("failed to try auto resolve issue",
+				zap.Uint64("issue_id", *alert.IssueID),
+				zap.Error(err),
+			)
+		}
+
+		return nil // 已在上面保存过，提前返回
 	}
 
 	// 如果告警仍在触发且没有关联工单，尝试自动建单
@@ -423,14 +426,10 @@ func (s *alertService) createIssueFromAlert(
 		return 0, "", fmt.Errorf("failed to generate issue key: %w", err)
 	}
 
-	// 确定指派人：规则配置 > 项目负责人
+	// 确定指派人：规则配置 > 项目负责人（lead_user_id）
 	assigneeID := rule.AssigneeID
-	if assigneeID == nil {
-		// 查找项目 owner 作为默认指派人
-		var ownerMember model.ProjectMember
-		if err := s.db.Where("project_id = ? AND role = ?", rule.ProjectID, "owner").First(&ownerMember).Error; err == nil {
-			assigneeID = &ownerMember.UserID
-		}
+	if assigneeID == nil && project.LeadUserID > 0 {
+		assigneeID = &project.LeadUserID
 	}
 
 	// 获取告警机器人用户 ID 作为创建人
@@ -611,6 +610,47 @@ func (s *alertService) autoResolveIssue(ctx context.Context, issueID uint64) err
 	return nil
 }
 
+// TryAutoResolveIssue 检查工单关联的所有告警是否都已恢复，如果是且规则启用了自动解决，则自动关闭工单
+func (s *alertService) TryAutoResolveIssue(ctx context.Context, issueID uint64) error {
+	// 获取该工单下所有告警
+	alerts, err := s.alertRepo.ListByIssueID(ctx, issueID)
+	if err != nil {
+		return fmt.Errorf("failed to list alerts by issue_id: %w", err)
+	}
+
+	if len(alerts) == 0 {
+		return nil
+	}
+
+	// 检查是否所有告警都已恢复
+	for _, a := range alerts {
+		if a.Status == "firing" {
+			return nil // 还有活跃告警，不关闭工单
+		}
+	}
+
+	// 获取匹配的规则，检查是否启用自动解决
+	rule, err := s.getMatchedRule(ctx, alerts[0])
+	if err != nil {
+		logger.Error("TryAutoResolveIssue: failed to get matched rule", zap.Error(err))
+		return nil
+	}
+	if rule == nil || !rule.AutoResolve {
+		return nil
+	}
+
+	// 所有告警都已恢复，自动解决工单
+	if err := s.autoResolveIssue(ctx, issueID); err != nil {
+		return fmt.Errorf("failed to auto resolve issue: %w", err)
+	}
+
+	logger.Info("TryAutoResolveIssue: all alerts resolved, issue auto-resolved",
+		zap.Uint64("issue_id", issueID),
+		zap.Int("alert_count", len(alerts)),
+	)
+	return nil
+}
+
 // getMatchedRule 获取匹配的告警规则
 func (s *alertService) getMatchedRule(ctx context.Context, alert *model.Alert) (*model.AlertRule, error) {
 	rules, err := s.alertRuleRepo.ListEnabled(ctx)
@@ -690,9 +730,18 @@ func (s *alertService) ListAlerts(ctx context.Context, req *dto.AlertListRequest
 		return nil, err
 	}
 
+	// 批量获取关联工单的 issue_key，避免 N+1 查询
+	issueKeyMap := s.batchGetIssueKeys(ctx, alerts)
+
 	items := make([]dto.AlertResponse, 0, len(alerts))
 	for _, alert := range alerts {
-		items = append(items, *s.toAlertResponse(alert))
+		resp := s.toAlertResponse(alert)
+		if alert.IssueID != nil {
+			if key, ok := issueKeyMap[*alert.IssueID]; ok {
+				resp.IssueKey = &key
+			}
+		}
+		items = append(items, *resp)
 	}
 
 	page := req.Page
@@ -710,6 +759,28 @@ func (s *alertService) ListAlerts(ctx context.Context, req *dto.AlertListRequest
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+// batchGetIssueKeys 批量获取告警关联工单的 issue_key
+func (s *alertService) batchGetIssueKeys(ctx context.Context, alerts []*model.Alert) map[uint64]string {
+	issueIDs := make([]uint64, 0)
+	for _, a := range alerts {
+		if a.IssueID != nil {
+			issueIDs = append(issueIDs, *a.IssueID)
+		}
+	}
+	if len(issueIDs) == 0 {
+		return nil
+	}
+
+	var issues []model.Issue
+	s.db.WithContext(ctx).Select("id, issue_key").Where("id IN ?", issueIDs).Find(&issues)
+
+	keyMap := make(map[uint64]string, len(issues))
+	for _, iss := range issues {
+		keyMap[iss.ID] = iss.IssueKey
+	}
+	return keyMap
 }
 
 // GetAlertStats 获取告警统计数据
@@ -755,7 +826,7 @@ func (s *alertService) ResolveAlert(ctx context.Context, id uint64, userID uint6
 
 // toAlertResponse 转换为告警响应
 func (s *alertService) toAlertResponse(alert *model.Alert) *dto.AlertResponse {
-	return &dto.AlertResponse{
+	resp := &dto.AlertResponse{
 		ID:          alert.ID,
 		Fingerprint: alert.Fingerprint,
 		Source:      alert.Source,
@@ -774,6 +845,15 @@ func (s *alertService) toAlertResponse(alert *model.Alert) *dto.AlertResponse {
 		CreatedAt:   alert.CreatedAt,
 		UpdatedAt:   alert.UpdatedAt,
 	}
+
+	// 填充关联工单 Key
+	if alert.IssueID != nil {
+		if issue, err := s.issueRepo.GetByID(context.Background(), *alert.IssueID); err == nil && issue != nil {
+			resp.IssueKey = &issue.IssueKey
+		}
+	}
+
+	return resp
 }
 
 // ============ 告警规则管理 ============

@@ -60,7 +60,7 @@
                 />
               </el-form-item>
               <el-form-item label="项目负责人">
-                <el-select v-model="basicForm.lead_user_id" placeholder="请选择负责人" filterable style="width: 100%">
+                <el-select v-model="basicForm.lead_user_id" placeholder="请选择负责人" filterable style="width: 100%" popper-class="user-select-popper">
                   <template #prefix>
                     <el-icon><User /></el-icon>
                   </template>
@@ -601,7 +601,7 @@
     >
       <div class="member-mgmt-content">
         <div class="member-mgmt-add">
-          <el-select v-model="selectedRoleMemberUserId" placeholder="选择用户" filterable style="flex: 1">
+          <el-select v-model="selectedRoleMemberUserId" placeholder="选择用户" filterable style="flex: 1" popper-class="user-select-popper">
             <el-option v-for="u in availableRoleUsers" :key="u.id" :label="u.display_name" :value="u.id">
               <div class="user-option">
                 <div class="user-option-avatar">{{ u.display_name?.charAt(0) || '?' }}</div>

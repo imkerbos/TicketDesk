@@ -386,6 +386,55 @@
             </div>
           </el-card>
 
+          <!-- 关联告警 -->
+          <el-card v-if="issueAlerts.length > 0" shadow="never" class="content-card alert-card">
+            <template #header>
+              <div class="card-header-with-action">
+                <div class="card-header-group">
+                  <div class="card-icon alert">
+                    <el-icon><Bell /></el-icon>
+                  </div>
+                  <span class="card-title">关联告警 ({{ issueAlerts.length }})</span>
+                </div>
+                <el-button link type="primary" size="small" @click="$router.push(`/alerts?issue_id=${issue!.id}`)">
+                  在告警列表中查看
+                </el-button>
+              </div>
+            </template>
+            <el-table :data="issueAlerts" style="width: 100%" size="small" :row-class-name="() => 'clickable-row'" @row-click="(row: Alert) => $router.push(`/alerts/${row.id}`)">
+              <el-table-column prop="alert_name" label="告警名称" min-width="180">
+                <template #default="{ row }">
+                  <span class="alert-name-text">{{ row.alert_name }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="severity" label="严重程度" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getAlertSeverityType(row.severity)" size="small" effect="dark">
+                    {{ getAlertSeverityText(row.severity) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="status" label="状态" width="90" align="center">
+                <template #default="{ row }">
+                  <div class="alert-status-badge" :class="row.status">
+                    <span class="status-dot"></span>
+                    <span>{{ getAlertStatusText(row.status) }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="实例" min-width="140">
+                <template #default="{ row }">
+                  <span class="text-muted">{{ row.labels?.instance || row.labels?.target_ident || '-' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="starts_at" label="开始时间" width="150">
+                <template #default="{ row }">
+                  <span class="text-muted">{{ formatTime(row.starts_at) }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+
           <!-- 评论和工作日志 -->
           <el-card shadow="never" class="content-card">
             <el-tabs v-model="activeTab" class="detail-tabs">
@@ -1025,7 +1074,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
-  User, Clock, Edit, ArrowDown, ArrowRight, Plus, Document,
+  User, Clock, Edit, ArrowDown, ArrowRight, Plus, Document, Bell,
   ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion
 } from '@element-plus/icons-vue'
 import {
@@ -1034,6 +1083,8 @@ import {
   getWorklogs, addWorklog, deleteWorklog,
   addIssueWatcher, removeIssueWatcher, getEpicIssues, getSubtasks,
 } from '@/api/issue'
+import { getAlertList } from '@/api/alert'
+import type { Alert } from '@/types/alert'
 import { listAttachments } from '@/api/attachment'
 import { getWorkflowInstance, getWorkflowHistory, approveWorkflow, rejectWorkflow, completeWorkflow, getWorkflowNodes, getWorkflowEdges } from '@/api/workflow'
 import type { WorkflowInstance, WorkflowHistory, WorkflowNode, WorkflowEdge } from '@/types/workflow'
@@ -1067,6 +1118,7 @@ const activeTab = ref('comments')
 const epicIssues = ref<Issue[]>([])
 const subtasks = ref<Issue[]>([])
 const attachments = ref<Attachment[]>([])
+const issueAlerts = ref<Alert[]>([])
 
 // 工作流相关
 const workflowInstance = ref<WorkflowInstance | null>(null)
@@ -1147,6 +1199,7 @@ const loadIssue = async () => {
       loadSubtasks(key),
       loadAttachments(key),
       loadWorkflowData(key),
+      loadIssueAlerts(data.data.id),
     ])
   } catch (error) {
     console.error('Failed to load issue:', error)
@@ -1200,6 +1253,17 @@ const loadAttachments = async (key: string) => {
   } catch (e) {
     console.error('Failed to load attachments:', e)
     attachments.value = []
+  }
+}
+
+// 关联告警加载
+const loadIssueAlerts = async (issueId: number) => {
+  try {
+    const { data } = await getAlertList({ issue_id: issueId, page_size: 50 })
+    issueAlerts.value = data.data.items || []
+  } catch (e) {
+    console.error('Failed to load issue alerts:', e)
+    issueAlerts.value = []
   }
 }
 
@@ -2012,6 +2076,19 @@ const getResolutionText = (resolution: string) => {
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
 const formatDate = (date: string) => dayjs(date).format('YYYY-MM-DD')
 
+const getAlertSeverityType = (severity: string) => {
+  const map: Record<string, TagType> = { critical: 'danger', warning: 'warning', info: 'info' }
+  return map[severity] || 'info'
+}
+const getAlertSeverityText = (severity: string) => {
+  const map: Record<string, string> = { critical: '严重', warning: '警告', info: '信息' }
+  return map[severity] || severity
+}
+const getAlertStatusText = (status: string) => {
+  const map: Record<string, string> = { firing: '触发中', resolved: '已解决' }
+  return map[status] || status
+}
+
 onMounted(() => { loadIssue() })
 
 // 监听路由参数变化，当切换到不同的 Issue 时重新加载数据
@@ -2368,6 +2445,7 @@ const showWorkflowDiagram = async () => {
   &.subtask { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
   &.attachment { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
   &.workflow { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+  &.alert { background: linear-gradient(135deg, #f56c6c 0%, #e74c3c 100%); }
 }
 
 .card-title { font-size: 15px; font-weight: 600; color: #1f2937; }
@@ -3456,6 +3534,29 @@ const showWorkflowDiagram = async () => {
   }
   50% {
     box-shadow: 0 0 0 6px rgba(64, 158, 255, 0.1);
+  }
+}
+
+// 关联告警样式
+.alert-card {
+  :deep(.el-table) {
+    .clickable-row { cursor: pointer; &:hover { background-color: #f9fafb; } }
+  }
+
+  .alert-name-text { font-weight: 500; color: #1f2937; font-size: 13px; }
+
+  .alert-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+    &.firing { background: #fef2f2; color: #dc2626; .status-dot { background: #ef4444; } }
+    &.resolved { background: #ecfdf5; color: #059669; .status-dot { background: #10b981; } }
   }
 }
 </style>

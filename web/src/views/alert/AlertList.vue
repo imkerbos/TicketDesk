@@ -238,8 +238,8 @@
             :total="total"
             :page-sizes="[10, 20, 50, 100]"
             layout="total, sizes, prev, pager, next, jumper"
-            @size-change="handleQuery"
-            @current-change="handleQuery"
+            @size-change="handlePageChange"
+            @current-change="handlePageChange"
           />
         </div>
       </div>
@@ -338,7 +338,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Search, Refresh, List, Grid, Bell, Clock, Check, CircleCheck,
@@ -348,6 +348,7 @@ import { getAlertList, getAlertStats, ackAlert, resolveAlert, getAlertGroup } fr
 import type { Alert, AlertGroupItem, AlertStatsResponse } from '@/types/alert'
 import dayjs from 'dayjs'
 
+const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
@@ -364,6 +365,7 @@ const queryParams = reactive({
   status: undefined as 'firing' | 'resolved' | undefined,
   severity: undefined as 'critical' | 'warning' | 'info' | undefined,
   alert_name: undefined as string | undefined,
+  issue_id: undefined as number | undefined,
 })
 
 const ackDialogVisible = ref(false)
@@ -407,8 +409,20 @@ const loadGroupData = async () => {
   }
 }
 
+const syncQueryToURL = () => {
+  const query: Record<string, string> = {}
+  if (queryParams.status) query.status = queryParams.status
+  if (queryParams.severity) query.severity = queryParams.severity
+  if (queryParams.alert_name) query.alert_name = queryParams.alert_name
+  if (queryParams.issue_id) query.issue_id = String(queryParams.issue_id)
+  if (queryParams.page > 1) query.page = String(queryParams.page)
+  if (queryParams.page_size !== 20) query.page_size = String(queryParams.page_size)
+  router.replace({ query })
+}
+
 const handleQuery = () => {
   queryParams.page = 1
+  syncQueryToURL()
   viewMode.value === 'list' ? loadData() : loadGroupData()
 }
 
@@ -421,7 +435,14 @@ const handleStatClick = (status?: 'firing' | 'resolved', severity?: 'critical' |
 const handleReset = () => {
   queryParams.page = 1; queryParams.page_size = 20
   queryParams.status = undefined; queryParams.severity = undefined; queryParams.alert_name = undefined
-  handleQuery()
+  queryParams.issue_id = undefined
+  router.replace({ query: {} })
+  viewMode.value === 'list' ? loadData() : loadGroupData()
+}
+
+const handlePageChange = () => {
+  syncQueryToURL()
+  loadData()
 }
 
 const handleViewModeChange = () => { viewMode.value === 'list' ? loadData() : loadGroupData() }
@@ -464,7 +485,18 @@ const getMainLabels = (labels: Record<string, string>) => {
 }
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
 
-onMounted(() => { loadData(); loadStats() })
+onMounted(() => {
+  // 从 URL 读取筛选条件
+  const q = route.query
+  if (q.status) queryParams.status = q.status as typeof queryParams.status
+  if (q.severity) queryParams.severity = q.severity as typeof queryParams.severity
+  if (q.alert_name) queryParams.alert_name = q.alert_name as string
+  if (q.issue_id) queryParams.issue_id = Number(q.issue_id)
+  if (q.page) queryParams.page = Number(q.page)
+  if (q.page_size) queryParams.page_size = Number(q.page_size)
+
+  loadData(); loadStats()
+})
 </script>
 
 <style scoped lang="scss">
