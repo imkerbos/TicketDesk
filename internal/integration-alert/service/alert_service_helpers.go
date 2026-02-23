@@ -98,7 +98,19 @@ func (s *alertService) findMergeableIssue(ctx context.Context, rule *model.Alert
 		First(&issue).Error
 
 	if err != nil {
-		return 0, nil // 没有找到可合并的工单，返回 0
+		// 如果没找到活跃工单，再尝试查找 pending_review 状态的工单（告警恢复后待确认的工单仍可合并）
+		err = s.db.WithContext(ctx).
+			Where("project_id = ?", rule.ProjectID).
+			Where("issue_type_id = ?", rule.IssueTypeID).
+			Where("title LIKE ?", titlePattern).
+			Where("status = ?", "pending_review").
+			Where("created_at >= ?", windowStart).
+			Order("created_at DESC").
+			First(&issue).Error
+
+		if err != nil {
+			return 0, nil // 没有找到可合并的工单，返回 0
+		}
 	}
 
 	return issue.ID, nil

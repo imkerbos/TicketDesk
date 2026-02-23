@@ -35,6 +35,7 @@ const statusText = computed(() => {
   const map: Record<string, string> = {
     open: '未开始',
     in_progress: '进行中',
+    pending_review: '待确认',
     resolved: '已解决',
     closed: '已关闭',
   }

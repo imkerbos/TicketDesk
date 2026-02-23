@@ -1,7 +1,7 @@
 // 工单相关类型定义
 
 export type IssuePriority = 'P0' | 'P1' | 'P2' | 'P3'
-export type IssueStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'reopened' | 'merged'
+export type IssueStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'reopened' | 'merged' | 'pending_review'
 export type IssueResolution = 'fixed' | 'wont_fix' | 'duplicate' | 'cannot_reproduce' | 'works_as_designed' | 'incomplete' | 'done' | ''
 
 // 用户简要信息

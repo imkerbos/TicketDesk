@@ -107,6 +107,7 @@
               >
                 <el-option label="未开始 (open)" value="open" />
                 <el-option label="进行中 (in_progress)" value="in_progress" />
+                <el-option label="待确认 (pending_review)" value="pending_review" />
                 <el-option label="已解决 (resolved)" value="resolved" />
                 <el-option label="已关闭 (closed)" value="closed" />
               </el-select>

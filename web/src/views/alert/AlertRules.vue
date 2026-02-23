@@ -232,7 +232,7 @@
             <el-form-item label="自动解决" prop="auto_resolve">
               <el-switch v-model="form.auto_resolve" />
               <div class="form-tip">
-                告警恢复时自动解决关联的工单
+                开启：告警恢复时自动关闭工单；关闭：告警恢复时工单变为"待确认"，由处理人确认后关闭
               </div>
             </el-form-item>
           </el-col>
@@ -315,7 +315,7 @@ const form = reactive({
   label_matchers: [] as LabelMatcher[],
   priority: 'P2' as 'P0' | 'P1' | 'P2' | 'P3',
   assignee_id: undefined as number | undefined,
-  auto_resolve: true,
+  auto_resolve: false,
   merge_window: 3600,
 })
 
@@ -350,7 +350,7 @@ const handleCreate = () => {
   form.label_matchers = []
   form.priority = 'P2'
   form.assignee_id = undefined
-  form.auto_resolve = true
+  form.auto_resolve = false
   form.merge_window = 3600
   dialogVisible.value = true
 }

@@ -198,6 +198,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		alertRuleRepository,
 		alertSilenceRepository,
 		issueRepository,
+		commentRepository,
 		projectRepository,
 		issueTypeRepository,
 		db,

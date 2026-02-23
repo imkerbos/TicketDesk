@@ -461,13 +461,13 @@
 
                 <!-- 评论列表 -->
                 <div class="comment-list">
-                  <div v-for="comment in comments" :key="comment.id" class="comment-item">
-                    <div class="comment-avatar">
-                      {{ comment.user?.display_name?.charAt(0) || '?' }}
+                  <div v-for="comment in comments" :key="comment.id" :class="['comment-item', { 'system-comment': comment.user_id === 0 }]">
+                    <div :class="['comment-avatar', { 'system-avatar': comment.user_id === 0 }]">
+                      {{ comment.user_id === 0 ? '系' : (comment.user?.display_name?.charAt(0) || '?') }}
                     </div>
                     <div class="comment-body">
                       <div class="comment-header">
-                        <span class="comment-author">{{ comment.user?.display_name || '未知用户' }}</span>
+                        <span :class="['comment-author', { 'system-author': comment.user_id === 0 }]">{{ comment.user_id === 0 ? '系统' : (comment.user?.display_name || '未知用户') }}</span>
                         <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
                       </div>
                       <div class="comment-text">{{ comment.content }}</div>
@@ -2056,7 +2056,7 @@ const getPriorityType = (priority: string): TagType => {
   return map[priority] || 'info'
 }
 const getStatusText = (status: string) => {
-  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已完成', closed: '已终止', reopened: '重新打开', merged: '已合并' }
+  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', pending_review: '待确认', resolved: '已完成', closed: '已终止', reopened: '重新打开', merged: '已合并' }
   return map[status] || status
 }
 
@@ -2394,6 +2394,7 @@ const showWorkflowDiagram = async () => {
 
   &.open { background: #f3f4f6; color: #6b7280; .status-dot { background: #9ca3af; } }
   &.in_progress { background: #fff7ed; color: #c2410c; .status-dot { background: #f59e0b; } }
+  &.pending_review { background: #fffbeb; color: #b45309; .status-dot { background: #f59e0b; } }
   &.resolved { background: #ecfdf5; color: #059669; .status-dot { background: #10b981; } }
   &.closed { background: #f3f4f6; color: #6b7280; .status-dot { background: #9ca3af; } }
   &.reopened { background: #fef2f2; color: #dc2626; .status-dot { background: #ef4444; } }
@@ -2565,6 +2566,11 @@ const showWorkflowDiagram = async () => {
       font-size: 15px;
       font-weight: 600;
       flex-shrink: 0;
+
+      &.system-avatar {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+        font-size: 14px;
+      }
     }
 
     .comment-body {
@@ -2577,6 +2583,7 @@ const showWorkflowDiagram = async () => {
         margin-bottom: 8px;
 
         .comment-author { font-weight: 600; color: #1f2937; font-size: 14px; }
+        .system-author { color: #7c3aed; }
         .comment-time { font-size: 12px; color: #9ca3af; }
       }
 
@@ -2586,6 +2593,12 @@ const showWorkflowDiagram = async () => {
         white-space: pre-wrap;
         font-size: 14px;
       }
+    }
+
+    &.system-comment {
+      background: #faf5ff;
+      border-radius: 8px;
+      margin: 4px 0;
     }
   }
 }
@@ -3149,6 +3162,11 @@ const showWorkflowDiagram = async () => {
             color: #4b5563;
           }
 
+          &.pending_review {
+            background: #fffbeb;
+            color: #b45309;
+          }
+
           &.merged {
             background: #f3e8ff;
             color: #7c3aed;
@@ -3347,6 +3365,11 @@ const showWorkflowDiagram = async () => {
           &.closed {
             background: #e5e7eb;
             color: #4b5563;
+          }
+
+          &.pending_review {
+            background: #fffbeb;
+            color: #b45309;
           }
 
           &.merged {

@@ -69,6 +69,7 @@ type alertService struct {
 	alertRuleRepo    repository.AlertRuleRepository
 	alertSilenceRepo repository.AlertSilenceRepository
 	issueRepo        issueRepo.IssueRepository
+	commentRepo      issueRepo.CommentRepository
 	projectRepo      projectRepo.ProjectRepository
 	issueTypeRepo    projectRepo.IssueTypeRepository
 	db               *gorm.DB
@@ -80,6 +81,7 @@ func NewAlertService(
 	alertRuleRepo repository.AlertRuleRepository,
 	alertSilenceRepo repository.AlertSilenceRepository,
 	issueRepo issueRepo.IssueRepository,
+	commentRepo issueRepo.CommentRepository,
 	projectRepo projectRepo.ProjectRepository,
 	issueTypeRepo projectRepo.IssueTypeRepository,
 	db *gorm.DB,
@@ -89,6 +91,7 @@ func NewAlertService(
 		alertRuleRepo:    alertRuleRepo,
 		alertSilenceRepo: alertSilenceRepo,
 		issueRepo:        issueRepo,
+		commentRepo:      commentRepo,
 		projectRepo:      projectRepo,
 		issueTypeRepo:    issueTypeRepo,
 		db:               db,
@@ -581,36 +584,75 @@ func (s *alertService) appendAlertToIssue(
 	return nil
 }
 
-// autoResolveIssue 自动解决工单
-func (s *alertService) autoResolveIssue(ctx context.Context, issueID uint64) error {
-	// 获取工单
+// addSystemComment 添加系统评论（UserID=0 表示系统）
+func (s *alertService) addSystemComment(ctx context.Context, issueID uint64, content string) error {
+	comment := &model.IssueComment{
+		IssueID: issueID,
+		UserID:  0,
+		Content: content,
+	}
+	if err := s.commentRepo.Create(ctx, comment); err != nil {
+		return fmt.Errorf("failed to create system comment: %w", err)
+	}
+	return nil
+}
+
+// autoUpdateIssueOnRecovery 告警恢复后更新工单状态
+// autoResolve=true → resolved（自动关闭）；autoResolve=false → pending_review（待确认）
+func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID uint64, autoResolve bool) error {
 	issue, err := s.issueRepo.GetByID(ctx, issueID)
 	if err != nil {
 		return fmt.Errorf("failed to get issue: %w", err)
 	}
 
-	// 如果工单已经是 resolved、closed 或 merged 状态，不需要处理
-	if issue.Status == "resolved" || issue.Status == "closed" || issue.Status == "merged" {
+	// 如果工单已经是终态，不需要处理
+	if issue.Status == "resolved" || issue.Status == "closed" || issue.Status == "merged" || issue.Status == "pending_review" {
 		return nil
 	}
 
-	// 更新工单状态为 resolved
 	now := time.Now()
-	issue.Status = "resolved"
-	issue.ResolvedAt = &now
 
-	if err := s.issueRepo.Update(ctx, issue); err != nil {
-		return fmt.Errorf("failed to update issue status: %w", err)
+	if autoResolve {
+		issue.Status = "resolved"
+		issue.ResolvedAt = &now
+		if err := s.issueRepo.Update(ctx, issue); err != nil {
+			return fmt.Errorf("failed to update issue status: %w", err)
+		}
+
+		commentContent := "告警已自动恢复，工单已自动关闭"
+		if err := s.addSystemComment(ctx, issueID, commentContent); err != nil {
+			logger.Error("failed to add system comment for auto-resolve",
+				zap.Uint64("issue_id", issueID),
+				zap.Error(err),
+			)
+		}
+
+		logger.Info("issue auto-resolved by alert recovery",
+			zap.Uint64("issue_id", issueID),
+		)
+	} else {
+		issue.Status = "pending_review"
+		if err := s.issueRepo.Update(ctx, issue); err != nil {
+			return fmt.Errorf("failed to update issue status: %w", err)
+		}
+
+		commentContent := fmt.Sprintf("告警已自动恢复于 %s，请确认是否可以关闭工单", now.Format("15:04"))
+		if err := s.addSystemComment(ctx, issueID, commentContent); err != nil {
+			logger.Error("failed to add system comment for pending_review",
+				zap.Uint64("issue_id", issueID),
+				zap.Error(err),
+			)
+		}
+
+		logger.Info("issue set to pending_review by alert recovery",
+			zap.Uint64("issue_id", issueID),
+		)
 	}
-
-	logger.Info("issue auto-resolved by alert",
-		zap.Uint64("issue_id", issueID),
-	)
 
 	return nil
 }
 
-// TryAutoResolveIssue 检查工单关联的所有告警是否都已恢复，如果是且规则启用了自动解决，则自动关闭工单
+// TryAutoResolveIssue 检查工单关联的所有告警是否都已恢复，如果是则根据规则设置更新工单状态
 func (s *alertService) TryAutoResolveIssue(ctx context.Context, issueID uint64) error {
 	// 获取该工单下所有告警
 	alerts, err := s.alertRepo.ListByIssueID(ctx, issueID)
@@ -629,23 +671,42 @@ func (s *alertService) TryAutoResolveIssue(ctx context.Context, issueID uint64) 
 		}
 	}
 
-	// 获取匹配的规则，检查是否启用自动解决
-	rule, err := s.getMatchedRule(ctx, alerts[0])
-	if err != nil {
-		logger.Error("TryAutoResolveIssue: failed to get matched rule", zap.Error(err))
-		return nil
-	}
-	if rule == nil || !rule.AutoResolve {
-		return nil
+	// 遍历所有告警尝试匹配规则（不同告警可能匹配不同规则）
+	autoResolve := false
+	matchedAny := false
+	for _, a := range alerts {
+		rule, err := s.getMatchedRule(ctx, a)
+		if err != nil {
+			logger.Error("TryAutoResolveIssue: failed to get matched rule",
+				zap.Uint64("alert_id", a.ID),
+				zap.Error(err),
+			)
+			continue
+		}
+		if rule != nil {
+			matchedAny = true
+			if rule.AutoResolve {
+				autoResolve = true
+				break // 只要有一条规则是 AutoResolve=true，就自动关闭
+			}
+		}
 	}
 
-	// 所有告警都已恢复，自动解决工单
-	if err := s.autoResolveIssue(ctx, issueID); err != nil {
-		return fmt.Errorf("failed to auto resolve issue: %w", err)
+	if !matchedAny {
+		// 无匹配规则，默认设为待确认
+		logger.Info("TryAutoResolveIssue: no matching rule found, setting to pending_review",
+			zap.Uint64("issue_id", issueID),
+		)
 	}
 
-	logger.Info("TryAutoResolveIssue: all alerts resolved, issue auto-resolved",
+	// 所有告警都已恢复，根据 autoResolve 设置更新工单
+	if err := s.autoUpdateIssueOnRecovery(ctx, issueID, autoResolve); err != nil {
+		return fmt.Errorf("failed to auto update issue on recovery: %w", err)
+	}
+
+	logger.Info("TryAutoResolveIssue: all alerts resolved, issue updated",
 		zap.Uint64("issue_id", issueID),
+		zap.Bool("auto_resolve", autoResolve),
 		zap.Int("alert_count", len(alerts)),
 	)
 	return nil
@@ -821,7 +882,22 @@ func (s *alertService) ResolveAlert(ctx context.Context, id uint64, userID uint6
 
 	// 解决告警
 	now := time.Now()
-	return s.alertRepo.Resolve(ctx, id, userID, now)
+	if err := s.alertRepo.Resolve(ctx, id, userID, now); err != nil {
+		return err
+	}
+
+	// 手动解决告警后，检查关联工单是否可以自动处理
+	if alert.IssueID != nil {
+		if err := s.TryAutoResolveIssue(ctx, *alert.IssueID); err != nil {
+			logger.Error("failed to try auto resolve issue after manual alert resolve",
+				zap.Uint64("alert_id", id),
+				zap.Uint64("issue_id", *alert.IssueID),
+				zap.Error(err),
+			)
+		}
+	}
+
+	return nil
 }
 
 // toAlertResponse 转换为告警响应

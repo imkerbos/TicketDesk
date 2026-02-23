@@ -261,7 +261,7 @@ type AlertRule struct {
 	LabelMatchers string  `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则
 	Priority      string  `gorm:"size:10;default:P2" json:"priority"`
 	AssigneeID    *uint64 `gorm:"index" json:"assignee_id"` // 默认指派人
-	AutoResolve   bool    `gorm:"default:true" json:"auto_resolve"` // 告警恢复时自动解决工单
+	AutoResolve   bool    `gorm:"default:false" json:"auto_resolve"` // 告警恢复时自动解决工单
 	MergeWindow   int     `gorm:"default:3600" json:"merge_window"` // 告警合并时间窗口（秒），0表示不合并
 	Status        int8    `gorm:"default:1;index" json:"status"` // 0-禁用, 1-启用
 }
