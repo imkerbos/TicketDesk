@@ -584,6 +584,27 @@
                   {{ issue.epic_key }}{{ issue.epic_title ? ' - ' + issue.epic_title : '' }}
                 </el-link>
               </div>
+              <div v-if="issue.merged_into_issue_key" class="info-item">
+                <span class="info-label">已合并到</span>
+                <el-link type="primary" @click="$router.push(`/issues/${issue.merged_into_issue_key}`)">
+                  <el-icon><Link /></el-icon>
+                  {{ issue.merged_into_issue_key }}
+                </el-link>
+              </div>
+              <div v-if="issue.merged_from_issue_keys?.length" class="info-item">
+                <span class="info-label">合并来源</span>
+                <div class="merged-from-links">
+                  <el-link
+                    v-for="key in issue.merged_from_issue_keys"
+                    :key="key"
+                    type="primary"
+                    @click="$router.push(`/issues/${key}`)"
+                    style="margin-right: 8px;"
+                  >
+                    {{ key }}
+                  </el-link>
+                </div>
+              </div>
               <div class="info-item">
                 <span class="info-label">状态</span>
                 <div class="status-badge sm" :class="issue.status">

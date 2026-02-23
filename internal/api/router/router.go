@@ -210,6 +210,13 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		issueServiceImpl.SetAlertSyncService(alertSvc)
 	}
 
+	// 将 alertSvc 注入工作流引擎，用于工单状态变更时同步告警和级联合并工单
+	if engineImpl, ok := workflowEngine.(interface {
+		SetIssueStatusSyncer(workflowService.IssueStatusSyncer)
+	}); ok {
+		engineImpl.SetIssueStatusSyncer(alertSvc)
+	}
+
 	// ============ 初始化 Report 模块 ============
 	reportRepository := reportRepo.NewReportRepository(db)
 	reportSvc := reportService.NewReportService(reportRepository, projectRepository)

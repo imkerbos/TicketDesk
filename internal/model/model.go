@@ -125,6 +125,7 @@ type Issue struct {
 	ParentID           *uint64    `gorm:"index" json:"parent_id"`
 	EpicID             *uint64    `gorm:"index" json:"epic_id"` // Epic 关联（从扩展字段迁移为默认字段）
 	WorkflowInstanceID *uint64    `gorm:"index" json:"workflow_instance_id,omitempty"`
+	MergedIntoIssueID  *uint64    `gorm:"index" json:"merged_into_issue_id,omitempty"` // 合并目标工单 ID（扁平化：所有旧工单直接指向最终合并目标）
 	DueDate            *time.Time `json:"due_date"`
 	PlannedStartDate   *time.Time `json:"planned_start_date"`   // 预计开始时间
 	PlannedEndDate     *time.Time `json:"planned_end_date"`     // 预计交付时间

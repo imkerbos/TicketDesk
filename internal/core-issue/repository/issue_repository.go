@@ -29,6 +29,7 @@ type IssueRepository interface {
 	ListByIDs(ctx context.Context, ids []uint64) ([]*model.Issue, error)
 	ListByParentID(ctx context.Context, parentID uint64) ([]*model.Issue, error)
 	ListByEpicID(ctx context.Context, epicID uint64) ([]*model.Issue, error)
+	ListByMergedIntoIssueID(ctx context.Context, issueID uint64, result *[]model.Issue) error
 }
 
 // IssueFilter 工单过滤条件
@@ -200,6 +201,14 @@ func (r *issueRepository) ListByEpicID(ctx context.Context, epicID uint64) ([]*m
 	var issues []*model.Issue
 	err := r.db.WithContext(ctx).Where("epic_id = ?", epicID).Order("created_at ASC").Find(&issues).Error
 	return issues, err
+}
+
+// ListByMergedIntoIssueID 查找所有合并到指定工单的旧工单
+func (r *issueRepository) ListByMergedIntoIssueID(ctx context.Context, issueID uint64, result *[]model.Issue) error {
+	return r.db.WithContext(ctx).
+		Where("merged_into_issue_id = ?", issueID).
+		Order("created_at ASC").
+		Find(result).Error
 }
 
 // CommentRepository 评论数据访问接口

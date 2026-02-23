@@ -141,10 +141,13 @@ type IssueResponse struct {
 	Assignee     *UserBrief               `json:"assignee,omitempty"`
 	ParentID     *uint64                  `json:"parent_id"`
 	ParentKey    string                   `json:"parent_key,omitempty"`
-	EpicID           *uint64                  `json:"epic_id"`
-	EpicKey          string                   `json:"epic_key,omitempty"`
-	EpicTitle        string                   `json:"epic_title,omitempty"`
-	DueDate          *time.Time               `json:"due_date"`
+	EpicID               *uint64                  `json:"epic_id"`
+	EpicKey              string                   `json:"epic_key,omitempty"`
+	EpicTitle            string                   `json:"epic_title,omitempty"`
+	MergedIntoIssueID    *uint64                  `json:"merged_into_issue_id,omitempty"`
+	MergedIntoIssueKey   string                   `json:"merged_into_issue_key,omitempty"`
+	MergedFromIssueKeys  []string                 `json:"merged_from_issue_keys,omitempty"` // 合并来源工单 Key 列表
+	DueDate              *time.Time               `json:"due_date"`
 	PlannedStartDate *time.Time               `json:"planned_start_date"`
 	PlannedEndDate   *time.Time               `json:"planned_end_date"`
 	ActualStartDate  *time.Time               `json:"actual_start_date"`

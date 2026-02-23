@@ -56,6 +56,8 @@ type AlertService interface {
 
 	// 工单状态同步
 	SyncIssueStatus(ctx context.Context, issueID uint64, issueStatus string) error
+	// SyncMergedIssueStatus 同步状态到被合并的旧工单
+	SyncMergedIssueStatus(ctx context.Context, issueID uint64, issueStatus string) error
 }
 
 // alertService 告警服务实现

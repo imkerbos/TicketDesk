@@ -18,6 +18,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// IssueStatusSyncer 工单状态同步接口（用于告警联动，避免循环依赖）
+type IssueStatusSyncer interface {
+	SyncIssueStatus(ctx context.Context, issueID uint64, issueStatus string) error
+	SyncMergedIssueStatus(ctx context.Context, issueID uint64, issueStatus string) error
+}
+
 // 工作流引擎错误定义
 var (
 	ErrWorkflowInstanceNotFound = errors.New("工作流实例不存在")
@@ -58,6 +64,7 @@ type workflowEngine struct {
 	projectRoleRepo    projectRepo.ProjectRoleRepository
 	userRepo           userRepo.UserRepository
 	db                 *gorm.DB
+	issueStatusSyncer  IssueStatusSyncer // 告警联动（可选）
 }
 
 // NewWorkflowEngine 创建工作流引擎实例
@@ -85,6 +92,11 @@ func NewWorkflowEngine(
 		userRepo:        userRepo,
 		db:              db,
 	}
+}
+
+// SetIssueStatusSyncer 设置工单状态同步器（告警联动，避免循环依赖）
+func (e *workflowEngine) SetIssueStatusSyncer(syncer IssueStatusSyncer) {
+	e.issueStatusSyncer = syncer
 }
 
 // CreateInstance 创建工作流实例
@@ -978,6 +990,25 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 			zap.String("target_status", targetStatus),
 			zap.String("node_type", node.NodeType),
 		)
+
+		// 告警联动：同步工单状态到告警 + 级联更新被合并的旧工单
+		if e.issueStatusSyncer != nil {
+			go func() {
+				bgCtx := context.Background()
+				if err := e.issueStatusSyncer.SyncIssueStatus(bgCtx, issueID, targetStatus); err != nil {
+					logger.Warn("failed to sync issue status to alerts",
+						zap.Uint64("issue_id", issueID),
+						zap.Error(err),
+					)
+				}
+				if err := e.issueStatusSyncer.SyncMergedIssueStatus(bgCtx, issueID, targetStatus); err != nil {
+					logger.Warn("failed to cascade status to merged issues",
+						zap.Uint64("issue_id", issueID),
+						zap.Error(err),
+					)
+				}
+			}()
+		}
 	}
 }
 

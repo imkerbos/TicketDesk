@@ -42,6 +42,9 @@ export interface Issue {
   epic_id?: number
   epic_key?: string
   epic_title?: string
+  merged_into_issue_id?: number
+  merged_into_issue_key?: string
+  merged_from_issue_keys?: string[]
   due_date?: string
   planned_start_date?: string
   planned_end_date?: string

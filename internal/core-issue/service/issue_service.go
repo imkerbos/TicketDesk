@@ -1229,6 +1229,9 @@ func (s *issueService) batchPreload(ctx context.Context, issues []*model.Issue) 
 		if issue.ParentID != nil {
 			relatedIssueIDSet[*issue.ParentID] = struct{}{}
 		}
+		if issue.MergedIntoIssueID != nil {
+			relatedIssueIDSet[*issue.MergedIntoIssueID] = struct{}{}
+		}
 		projectIDSet[issue.ProjectID] = struct{}{}
 	}
 
@@ -1363,6 +1366,14 @@ func (s *issueService) toIssueResponseCached(issue *model.Issue, cache *relatedC
 		}
 	}
 
+	// 从缓存加载合并目标工单 Key
+	if issue.MergedIntoIssueID != nil {
+		resp.MergedIntoIssueID = issue.MergedIntoIssueID
+		if target, ok := cache.issues[*issue.MergedIntoIssueID]; ok {
+			resp.MergedIntoIssueKey = target.IssueKey
+		}
+	}
+
 	return resp
 }
 
@@ -1449,6 +1460,25 @@ func (s *issueService) toIssueResponse(ctx context.Context, issue *model.Issue, 
 	if issue.ParentID != nil {
 		if parent, err := s.issueRepo.GetByID(ctx, *issue.ParentID); err == nil {
 			resp.ParentKey = parent.IssueKey
+		}
+	}
+
+	// 加载合并关联
+	if issue.MergedIntoIssueID != nil {
+		resp.MergedIntoIssueID = issue.MergedIntoIssueID
+		if target, err := s.issueRepo.GetByID(ctx, *issue.MergedIntoIssueID); err == nil {
+			resp.MergedIntoIssueKey = target.IssueKey
+		}
+	}
+
+	// 加载被合并来源（当前工单作为合并目标时，查找所有指向它的旧工单）
+	if issue.Status != "merged" {
+		var mergedFrom []model.Issue
+		if err := s.issueRepo.ListByMergedIntoIssueID(ctx, issue.ID, &mergedFrom); err == nil && len(mergedFrom) > 0 {
+			resp.MergedFromIssueKeys = make([]string, len(mergedFrom))
+			for i, mf := range mergedFrom {
+				resp.MergedFromIssueKeys[i] = mf.IssueKey
+			}
 		}
 	}
 
