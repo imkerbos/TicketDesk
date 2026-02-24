@@ -260,25 +260,32 @@ func (h *RequirementHandler) ConvertToIssue(c *gin.Context) {
 
 	userID := h.getUserID(c)
 
-	issue, err := h.service.ConvertToIssue(c.Request.Context(), id, &req, userID)
+	result, err := h.service.ConvertToIssue(c.Request.Context(), id, &req, userID)
 	if err != nil {
-		if err.Error() == "需求不存在" {
-			response.NotFound(c, err.Error())
-			return
+		errMsg := err.Error()
+		switch errMsg {
+		case "需求不存在":
+			response.NotFound(c, errMsg)
+		case "该需求已转化为工单，不允许重复转化",
+			"已完成的需求不能转化为工单",
+			"已拒绝的需求不能转化为工单",
+			"工单创建服务未初始化":
+			response.BadRequest(c, errMsg)
+		default:
+			h.logger.Error("failed to convert requirement to issue",
+				zap.Error(err),
+				zap.Uint64("requirement_id", id),
+				zap.Uint64("user_id", userID),
+			)
+			response.InternalError(c, errMsg)
 		}
-		h.logger.Error("failed to convert requirement to issue",
-			zap.Error(err),
-			zap.Uint64("requirement_id", id),
-			zap.Uint64("user_id", userID),
-		)
-		response.InternalError(c, err.Error())
 		return
 	}
 
 	response.Success(c, gin.H{
 		"message":   "转化成功",
-		"issue_id":  issue.ID,
-		"issue_key": issue.IssueKey,
+		"issue_id":  result.IssueID,
+		"issue_key": result.IssueKey,
 	})
 }
 

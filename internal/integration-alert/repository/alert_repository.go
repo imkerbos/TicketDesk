@@ -4,6 +4,8 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
@@ -27,6 +29,7 @@ type AlertRepository interface {
 	UpdateStatusByIssueID(ctx context.Context, issueID uint64, status string) error
 	GroupBy(ctx context.Context, groupBy string, req *dto.AlertGroupRequest) ([]dto.AlertGroupItem, error)
 	ListBySourceAndStatus(ctx context.Context, source string, status string) ([]*model.Alert, error)
+	ListLabelKeys(ctx context.Context) ([]string, error)
 }
 
 // alertRepository 告警仓库实现
@@ -96,6 +99,36 @@ func (r *alertRepository) List(ctx context.Context, req *dto.AlertListRequest) (
 	}
 	if req.IssueID > 0 {
 		query = query.Where("issue_id = ?", req.IssueID)
+	}
+
+	// 标签筛选：支持 key==value（等于）、key!=value（不等于）、key=~value（LIKE 模糊）、key!~value（NOT LIKE）
+	if req.LabelFilters != "" {
+		for _, filter := range strings.Split(req.LabelFilters, ",") {
+			filter = strings.TrimSpace(filter)
+			if filter == "" {
+				continue
+			}
+			// 按操作符优先级匹配：!~ =~ != ==
+			if idx := strings.Index(filter, "!~"); idx > 0 {
+				key := strings.TrimSpace(filter[:idx])
+				val := strings.TrimSpace(filter[idx+2:])
+				query = query.Where("(JSON_UNQUOTE(JSON_EXTRACT(labels, ?)) IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(labels, ?)) NOT LIKE ?)",
+					"$."+key, "$."+key, val)
+			} else if idx := strings.Index(filter, "=~"); idx > 0 {
+				key := strings.TrimSpace(filter[:idx])
+				val := strings.TrimSpace(filter[idx+2:])
+				query = query.Where("JSON_UNQUOTE(JSON_EXTRACT(labels, ?)) LIKE ?", "$."+key, val)
+			} else if idx := strings.Index(filter, "!="); idx > 0 {
+				key := strings.TrimSpace(filter[:idx])
+				val := strings.TrimSpace(filter[idx+2:])
+				query = query.Where("(JSON_UNQUOTE(JSON_EXTRACT(labels, ?)) IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(labels, ?)) != ?)",
+					"$."+key, "$."+key, val)
+			} else if idx := strings.Index(filter, "=="); idx > 0 {
+				key := strings.TrimSpace(filter[:idx])
+				val := strings.TrimSpace(filter[idx+2:])
+				query = query.Where("JSON_UNQUOTE(JSON_EXTRACT(labels, ?)) = ?", "$."+key, val)
+			}
+		}
 	}
 
 	// 统计总数
@@ -183,6 +216,29 @@ func (r *alertRepository) ListBySourceAndStatus(ctx context.Context, source stri
 	var alerts []*model.Alert
 	err := r.db.WithContext(ctx).Where("source = ? AND status = ?", source, status).Find(&alerts).Error
 	return alerts, err
+}
+
+// ListLabelKeys 获取所有告警中出现过的标签 key（去重）
+func (r *alertRepository) ListLabelKeys(ctx context.Context) ([]string, error) {
+	var labels []string
+	if err := r.db.WithContext(ctx).Model(&model.Alert{}).Pluck("labels", &labels).Error; err != nil {
+		return nil, err
+	}
+	keySet := make(map[string]struct{})
+	for _, l := range labels {
+		var m map[string]string
+		if json.Unmarshal([]byte(l), &m) == nil {
+			for k := range m {
+				keySet[k] = struct{}{}
+			}
+		}
+	}
+	result := make([]string, 0, len(keySet))
+	for k := range keySet {
+		result = append(result, k)
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 // GroupBy 按标签分组统计告警

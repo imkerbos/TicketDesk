@@ -27,6 +27,11 @@ export const getAlertStats = () => {
   return request.get<ApiResponse<AlertStatsResponse>>('/alerts/stats')
 }
 
+// 告警标签 key 列表
+export const getAlertLabelKeys = () => {
+  return request.get<ApiResponse<string[]>>('/alerts/label-keys')
+}
+
 // 告警详情
 export const getAlertDetail = (id: number, config?: any) => {
   return request.get<ApiResponse<Alert>>(`/alerts/${id}`, config)

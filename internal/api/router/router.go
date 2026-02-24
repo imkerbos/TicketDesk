@@ -292,6 +292,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		logger,
 	)
 
+	// 注入 IssueService 到 RequirementService（setter 注入，避免循环依赖）
+	if reqSvcImpl, ok := reqSvc.(interface{ SetIssueCreator(reqPoolService.IssueCreator) }); ok {
+		reqSvcImpl.SetIssueCreator(issueSvc)
+	}
+
 	reqPoolHdl := reqPoolHandler.NewRequirementPoolHandler(reqPoolSvc, logger)
 	reqHdl := reqPoolHandler.NewRequirementHandler(reqSvc, logger)
 
@@ -746,6 +751,7 @@ func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 		alerts.GET("", r.alertHandler.HandleListAlerts)
 		alerts.GET("/stats", r.alertHandler.HandleGetAlertStats)
 		alerts.GET("/group", r.alertHandler.HandleGroupAlerts)
+		alerts.GET("/label-keys", r.alertHandler.HandleGetAlertLabelKeys)
 		alerts.GET("/:id", r.alertHandler.HandleGetAlert)
 
 		// 告警操作

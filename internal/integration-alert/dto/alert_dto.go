@@ -34,13 +34,14 @@ type AlertWebhookAlertItem struct {
 
 // AlertListRequest 告警列表查询请求
 type AlertListRequest struct {
-	Page      int    `form:"page" binding:"omitempty,min=1"`
-	PageSize  int    `form:"page_size" binding:"omitempty,min=1,max=100"`
-	Status    string `form:"status" binding:"omitempty,oneof=firing resolved"`
-	Severity  string `form:"severity" binding:"omitempty,oneof=critical warning info"`
-	Source    string `form:"source"`
-	AlertName string `form:"alert_name"`
-	IssueID   uint64 `form:"issue_id"`
+	Page         int    `form:"page" binding:"omitempty,min=1"`
+	PageSize     int    `form:"page_size" binding:"omitempty,min=1,max=100"`
+	Status       string `form:"status" binding:"omitempty,oneof=firing resolved"`
+	Severity     string `form:"severity" binding:"omitempty,oneof=critical warning info"`
+	Source       string `form:"source"`
+	AlertName    string `form:"alert_name"`
+	IssueID      uint64 `form:"issue_id"`
+	LabelFilters string `form:"label_filters"` // 标签筛选，格式: key==value,key!=value 多个用逗号分隔
 }
 
 // AlertResponse 告警响应

@@ -258,9 +258,12 @@ func (r *requirementRepository) GetKanbanData(ctx context.Context, filter *Kanba
 	}
 
 	var requirements []*model.Requirement
-	err := query.Preload("Reporter").
+	err := query.Preload("Pool").
+		Preload("Reporter").
 		Preload("Assignee").
 		Preload("Creator").
+		Preload("ConvertedIssue").
+		Preload("Comments").
 		Order("created_at DESC").
 		Find(&requirements).Error
 	if err != nil {

@@ -282,6 +282,18 @@ func (h *AlertHandler) HandleListAlertRules(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// HandleGetAlertLabelKeys 获取所有告警标签 key 列表
+func (h *AlertHandler) HandleGetAlertLabelKeys(c *gin.Context) {
+	keys, err := h.alertService.GetAlertLabelKeys(c.Request.Context())
+	if err != nil {
+		logger.Error("failed to get alert label keys", zap.Error(err))
+		response.InternalError(c, "获取标签列表失败")
+		return
+	}
+
+	response.Success(c, keys)
+}
+
 // HandleGroupAlerts 按标签分组统计告警
 func (h *AlertHandler) HandleGroupAlerts(c *gin.Context) {
 	var req dto.AlertGroupRequest

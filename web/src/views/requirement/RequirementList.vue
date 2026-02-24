@@ -157,7 +157,7 @@
               type="success"
               size="small"
               @click="handleConvert(row)"
-              v-if="row.status !== 'completed' && row.status !== 'rejected'"
+              v-if="row.status !== 'completed' && row.status !== 'rejected' && !row.converted_issue_id"
             >
               转工单
             </el-button>
@@ -329,13 +329,13 @@
     <!-- 转化为工单对话框 -->
     <el-dialog v-model="showConvertDialog" title="转化为工单" width="500px">
       <el-form :model="convertForm" :rules="convertRules" ref="convertFormRef" label-width="100px">
-        <el-form-item label="目标项目" prop="project_id">
-          <el-select v-model="convertForm.project_id" placeholder="请选择项目" style="width: 100%" @change="loadIssueTypes">
+        <el-form-item label="目标项目" prop="project_key">
+          <el-select v-model="convertForm.project_key" placeholder="请选择项目" style="width: 100%" @change="loadIssueTypes">
             <el-option
               v-for="project in projects"
-              :key="project.id"
+              :key="project.project_key"
               :label="project.name"
-              :value="project.id"
+              :value="project.project_key"
             />
           </el-select>
         </el-form-item>
@@ -462,7 +462,6 @@ import type {
   RequirementPool,
   CreateRequirementRequest,
   UpdateRequirementRequest,
-  ConvertToIssueRequest,
   RequirementStatus,
   RequirementPriority,
   RequirementCategory,
@@ -523,10 +522,10 @@ const form = reactive<CreateRequirementRequest & { progress?: string; result?: s
 })
 
 // 转化表单
-const convertForm = reactive<ConvertToIssueRequest>({
-  project_id: undefined,
-  issue_type_id: undefined,
-  assignee_id: undefined,
+const convertForm = reactive({
+  project_key: '' as string,
+  issue_type_id: undefined as number | undefined,
+  assignee_id: undefined as number | undefined,
 })
 
 // 表单验证规则
@@ -548,11 +547,11 @@ const rules: FormRules = {
 }
 
 const convertRules: FormRules = {
-  project_id: [{
+  project_key: [{
     required: true,
     trigger: 'change',
     validator: (_rule, value, callback) => {
-      if (!value || value === 0) {
+      if (!value) {
         callback(new Error('请选择项目'))
       } else {
         callback()
@@ -728,16 +727,13 @@ const loadUsers = async () => {
 
 // 加载工单类型
 const loadIssueTypes = async () => {
-  if (!convertForm.project_id) {
+  if (!convertForm.project_key) {
     issueTypes.value = []
     return
   }
   try {
-    const project = projects.value.find(p => p.id === convertForm.project_id)
-    if (project) {
-      const { data } = await getProjectIssueTypes(project.project_key)
-      issueTypes.value = data.data
-    }
+    const { data } = await getProjectIssueTypes(convertForm.project_key)
+    issueTypes.value = data.data
   } catch (error) {
     console.error('加载工单类型失败', error)
   }
@@ -782,10 +778,14 @@ const handleEdit = (requirement: Requirement) => {
 // 转化为工单
 const handleConvert = (requirement: Requirement) => {
   convertingRequirement.value = requirement
-  convertForm.project_id = requirement.target_project_id || undefined
+  // 从目标项目 ID 查找对应的 project_key
+  const targetProject = requirement.target_project_id
+    ? projects.value.find(p => p.id === requirement.target_project_id)
+    : undefined
+  convertForm.project_key = targetProject?.project_key || ''
   convertForm.issue_type_id = undefined
   convertForm.assignee_id = requirement.assignee_id
-  if (convertForm.project_id) {
+  if (convertForm.project_key) {
     loadIssueTypes()
   }
   showConvertDialog.value = true
@@ -894,7 +894,7 @@ const handleConvertSubmit = async () => {
     if (!valid) return
 
     // 再次检查必填字段
-    if (!convertForm.project_id) {
+    if (!convertForm.project_key) {
       ElMessage.error('请选择项目')
       return
     }
@@ -907,7 +907,7 @@ const handleConvertSubmit = async () => {
     try {
       // 构建请求数据，只包含有值的字段
       const convertData: any = {
-        project_id: convertForm.project_id,
+        project_key: convertForm.project_key,
         issue_type_id: convertForm.issue_type_id,
       }
 
@@ -960,16 +960,22 @@ const resetForm = () => {
   formRef.value?.resetFields()
 }
 
-onMounted(() => {
+onMounted(async () => {
   // 从 URL 参数获取 pool_id
   if (route.query.pool_id) {
     filters.pool_id = Number(route.query.pool_id)
   }
 
-  loadData()
-  loadPools()
-  loadProjects()
-  loadUsers()
+  await Promise.all([loadData(), loadPools(), loadProjects(), loadUsers()])
+
+  // 处理看板跳转过来的转化请求
+  if (route.query.convert) {
+    const convertId = Number(route.query.convert)
+    const target = requirements.value.find(r => r.id === convertId)
+    if (target && !target.converted_issue_id && target.status !== 'completed' && target.status !== 'rejected') {
+      handleConvert(target)
+    }
+  }
 })
 </script>
 

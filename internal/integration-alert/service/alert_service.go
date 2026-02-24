@@ -45,6 +45,7 @@ type AlertService interface {
 	ListAlerts(ctx context.Context, req *dto.AlertListRequest) (*dto.AlertListResponse, error)
 	GetAlertStats(ctx context.Context) (*dto.AlertStatsResponse, error)
 	GroupAlerts(ctx context.Context, req *dto.AlertGroupRequest) (*dto.AlertGroupResponse, error)
+	GetAlertLabelKeys(ctx context.Context) ([]string, error)
 
 	// 告警操作
 	AckAlert(ctx context.Context, id uint64, userID uint64, req *dto.AlertAckRequest) error
@@ -1202,6 +1203,11 @@ func (s *alertService) batchGetIssueKeys(ctx context.Context, alerts []*model.Al
 // GetAlertStats 获取告警统计数据
 func (s *alertService) GetAlertStats(ctx context.Context) (*dto.AlertStatsResponse, error) {
 	return s.alertRepo.Stats(ctx)
+}
+
+// GetAlertLabelKeys 获取所有告警中出现过的标签 key
+func (s *alertService) GetAlertLabelKeys(ctx context.Context) ([]string, error) {
+	return s.alertRepo.ListLabelKeys(ctx)
 }
 
 // AckAlert 确认告警

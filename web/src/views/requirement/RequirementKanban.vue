@@ -205,7 +205,7 @@
             <el-button @click="handleStatusChange('pending_review')" v-if="selectedRequirement.status === 'rejected' || selectedRequirement.status === 'on_hold'">
               重新评估
             </el-button>
-            <el-button type="primary" @click="handleConvert" v-if="selectedRequirement.status !== 'completed' && selectedRequirement.status !== 'rejected'">
+            <el-button type="primary" @click="handleConvert" v-if="selectedRequirement.status !== 'completed' && selectedRequirement.status !== 'rejected' && !selectedRequirement.converted_issue_id">
               转化为工单
             </el-button>
           </el-button-group>

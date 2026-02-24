@@ -86,9 +86,15 @@ type RequirementListRequest struct {
 
 // ConvertToIssueRequest 转化为工单请求
 type ConvertToIssueRequest struct {
-	ProjectID   uint64  `json:"project_id" binding:"required"`
+	ProjectKey  string  `json:"project_key" binding:"required"`
 	IssueTypeID uint64  `json:"issue_type_id" binding:"required"`
 	AssigneeID  *uint64 `json:"assignee_id"`
+}
+
+// ConvertToIssueResponse 转化为工单响应
+type ConvertToIssueResponse struct {
+	IssueID  uint64 `json:"issue_id"`
+	IssueKey string `json:"issue_key"`
 }
 
 // RequirementCommentRequest 需求评论请求

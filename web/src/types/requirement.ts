@@ -207,8 +207,8 @@ export interface UpdateRequirementRequest {
 
 // 转化为工单请求
 export interface ConvertToIssueRequest {
-  project_id?: number
-  issue_type_id?: number
+  project_key: string
+  issue_type_id: number
   assignee_id?: number
 }
 

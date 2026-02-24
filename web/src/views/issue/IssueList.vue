@@ -98,7 +98,7 @@
         >
           <el-table-column prop="issue_key" label="工单号" width="120" fixed>
             <template #default="{ row }">
-              <el-link type="primary" underline="never" @click.stop="$router.push(`/issues/${row.issue_key}`)">
+              <el-link type="primary" underline="never" @click.stop="navigateTo(`/issues/${row.issue_key}`, $event)">
                 <span class="issue-key-text">{{ row.issue_key }}</span>
               </el-link>
             </template>
@@ -195,7 +195,7 @@
                 v-for="issue in column.issues"
                 :key="issue.id"
                 class="kanban-card"
-                @click="$router.push(`/issues/${issue.issue_key}`)"
+                @click="navigateTo(`/issues/${issue.issue_key}`, $event)"
               >
                 <div class="card-header">
                   <span class="issue-key">{{ issue.issue_key }}</span>
@@ -522,7 +522,22 @@ const handleReset = () => {
 }
 
 const handleViewModeChange = () => { loadData() }
-const handleRowClick = (row: Issue) => { router.push(`/issues/${row.issue_key}`) }
+const handleRowClick = (row: Issue, _col: any, event: MouseEvent) => {
+  const path = `/issues/${row.issue_key}`
+  if (event.metaKey || event.ctrlKey) {
+    window.open(router.resolve(path).href, '_blank')
+  } else {
+    router.push(path)
+  }
+}
+
+const navigateTo = (path: string, event: MouseEvent) => {
+  if (event.metaKey || event.ctrlKey) {
+    window.open(router.resolve(path).href, '_blank')
+  } else {
+    router.push(path)
+  }
+}
 
 const handleCreate = () => {
   Object.assign(createForm, {

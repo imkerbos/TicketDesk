@@ -108,6 +108,32 @@
             <el-option label="警告" value="warning" />
             <el-option label="信息" value="info" />
           </el-select>
+          <el-popover placement="bottom-start" :width="480" trigger="click">
+            <template #reference>
+              <el-button :icon="Filter" :type="labelFilters.length > 0 ? 'primary' : ''">
+                标签筛选{{ labelFilters.length > 0 ? ` (${labelFilters.length})` : '' }}
+              </el-button>
+            </template>
+            <div class="label-filter-panel">
+              <div v-for="(filter, index) in labelFilters" :key="index" class="label-filter-row">
+                <el-select v-model="filter.key" placeholder="标签名" size="small" style="width: 140px" filterable allow-create default-first-option>
+                  <el-option v-for="k in labelKeyOptions" :key="k" :label="k" :value="k" />
+                </el-select>
+                <el-select v-model="filter.op" size="small" style="width: 110px">
+                  <el-option label="等于 ==" value="==" />
+                  <el-option label="不等于 !=" value="!=" />
+                  <el-option label="匹配 =~" value="=~" />
+                  <el-option label="不匹配 !~" value="!~" />
+                </el-select>
+                <el-input v-model="filter.value" placeholder="值（=~/!~ 支持 % 通配）" size="small" style="width: 160px" />
+                <el-button :icon="Close" size="small" text type="danger" @click="removeLabelFilter(index)" />
+              </div>
+              <div class="label-filter-actions">
+                <el-button size="small" text type="primary" :icon="Plus" @click="addLabelFilter">添加条件</el-button>
+                <el-button size="small" type="primary" @click="applyLabelFilters">应用</el-button>
+              </div>
+            </div>
+          </el-popover>
         </div>
         <div class="filter-right">
           <el-button :icon="Refresh" @click="handleReset">重置</el-button>
@@ -222,7 +248,7 @@
                   </el-button>
                 </el-tooltip>
                 <el-tooltip content="详情" placement="top">
-                  <el-button link type="info" @click.stop="handleViewDetail(row)">
+                  <el-button link type="info" @click.stop="handleViewDetail(row, $event)">
                     <el-icon><View /></el-icon>
                   </el-button>
                 </el-tooltip>
@@ -342,9 +368,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Search, Refresh, List, Grid, Bell, Clock, Check, CircleCheck,
-  View, WarningFilled, Warning, Promotion, InfoFilled
+  View, WarningFilled, Warning, Promotion, InfoFilled, Filter, Close, Plus
 } from '@element-plus/icons-vue'
-import { getAlertList, getAlertStats, ackAlert, resolveAlert, getAlertGroup } from '@/api/alert'
+import { getAlertList, getAlertStats, ackAlert, resolveAlert, getAlertGroup, getAlertLabelKeys } from '@/api/alert'
 import type { Alert, AlertGroupItem, AlertStatsResponse } from '@/types/alert'
 import dayjs from 'dayjs'
 
@@ -360,12 +386,15 @@ const groupData = ref<AlertGroupItem[]>([])
 
 const stats = reactive<AlertStatsResponse>({ total: 0, firing: 0, resolved: 0, critical: 0, warning: 0, info: 0 })
 
+const labelFilters = reactive<Array<{ key: string; op: string; value: string }>>([])
+const labelKeyOptions = ref<string[]>([])
 const queryParams = reactive({
   page: 1, page_size: 20,
   status: undefined as 'firing' | 'resolved' | undefined,
   severity: undefined as 'critical' | 'warning' | 'info' | undefined,
   alert_name: undefined as string | undefined,
   issue_id: undefined as number | undefined,
+  label_filters: undefined as string | undefined,
 })
 
 const ackDialogVisible = ref(false)
@@ -415,9 +444,29 @@ const syncQueryToURL = () => {
   if (queryParams.severity) query.severity = queryParams.severity
   if (queryParams.alert_name) query.alert_name = queryParams.alert_name
   if (queryParams.issue_id) query.issue_id = String(queryParams.issue_id)
+  if (queryParams.label_filters) query.label_filters = queryParams.label_filters
   if (queryParams.page > 1) query.page = String(queryParams.page)
   if (queryParams.page_size !== 20) query.page_size = String(queryParams.page_size)
   router.replace({ query })
+}
+
+const addLabelFilter = () => {
+  labelFilters.push({ key: '', op: '==', value: '' })
+}
+
+const removeLabelFilter = (index: number) => {
+  labelFilters.splice(index, 1)
+  applyLabelFilters()
+}
+
+const applyLabelFilters = () => {
+  const parts = labelFilters
+    .filter(f => f.key && f.value)
+    .map(f => `${f.key}${f.op}${f.value}`)
+  queryParams.label_filters = parts.length > 0 ? parts.join(',') : undefined
+  queryParams.page = 1
+  syncQueryToURL()
+  viewMode.value === 'list' ? loadData() : loadGroupData()
 }
 
 const handleQuery = () => {
@@ -435,7 +484,8 @@ const handleStatClick = (status?: 'firing' | 'resolved', severity?: 'critical' |
 const handleReset = () => {
   queryParams.page = 1; queryParams.page_size = 20
   queryParams.status = undefined; queryParams.severity = undefined; queryParams.alert_name = undefined
-  queryParams.issue_id = undefined
+  queryParams.issue_id = undefined; queryParams.label_filters = undefined
+  labelFilters.splice(0, labelFilters.length)
   router.replace({ query: {} })
   viewMode.value === 'list' ? loadData() : loadGroupData()
 }
@@ -446,8 +496,22 @@ const handlePageChange = () => {
 }
 
 const handleViewModeChange = () => { viewMode.value === 'list' ? loadData() : loadGroupData() }
-const handleRowClick = (row: Alert) => { router.push(`/alerts/${row.id}`) }
-const handleViewDetail = (row: Alert) => { router.push(`/alerts/${row.id}`) }
+const handleRowClick = (row: Alert, _col: any, event: MouseEvent) => {
+  const path = `/alerts/${row.id}`
+  if (event.metaKey || event.ctrlKey) {
+    window.open(router.resolve(path).href, '_blank')
+  } else {
+    router.push(path)
+  }
+}
+const handleViewDetail = (row: Alert, event?: MouseEvent) => {
+  const path = `/alerts/${row.id}`
+  if (event && (event.metaKey || event.ctrlKey)) {
+    window.open(router.resolve(path).href, '_blank')
+  } else {
+    router.push(path)
+  }
+}
 
 const handleAck = (row: Alert) => { ackForm.id = row.id; ackForm.comment = ''; ackDialogVisible.value = true }
 const confirmAck = async () => {
@@ -492,11 +556,42 @@ onMounted(() => {
   if (q.severity) queryParams.severity = q.severity as typeof queryParams.severity
   if (q.alert_name) queryParams.alert_name = q.alert_name as string
   if (q.issue_id) queryParams.issue_id = Number(q.issue_id)
+  if (q.label_filters) {
+    queryParams.label_filters = q.label_filters as string
+    // 从 URL 还原标签筛选条件到结构化数组
+    const parts = (q.label_filters as string).split(',')
+    for (const part of parts) {
+      const trimmed = part.trim()
+      if (!trimmed) continue
+      let op = '=='
+      let idx = -1
+      for (const candidate of ['!~', '=~', '!=', '==']) {
+        idx = trimmed.indexOf(candidate)
+        if (idx > 0) { op = candidate; break }
+      }
+      if (idx > 0) {
+        labelFilters.push({
+          key: trimmed.substring(0, idx).trim(),
+          op,
+          value: trimmed.substring(idx + op.length).trim(),
+        })
+      }
+    }
+  }
   if (q.page) queryParams.page = Number(q.page)
   if (q.page_size) queryParams.page_size = Number(q.page_size)
 
-  loadData(); loadStats()
+  loadData(); loadStats(); loadLabelKeys()
 })
+
+const loadLabelKeys = async () => {
+  try {
+    const { data } = await getAlertLabelKeys()
+    labelKeyOptions.value = data.data || []
+  } catch (error) {
+    console.error('Failed to load label keys:', error)
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -806,6 +901,25 @@ onMounted(() => {
     }
 
     .dialog-tip { font-size: 14px; color: #6b7280; margin: 0; }
+  }
+}
+
+// 标签筛选面板
+.label-filter-panel {
+  .label-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .label-filter-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
   }
 }
 

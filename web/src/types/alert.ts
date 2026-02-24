@@ -31,6 +31,7 @@ export interface AlertListRequest {
   source?: string
   alert_name?: string
   issue_id?: number
+  label_filters?: string
 }
 
 export interface AlertListResponse {

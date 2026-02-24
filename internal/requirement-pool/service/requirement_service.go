@@ -6,12 +6,18 @@ import (
 	"fmt"
 	"strings"
 
+	issueDto "github.com/kerbos/ticketdesk/internal/core-issue/dto"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/dto"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/repository"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+// IssueCreator 工单创建接口（最小依赖，避免耦合完整 IssueService）
+type IssueCreator interface {
+	CreateIssue(ctx context.Context, req *issueDto.CreateIssueRequest, reporterID uint64) (*issueDto.IssueResponse, error)
+}
 
 // RequirementService 需求业务逻辑接口
 type RequirementService interface {
@@ -20,7 +26,7 @@ type RequirementService interface {
 	Update(ctx context.Context, id uint64, req *dto.UpdateRequirementRequest, userID uint64) error
 	Delete(ctx context.Context, id uint64, userID uint64) error
 	List(ctx context.Context, req *dto.RequirementListRequest) ([]*dto.RequirementResponse, int64, error)
-	ConvertToIssue(ctx context.Context, id uint64, req *dto.ConvertToIssueRequest, userID uint64) (*model.Issue, error)
+	ConvertToIssue(ctx context.Context, id uint64, req *dto.ConvertToIssueRequest, userID uint64) (*dto.ConvertToIssueResponse, error)
 	AddComment(ctx context.Context, id uint64, req *dto.RequirementCommentRequest, userID uint64) (*dto.RequirementCommentResponse, error)
 	GetKanban(ctx context.Context, req *dto.KanbanRequest) (*dto.KanbanResponse, error)
 	GetReport(ctx context.Context, req *dto.ReportRequest) (*dto.ReportResponse, error)
@@ -32,6 +38,12 @@ type requirementService struct {
 	poolRepo   repository.RequirementPoolRepository
 	db         *gorm.DB
 	logger     *zap.Logger
+	issueSvc   IssueCreator
+}
+
+// SetIssueCreator 注入工单创建服务（setter 注入，避免循环依赖）
+func (s *requirementService) SetIssueCreator(ic IssueCreator) {
+	s.issueSvc = ic
 }
 
 // NewRequirementService 创建需求业务逻辑实例
@@ -262,8 +274,12 @@ func (s *requirementService) List(ctx context.Context, req *dto.RequirementListR
 	return responses, total, nil
 }
 
-// ConvertToIssue 转化为工单
-func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req *dto.ConvertToIssueRequest, userID uint64) (*model.Issue, error) {
+// ConvertToIssue 转化为工单（通过 IssueService.CreateIssue 走标准建单流程）
+func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req *dto.ConvertToIssueRequest, userID uint64) (*dto.ConvertToIssueResponse, error) {
+	if s.issueSvc == nil {
+		return nil, errors.New("工单创建服务未初始化")
+	}
+
 	requirement, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -272,7 +288,7 @@ func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req 
 		return nil, fmt.Errorf("获取需求失败: %w", err)
 	}
 
-	// 只有终态不允许转化
+	// 终态不允许转化
 	if requirement.Status == model.RequirementStatusCompleted {
 		return nil, errors.New("已完成的需求不能转化为工单")
 	}
@@ -280,86 +296,75 @@ func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req 
 		return nil, errors.New("已拒绝的需求不能转化为工单")
 	}
 
-	// 使用事务
-	var issue *model.Issue
+	// 已转化的不允许再次转化
+	if requirement.ConvertedIssueID != nil {
+		return nil, errors.New("该需求已转化为工单，不允许重复转化")
+	}
+
+	// 通过 IssueService 标准流程创建工单（包含工作流实例、关注人、通知等）
+	issueReq := &issueDto.CreateIssueRequest{
+		ProjectKey:  req.ProjectKey,
+		IssueTypeID: req.IssueTypeID,
+		Title:       requirement.Title,
+		Description: requirement.Description,
+		Priority:    string(requirement.Priority),
+		AssigneeID:  req.AssigneeID,
+	}
+
+	issueResp, err := s.issueSvc.CreateIssue(ctx, issueReq, userID)
+	if err != nil {
+		s.logger.Error("failed to create issue from requirement",
+			zap.Error(err),
+			zap.Uint64("requirement_id", id),
+			zap.Uint64("user_id", userID),
+		)
+		return nil, fmt.Errorf("创建工单失败: %w", err)
+	}
+
+	// 事务中更新需求状态和关联
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		// 获取项目信息
-		var project model.Project
-		if err := tx.First(&project, req.ProjectID).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("项目不存在")
-			}
-			return fmt.Errorf("查询项目失败: %w", err)
+		// 构造只更新变化字段的 map，避免 Save 写回全部列
+		updates := map[string]interface{}{
+			"converted_issue_id": issueResp.ID,
 		}
 
-		// 生成工单编号
-		var maxNum int64
-		if err := tx.Model(&model.Issue{}).
-			Where("project_id = ?", req.ProjectID).
-			Count(&maxNum).Error; err != nil {
-			return fmt.Errorf("生成工单编号失败: %w", err)
-		}
-		nextNum := maxNum + 1
-		issueKey := fmt.Sprintf("%s-%d", project.ProjectKey, nextNum)
-
-		// 创建工单
-		issue = &model.Issue{
-			IssueKey:    issueKey,
-			ProjectID:   req.ProjectID,
-			IssueTypeID: req.IssueTypeID,
-			Title:       requirement.Title,
-			Description: requirement.Description,
-			Priority:    string(requirement.Priority),
-			Status:      "open",
-			AssigneeID:  req.AssigneeID,
-			ReporterID:  userID,
+		// 非终态且非 in_progress 的需求自动流转到 in_progress
+		if requirement.Status == model.RequirementStatusPendingReview ||
+			requirement.Status == model.RequirementStatusPlanning ||
+			requirement.Status == model.RequirementStatusOnHold {
+			updates["status"] = model.RequirementStatusInProgress
+			requirement.Status = model.RequirementStatusInProgress
 		}
 
-		if err := tx.Create(issue).Error; err != nil {
-			return fmt.Errorf("创建工单失败: %w", err)
-		}
-
-		// 记录转化关联，但不改变需求状态
-		requirement.ConvertedIssueID = &issue.ID
-		if err := tx.Save(requirement).Error; err != nil {
+		if err := tx.Model(requirement).Updates(updates).Error; err != nil {
 			return fmt.Errorf("更新需求关联失败: %w", err)
 		}
 
-		// 获取用户信息用于活动记录
+		// 创建需求侧活动记录（工单侧由 IssueService 内部处理）
 		var user model.User
 		if err := tx.First(&user, userID).Error; err == nil {
-			// 创建需求活动记录
-			requirementActivity := &model.ActivityLog{
+			activity := &model.ActivityLog{
 				UserID:     userID,
 				UserName:   user.Username,
 				Action:     "converted",
 				EntityType: "requirement",
 				EntityID:   requirement.ID,
 				EntityKey:  requirement.Title,
-				Details:    fmt.Sprintf(`{"issue_id":%d,"issue_key":"%s","message":"需求已转化为工单 %s"}`, issue.ID, issue.IssueKey, issue.IssueKey),
+				Details:    fmt.Sprintf(`{"issue_id":%d,"issue_key":"%s","message":"需求已转化为工单 %s"}`, issueResp.ID, issueResp.IssueKey, issueResp.IssueKey),
 			}
-			tx.Create(requirementActivity)
-
-			// 创建工单活动记录
-			issueActivity := &model.ActivityLog{
-				UserID:     userID,
-				UserName:   user.Username,
-				Action:     "created",
-				EntityType: "issue",
-				EntityID:   issue.ID,
-				EntityKey:  issue.IssueKey,
-				Details:    fmt.Sprintf(`{"requirement_id":%d,"message":"工单由需求「%s」转化创建"}`, requirement.ID, requirement.Title),
+			if err := tx.Create(activity).Error; err != nil {
+				s.logger.Warn("failed to create requirement activity log", zap.Error(err))
 			}
-			tx.Create(issueActivity)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		s.logger.Error("failed to convert requirement to issue",
+		s.logger.Error("failed to update requirement after issue creation",
 			zap.Error(err),
 			zap.Uint64("requirement_id", id),
+			zap.Uint64("issue_id", issueResp.ID),
 			zap.Uint64("user_id", userID),
 		)
 		return nil, err
@@ -367,12 +372,15 @@ func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req 
 
 	s.logger.Info("requirement converted to issue",
 		zap.Uint64("requirement_id", id),
-		zap.Uint64("issue_id", issue.ID),
-		zap.String("issue_key", issue.IssueKey),
+		zap.Uint64("issue_id", issueResp.ID),
+		zap.String("issue_key", issueResp.IssueKey),
 		zap.Uint64("user_id", userID),
 	)
 
-	return issue, nil
+	return &dto.ConvertToIssueResponse{
+		IssueID:  issueResp.ID,
+		IssueKey: issueResp.IssueKey,
+	}, nil
 }
 
 // AddComment 添加评论
