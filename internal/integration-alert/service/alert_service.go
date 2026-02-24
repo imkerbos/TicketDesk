@@ -607,6 +607,11 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 
 	// 如果工单已经是终态，不需要处理
 	if issue.Status == "resolved" || issue.Status == "closed" || issue.Status == "merged" || issue.Status == "pending_review" {
+		logger.Info("autoUpdateIssueOnRecovery: issue already in terminal status, skipping",
+			zap.Uint64("issue_id", issueID),
+			zap.String("current_status", issue.Status),
+			zap.Bool("auto_resolve", autoResolve),
+		)
 		return nil
 	}
 
@@ -618,6 +623,9 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 		if err := s.issueRepo.Update(ctx, issue); err != nil {
 			return fmt.Errorf("failed to update issue status: %w", err)
 		}
+
+		// 同步完成工作流实例，避免工单状态与工作流状态不一致
+		s.forceCompleteWorkflow(ctx, issueID)
 
 		commentContent := "告警已自动恢复，工单已自动关闭"
 		if err := s.addSystemComment(ctx, issueID, commentContent); err != nil {
@@ -650,6 +658,30 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 	}
 
 	return nil
+}
+
+// forceCompleteWorkflow 强制完成工单关联的工作流实例
+// 当告警恢复自动关闭工单时，需要同步完成工作流，避免工单"已完成"但工作流仍"进行中"的不一致
+func (s *alertService) forceCompleteWorkflow(ctx context.Context, issueID uint64) {
+	now := time.Now()
+	result := s.db.WithContext(ctx).
+		Model(&model.WorkflowInstance{}).
+		Where("issue_id = ? AND status = ?", issueID, "active").
+		Updates(map[string]interface{}{
+			"status":       "completed",
+			"completed_at": now,
+			"updated_at":   now,
+		})
+	if result.Error != nil {
+		logger.Warn("failed to force-complete workflow instance on alert recovery",
+			zap.Uint64("issue_id", issueID),
+			zap.Error(result.Error),
+		)
+	} else if result.RowsAffected > 0 {
+		logger.Info("workflow instance force-completed by alert recovery",
+			zap.Uint64("issue_id", issueID),
+		)
+	}
 }
 
 // TryAutoResolveIssue 检查工单关联的所有告警是否都已恢复，如果是则根据规则设置更新工单状态
@@ -685,6 +717,13 @@ func (s *alertService) TryAutoResolveIssue(ctx context.Context, issueID uint64) 
 		}
 		if rule != nil {
 			matchedAny = true
+			logger.Info("TryAutoResolveIssue: matched rule",
+				zap.Uint64("issue_id", issueID),
+				zap.Uint64("alert_id", a.ID),
+				zap.Uint64("rule_id", rule.ID),
+				zap.String("rule_name", rule.Name),
+				zap.Bool("rule_auto_resolve", rule.AutoResolve),
+			)
 			if rule.AutoResolve {
 				autoResolve = true
 				break // 只要有一条规则是 AutoResolve=true，就自动关闭
