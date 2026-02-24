@@ -644,6 +644,9 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 			return fmt.Errorf("failed to update issue status: %w", err)
 		}
 
+		// 同步工作流实例为验收中，告警已恢复，等待处理人确认是否关闭工单
+		s.setWorkflowReviewing(ctx, issueID)
+
 		commentContent := fmt.Sprintf("告警已自动恢复于 %s，请确认是否可以关闭工单", now.Format("15:04"))
 		if err := s.addSystemComment(ctx, issueID, commentContent); err != nil {
 			logger.Error("failed to add system comment for pending_review",
@@ -666,7 +669,7 @@ func (s *alertService) forceCompleteWorkflow(ctx context.Context, issueID uint64
 	now := time.Now()
 	result := s.db.WithContext(ctx).
 		Model(&model.WorkflowInstance{}).
-		Where("issue_id = ? AND status = ?", issueID, "active").
+		Where("issue_id = ? AND status IN ?", issueID, []string{"active", "reviewing"}).
 		Updates(map[string]interface{}{
 			"status":       "completed",
 			"completed_at": now,
@@ -679,6 +682,29 @@ func (s *alertService) forceCompleteWorkflow(ctx context.Context, issueID uint64
 		)
 	} else if result.RowsAffected > 0 {
 		logger.Info("workflow instance force-completed by alert recovery",
+			zap.Uint64("issue_id", issueID),
+		)
+	}
+}
+
+// setWorkflowReviewing 将工作流实例设为验收中
+// 告警恢复但未自动关单时，工作流进入验收状态，等待处理人确认
+func (s *alertService) setWorkflowReviewing(ctx context.Context, issueID uint64) {
+	now := time.Now()
+	result := s.db.WithContext(ctx).
+		Model(&model.WorkflowInstance{}).
+		Where("issue_id = ? AND status = ?", issueID, "active").
+		Updates(map[string]interface{}{
+			"status":     "reviewing",
+			"updated_at": now,
+		})
+	if result.Error != nil {
+		logger.Warn("failed to set workflow instance to reviewing",
+			zap.Uint64("issue_id", issueID),
+			zap.Error(result.Error),
+		)
+	} else if result.RowsAffected > 0 {
+		logger.Info("workflow instance set to reviewing by alert recovery",
 			zap.Uint64("issue_id", issueID),
 		)
 	}

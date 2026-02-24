@@ -444,7 +444,7 @@ type WorkflowInstance struct {
 	IssueID       uint64     `gorm:"not null;uniqueIndex" json:"issue_id"`
 	WorkflowID    uint64     `gorm:"not null;index" json:"workflow_id"`
 	CurrentNodeID uint64     `gorm:"not null;index" json:"current_node_id"`
-	Status        string     `gorm:"size:20;not null;index" json:"status"` // active, completed, cancelled
+	Status        string     `gorm:"size:20;not null;index" json:"status"` // active, completed, cancelled, reviewing
 	StartedAt     time.Time  `gorm:"not null" json:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at,omitempty"`
 }

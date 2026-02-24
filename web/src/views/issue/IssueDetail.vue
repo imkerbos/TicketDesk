@@ -89,7 +89,7 @@
                 <!-- 工作流已结束提示 -->
                 <template v-else-if="workflowInstance.status !== 'active'">
                   <el-dropdown-item disabled>
-                    工作流已{{ workflowInstance.status === 'completed' ? '完成' : '取消' }}
+                    工作流{{ workflowInstance.status === 'completed' ? '已完成' : workflowInstance.status === 'reviewing' ? '验收中' : '已取消' }}
                   </el-dropdown-item>
                 </template>
                 <el-dropdown-item divided command="view-workflow">
@@ -1383,7 +1383,8 @@ const canOperateWorkflow = computed(() => {
 const workflowActionBtnText = computed(() => {
   if (!workflowInstance.value) return '工作流'
   if (workflowInstance.value.status !== 'active') {
-    return workflowInstance.value.status === 'completed' ? '已完成' : '已取消'
+    const statusMap: Record<string, string> = { completed: '已完成', reviewing: '验收中', cancelled: '已取消' }
+    return statusMap[workflowInstance.value.status] || '已取消'
   }
   const nodeName = workflowInstance.value.current_node?.name || '当前节点'
   return nodeName
@@ -1558,6 +1559,7 @@ const getWorkflowStatusText = (status: string) => {
     active: '进行中',
     completed: '已完成',
     cancelled: '已取消',
+    reviewing: '验收中',
   }
   return map[status] || status
 }
@@ -1567,6 +1569,7 @@ const getWorkflowStatusType = (status: string): 'success' | 'info' | 'warning' |
     active: 'warning',
     completed: 'success',
     cancelled: 'info',
+    reviewing: 'warning',
   }
   return map[status] || 'info'
 }
