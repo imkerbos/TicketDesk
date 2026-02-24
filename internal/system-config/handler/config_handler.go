@@ -186,6 +186,36 @@ func (h *ConfigHandler) HandleUpdateSecurityConfig(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+// ============ 限流配置 ============
+
+// HandleGetRateLimitConfig 获取限流配置
+func (h *ConfigHandler) HandleGetRateLimitConfig(c *gin.Context) {
+	config, err := h.configService.GetRateLimitConfig(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, config)
+}
+
+// HandleUpdateRateLimitConfig 更新限流配置
+func (h *ConfigHandler) HandleUpdateRateLimitConfig(c *gin.Context) {
+	var req dto.UpdateRateLimitConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+	if err := h.configService.UpdateRateLimitConfig(c.Request.Context(), &req, userID); err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // ============ Webhook 管理 ============
 
 // HandleCreateWebhook 创建 Webhook

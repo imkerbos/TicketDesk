@@ -16,9 +16,20 @@ import (
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
+	"github.com/kerbos/ticketdesk/pkg/cache"
 	"github.com/kerbos/ticketdesk/pkg/logger"
+	"github.com/kerbos/ticketdesk/pkg/sequence"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+)
+
+// 缓存 Key 常量
+const (
+	cacheKeyEnabledRules = "alert:rules:enabled"
+	cacheKeyFingerprintFmt = "alert:fp:%s"
+
+	cacheTTLRules       = 5 * time.Minute
+	cacheTTLFingerprint = 10 * time.Minute
 )
 
 // AlertService 告警服务接口
@@ -185,6 +196,55 @@ func (s *alertService) HandleNightingaleWebhookWithSource(ctx context.Context, e
 	return nil
 }
 
+// getCachedEnabledRules 获取启用的告警规则（优先从缓存读取）
+func (s *alertService) getCachedEnabledRules(ctx context.Context) ([]*model.AlertRule, error) {
+	var rules []*model.AlertRule
+	if cache.GetJSON(ctx, cacheKeyEnabledRules, &rules) {
+		return rules, nil
+	}
+
+	// 缓存未命中，从 DB 查询
+	rules, err := s.alertRuleRepo.ListEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cache.SetJSON(ctx, cacheKeyEnabledRules, rules, cacheTTLRules)
+	return rules, nil
+}
+
+// getCachedAlertByFingerprint 按指纹获取告警（优先从缓存读取）
+func (s *alertService) getCachedAlertByFingerprint(ctx context.Context, fingerprint string) (*model.Alert, error) {
+	key := fmt.Sprintf(cacheKeyFingerprintFmt, fingerprint)
+
+	var alert model.Alert
+	if cache.GetJSON(ctx, key, &alert) {
+		return &alert, nil
+	}
+
+	// 缓存未命中，从 DB 查询
+	dbAlert, err := s.alertRepo.GetByFingerprint(ctx, fingerprint)
+	if err != nil {
+		return nil, err
+	}
+
+	// 只缓存已存在的告警，不缓存 miss
+	if dbAlert != nil {
+		cache.SetJSON(ctx, key, dbAlert, cacheTTLFingerprint)
+	}
+	return dbAlert, nil
+}
+
+// invalidateRulesCache 失效告警规则缓存
+func (s *alertService) invalidateRulesCache(ctx context.Context) {
+	cache.Del(ctx, cacheKeyEnabledRules)
+}
+
+// invalidateFingerprintCache 失效指纹缓存
+func (s *alertService) invalidateFingerprintCache(ctx context.Context, fingerprint string) {
+	cache.Del(ctx, fmt.Sprintf(cacheKeyFingerprintFmt, fingerprint))
+}
+
 // processAlertWithSource 处理单个告警（带来源参数）
 func (s *alertService) processAlertWithSource(ctx context.Context, alertItem *dto.AlertWebhookAlertItem, source string) error {
 	// 1. 检查告警是否被静默
@@ -203,8 +263,8 @@ func (s *alertService) processAlertWithSource(ctx context.Context, alertItem *dt
 		fingerprint = s.calculateFingerprint(alertItem.Labels)
 	}
 
-	// 3. 查询是否已存在该告警
-	existingAlert, err := s.alertRepo.GetByFingerprint(ctx, fingerprint)
+	// 3. 查询是否已存在该告警（优先从缓存获取）
+	existingAlert, err := s.getCachedAlertByFingerprint(ctx, fingerprint)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return fmt.Errorf("failed to get alert by fingerprint: %w", err)
 	}
@@ -241,6 +301,9 @@ func (s *alertService) calculateFingerprint(labels map[string]string) string {
 
 // updateExistingAlert 更新已存在的告警
 func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Alert, alertItem *dto.AlertWebhookAlertItem) error {
+	// 失效指纹缓存（状态变更后下次查询需从 DB 获取最新数据）
+	s.invalidateFingerprintCache(ctx, alert.Fingerprint)
+
 	// 更新告警状态
 	oldStatus := alert.Status
 	alert.Status = alertItem.Status
@@ -311,6 +374,9 @@ func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, a
 		return fmt.Errorf("failed to create alert: %w", err)
 	}
 
+	// 写入指纹缓存
+	cache.SetJSON(ctx, fmt.Sprintf(cacheKeyFingerprintFmt, fingerprint), alert, cacheTTLFingerprint)
+
 	// 尝试自动建单
 	if err := s.tryAutoCreateIssue(ctx, alert); err != nil {
 		logger.Error("failed to auto create issue",
@@ -325,8 +391,8 @@ func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, a
 
 // tryAutoCreateIssue 尝试自动建单
 func (s *alertService) tryAutoCreateIssue(ctx context.Context, alert *model.Alert) error {
-	// 获取所有启用的告警规则
-	rules, err := s.alertRuleRepo.ListEnabled(ctx)
+	// 获取所有启用的告警规则（优先从缓存获取）
+	rules, err := s.getCachedEnabledRules(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list enabled rules: %w", err)
 	}
@@ -507,22 +573,29 @@ func (s *alertService) buildIssueDescription(
 	return desc.String()
 }
 
-// generateIssueKey 生成工单 Key
+// generateIssueKey 生成工单 Key（优先使用 Redis 原子计数器）
 func (s *alertService) generateIssueKey(ctx context.Context, projectKey string) (string, error) {
-	// 查询该项目下最新的工单序号（包含软删除的记录，避免 key 冲突）
-	var maxSeq int
-	err := s.db.WithContext(ctx).
-		Unscoped().
-		Model(&model.Issue{}).
-		Where("issue_key LIKE ?", projectKey+"-%").
-		Select("COALESCE(MAX(CAST(SUBSTRING(issue_key, LENGTH(?) + 2) AS UNSIGNED)), 0)", projectKey).
-		Scan(&maxSeq).Error
+	// DB 降级回调：从数据库查询当前最大序号
+	dbFallback := func(ctx context.Context, pKey string) (int64, error) {
+		var maxSeq int
+		err := s.db.WithContext(ctx).
+			Unscoped().
+			Model(&model.Issue{}).
+			Where("issue_key LIKE ?", pKey+"-%").
+			Select("COALESCE(MAX(CAST(SUBSTRING(issue_key, LENGTH(?) + 2) AS UNSIGNED)), 0)", pKey).
+			Scan(&maxSeq).Error
+		if err != nil {
+			return 0, err
+		}
+		return int64(maxSeq) + 1, nil
+	}
 
+	nextNum, err := sequence.NextIssueNumber(ctx, projectKey, dbFallback)
 	if err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("%s-%d", projectKey, maxSeq+1), nil
+	return fmt.Sprintf("%s-%d", projectKey, nextNum), nil
 }
 
 // appendAlertToIssue 合并告警时追加实例信息到工单
@@ -779,7 +852,7 @@ func (s *alertService) TryAutoResolveIssue(ctx context.Context, issueID uint64) 
 
 // getMatchedRule 获取匹配的告警规则
 func (s *alertService) getMatchedRule(ctx context.Context, alert *model.Alert) (*model.AlertRule, error) {
-	rules, err := s.alertRuleRepo.ListEnabled(ctx)
+	rules, err := s.getCachedEnabledRules(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1029,6 +1102,7 @@ func (s *alertService) CreateAlertRule(ctx context.Context, req *dto.CreateAlert
 		return nil, err
 	}
 
+	s.invalidateRulesCache(ctx)
 	return s.GetAlertRule(ctx, rule.ID)
 }
 
@@ -1083,12 +1157,17 @@ func (s *alertService) UpdateAlertRule(ctx context.Context, id uint64, req *dto.
 		return nil, err
 	}
 
+	s.invalidateRulesCache(ctx)
 	return s.GetAlertRule(ctx, id)
 }
 
 // DeleteAlertRule 删除告警规则
 func (s *alertService) DeleteAlertRule(ctx context.Context, id uint64) error {
-	return s.alertRuleRepo.Delete(ctx, id)
+	if err := s.alertRuleRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.invalidateRulesCache(ctx)
+	return nil
 }
 
 // ListAlertRules 获取告警规则列表

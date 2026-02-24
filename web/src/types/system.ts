@@ -98,6 +98,15 @@ export const WebhookEvents = [
 
 export type WebhookEventType = typeof WebhookEvents[number]['value']
 
+// ============ 限流配置 ============
+
+// 限流配置
+export interface RateLimitConfig {
+  webhook_limit: number
+  auth_limit: number
+  api_limit: number
+}
+
 // ============ 飞书配置 ============
 
 // 飞书配置

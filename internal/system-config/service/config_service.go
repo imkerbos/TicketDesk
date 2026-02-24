@@ -25,8 +25,9 @@ const (
 	CategoryWebhook  = "webhook"
 	CategorySecurity = "security"
 	CategoryGeneral  = "general"
-	CategoryLark     = "lark"
-	CategoryTelegram = "telegram"
+	CategoryLark      = "lark"
+	CategoryTelegram  = "telegram"
+	CategoryRateLimit = "ratelimit"
 )
 
 // 配置键常量
@@ -61,6 +62,11 @@ const (
 	KeyTelegramEnabled  = "telegram.enabled"
 	KeyTelegramBotToken = "telegram.bot_token"
 	KeyTelegramChatID   = "telegram.chat_id"
+
+	// 限流配置键
+	KeyRateLimitWebhook = "ratelimit.webhook_limit" // 默认 100
+	KeyRateLimitAuth    = "ratelimit.auth_limit"     // 默认 20
+	KeyRateLimitAPI     = "ratelimit.api_limit"      // 默认 300
 )
 
 // 业务错误定义
@@ -94,6 +100,10 @@ type ConfigService interface {
 	// Telegram 配置
 	GetTelegramConfig(ctx context.Context) (*dto.TelegramConfig, error)
 	UpdateTelegramConfig(ctx context.Context, req *dto.UpdateTelegramConfigRequest, userID uint64) error
+
+	// 限流配置
+	GetRateLimitConfig(ctx context.Context) (*dto.RateLimitConfig, error)
+	UpdateRateLimitConfig(ctx context.Context, req *dto.UpdateRateLimitConfigRequest, userID uint64) error
 
 	// Webhook 管理
 	CreateWebhook(ctx context.Context, req *dto.CreateWebhookRequest, userID uint64) (*dto.WebhookResponse, error)
@@ -586,6 +596,93 @@ func (s *configService) UpdateTelegramConfig(ctx context.Context, req *dto.Updat
 	s.InvalidateAllCache(ctx)
 
 	logger.Info("telegram config updated", zap.Uint64("updated_by", userID))
+
+	return nil
+}
+
+// ============ 限流配置 ============
+
+// GetRateLimitConfig 获取限流配置
+func (s *configService) GetRateLimitConfig(ctx context.Context) (*dto.RateLimitConfig, error) {
+	configs, err := s.configRepo.GetByCategory(ctx, CategoryRateLimit)
+	if err != nil {
+		return nil, fmt.Errorf("获取限流配置失败: %w", err)
+	}
+
+	// 默认值
+	config := &dto.RateLimitConfig{
+		WebhookLimit: 100,
+		AuthLimit:    20,
+		APILimit:     300,
+	}
+
+	for _, c := range configs {
+		switch c.ConfigKey {
+		case KeyRateLimitWebhook:
+			if v, err := strconv.Atoi(c.ConfigValue); err == nil {
+				config.WebhookLimit = v
+			}
+		case KeyRateLimitAuth:
+			if v, err := strconv.Atoi(c.ConfigValue); err == nil {
+				config.AuthLimit = v
+			}
+		case KeyRateLimitAPI:
+			if v, err := strconv.Atoi(c.ConfigValue); err == nil {
+				config.APILimit = v
+			}
+		}
+	}
+
+	return config, nil
+}
+
+// UpdateRateLimitConfig 更新限流配置
+func (s *configService) UpdateRateLimitConfig(ctx context.Context, req *dto.UpdateRateLimitConfigRequest, userID uint64) error {
+	var configs []*model.SystemConfig
+
+	if req.WebhookLimit != nil {
+		configs = append(configs, &model.SystemConfig{
+			ConfigKey:   KeyRateLimitWebhook,
+			ConfigValue: strconv.Itoa(*req.WebhookLimit),
+			ConfigType:  "number",
+			Category:    CategoryRateLimit,
+			Description: "Webhook 接口每 IP 每分钟最大请求数",
+			UpdatedBy:   &userID,
+		})
+	}
+
+	if req.AuthLimit != nil {
+		configs = append(configs, &model.SystemConfig{
+			ConfigKey:   KeyRateLimitAuth,
+			ConfigValue: strconv.Itoa(*req.AuthLimit),
+			ConfigType:  "number",
+			Category:    CategoryRateLimit,
+			Description: "认证接口每 IP 每分钟最大请求数",
+			UpdatedBy:   &userID,
+		})
+	}
+
+	if req.APILimit != nil {
+		configs = append(configs, &model.SystemConfig{
+			ConfigKey:   KeyRateLimitAPI,
+			ConfigValue: strconv.Itoa(*req.APILimit),
+			ConfigType:  "number",
+			Category:    CategoryRateLimit,
+			Description: "全局 API 每 IP 每分钟最大请求数",
+			UpdatedBy:   &userID,
+		})
+	}
+
+	if len(configs) > 0 {
+		if err := s.configRepo.BatchUpsert(ctx, configs); err != nil {
+			return fmt.Errorf("更新限流配置失败: %w", err)
+		}
+	}
+
+	// 清除缓存
+	s.InvalidateAllCache(ctx)
+
+	logger.Info("ratelimit config updated", zap.Uint64("updated_by", userID))
 
 	return nil
 }

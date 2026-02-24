@@ -3,6 +3,7 @@ import type {
   SystemConfig,
   EmailConfig,
   SecurityConfig,
+  RateLimitConfig,
   LarkConfig,
   UpdateLarkConfigRequest,
   TelegramConfig,
@@ -74,6 +75,18 @@ export function getSecurityConfig() {
 // 更新安全配置
 export function updateSecurityConfig(config: Partial<SecurityConfig>) {
   return request.put('/system/security', config)
+}
+
+// ============ 限流配置 ============
+
+// 获取限流配置
+export function getRateLimitConfig() {
+  return request.get<{ data: RateLimitConfig }>('/system/ratelimit')
+}
+
+// 更新限流配置
+export function updateRateLimitConfig(config: Partial<RateLimitConfig>) {
+  return request.put('/system/ratelimit', config)
 }
 
 // ============ Webhook 管理 ============

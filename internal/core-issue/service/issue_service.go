@@ -15,6 +15,7 @@ import (
 	userRepo "github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
+	"github.com/kerbos/ticketdesk/pkg/sequence"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -296,8 +297,11 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		}
 	}
 
-	// 生成工单 Key
-	nextNum, err := s.issueRepo.GetNextIssueNumber(ctx, project.ID)
+	// 生成工单 Key（优先使用 Redis 原子计数器）
+	dbFallback := func(ctx context.Context, pKey string) (int64, error) {
+		return s.issueRepo.GetNextIssueNumber(ctx, project.ID)
+	}
+	nextNum, err := sequence.NextIssueNumber(ctx, project.ProjectKey, dbFallback)
 	if err != nil {
 		return nil, fmt.Errorf("生成工单编号失败: %w", err)
 	}

@@ -78,6 +78,7 @@ type Router struct {
 	datasourceHandler      *alertHandler.DatasourceHandler
 	datasourceService      alertService.DatasourceService
 	notifChannelHandler    *projectHandler.NotificationChannelHandler
+	configSvc              configService.ConfigService
 }
 
 // NewRouter 创建路由管理器
@@ -368,6 +369,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		datasourceHandler:      datasourceHdl,
 		datasourceService:      datasourceSvc,
 		notifChannelHandler:    notifChannelHdl,
+		configSvc:              configSvc,
 	}
 }
 
@@ -437,6 +439,13 @@ func healthCheck(c *gin.Context) {
 // registerPublicRoutes 注册公开路由（无需认证）
 func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 	auth := rg.Group("/auth")
+	auth.Use(middleware.RateLimitMiddleware(middleware.RateLimitConfig{
+		KeyPrefix: "rl:auth",
+		Limit:     20,
+		Window:    1 * time.Minute,
+		ConfigKey: "ratelimit.auth_limit",
+		ConfigSvc: r.configSvc,
+	}))
 	{
 		auth.POST("/login", r.userHandler.HandleLogin)
 		auth.POST("/register", r.userHandler.HandleRegister)
@@ -450,6 +459,13 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 
 	// 告警 Webhook（无需认证）
 	alerts := rg.Group("/alerts")
+	alerts.Use(middleware.RateLimitMiddleware(middleware.RateLimitConfig{
+		KeyPrefix: "rl:webhook",
+		Limit:     100,
+		Window:    1 * time.Minute,
+		ConfigKey: "ratelimit.webhook_limit",
+		ConfigSvc: r.configSvc,
+	}))
 	{
 		alerts.POST("/webhook", r.alertHandler.HandleWebhook)
 		alerts.POST("/nightingale", r.alertHandler.HandleNightingaleWebhook)
@@ -460,6 +476,13 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 // registerProtectedRoutes 注册需要认证的路由
 func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 	protected := rg.Group("")
+	protected.Use(middleware.RateLimitMiddleware(middleware.RateLimitConfig{
+		KeyPrefix: "rl:api",
+		Limit:     300,
+		Window:    1 * time.Minute,
+		ConfigKey: "ratelimit.api_limit",
+		ConfigSvc: r.configSvc,
+	}))
 	protected.Use(middleware.AuthMiddleware(r.jwtManager))
 	protected.Use(r.rbac.LoadUserRoles())
 	{
@@ -776,6 +799,14 @@ func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
 	{
 		security.GET("", r.configHandler.HandleGetSecurityConfig)
 		security.PUT("", r.configHandler.HandleUpdateSecurityConfig)
+	}
+
+	// 限流配置（需要管理员权限）
+	ratelimit := rg.Group("/system/ratelimit")
+	ratelimit.Use(r.rbac.RequireAdmin())
+	{
+		ratelimit.GET("", r.configHandler.HandleGetRateLimitConfig)
+		ratelimit.PUT("", r.configHandler.HandleUpdateRateLimitConfig)
 	}
 
 	// Webhook 管理（需要管理员权限）

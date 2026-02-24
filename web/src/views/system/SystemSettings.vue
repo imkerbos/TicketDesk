@@ -338,6 +338,108 @@
           </el-button>
         </div>
       </el-tab-pane>
+
+      <!-- 限流配置 -->
+      <el-tab-pane label="限流配置" name="ratelimit">
+        <el-row :gutter="20">
+          <!-- Webhook 限流 -->
+          <el-col :xs="24" :lg="8">
+            <el-card shadow="never" class="setting-block">
+              <div class="block-header">
+                <div class="block-icon webhook-rl-icon">
+                  <el-icon><Connection /></el-icon>
+                </div>
+                <div class="block-title">
+                  <span class="title">Webhook 限流</span>
+                  <span class="desc">告警 Webhook 接口限流</span>
+                </div>
+              </div>
+              <div class="block-content">
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <span class="setting-label">每 IP 每分钟最大请求数</span>
+                    <span class="setting-desc">范围：10 - 10,000</span>
+                  </div>
+                  <el-input-number
+                    v-model="rateLimitForm.webhook_limit"
+                    :min="10"
+                    :max="10000"
+                    size="small"
+                    controls-position="right"
+                  />
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+
+          <!-- 认证限流 -->
+          <el-col :xs="24" :lg="8">
+            <el-card shadow="never" class="setting-block">
+              <div class="block-header">
+                <div class="block-icon auth-rl-icon">
+                  <el-icon><UserFilled /></el-icon>
+                </div>
+                <div class="block-title">
+                  <span class="title">认证限流</span>
+                  <span class="desc">登录/注册接口限流</span>
+                </div>
+              </div>
+              <div class="block-content">
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <span class="setting-label">每 IP 每分钟最大请求数</span>
+                    <span class="setting-desc">范围：5 - 1,000</span>
+                  </div>
+                  <el-input-number
+                    v-model="rateLimitForm.auth_limit"
+                    :min="5"
+                    :max="1000"
+                    size="small"
+                    controls-position="right"
+                  />
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+
+          <!-- API 全局限流 -->
+          <el-col :xs="24" :lg="8">
+            <el-card shadow="never" class="setting-block">
+              <div class="block-header">
+                <div class="block-icon api-rl-icon">
+                  <el-icon><DataLine /></el-icon>
+                </div>
+                <div class="block-title">
+                  <span class="title">API 全局限流</span>
+                  <span class="desc">所有认证接口限流</span>
+                </div>
+              </div>
+              <div class="block-content">
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <span class="setting-label">每 IP 每分钟最大请求数</span>
+                    <span class="setting-desc">范围：50 - 50,000</span>
+                  </div>
+                  <el-input-number
+                    v-model="rateLimitForm.api_limit"
+                    :min="50"
+                    :max="50000"
+                    size="small"
+                    controls-position="right"
+                  />
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <div class="action-bar">
+          <el-button type="primary" :loading="rateLimitSaving" @click="saveRateLimitConfig">
+            <el-icon><Check /></el-icon>
+            保存限流配置
+          </el-button>
+        </div>
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 测试邮件对话框 -->
@@ -363,13 +465,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
   Message, Lock, Check, Promotion, InfoFilled,
-  Key, Timer, Monitor, User, Setting, Link
+  Key, Timer, Monitor, User, Setting, Link,
+  Connection, UserFilled, DataLine
 } from '@element-plus/icons-vue'
 import {
   getEmailConfig,
   updateEmailConfig,
   getSecurityConfig,
   updateSecurityConfig,
+  getRateLimitConfig,
+  updateRateLimitConfig,
   getConfig,
   updateConfig,
 } from '@/api/system'
@@ -549,11 +654,41 @@ const saveSecurityConfig = async () => {
   }
 }
 
+// ============ 限流配置 ============
+const rateLimitSaving = ref(false)
+const rateLimitForm = reactive({
+  webhook_limit: 100,
+  auth_limit: 20,
+  api_limit: 300,
+})
+
+const loadRateLimitConfig = async () => {
+  try {
+    const { data } = await getRateLimitConfig()
+    Object.assign(rateLimitForm, data.data)
+  } catch (error) {
+    console.error('Failed to load ratelimit config:', error)
+  }
+}
+
+const saveRateLimitConfig = async () => {
+  rateLimitSaving.value = true
+  try {
+    await updateRateLimitConfig(rateLimitForm)
+    ElMessage.success('限流配置保存成功')
+  } catch (error) {
+    console.error('Failed to save ratelimit config:', error)
+  } finally {
+    rateLimitSaving.value = false
+  }
+}
+
 // ============ 初始化 ============
 onMounted(() => {
   loadGeneralConfig()
   loadEmailConfig()
   loadSecurityConfig()
+  loadRateLimitConfig()
 })
 </script>
 
@@ -752,6 +887,21 @@ onMounted(() => {
 
       &.session-icon {
         background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: #fff;
+      }
+
+      &.webhook-rl-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: #fff;
+      }
+
+      &.auth-rl-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+      }
+
+      &.api-rl-icon {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         color: #fff;
       }
     }

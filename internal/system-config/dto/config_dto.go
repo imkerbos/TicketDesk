@@ -186,6 +186,22 @@ type UpdateSecurityConfigRequest struct {
 	SessionTimeout      *int  `json:"session_timeout" binding:"omitempty,min=5,max=1440"`
 }
 
+// ============ 限流配置 DTO ============
+
+// RateLimitConfig 限流配置
+type RateLimitConfig struct {
+	WebhookLimit int `json:"webhook_limit"` // Webhook 接口每 IP 每分钟最大请求数
+	AuthLimit    int `json:"auth_limit"`    // 认证接口每 IP 每分钟最大请求数
+	APILimit     int `json:"api_limit"`     // 全局 API 每 IP 每分钟最大请求数
+}
+
+// UpdateRateLimitConfigRequest 更新限流配置请求
+type UpdateRateLimitConfigRequest struct {
+	WebhookLimit *int `json:"webhook_limit" binding:"omitempty,min=10,max=10000"`
+	AuthLimit    *int `json:"auth_limit" binding:"omitempty,min=5,max=1000"`
+	APILimit     *int `json:"api_limit" binding:"omitempty,min=50,max=50000"`
+}
+
 // ============ 飞书配置 DTO ============
 
 // LarkConfig 飞书配置

@@ -12,14 +12,42 @@ import (
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
+	"github.com/kerbos/ticketdesk/pkg/cache"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
 )
 
+// 静默规则缓存常量
+const (
+	cacheKeyActiveSilences = "alert:silences:active"
+	cacheTTLSilences       = 1 * time.Minute
+)
+
+// getCachedActiveSilences 获取生效中的静默规则（优先从缓存读取）
+func (s *alertService) getCachedActiveSilences(ctx context.Context) ([]*model.AlertSilence, error) {
+	var silences []*model.AlertSilence
+	if cache.GetJSON(ctx, cacheKeyActiveSilences, &silences) {
+		return silences, nil
+	}
+
+	silences, err := s.alertSilenceRepo.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cache.SetJSON(ctx, cacheKeyActiveSilences, silences, cacheTTLSilences)
+	return silences, nil
+}
+
+// invalidateSilencesCache 失效静默规则缓存
+func (s *alertService) invalidateSilencesCache(ctx context.Context) {
+	cache.Del(ctx, cacheKeyActiveSilences)
+}
+
 // isAlertSilenced 检查告警是否被静默
 func (s *alertService) isAlertSilenced(ctx context.Context, labels map[string]string) (bool, error) {
-	// 获取所有生效中的静默规则
-	silences, err := s.alertSilenceRepo.ListActive(ctx)
+	// 获取所有生效中的静默规则（优先从缓存获取）
+	silences, err := s.getCachedActiveSilences(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -369,6 +397,7 @@ func (s *alertService) CreateAlertSilence(ctx context.Context, req *dto.CreateAl
 		return nil, err
 	}
 
+	s.invalidateSilencesCache(ctx)
 	return s.GetAlertSilence(ctx, silence.ID)
 }
 
@@ -420,17 +449,26 @@ func (s *alertService) UpdateAlertSilence(ctx context.Context, id uint64, req *d
 		return nil, err
 	}
 
+	s.invalidateSilencesCache(ctx)
 	return s.GetAlertSilence(ctx, id)
 }
 
 // DeleteAlertSilence 删除告警静默
 func (s *alertService) DeleteAlertSilence(ctx context.Context, id uint64) error {
-	return s.alertSilenceRepo.Delete(ctx, id)
+	if err := s.alertSilenceRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.invalidateSilencesCache(ctx)
+	return nil
 }
 
 // CancelAlertSilence 取消告警静默
 func (s *alertService) CancelAlertSilence(ctx context.Context, id uint64) error {
-	return s.alertSilenceRepo.Cancel(ctx, id)
+	if err := s.alertSilenceRepo.Cancel(ctx, id); err != nil {
+		return err
+	}
+	s.invalidateSilencesCache(ctx)
+	return nil
 }
 
 // ListAlertSilences 获取告警静默列表
