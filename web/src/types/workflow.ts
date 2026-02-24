@@ -123,7 +123,7 @@ export interface UpdateEdgeRequest {
 // ============ 工作流实例相关类型 ============
 
 // 工作流实例状态
-export type WorkflowInstanceStatus = 'active' | 'completed' | 'cancelled'
+export type WorkflowInstanceStatus = 'active' | 'reviewing' | 'completed' | 'cancelled'
 
 // 审批记录状态
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
