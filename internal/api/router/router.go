@@ -707,28 +707,34 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 // registerWorkflowRoutes 注册工作流路由
 func (r *Router) registerWorkflowRoutes(rg *gin.RouterGroup) {
 	workflows := rg.Group("/workflows")
-	workflows.Use(r.rbac.RequireProjectAdmin())
+
+	// 只读接口：认证用户即可访问（工单详情页渲染工作流图需要）
 	{
-		// 工作流 CRUD
 		workflows.GET("", r.workflowHandler.HandleListWorkflows)
-		workflows.POST("", r.workflowHandler.HandleCreateWorkflow)
 		workflows.GET("/:id", r.workflowHandler.HandleGetWorkflow)
-		workflows.PUT("/:id", r.workflowHandler.HandleUpdateWorkflow)
-		workflows.DELETE("/:id", r.rbac.RequireAdmin(), r.workflowHandler.HandleDeleteWorkflow)
+		workflows.GET("/:id/nodes", r.workflowHandler.HandleListNodes)
+		workflows.GET("/:id/nodes/:node_id", r.workflowHandler.HandleGetNode)
+		workflows.GET("/:id/edges", r.workflowHandler.HandleListEdges)
+		workflows.GET("/:id/edges/:edge_id", r.workflowHandler.HandleGetEdge)
+	}
+
+	// 写操作：需要项目管理员权限
+	workflowsAdmin := workflows.Group("")
+	workflowsAdmin.Use(r.rbac.RequireProjectAdmin())
+	{
+		workflowsAdmin.POST("", r.workflowHandler.HandleCreateWorkflow)
+		workflowsAdmin.PUT("/:id", r.workflowHandler.HandleUpdateWorkflow)
+		workflowsAdmin.DELETE("/:id", r.rbac.RequireAdmin(), r.workflowHandler.HandleDeleteWorkflow)
 
 		// 节点管理
-		workflows.GET("/:id/nodes", r.workflowHandler.HandleListNodes)
-		workflows.POST("/:id/nodes", r.workflowHandler.HandleCreateNode)
-		workflows.GET("/:id/nodes/:node_id", r.workflowHandler.HandleGetNode)
-		workflows.PUT("/:id/nodes/:node_id", r.workflowHandler.HandleUpdateNode)
-		workflows.DELETE("/:id/nodes/:node_id", r.workflowHandler.HandleDeleteNode)
+		workflowsAdmin.POST("/:id/nodes", r.workflowHandler.HandleCreateNode)
+		workflowsAdmin.PUT("/:id/nodes/:node_id", r.workflowHandler.HandleUpdateNode)
+		workflowsAdmin.DELETE("/:id/nodes/:node_id", r.workflowHandler.HandleDeleteNode)
 
 		// 边管理
-		workflows.GET("/:id/edges", r.workflowHandler.HandleListEdges)
-		workflows.POST("/:id/edges", r.workflowHandler.HandleCreateEdge)
-		workflows.GET("/:id/edges/:edge_id", r.workflowHandler.HandleGetEdge)
-		workflows.PUT("/:id/edges/:edge_id", r.workflowHandler.HandleUpdateEdge)
-		workflows.DELETE("/:id/edges/:edge_id", r.workflowHandler.HandleDeleteEdge)
+		workflowsAdmin.POST("/:id/edges", r.workflowHandler.HandleCreateEdge)
+		workflowsAdmin.PUT("/:id/edges/:edge_id", r.workflowHandler.HandleUpdateEdge)
+		workflowsAdmin.DELETE("/:id/edges/:edge_id", r.workflowHandler.HandleDeleteEdge)
 	}
 }
 
