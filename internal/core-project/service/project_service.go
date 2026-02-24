@@ -396,6 +396,24 @@ func (s *projectService) AddMember(ctx context.Context, projectKey string, req *
 		return nil, fmt.Errorf("添加成员失败: %w", err)
 	}
 
+	// 同步创建 project_role_members 记录（owner 不需要，权限检查时直接放行）
+	if req.Role != "owner" {
+		role, err := s.roleRepo.GetByProjectAndKey(ctx, project.ID, req.Role)
+		if err == nil {
+			roleMember := &model.ProjectRoleMember{
+				ProjectID: project.ID,
+				RoleID:    role.ID,
+				UserID:    req.UserID,
+			}
+			if err := s.roleMemberRepo.Create(ctx, roleMember); err != nil {
+				logger.Error("failed to create role member binding",
+					zap.Uint64("user_id", req.UserID),
+					zap.String("role_key", req.Role),
+					zap.Error(err))
+			}
+		}
+	}
+
 	logger.Info("member added successfully",
 		zap.String("project_key", projectKey),
 		zap.Uint64("user_id", req.UserID),
@@ -439,11 +457,38 @@ func (s *projectService) UpdateMember(ctx context.Context, projectKey string, us
 		roleName = role.RoleName
 	}
 
+	oldRole := member.Role
 	member.Role = req.Role
 
 	if err := s.memberRepo.Update(ctx, member); err != nil {
 		logger.Error("failed to update member", zap.Error(err))
 		return nil, fmt.Errorf("更新成员失败: %w", err)
+	}
+
+	// 同步更新 project_role_members：先删除旧角色关联，再创建新角色关联
+	if oldRole != req.Role {
+		// 删除旧角色关联
+		if oldRole != "owner" {
+			if oldRoleObj, err := s.roleRepo.GetByProjectAndKey(ctx, project.ID, oldRole); err == nil {
+				_ = s.roleMemberRepo.DeleteByRoleAndUser(ctx, oldRoleObj.ID, userID)
+			}
+		}
+		// 创建新角色关联
+		if req.Role != "owner" {
+			if newRoleObj, err := s.roleRepo.GetByProjectAndKey(ctx, project.ID, req.Role); err == nil {
+				roleMember := &model.ProjectRoleMember{
+					ProjectID: project.ID,
+					RoleID:    newRoleObj.ID,
+					UserID:    userID,
+				}
+				if err := s.roleMemberRepo.Create(ctx, roleMember); err != nil {
+					logger.Error("failed to update role member binding",
+						zap.Uint64("user_id", userID),
+						zap.String("new_role", req.Role),
+						zap.Error(err))
+				}
+			}
+		}
 	}
 
 	user, _ := s.userRepo.GetByID(ctx, userID)
