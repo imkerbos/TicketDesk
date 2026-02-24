@@ -208,9 +208,15 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		commentRepository,
 		projectRepository,
 		issueTypeRepository,
+		watcherRepository,
 		db,
 	)
 	alertHdl := alertHandler.NewAlertHandler(alertSvc)
+
+	// 注入工作流创建器到告警服务（告警建单时自动创建工作流实例）
+	if alertSvcImpl, ok := alertSvc.(interface{ SetWorkflowCreator(alertService.WorkflowCreator) }); ok {
+		alertSvcImpl.SetWorkflowCreator(workflowEngine)
+	}
 
 	// ============ 设置告警同步服务（避免循环依赖）============
 	// 将 issueSvc 转换为具体类型以调用 SetAlertSyncService
@@ -238,6 +244,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	// 设置附件服务的活动日志记录器
 	if attachmentServiceImpl, ok := attachmentSvc.(interface{ SetActivityLogger(issueService.ActivityLogger) }); ok {
 		attachmentServiceImpl.SetActivityLogger(activitySvc)
+	}
+
+	// 设置告警服务的活动日志记录器
+	if alertSvcImpl, ok := alertSvc.(interface{ SetActivityLogger(alertService.ActivityLogger) }); ok {
+		alertSvcImpl.SetActivityLogger(activitySvc)
 	}
 
 	// ============ 初始化 Notification 模块 ============
@@ -330,6 +341,17 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		SetProjectNotifier(issueService.ProjectNotifier)
 	}); ok {
 		issueServiceImpl.SetProjectNotifier(notifChannelSvc)
+	}
+
+	// 设置告警服务的项目外部渠道通知
+	if alertSvcImpl, ok := alertSvc.(interface{ SetProjectNotifier(alertService.ProjectNotifier) }); ok {
+		alertSvcImpl.SetProjectNotifier(notifChannelSvc)
+	}
+
+	// 设置告警服务的站内通知发送器
+	alertNotifAdapter := &alertNotificationAdapter{svc: notificationSvc}
+	if alertSvcImpl, ok := alertSvc.(interface{ SetNotificationSender(alertService.NotificationSender) }); ok {
+		alertSvcImpl.SetNotificationSender(alertNotifAdapter)
 	}
 
 	// ============ 初始化 RBAC 中间件 ============
@@ -902,6 +924,28 @@ func (a *fieldValueSaverAdapter) SaveIssueFieldValues(ctx context.Context, issue
 		}
 	}
 	return a.svc.SaveIssueFieldValues(ctx, issueID, fieldValues)
+}
+
+// ============ 告警通知适配器（桥接 alertService.NotificationSender 和 notifService.NotificationService）============
+
+// alertNotificationAdapter 将 NotificationService 适配为 alertService.NotificationSender
+type alertNotificationAdapter struct {
+	svc notifService.NotificationService
+}
+
+// CreateNotification 适配创建通知调用
+func (a *alertNotificationAdapter) CreateNotification(ctx context.Context, req *alertService.AlertNotificationRequest) error {
+	return a.svc.CreateNotification(ctx, &notifDto.CreateNotificationRequest{
+		UserID:     req.UserID,
+		Type:       req.Type,
+		Title:      req.Title,
+		Content:    req.Content,
+		EntityType: req.EntityType,
+		EntityID:   req.EntityID,
+		EntityKey:  req.EntityKey,
+		ActorID:    req.ActorID,
+		ActorName:  req.ActorName,
+	})
 }
 
 // ============ 兼容旧的 Setup 函数 ============

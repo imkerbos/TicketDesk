@@ -37,7 +37,7 @@
           <el-dropdown v-if="workflowInstance" trigger="hover" @command="handleWorkflowCommand">
             <el-button
               :type="canOperateWorkflow ? 'primary' : 'info'"
-              :disabled="!canOperateWorkflow && workflowInstance.status !== 'active'"
+              :disabled="!canOperateWorkflow && !isWorkflowOperable"
               class="workflow-action-btn"
             >
               <el-icon><Promotion /></el-icon>
@@ -47,7 +47,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <!-- 审批节点操作 -->
-                <template v-if="workflowInstance.current_node?.node_type === 'approval' && workflowInstance.status === 'active'">
+                <template v-if="workflowInstance.current_node?.node_type === 'approval' && isWorkflowOperable">
                   <el-dropdown-item
                     command="approve"
                     :disabled="!isCurrentUserApprover"
@@ -64,7 +64,7 @@
                   </el-dropdown-item>
                 </template>
                 <!-- 工作节点操作 -->
-                <template v-else-if="isWorkNode && workflowInstance.status === 'active'">
+                <template v-else-if="isWorkNode && isWorkflowOperable">
                   <!-- 有条件分支的工作节点：动态生成操作按钮 -->
                   <template v-if="workNodeHasBranching">
                     <el-dropdown-item
@@ -87,7 +87,7 @@
                   </template>
                 </template>
                 <!-- 工作流已结束提示 -->
-                <template v-else-if="workflowInstance.status !== 'active'">
+                <template v-else-if="!isWorkflowOperable">
                   <el-dropdown-item disabled>
                     工作流{{ getWorkflowStatusText(workflowInstance.status) }}
                   </el-dropdown-item>
@@ -215,7 +215,7 @@
             </div>
 
             <!-- 审批操作按钮（仅审批节点显示） -->
-            <div v-if="isCurrentUserApprover && workflowInstance.status === 'active' && workflowInstance.current_node?.node_type === 'approval'" class="workflow-actions">
+            <div v-if="isCurrentUserApprover && isWorkflowOperable && workflowInstance.current_node?.node_type === 'approval'" class="workflow-actions">
               <div class="actions-label">审批操作</div>
               <div class="actions-row">
                 <el-input v-model="approveComment" placeholder="审批意见（可选）" size="default" style="flex: 1; margin-right: 12px;" />
@@ -1305,8 +1305,8 @@ const loadWorkflowData = async (key: string) => {
 // 判断当前用户是否是审批人（包括系统管理员和项目管理员）
 const isCurrentUserApprover = computed(() => {
   if (!workflowInstance.value || !userStore.user) return false
-  // 系统管理员可以审批任何节点
-  if (userStore.isAdmin) return true
+  // 系统管理员或项目管理员可以审批任何节点（与后端 isAdminOrProjectLead 对齐）
+  if (userStore.isAdmin || userStore.isProjectAdmin) return true
   // 检查是否在审批人列表中
   const approvals = workflowInstance.value.approvals || []
   return approvals.some(
@@ -1316,7 +1316,7 @@ const isCurrentUserApprover = computed(() => {
 
 // 判断当前节点是否是工作节点（可完成）
 const isWorkNode = computed(() => {
-  if (!workflowInstance.value || workflowInstance.value.status !== 'active') return false
+  if (!workflowInstance.value || !isWorkflowOperable.value) return false
   const nodeType = workflowInstance.value.current_node?.node_type
   return nodeType === 'work' || nodeType === 'start'
 })
@@ -1374,6 +1374,12 @@ const nextNodeName = computed(() => {
   return targetNode?.name || ''
 })
 
+// 工作流是否处于可操作状态（active 和 reviewing 都可以操作）
+const isWorkflowOperable = computed(() => {
+  const status = workflowInstance.value?.status
+  return status === 'active' || status === 'reviewing'
+})
+
 // 当前用户是否可以操作工作流
 const canOperateWorkflow = computed(() => {
   return isCurrentUserApprover.value || isWorkNode.value
@@ -1382,12 +1388,14 @@ const canOperateWorkflow = computed(() => {
 // 工作流快捷按钮文本
 const workflowActionBtnText = computed(() => {
   if (!workflowInstance.value) return '工作流'
-  if (workflowInstance.value.status !== 'active') {
-    const statusMap: Record<string, string> = { completed: '已完成', reviewing: '验收中', cancelled: '已取消' }
-    return statusMap[workflowInstance.value.status] || '已取消'
+  const status = workflowInstance.value.status
+  if (status === 'completed' || status === 'cancelled') {
+    const statusMap: Record<string, string> = { completed: '已完成', cancelled: '已取消' }
+    return statusMap[status] || status
   }
+  // active 和 reviewing 都显示当前节点名
   const nodeName = workflowInstance.value.current_node?.name || '当前节点'
-  return nodeName
+  return status === 'reviewing' ? `${nodeName}(待确认)` : nodeName
 })
 
 // 工作流下拉菜单命令处理

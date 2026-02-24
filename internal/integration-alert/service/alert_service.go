@@ -75,6 +75,39 @@ type AlertService interface {
 }
 
 // alertService 告警服务实现
+// WorkflowCreator 工作流实例创建接口（避免直接依赖 workflow engine 整个接口）
+type WorkflowCreator interface {
+	TryCreateInstanceForIssue(ctx context.Context, issueID, projectID, issueTypeID uint64) (*model.WorkflowInstance, error)
+}
+
+// ActivityLogger 活动日志记录器接口
+type ActivityLogger interface {
+	LogActivity(ctx context.Context, userID uint64, userName, action, entityType string, entityID uint64, entityKey, details string) error
+}
+
+// ProjectNotifier 项目外部渠道通知接口
+type ProjectNotifier interface {
+	NotifyProject(ctx context.Context, projectID uint64, event string, data any) error
+}
+
+// NotificationSender 站内通知发送接口（避免循环依赖）
+type NotificationSender interface {
+	CreateNotification(ctx context.Context, req *AlertNotificationRequest) error
+}
+
+// AlertNotificationRequest 告警通知请求（本地定义，避免依赖 notification-inbox/dto）
+type AlertNotificationRequest struct {
+	UserID     uint64
+	Type       string
+	Title      string
+	Content    string
+	EntityType string
+	EntityID   uint64
+	EntityKey  string
+	ActorID    uint64
+	ActorName  string
+}
+
 type alertService struct {
 	alertRepo        repository.AlertRepository
 	alertRuleRepo    repository.AlertRuleRepository
@@ -83,7 +116,32 @@ type alertService struct {
 	commentRepo      issueRepo.CommentRepository
 	projectRepo      projectRepo.ProjectRepository
 	issueTypeRepo    projectRepo.IssueTypeRepository
+	watcherRepo      issueRepo.WatcherRepository
 	db               *gorm.DB
+	workflowCreator  WorkflowCreator  // 可选，用于告警建单时自动创建工作流实例
+	activityLogger   ActivityLogger   // 可选，活动日志
+	projectNotifier  ProjectNotifier  // 可选，项目外部渠道通知
+	notifSender      NotificationSender // 可选，站内通知
+}
+
+// SetWorkflowCreator 设置工作流创建器（延迟注入，避免循环依赖）
+func (s *alertService) SetWorkflowCreator(wc WorkflowCreator) {
+	s.workflowCreator = wc
+}
+
+// SetActivityLogger 设置活动日志记录器
+func (s *alertService) SetActivityLogger(al ActivityLogger) {
+	s.activityLogger = al
+}
+
+// SetProjectNotifier 设置项目外部渠道通知服务
+func (s *alertService) SetProjectNotifier(pn ProjectNotifier) {
+	s.projectNotifier = pn
+}
+
+// SetNotificationSender 设置站内通知发送服务
+func (s *alertService) SetNotificationSender(ns NotificationSender) {
+	s.notifSender = ns
 }
 
 // NewAlertService 创建告警服务
@@ -95,6 +153,7 @@ func NewAlertService(
 	commentRepo issueRepo.CommentRepository,
 	projectRepo projectRepo.ProjectRepository,
 	issueTypeRepo projectRepo.IssueTypeRepository,
+	watcherRepo issueRepo.WatcherRepository,
 	db *gorm.DB,
 ) AlertService {
 	return &alertService{
@@ -105,6 +164,7 @@ func NewAlertService(
 		commentRepo:      commentRepo,
 		projectRepo:      projectRepo,
 		issueTypeRepo:    issueTypeRepo,
+		watcherRepo:      watcherRepo,
 		db:               db,
 	}
 }
@@ -331,13 +391,30 @@ func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Ale
 		return nil // 已在上面保存过，提前返回
 	}
 
-	// 如果告警仍在触发且没有关联工单，尝试自动建单
-	if alert.Status == "firing" && alert.IssueID == nil {
-		if err := s.tryAutoCreateIssue(ctx, alert); err != nil {
-			logger.Error("failed to auto create issue for existing alert",
-				zap.Uint64("alert_id", alert.ID),
-				zap.Error(err),
-			)
+	// 如果告警仍在触发，检查是否需要建单
+	if alert.Status == "firing" {
+		// 如果关联的工单已经是终态（resolved/closed/merged），清除关联让告警重新建单
+		if alert.IssueID != nil {
+			var linkedIssue model.Issue
+			if err := s.db.WithContext(ctx).Select("id, status").Where("id = ?", *alert.IssueID).First(&linkedIssue).Error; err == nil {
+				if linkedIssue.Status == "resolved" || linkedIssue.Status == "closed" || linkedIssue.Status == "merged" {
+					logger.Info("alert re-fired but linked issue is in terminal status, unlinking for re-creation",
+						zap.Uint64("alert_id", alert.ID),
+						zap.Uint64("old_issue_id", *alert.IssueID),
+						zap.String("issue_status", linkedIssue.Status),
+					)
+					alert.IssueID = nil
+				}
+			}
+		}
+
+		if alert.IssueID == nil {
+			if err := s.tryAutoCreateIssue(ctx, alert); err != nil {
+				logger.Error("failed to auto create issue for existing alert",
+					zap.Uint64("alert_id", alert.ID),
+					zap.Error(err),
+				)
+			}
 		}
 	}
 
@@ -386,6 +463,9 @@ func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, a
 		// 不中断告警创建流程
 	}
 
+	// 建单后失效指纹缓存，确保后续请求从 DB 读到最新的 IssueID
+	s.invalidateFingerprintCache(ctx, fingerprint)
+
 	return nil
 }
 
@@ -409,6 +489,18 @@ func (s *alertService) tryAutoCreateIssue(ctx context.Context, alert *model.Aler
 				zap.Uint64("rule_id", rule.ID),
 			)
 
+			// 使用分布式锁保护合并窗口查询+建单的原子性，防止并发重复建单
+			lockKey := fmt.Sprintf("alert:lock:issue:%s:%d", alert.AlertName, rule.ID)
+			lockValue := cache.TryLockWithRetry(ctx, lockKey, 30*time.Second, 3, 200*time.Millisecond)
+			if lockValue == "" {
+				logger.Warn("failed to acquire lock for alert issue creation, skipping",
+					zap.String("alert_name", alert.AlertName),
+					zap.Uint64("rule_id", rule.ID),
+				)
+				return nil
+			}
+			defer cache.UnlockWithValue(ctx, lockKey, lockValue)
+
 			// 检查是否需要合并到现有工单
 			if rule.MergeWindow > 0 {
 				existingIssueID, err := s.findMergeableIssue(ctx, rule, alert)
@@ -431,6 +523,8 @@ func (s *alertService) tryAutoCreateIssue(ctx context.Context, alert *model.Aler
 							zap.Error(err),
 						)
 					}
+					// 如果工单处于 pending_review 状态，重新激活（新告警触发说明问题未解决）
+					s.reactivateIssueIfPendingReview(ctx, existingIssueID)
 					return nil
 				}
 			}
@@ -523,6 +617,86 @@ func (s *alertService) createIssueFromAlert(
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
 		return 0, "", fmt.Errorf("failed to create issue: %w", err)
+	}
+
+	// 创建工作流实例（根据项目+工单类型查找工作流方案）
+	if s.workflowCreator != nil {
+		instance, err := s.workflowCreator.TryCreateInstanceForIssue(ctx, issue.ID, rule.ProjectID, rule.IssueTypeID)
+		if err != nil {
+			logger.Error("failed to create workflow instance for alert issue",
+				zap.Error(err), zap.String("issue_key", issueKey))
+			// 在工单描述中标注工作流创建失败，便于人工排查
+			issue.Description += "\n\n---\n> ⚠️ **注意**: 工作流实例创建失败，请手动检查工作流配置\n"
+			_ = s.issueRepo.Update(ctx, issue)
+		} else if instance != nil {
+			// 重新读取工单（工作流引擎可能已联动更新了状态）
+			if freshIssue, err := s.issueRepo.GetByID(ctx, issue.ID); err == nil {
+				freshIssue.WorkflowInstanceID = &instance.ID
+				_ = s.issueRepo.Update(ctx, freshIssue)
+			}
+			logger.Info("workflow instance created for alert issue",
+				zap.String("issue_key", issueKey),
+				zap.Uint64("instance_id", instance.ID))
+		}
+	}
+
+	// 自动添加指派人为关注人
+	if assigneeID != nil {
+		watcher := &model.IssueWatcher{
+			IssueID: issue.ID,
+			UserID:  *assigneeID,
+		}
+		_ = s.watcherRepo.Create(ctx, watcher)
+	}
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		_ = s.activityLogger.LogActivity(
+			ctx, reporterID, "alert-bot", "创建工单", "issue",
+			issue.ID, issueKey,
+			fmt.Sprintf("告警系统自动创建工单: %s", issue.Title),
+		)
+	}
+
+	// 站内通知指派人
+	if s.notifSender != nil && assigneeID != nil {
+		go func() {
+			notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := s.notifSender.CreateNotification(notifCtx, &AlertNotificationRequest{
+				UserID:     *assigneeID,
+				Type:       "issue_assigned",
+				Title:      fmt.Sprintf("告警工单 %s 已指派给您", issueKey),
+				Content:    issue.Title,
+				EntityType: "issue",
+				EntityID:   issue.ID,
+				EntityKey:  issueKey,
+				ActorID:    reporterID,
+				ActorName:  "alert-bot",
+			}); err != nil {
+				logger.Warn("failed to send in-app notification for alert issue",
+					zap.String("issue_key", issueKey), zap.Error(err))
+			}
+		}()
+	}
+
+	// 通知项目外部渠道（飞书/Telegram）
+	if s.projectNotifier != nil {
+		go func() {
+			notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := s.projectNotifier.NotifyProject(notifCtx, rule.ProjectID, "issue.created", map[string]any{
+				"issue_key":   issueKey,
+				"issue_title": issue.Title,
+				"project_key": project.ProjectKey,
+				"status":      issue.Status,
+				"priority":    issue.Priority,
+				"source":      "alert",
+			}); err != nil {
+				logger.Warn("failed to notify project channels for alert issue",
+					zap.String("issue_key", issueKey), zap.Error(err))
+			}
+		}()
 	}
 
 	return issue.ID, issueKey, nil
@@ -678,8 +852,8 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 		return fmt.Errorf("failed to get issue: %w", err)
 	}
 
-	// 如果工单已经是终态，不需要处理
-	if issue.Status == "resolved" || issue.Status == "closed" || issue.Status == "merged" || issue.Status == "pending_review" {
+	// 如果工单已经是终态，不需要处理（pending_review 不算终态，告警恢复时应允许自动 resolve）
+	if issue.Status == "resolved" || issue.Status == "closed" || issue.Status == "merged" {
 		logger.Info("autoUpdateIssueOnRecovery: issue already in terminal status, skipping",
 			zap.Uint64("issue_id", issueID),
 			zap.String("current_status", issue.Status),
@@ -699,6 +873,12 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 
 		// 同步完成工作流实例，避免工单状态与工作流状态不一致
 		s.forceCompleteWorkflow(ctx, issueID)
+
+		// 级联同步合并工单状态（合并工单也应标记为 resolved）
+		if err := s.SyncMergedIssueStatus(ctx, issueID, "resolved"); err != nil {
+			logger.Warn("failed to cascade resolved status to merged issues on auto-resolve",
+				zap.Uint64("issue_id", issueID), zap.Error(err))
+		}
 
 		commentContent := "告警已自动恢复，工单已自动关闭"
 		if err := s.addSystemComment(ctx, issueID, commentContent); err != nil {
@@ -743,7 +923,7 @@ func (s *alertService) forceCompleteWorkflow(ctx context.Context, issueID uint64
 	result := s.db.WithContext(ctx).
 		Model(&model.WorkflowInstance{}).
 		Where("issue_id = ? AND status IN ?", issueID, []string{"active", "reviewing"}).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"status":       "completed",
 			"completed_at": now,
 			"updated_at":   now,
@@ -757,6 +937,10 @@ func (s *alertService) forceCompleteWorkflow(ctx context.Context, issueID uint64
 		logger.Info("workflow instance force-completed by alert recovery",
 			zap.Uint64("issue_id", issueID),
 		)
+	} else {
+		logger.Debug("forceCompleteWorkflow: no active/reviewing workflow instance found",
+			zap.Uint64("issue_id", issueID),
+		)
 	}
 }
 
@@ -767,7 +951,7 @@ func (s *alertService) setWorkflowReviewing(ctx context.Context, issueID uint64)
 	result := s.db.WithContext(ctx).
 		Model(&model.WorkflowInstance{}).
 		Where("issue_id = ? AND status = ?", issueID, "active").
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"status":     "reviewing",
 			"updated_at": now,
 		})
@@ -781,6 +965,39 @@ func (s *alertService) setWorkflowReviewing(ctx context.Context, issueID uint64)
 			zap.Uint64("issue_id", issueID),
 		)
 	}
+}
+
+// reactivateIssueIfPendingReview 当新告警合并到 pending_review 工单时，重新激活工单和工作流
+// 新告警触发说明问题未真正解决，需要将工单从"待确认"恢复为"进行中"
+func (s *alertService) reactivateIssueIfPendingReview(ctx context.Context, issueID uint64) {
+	issue, err := s.issueRepo.GetByID(ctx, issueID)
+	if err != nil || issue.Status != "pending_review" {
+		return
+	}
+
+	// 恢复工单状态为 in_progress
+	issue.Status = "in_progress"
+	if err := s.issueRepo.Update(ctx, issue); err != nil {
+		logger.Error("failed to reactivate issue from pending_review",
+			zap.Uint64("issue_id", issueID), zap.Error(err))
+		return
+	}
+
+	// 恢复工作流实例从 reviewing 到 active
+	now := time.Now()
+	s.db.WithContext(ctx).
+		Model(&model.WorkflowInstance{}).
+		Where("issue_id = ? AND status = ?", issueID, "reviewing").
+		Updates(map[string]any{
+			"status":     "active",
+			"updated_at": now,
+		})
+
+	// 添加系统评论
+	_ = s.addSystemComment(ctx, issueID, "新告警触发，工单已从「待确认」恢复为「进行中」")
+
+	logger.Info("issue reactivated from pending_review due to new alert",
+		zap.Uint64("issue_id", issueID))
 }
 
 // TryAutoResolveIssue 检查工单关联的所有告警是否都已恢复，如果是则根据规则设置更新工单状态

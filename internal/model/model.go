@@ -124,8 +124,8 @@ func (IssueType) TableName() string {
 type Issue struct {
 	BaseModel
 	IssueKey           string     `gorm:"size:30;uniqueIndex;not null" json:"issue_key"`
-	ProjectID          uint64     `gorm:"index;not null" json:"project_id"`
-	IssueTypeID        uint64     `gorm:"index;not null" json:"issue_type_id"`
+	ProjectID          uint64     `gorm:"index;index:idx_issue_project_type_status,priority:1;not null" json:"project_id"`
+	IssueTypeID        uint64     `gorm:"index;index:idx_issue_project_type_status,priority:2;not null" json:"issue_type_id"`
 	Title              string     `gorm:"size:200;not null" json:"title"`
 	Description        string     `gorm:"type:text" json:"description"`
 	Priority           string     `gorm:"size:10;default:P2;index" json:"priority"`
@@ -241,16 +241,16 @@ func (WorkflowEdge) TableName() string {
 // Alert 告警模型
 type Alert struct {
 	BaseModel
-	Fingerprint string     `gorm:"size:64;index;not null" json:"fingerprint"`
+	Fingerprint string     `gorm:"size:64;uniqueIndex;not null" json:"fingerprint"`
 	Source      string     `gorm:"size:50;index;not null" json:"source"`
 	AlertName   string     `gorm:"size:200;not null" json:"alert_name"`
 	Severity    string     `gorm:"size:20;default:warning;index" json:"severity"`
-	Status      string     `gorm:"size:20;default:firing;index" json:"status"`
+	Status      string     `gorm:"size:20;default:firing;index;index:idx_alert_issue_status,priority:2" json:"status"`
 	Labels      string     `gorm:"type:json" json:"labels"`
 	Annotations string     `gorm:"type:json" json:"annotations"`
 	StartsAt    time.Time  `gorm:"index;not null" json:"starts_at"`
 	EndsAt      *time.Time `json:"ends_at"`
-	IssueID     *uint64    `gorm:"index" json:"issue_id"`
+	IssueID     *uint64    `gorm:"index:idx_alert_issue_status,priority:1" json:"issue_id"`
 	AckAt       *time.Time `json:"ack_at"`       // 确认时间
 	AckBy       *uint64    `gorm:"index" json:"ack_by"` // 确认人
 	ResolvedAt  *time.Time `json:"resolved_at"`  // 解决时间
@@ -455,7 +455,7 @@ type WorkflowInstance struct {
 	IssueID       uint64     `gorm:"not null;uniqueIndex" json:"issue_id"`
 	WorkflowID    uint64     `gorm:"not null;index" json:"workflow_id"`
 	CurrentNodeID uint64     `gorm:"not null;index" json:"current_node_id"`
-	Status        string     `gorm:"size:20;not null;index" json:"status"` // active, completed, cancelled, reviewing
+	Status        string     `gorm:"size:20;not null;index;index:idx_wi_issue_status,priority:2" json:"status"` // active, completed, cancelled, reviewing
 	StartedAt     time.Time  `gorm:"not null" json:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at,omitempty"`
 }

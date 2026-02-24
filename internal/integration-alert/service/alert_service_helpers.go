@@ -15,6 +15,7 @@ import (
 	"github.com/kerbos/ticketdesk/pkg/cache"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 // 静默规则缓存常量
@@ -22,6 +23,14 @@ const (
 	cacheKeyActiveSilences = "alert:silences:active"
 	cacheTTLSilences       = 1 * time.Minute
 )
+
+// escapeLikePattern 转义 LIKE 通配符，防止告警名称中的 % 和 _ 被当作通配符
+func escapeLikePattern(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
+}
 
 // getCachedActiveSilences 获取生效中的静默规则（优先从缓存读取）
 func (s *alertService) getCachedActiveSilences(ctx context.Context) ([]*model.AlertSilence, error) {
@@ -109,12 +118,14 @@ func (s *alertService) matchLabels(matchers []dto.LabelMatcher, labels map[strin
 }
 
 // findMergeableIssue 查找可合并的工单（在合并窗口内的同名活跃工单）
+// 排除 resolved/closed/merged 状态，pending_review 等其他状态均可合并
 func (s *alertService) findMergeableIssue(ctx context.Context, rule *model.AlertRule, alert *model.Alert) (uint64, error) {
 	// 计算时间窗口
 	windowStart := time.Now().Add(-time.Duration(rule.MergeWindow) * time.Second)
 
 	// 查询该项目下、该工单类型、同告警名称、在时间窗口内创建的、未关闭的工单
-	titlePattern := fmt.Sprintf("[告警] %s%%", alert.AlertName)
+	escapedName := escapeLikePattern(alert.AlertName)
+	titlePattern := fmt.Sprintf("[告警] %s%%", escapedName)
 	var issue model.Issue
 	err := s.db.WithContext(ctx).
 		Where("project_id = ?", rule.ProjectID).
@@ -126,19 +137,7 @@ func (s *alertService) findMergeableIssue(ctx context.Context, rule *model.Alert
 		First(&issue).Error
 
 	if err != nil {
-		// 如果没找到活跃工单，再尝试查找 pending_review 状态的工单（告警恢复后待确认的工单仍可合并）
-		err = s.db.WithContext(ctx).
-			Where("project_id = ?", rule.ProjectID).
-			Where("issue_type_id = ?", rule.IssueTypeID).
-			Where("title LIKE ?", titlePattern).
-			Where("status = ?", "pending_review").
-			Where("created_at >= ?", windowStart).
-			Order("created_at DESC").
-			First(&issue).Error
-
-		if err != nil {
-			return 0, nil // 没有找到可合并的工单，返回 0
-		}
+		return 0, nil // 没有找到可合并的工单，返回 0
 	}
 
 	return issue.ID, nil
@@ -149,8 +148,10 @@ func (s *alertService) findMergeableIssue(ctx context.Context, rule *model.Alert
 // - 之前已合并到旧工单的更旧工单也重新指向最新工单
 // - 所有告警迁移到最新工单
 // - 最新工单的描述汇总全部历史实例信息
+// 整个合并过程在事务中��行，保证数据一致性
 func (s *alertService) mergeOldIssues(ctx context.Context, rule *model.AlertRule, alert *model.Alert, newIssueID uint64, newIssueKey string) {
-	titlePattern := fmt.Sprintf("[告警] %s%%", alert.AlertName)
+	escapedName := escapeLikePattern(alert.AlertName)
+	titlePattern := fmt.Sprintf("[告警] %s%%", escapedName)
 
 	// 查找所有同名的、未关闭的旧工单（排除刚创建的新工单）
 	var directOldIssues []model.Issue
@@ -173,140 +174,141 @@ func (s *alertService) mergeOldIssues(ctx context.Context, rule *model.AlertRule
 		oldIssueIDs = append(oldIssueIDs, oi.ID)
 	}
 
-	// 扁平化：查找之前已经合并到这些旧工单的更旧工单，让它们也指向最新工单
-	var deeperMergedIssues []model.Issue
-	if err := s.db.WithContext(ctx).
-		Where("merged_into_issue_id IN (?)", oldIssueIDs).
-		Where("deleted_at IS NULL").
-		Find(&deeperMergedIssues).Error; err == nil && len(deeperMergedIssues) > 0 {
-		// 更新它们的 merged_into_issue_id 指向最新工单
-		s.db.WithContext(ctx).
-			Model(&model.Issue{}).
-			Where("merged_into_issue_id IN (?)", oldIssueIDs).
-			Update("merged_into_issue_id", newIssueID)
-
-		logger.Info("flattened deeper merged issues to new target",
-			zap.Int("count", len(deeperMergedIssues)),
-			zap.String("new_issue_key", newIssueKey),
-		)
-	}
-
-	// 收集所有最终指向新工单的旧工单（用于生成完整描述）
-	// = 本次直接合并的 + 之前深层合并的
-	allMergedIssueIDs := make([]uint64, 0)
-	allMergedIssueIDs = append(allMergedIssueIDs, oldIssueIDs...)
-	for _, dmi := range deeperMergedIssues {
-		allMergedIssueIDs = append(allMergedIssueIDs, dmi.ID)
-	}
-
-	// 迁移所有旧工单关联的告警到新工单
-	var migratedAlertCount int
-	var historyInfo strings.Builder
-	for _, oldIssueID := range allMergedIssueIDs {
-		oldAlerts, err := s.alertRepo.ListByIssueID(ctx, oldIssueID)
-		if err != nil || len(oldAlerts) == 0 {
-			continue
-		}
-
-		// 查旧工单 key 用于描述
-		oldIssue, _ := s.issueRepo.GetByID(ctx, oldIssueID)
-		oldIssueKey := ""
-		if oldIssue != nil {
-			oldIssueKey = oldIssue.IssueKey
-		}
-
-		for _, oldAlert := range oldAlerts {
-			// 迁移告警到新工单
-			oldAlert.IssueID = &newIssueID
-			if err := s.alertRepo.Update(ctx, oldAlert); err != nil {
-				logger.Error("failed to migrate alert to new issue",
-					zap.Uint64("alert_id", oldAlert.ID),
-					zap.Error(err),
-				)
-				continue
-			}
-			migratedAlertCount++
-
-			// 收集实例信息
-			oldLabels := repository.JSONToLabels(oldAlert.Labels)
-			oldAnnotations := repository.JSONToLabels(oldAlert.Annotations)
-			instance := oldLabels["instance"]
-			if instance == "" {
-				instance = oldLabels["target_ident"]
-			}
-			nodename := oldLabels["nodename"]
-			desc := ""
-			if d, ok := oldAnnotations["description"]; ok {
-				desc = d
+	// 在事务中执行合并操作
+	txErr := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 扁平化：查找之前已经合并到这些旧工单的更旧工单，让它们也指向最新工单
+		var deeperMergedIssues []model.Issue
+		if err := tx.Where("merged_into_issue_id IN (?)", oldIssueIDs).
+			Where("deleted_at IS NULL").
+			Find(&deeperMergedIssues).Error; err == nil && len(deeperMergedIssues) > 0 {
+			if err := tx.Model(&model.Issue{}).
+				Where("merged_into_issue_id IN (?)", oldIssueIDs).
+				Update("merged_into_issue_id", newIssueID).Error; err != nil {
+				return fmt.Errorf("failed to flatten deeper merged issues: %w", err)
 			}
 
-			fmt.Fprintf(&historyInfo, "\n\n---\n### 历史告警 - 来自 %s (%s)\n",
-				oldIssueKey, oldAlert.StartsAt.Format("2006-01-02 15:04:05"))
-			fmt.Fprintf(&historyInfo, "- **实例**: %s\n", instance)
-			if nodename != "" {
-				fmt.Fprintf(&historyInfo, "- **主机名**: %s\n", nodename)
-			}
-			fmt.Fprintf(&historyInfo, "- **指纹**: %s\n", oldAlert.Fingerprint)
-			if desc != "" {
-				fmt.Fprintf(&historyInfo, "- **描述**: %s\n", desc)
-			}
-		}
-	}
-
-	// 标记直接旧工单为 merged，设置 merged_into_issue_id
-	var mergedKeys []string
-	now := time.Now()
-	for _, oldIssue := range directOldIssues {
-		mergedKeys = append(mergedKeys, oldIssue.IssueKey)
-
-		oldIssue.Status = "merged"
-		oldIssue.Resolution = "merged"
-		oldIssue.ClosedAt = &now
-		oldIssue.MergedIntoIssueID = &newIssueID
-		oldIssue.Description += fmt.Sprintf("\n\n---\n> 🔗 **已合并**: 此工单已合并到新工单 **%s**，后续告警将在新工单中跟进\n", newIssueKey)
-
-		if err := s.issueRepo.Update(ctx, &oldIssue); err != nil {
-			logger.Error("failed to mark old issue as merged",
-				zap.String("issue_key", oldIssue.IssueKey),
-				zap.Error(err),
+			logger.Info("flattened deeper merged issues to new target",
+				zap.Int("count", len(deeperMergedIssues)),
+				zap.String("new_issue_key", newIssueKey),
 			)
 		}
+
+		// 收集所有最终指向新工单的旧工单（用于生成完整描述）
+		allMergedIssueIDs := make([]uint64, 0)
+		allMergedIssueIDs = append(allMergedIssueIDs, oldIssueIDs...)
+		for _, dmi := range deeperMergedIssues {
+			allMergedIssueIDs = append(allMergedIssueIDs, dmi.ID)
+		}
+
+		// 迁移所有旧工单关联的告警到新工单
+		var migratedAlertCount int
+		var historyInfo strings.Builder
+		for _, oldIssueID := range allMergedIssueIDs {
+			oldAlerts, err := s.alertRepo.ListByIssueID(ctx, oldIssueID)
+			if err != nil || len(oldAlerts) == 0 {
+				continue
+			}
+
+			oldIssue, _ := s.issueRepo.GetByID(ctx, oldIssueID)
+			oldIssueKey := ""
+			if oldIssue != nil {
+				oldIssueKey = oldIssue.IssueKey
+			}
+
+			for _, oldAlert := range oldAlerts {
+				oldAlert.IssueID = &newIssueID
+				if err := s.alertRepo.Update(ctx, oldAlert); err != nil {
+					return fmt.Errorf("failed to migrate alert %d: %w", oldAlert.ID, err)
+				}
+				migratedAlertCount++
+
+				oldLabels := repository.JSONToLabels(oldAlert.Labels)
+				oldAnnotations := repository.JSONToLabels(oldAlert.Annotations)
+				instance := oldLabels["instance"]
+				if instance == "" {
+					instance = oldLabels["target_ident"]
+				}
+				nodename := oldLabels["nodename"]
+				desc := ""
+				if d, ok := oldAnnotations["description"]; ok {
+					desc = d
+				}
+
+				fmt.Fprintf(&historyInfo, "\n\n---\n### 历史告警 - 来自 %s (%s)\n",
+					oldIssueKey, oldAlert.StartsAt.Format("2006-01-02 15:04:05"))
+				fmt.Fprintf(&historyInfo, "- **实例**: %s\n", instance)
+				if nodename != "" {
+					fmt.Fprintf(&historyInfo, "- **主机名**: %s\n", nodename)
+				}
+				fmt.Fprintf(&historyInfo, "- **指纹**: %s\n", oldAlert.Fingerprint)
+				if desc != "" {
+					fmt.Fprintf(&historyInfo, "- **描述**: %s\n", desc)
+				}
+			}
+		}
+
+		// 标记直接旧工单为 merged，设置 merged_into_issue_id
+		var mergedKeys []string
+		now := time.Now()
+		for _, oldIssue := range directOldIssues {
+			mergedKeys = append(mergedKeys, oldIssue.IssueKey)
+
+			oldIssue.Status = "merged"
+			oldIssue.Resolution = "merged"
+			oldIssue.ClosedAt = &now
+			oldIssue.MergedIntoIssueID = &newIssueID
+			oldIssue.Description += fmt.Sprintf("\n\n---\n> 🔗 **已合并**: 此工单已合并到新工单 **%s**，后续告警将在新工单中跟进\n", newIssueKey)
+
+			if err := s.issueRepo.Update(ctx, &oldIssue); err != nil {
+				return fmt.Errorf("failed to mark issue %s as merged: %w", oldIssue.IssueKey, err)
+			}
+
+			// 强制完成旧工单的工作流实例
+			s.forceCompleteWorkflow(ctx, oldIssue.ID)
+		}
+
+		// 收集深层工单 key（用于合并来源显示）
+		for _, dmi := range deeperMergedIssues {
+			mergedKeys = append(mergedKeys, dmi.IssueKey)
+		}
+
+		// 更新新工单：汇总全部历史实例 + 合并来源 + 标题实例计数
+		newIssue, err := s.issueRepo.GetByID(ctx, newIssueID)
+		if err != nil {
+			return fmt.Errorf("failed to get new issue for merge link: %w", err)
+		}
+
+		if historyInfo.Len() > 0 {
+			newIssue.Description += historyInfo.String()
+		}
+
+		newIssue.Description += fmt.Sprintf("\n\n---\n> 📎 **合并来源**: 此工单汇总了 **%s** 的全部告警信息，旧工单已标记为「已合并」状态\n",
+			strings.Join(mergedKeys, ", "))
+
+		totalAlerts, err := s.alertRepo.ListByIssueID(ctx, newIssueID)
+		if err == nil && len(totalAlerts) > 0 {
+			newIssue.Title = fmt.Sprintf("[告警] %s (%d 个实例)", alert.AlertName, len(totalAlerts))
+		}
+
+		if err := s.issueRepo.Update(ctx, newIssue); err != nil {
+			return fmt.Errorf("failed to update new issue with merge info: %w", err)
+		}
+
+		logger.Info("merge completed: alerts migrated, history flattened",
+			zap.String("new_issue_key", newIssueKey),
+			zap.Int("merged_issues", len(mergedKeys)),
+			zap.Int("migrated_alerts", migratedAlertCount),
+		)
+
+		return nil
+	})
+
+	if txErr != nil {
+		logger.Error("merge transaction failed",
+			zap.String("new_issue_key", newIssueKey),
+			zap.Error(txErr),
+		)
 	}
-
-	// 收集深层工单 key（用于合并来源显示）
-	for _, dmi := range deeperMergedIssues {
-		mergedKeys = append(mergedKeys, dmi.IssueKey)
-	}
-
-	// 更新新工单：汇总全部历史实例 + 合并来源 + 标题实例计数
-	newIssue, err := s.issueRepo.GetByID(ctx, newIssueID)
-	if err != nil {
-		logger.Error("failed to get new issue for merge link", zap.Error(err))
-		return
-	}
-
-	if historyInfo.Len() > 0 {
-		newIssue.Description += historyInfo.String()
-	}
-
-	newIssue.Description += fmt.Sprintf("\n\n---\n> 📎 **合并来源**: 此工单汇总了 **%s** 的全部告警信息，旧工单已标记为「已合并」状态\n",
-		strings.Join(mergedKeys, ", "))
-
-	// 统计新工单关联的全部告警数更新标题
-	totalAlerts, err := s.alertRepo.ListByIssueID(ctx, newIssueID)
-	if err == nil && len(totalAlerts) > 0 {
-		newIssue.Title = fmt.Sprintf("[告警] %s (%d 个实例)", alert.AlertName, len(totalAlerts))
-	}
-
-	if err := s.issueRepo.Update(ctx, newIssue); err != nil {
-		logger.Error("failed to update new issue with merge info", zap.Error(err))
-	}
-
-	logger.Info("merge completed: alerts migrated, history flattened",
-		zap.String("new_issue_key", newIssueKey),
-		zap.Int("merged_issues", len(mergedKeys)),
-		zap.Int("migrated_alerts", migratedAlertCount),
-	)
 }
 
 // SyncMergedIssueStatus 同步状态到被合并的旧工单（扁平化查询，无需递归）
@@ -334,7 +336,7 @@ func (s *alertService) SyncMergedIssueStatus(ctx context.Context, issueID uint64
 
 	now := time.Now()
 	for _, mi := range mergedIssues {
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"status":     issueStatus,
 			"updated_at": now,
 		}

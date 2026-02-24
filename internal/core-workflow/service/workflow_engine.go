@@ -433,12 +433,29 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 
 		// 联动更新工单状态为 closed
 		closedAt := time.Now()
-		e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", instance.IssueID).Updates(map[string]interface{}{
+		e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", instance.IssueID).Updates(map[string]any{
 			"status":          "closed",
 			"closed_at":       closedAt,
 			"actual_end_date": closedAt,
 			"updated_at":      closedAt,
 		})
+
+		// 同步告警状态和级联合并工单（Reject 无退回边时也需要同步）
+		if e.issueStatusSyncer != nil {
+			issueID := instance.IssueID
+			go func() {
+				syncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := e.issueStatusSyncer.SyncIssueStatus(syncCtx, issueID, "closed"); err != nil {
+					logger.Warn("failed to sync issue status on reject",
+						zap.Uint64("issue_id", issueID), zap.Error(err))
+				}
+				if err := e.issueStatusSyncer.SyncMergedIssueStatus(syncCtx, issueID, "closed"); err != nil {
+					logger.Warn("failed to sync merged issue status on reject",
+						zap.Uint64("issue_id", issueID), zap.Error(err))
+				}
+			}()
+		}
 	}
 
 	logger.Info("approval rejected",
@@ -960,7 +977,7 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 	}
 
 	now := time.Now()
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"status":     targetStatus,
 		"updated_at": now,
 	}
@@ -993,17 +1010,20 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 
 		// 告警联动：同步工单状态到告警 + 级联更新被合并的旧工单
 		if e.issueStatusSyncer != nil {
+			syncIssueID := issueID
+			syncStatus := targetStatus
 			go func() {
-				bgCtx := context.Background()
-				if err := e.issueStatusSyncer.SyncIssueStatus(bgCtx, issueID, targetStatus); err != nil {
+				syncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := e.issueStatusSyncer.SyncIssueStatus(syncCtx, syncIssueID, syncStatus); err != nil {
 					logger.Warn("failed to sync issue status to alerts",
-						zap.Uint64("issue_id", issueID),
+						zap.Uint64("issue_id", syncIssueID),
 						zap.Error(err),
 					)
 				}
-				if err := e.issueStatusSyncer.SyncMergedIssueStatus(bgCtx, issueID, targetStatus); err != nil {
+				if err := e.issueStatusSyncer.SyncMergedIssueStatus(syncCtx, syncIssueID, syncStatus); err != nil {
 					logger.Warn("failed to cascade status to merged issues",
-						zap.Uint64("issue_id", issueID),
+						zap.Uint64("issue_id", syncIssueID),
 						zap.Error(err),
 					)
 				}
