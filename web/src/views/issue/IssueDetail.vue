@@ -89,7 +89,7 @@
                 <!-- 工作流已结束提示 -->
                 <template v-else-if="workflowInstance.status !== 'active'">
                   <el-dropdown-item disabled>
-                    工作流{{ workflowInstance.status === 'completed' ? '已完成' : workflowInstance.status === 'reviewing' ? '验收中' : '已取消' }}
+                    工作流{{ getWorkflowStatusText(workflowInstance.status) }}
                   </el-dropdown-item>
                 </template>
                 <el-dropdown-item divided command="view-workflow">
