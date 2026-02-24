@@ -188,7 +188,7 @@ const loadWorkflow = async () => {
   loading.value = true
   try {
     const [detailRes, nodesRes, edgesRes] = await Promise.all([
-      getWorkflowDetail(workflowId.value),
+      getWorkflowDetail(workflowId.value, { _redirectOn404: true }),
       getWorkflowNodes(workflowId.value),
       getAllUsers(),
     ])

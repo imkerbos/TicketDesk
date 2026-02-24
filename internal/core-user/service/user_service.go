@@ -30,7 +30,8 @@ var (
 	ErrInvalidCredentials   = errors.New("用户名或密码错误")
 	ErrInvalidOldPassword   = errors.New("原密码错误")
 	ErrInvalidResetToken    = errors.New("重置密码令牌无效或已过期")
-	ErrResetTokenExpired    = errors.New("重置密码令牌已过期")
+	ErrResetTokenExpired      = errors.New("重置密码令牌已过期")
+	ErrSSOPasswordNotAllowed  = errors.New("SSO 用户不支持修改密码，请通过 SSO 提供方管理密码")
 )
 
 // UserService 用户服务接口
@@ -384,6 +385,11 @@ func (s *userService) UpdatePassword(ctx context.Context, userID uint64, req *dt
 		return fmt.Errorf("查询用户失败: %w", err)
 	}
 
+	// SSO 用户不允许修改密码
+	if user.SSOProvider != "" {
+		return ErrSSOPasswordNotAllowed
+	}
+
 	// 验证原密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.OldPassword)); err != nil {
 		return ErrInvalidOldPassword
@@ -524,6 +530,11 @@ func (s *userService) ListUsers(ctx context.Context, req *dto.ListUsersRequest) 
 
 // toUserResponse 将用户模型转换为响应 DTO
 func (s *userService) toUserResponse(ctx context.Context, user *model.User) *dto.UserResponse {
+	authSource := "local"
+	if user.SSOProvider != "" {
+		authSource = "sso"
+	}
+
 	resp := &dto.UserResponse{
 		ID:          user.ID,
 		Username:    user.Username,
@@ -532,6 +543,8 @@ func (s *userService) toUserResponse(ctx context.Context, user *model.User) *dto
 		AvatarURL:   user.AvatarURL,
 		Status:      user.Status,
 		MFAEnabled:  user.MFAEnabled,
+		AuthSource:  authSource,
+		SSOProvider: user.SSOProvider,
 		LastLoginAt: user.LastLoginAt,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,

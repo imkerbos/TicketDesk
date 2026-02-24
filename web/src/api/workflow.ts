@@ -36,8 +36,8 @@ export const getWorkflowList = (params?: ListWorkflowsRequest) => {
 /**
  * 获取工作流详情
  */
-export const getWorkflowDetail = (id: number) => {
-  return request.get<Workflow>(`/workflows/${id}`)
+export const getWorkflowDetail = (id: number, config?: any) => {
+  return request.get<Workflow>(`/workflows/${id}`, config)
 }
 
 /**

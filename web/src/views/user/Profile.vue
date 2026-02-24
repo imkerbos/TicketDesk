@@ -45,6 +45,17 @@
                 <span class="info-value">{{ formatDate(profile?.created_at) }}</span>
               </div>
             </div>
+            <div class="info-item">
+              <el-icon><Link /></el-icon>
+              <div class="info-content">
+                <span class="info-label">认证方式</span>
+                <span class="info-value">
+                  <el-tag :type="profile?.auth_source === 'sso' ? 'warning' : 'info'" size="small">
+                    {{ profile?.auth_source === 'sso' ? `SSO (${profile?.sso_provider || 'SSO'})` : '本地账号' }}
+                  </el-tag>
+                </span>
+              </div>
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -92,8 +103,8 @@
           </el-form>
         </el-card>
 
-        <!-- 修改密码 -->
-        <el-card shadow="never" class="settings-card">
+        <!-- 修改密码（仅本地用户） -->
+        <el-card v-if="profile?.auth_source !== 'sso'" shadow="never" class="settings-card">
           <template #header>
             <div class="card-header">
               <span class="card-title">
@@ -156,13 +167,17 @@
           <div class="security-info">
             <div class="security-item">
               <div class="security-left">
-                <el-icon class="security-icon success"><CircleCheck /></el-icon>
+                <el-icon class="security-icon" :class="profile?.auth_source === 'sso' ? 'warning' : 'success'">
+                  <component :is="profile?.auth_source === 'sso' ? Warning : CircleCheck" />
+                </el-icon>
                 <div class="security-content">
                   <span class="security-title">登录密码</span>
-                  <span class="security-desc">已设置，建议定期更换密码</span>
+                  <span class="security-desc">
+                    {{ profile?.auth_source === 'sso' ? '当前为 SSO 账号，密码由 SSO 提供方管理' : '已设置，建议定期更换密码' }}
+                  </span>
                 </div>
               </div>
-              <el-button link type="primary" @click="scrollToPassword">修改</el-button>
+              <el-button v-if="profile?.auth_source !== 'sso'" link type="primary" @click="scrollToPassword">修改</el-button>
             </div>
 
             <el-divider />
@@ -280,6 +295,7 @@ import {
   Camera,
   CircleCheck,
   Warning,
+  Link,
 } from '@element-plus/icons-vue'
 import { getCurrentUser, updateCurrentUser, updatePassword, getMFAStatus, setupMFA, enableMFA, disableMFA } from '@/api/user'
 import type { UserProfile, UpdatePasswordRequest } from '@/types/user'

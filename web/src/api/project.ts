@@ -26,8 +26,8 @@ export const getProjectList = (params?: ProjectListRequest) => {
 }
 
 // 项目详情
-export const getProjectDetail = (key: string) => {
-  return request.get<ApiResponse<Project>>(`/projects/${key}`)
+export const getProjectDetail = (key: string, config?: any) => {
+  return request.get<ApiResponse<Project>>(`/projects/${key}`, config)
 }
 
 // 创建项目

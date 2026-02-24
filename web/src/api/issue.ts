@@ -21,8 +21,8 @@ export const getIssueList = (params: IssueListRequest) => {
 }
 
 // 工单详情
-export const getIssueDetail = (key: string) => {
-  return request.get<ApiResponse<Issue>>(`/issues/${key}`)
+export const getIssueDetail = (key: string, config?: any) => {
+  return request.get<ApiResponse<Issue>>(`/issues/${key}`, config)
 }
 
 // 创建工单

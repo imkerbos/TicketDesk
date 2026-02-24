@@ -28,8 +28,8 @@ export const getAlertStats = () => {
 }
 
 // 告警详情
-export const getAlertDetail = (id: number) => {
-  return request.get<ApiResponse<Alert>>(`/alerts/${id}`)
+export const getAlertDetail = (id: number, config?: any) => {
+  return request.get<ApiResponse<Alert>>(`/alerts/${id}`, config)
 }
 
 // 确认告警

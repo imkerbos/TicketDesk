@@ -9,6 +9,8 @@ export interface User {
   roles: string[] // 角色数组，如 ['admin', 'user']
   status: number // 0-禁用, 1-启用
   mfa_enabled: boolean // MFA 是否启用
+  auth_source: string // "local" 或 "sso"
+  sso_provider?: string // SSO 提供方名称
   last_login_at?: string // 最后登录时间
   created_at: string
   updated_at: string
@@ -57,6 +59,8 @@ export interface UserProfile {
   avatar_url?: string
   roles: string[] // 角色数组
   status: number
+  auth_source: string // "local" 或 "sso"
+  sso_provider?: string // SSO 提供方名称
   created_at: string
   updated_at: string
 }

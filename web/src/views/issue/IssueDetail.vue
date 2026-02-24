@@ -1185,7 +1185,7 @@ const loadIssue = async () => {
   if (!key) return
   loading.value = true
   try {
-    const { data } = await getIssueDetail(key)
+    const { data } = await getIssueDetail(key, { _redirectOn404: true })
     issue.value = data.data
     // 先加载字段（需要 issue.value 中的 project_key 和 issue_type_id）
     await loadCustomFields(data.data.id)
@@ -1201,7 +1201,7 @@ const loadIssue = async () => {
       loadWorkflowData(key),
       loadIssueAlerts(data.data.id),
     ])
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to load issue:', error)
     ElMessage.error('加载工单失败')
   } finally {

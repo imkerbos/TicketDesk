@@ -175,6 +175,26 @@ const router = createRouter({
       component: () => import('@/views/system/SystemSettings.vue'),
       meta: { title: '系统设置', requiresAdmin: true },
     },
+    // 错误页面
+    {
+      path: '/403',
+      name: 'Forbidden',
+      component: () => import('@/views/error/Forbidden.vue'),
+      meta: { title: '无权访问', public: true },
+    },
+    {
+      path: '/500',
+      name: 'ServerError',
+      component: () => import('@/views/error/ServerError.vue'),
+      meta: { title: '服务器错误', public: true },
+    },
+    // 404 兜底（必须放在最后）
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: () => import('@/views/error/NotFound.vue'),
+      meta: { title: '页面不存在', public: true },
+    },
   ],
 })
 
@@ -197,13 +217,13 @@ router.beforeEach((to, _from, next) => {
 
   // 检查是否需要管理员权限
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
-    next('/dashboard')
+    next('/403')
     return
   }
 
   // 检查是否需要项目管理员权限
   if (to.meta.requiresProjectAdmin && !userStore.isProjectAdmin) {
-    next('/dashboard')
+    next('/403')
     return
   }
 

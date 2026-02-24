@@ -1238,7 +1238,7 @@ const channelRules: FormRules = {
 const loadProjectDetail = async () => {
   loading.value = true
   try {
-    const { data } = await getProjectDetail(projectKey.value)
+    const { data } = await getProjectDetail(projectKey.value, { _redirectOn404: true })
     const project = data.data
     Object.assign(basicForm, {
       project_key: project.project_key,

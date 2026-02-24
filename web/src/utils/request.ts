@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
+import router from '@/router'
 
 // API 响应结构
 export interface ApiResponse<T = unknown> {
@@ -67,10 +68,13 @@ request.interceptors.response.use(
             }
             break
           case 403:
-            ElMessage.error('没有权限访问')
+            ElMessage.error(data?.message || '没有权限访问')
             break
           case 404:
-            ElMessage.error('请求的资源不存在')
+            // 标记了 _redirectOn404 的请求（详情页主资源加载）自动跳转 404 页面
+            if ((error.config as any)?._redirectOn404) {
+              router.replace('/404')
+            }
             break
           case 500:
             ElMessage.error(data?.message || '服务器错误')

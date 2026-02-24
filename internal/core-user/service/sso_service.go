@@ -351,6 +351,8 @@ func (s *ssoService) HandleCallback(ctx context.Context, req *dto.SSOCallbackReq
 			AvatarURL:   user.AvatarURL,
 			Status:      user.Status,
 			MFAEnabled:  user.MFAEnabled,
+			AuthSource:  "sso",
+			SSOProvider: user.SSOProvider,
 			LastLoginAt: user.LastLoginAt,
 			Roles:       roles,
 			CreatedAt:   user.CreatedAt,

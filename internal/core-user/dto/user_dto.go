@@ -112,6 +112,8 @@ type UserResponse struct {
 	Status      int8       `json:"status"`
 	Roles       []string   `json:"roles,omitempty"`
 	MFAEnabled  bool       `json:"mfa_enabled"`
+	AuthSource  string     `json:"auth_source"`             // "local" 或 "sso"
+	SSOProvider string     `json:"sso_provider,omitempty"`  // SSO 提供方名称（仅 SSO 用户）
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

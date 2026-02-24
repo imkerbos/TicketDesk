@@ -9,6 +9,10 @@ export interface User {
   avatar_url: string
   status: number
   roles: string[]
+  mfa_enabled: boolean
+  auth_source: string
+  sso_provider?: string
+  last_login_at?: string
   created_at: string
   updated_at: string
 }

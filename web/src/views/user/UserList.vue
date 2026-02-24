@@ -173,6 +173,17 @@
             </div>
           </template>
         </el-table-column>
+        <el-table-column prop="auth_source" label="认证方式" width="130" align="center">
+          <template #default="{ row }">
+            <el-tag
+              :type="row.auth_source === 'sso' ? 'warning' : 'info'"
+              size="small"
+              effect="plain"
+            >
+              {{ row.auth_source === 'sso' ? `SSO (${row.sso_provider || 'SSO'})` : '本地' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="mfa_enabled" label="MFA" width="80" align="center">
           <template #default="{ row }">
             <el-tooltip :content="row.mfa_enabled ? 'MFA 已启用' : 'MFA 未启用'" placement="top">
@@ -207,8 +218,8 @@
                   <el-icon><Edit /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip content="重置密码" placement="top">
-                <el-button link type="warning" @click="handleResetPassword(row)">
+              <el-tooltip :content="row.auth_source === 'sso' ? 'SSO 用户无法重置密码' : '重置密码'" placement="top">
+                <el-button link type="warning" @click="handleResetPassword(row)" :disabled="row.auth_source === 'sso'">
                   <el-icon><Key /></el-icon>
                 </el-button>
               </el-tooltip>

@@ -120,7 +120,7 @@ const alert = ref<Alert>()
 const loadData = async () => {
   loading.value = true
   try {
-    const { data } = await getAlertDetail(Number(route.params.id))
+    const { data } = await getAlertDetail(Number(route.params.id), { _redirectOn404: true })
     alert.value = data.data
   } catch (error) {
     console.error('Failed to load alert:', error)
