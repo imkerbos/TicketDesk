@@ -16,6 +16,7 @@ type UserRepository interface {
 	GetByUsername(ctx context.Context, username string) (*model.User, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
 	GetByResetToken(ctx context.Context, token string) (*model.User, error)
+	GetBySSOSubject(ctx context.Context, provider, subject string) (*model.User, error)
 	Update(ctx context.Context, user *model.User) error
 	Delete(ctx context.Context, id uint64) error
 	List(ctx context.Context, offset, limit int, keyword string, status *int8) ([]*model.User, int64, error)
@@ -82,6 +83,16 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.U
 func (r *userRepository) GetByResetToken(ctx context.Context, token string) (*model.User, error) {
 	var user model.User
 	err := r.db.WithContext(ctx).Where("reset_password_token = ?", token).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetBySSOSubject 根据 SSO provider 和 subject 获取用户
+func (r *userRepository) GetBySSOSubject(ctx context.Context, provider, subject string) (*model.User, error) {
+	var user model.User
+	err := r.db.WithContext(ctx).Where("sso_provider = ? AND sso_subject = ?", provider, subject).First(&user).Error
 	if err != nil {
 		return nil, err
 	}

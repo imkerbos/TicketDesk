@@ -138,3 +138,39 @@ export interface UpdateTelegramConfigRequest {
   bot_token?: string
   chat_id: string
 }
+
+// ============ SSO 配置 ============
+
+// SSO Claim 映射
+export interface SSOClaimMapping {
+  local_field: string
+  claim_name: string
+}
+
+// SSO 配置
+export interface SSOAdminConfig {
+  enabled: boolean
+  provider_name: string
+  client_id: string
+  client_secret?: string
+  issuer_url: string
+  redirect_uri: string
+  scopes: string
+  auto_create_user: boolean
+  default_role: string
+  claim_mappings: SSOClaimMapping[]
+}
+
+// 更新 SSO 配置请求
+export interface UpdateSSOConfigRequest {
+  enabled: boolean
+  provider_name: string
+  client_id: string
+  client_secret?: string
+  issuer_url: string
+  redirect_uri: string
+  scopes: string
+  auto_create_user: boolean
+  default_role: string
+  claim_mappings: SSOClaimMapping[]
+}

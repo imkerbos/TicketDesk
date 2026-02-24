@@ -440,6 +440,216 @@
           </el-button>
         </div>
       </el-tab-pane>
+      <!-- SSO 配置 -->
+      <el-tab-pane label="SSO 认证" name="sso">
+        <el-card shadow="never" class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <div class="card-title">
+                <div class="title-icon sso-icon">
+                  <el-icon><Link /></el-icon>
+                </div>
+                <div class="title-text">
+                  <span class="title">SSO 单点登录配置</span>
+                  <span class="subtitle">配置 OIDC 单点登录，支持企业统一认证（EIAM）</span>
+                </div>
+              </div>
+              <el-switch
+                v-model="ssoForm.enabled"
+                active-text="启用"
+                inactive-text="禁用"
+                inline-prompt
+                style="--el-switch-on-color: #67c23a"
+              />
+            </div>
+          </template>
+
+          <el-row :gutter="40">
+            <el-col :xs="24" :lg="14">
+              <el-form
+                ref="ssoFormRef"
+                :model="ssoForm"
+                label-position="top"
+                class="settings-form"
+              >
+                <div class="form-section">
+                  <div class="section-title">基本配置</div>
+                  <el-form-item label="提供方名称" prop="provider_name">
+                    <el-input v-model="ssoForm.provider_name" placeholder="例如: 企业统一认证">
+                      <template #prefix>
+                        <el-icon><User /></el-icon>
+                      </template>
+                    </el-input>
+                    <template #extra>
+                      <div class="form-item-tip">登录页面 SSO 按钮上显示的名称</div>
+                    </template>
+                  </el-form-item>
+
+                  <el-form-item label="Issuer URL" prop="issuer_url">
+                    <el-input v-model="ssoForm.issuer_url" placeholder="例如: https://eiam.example.com/realms/master">
+                      <template #prefix>
+                        <el-icon><Link /></el-icon>
+                      </template>
+                    </el-input>
+                    <template #extra>
+                      <div class="form-item-tip">OIDC 提供方的 Issuer URL，用于自动发现配置</div>
+                    </template>
+                  </el-form-item>
+
+                  <el-row :gutter="16">
+                    <el-col :span="12">
+                      <el-form-item label="Client ID" prop="client_id">
+                        <el-input v-model="ssoForm.client_id" placeholder="OIDC Client ID" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="Client Secret" prop="client_secret">
+                        <el-input
+                          v-model="ssoForm.client_secret"
+                          type="password"
+                          placeholder="留空表示不修改"
+                          show-password
+                        >
+                          <template #prefix>
+                            <el-icon><Lock /></el-icon>
+                          </template>
+                        </el-input>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+
+                  <el-row :gutter="16">
+                    <el-col :span="12">
+                      <el-form-item label="回调地址" prop="redirect_uri">
+                        <el-input v-model="ssoForm.redirect_uri" placeholder="例如: https://your-domain/auth/sso/callback" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="Scopes" prop="scopes">
+                        <el-input v-model="ssoForm.scopes" placeholder="openid,profile,email" />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </div>
+
+                <div class="form-section">
+                  <div class="section-title">用户管理</div>
+                  <el-form-item>
+                    <div class="setting-row">
+                      <div class="setting-info">
+                        <span class="setting-label">自动创建用户</span>
+                        <span class="setting-desc">首次 SSO 登录时自动创建本地用户</span>
+                      </div>
+                      <el-switch v-model="ssoForm.auto_create_user" />
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="默认角色" prop="default_role">
+                    <el-select v-model="ssoForm.default_role" style="width: 200px">
+                      <el-option label="普通用户 (user)" value="user" />
+                      <el-option label="项目管理员 (project_admin)" value="project_admin" />
+                      <el-option label="系统管理员 (admin)" value="admin" />
+                    </el-select>
+                    <template #extra>
+                      <div class="form-item-tip">自动创建用户时分配的默认角色</div>
+                    </template>
+                  </el-form-item>
+                </div>
+
+                <div class="form-section">
+                  <div class="section-title">
+                    Claims 映射
+                    <el-button type="primary" link size="small" @click="addClaimMapping" style="margin-left: 8px">
+                      + 添加映射
+                    </el-button>
+                  </div>
+                  <div class="claim-mappings">
+                    <div
+                      v-for="(mapping, index) in ssoForm.claim_mappings"
+                      :key="index"
+                      class="claim-mapping-row"
+                    >
+                      <el-row :gutter="12" style="flex: 1">
+                        <el-col :span="10">
+                          <el-input
+                            v-model="mapping.local_field"
+                            placeholder="本地字段名 (如 username)"
+                            size="default"
+                          />
+                        </el-col>
+                        <el-col :span="2" style="text-align: center; line-height: 32px; color: #909399">
+                          ←
+                        </el-col>
+                        <el-col :span="10">
+                          <el-input
+                            v-model="mapping.claim_name"
+                            placeholder="OIDC Claim (如 preferred_username)"
+                            size="default"
+                          />
+                        </el-col>
+                        <el-col :span="2">
+                          <el-button
+                            type="danger"
+                            link
+                            @click="removeClaimMapping(index)"
+                            :disabled="ssoForm.claim_mappings.length <= 1"
+                          >
+                            删除
+                          </el-button>
+                        </el-col>
+                      </el-row>
+                    </div>
+                    <div class="claim-mapping-hint">
+                      内置字段：username、email、display_name、avatar。其他字段名将存入用户扩展属性。
+                    </div>
+                  </div>
+                </div>
+
+                <el-form-item>
+                  <el-button type="primary" :loading="ssoSaving" @click="saveSSOConfig">
+                    <el-icon><Check /></el-icon>
+                    保存配置
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </el-col>
+
+            <el-col :xs="24" :lg="10">
+              <div class="config-tips">
+                <div class="tip-title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>配置说明</span>
+                </div>
+                <div class="tip-content">
+                  <div class="tip-item">
+                    <div class="tip-label">OIDC 对接步骤</div>
+                    <div class="tip-desc">
+                      1. 在 EIAM 中创建 OIDC 应用，获取 Client ID 和 Secret<br>
+                      2. 填写 Issuer URL（通常为 EIAM 的 realm 地址）<br>
+                      3. 在 EIAM 中配置回调地址为本系统的回调 URL<br>
+                      4. 启用 SSO 后，登录页将出现 SSO 登录按钮
+                    </div>
+                  </div>
+                  <div class="tip-item">
+                    <div class="tip-label">IdP-initiated 登录</div>
+                    <div class="tip-desc">
+                      在 EIAM 门户中将应用入口 URL 配置为：<br>
+                      <code>{{ ssoForm.redirect_uri?.replace('/auth/sso/callback', '/auth/sso/login') || 'https://your-domain/auth/sso/login' }}</code>
+                    </div>
+                  </div>
+                  <div class="tip-item">
+                    <div class="tip-label">Claims 映射</div>
+                    <div class="tip-desc">
+                      根据 EIAM 返回的 ID Token 中的 claim 名称进行映射。<br>
+                      内置字段：username、email、display_name、avatar 会映射到用户基本信息。<br>
+                      自定义字段名（如 department、employee_id）会存入用户扩展属性。
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 测试邮件对话框 -->
@@ -477,6 +687,8 @@ import {
   updateRateLimitConfig,
   getConfig,
   updateConfig,
+  getSSOAdminConfig,
+  updateSSOConfig,
 } from '@/api/system'
 
 const route = useRoute()
@@ -683,12 +895,76 @@ const saveRateLimitConfig = async () => {
   }
 }
 
+// ============ SSO 配置 ============
+const ssoFormRef = ref<FormInstance>()
+const ssoSaving = ref(false)
+const ssoForm = reactive({
+  enabled: false,
+  provider_name: '企业统一认证',
+  client_id: '',
+  client_secret: '',
+  issuer_url: '',
+  redirect_uri: 'http://localhost:5173/auth/sso/callback',
+  scopes: 'openid,profile,email',
+  auto_create_user: true,
+  default_role: 'user',
+  claim_mappings: [
+    { local_field: 'username', claim_name: 'preferred_username' },
+    { local_field: 'email', claim_name: 'email' },
+    { local_field: 'display_name', claim_name: 'name' },
+    { local_field: 'avatar', claim_name: 'picture' },
+  ] as Array<{ local_field: string; claim_name: string }>,
+})
+
+const addClaimMapping = () => {
+  ssoForm.claim_mappings.push({ local_field: '', claim_name: '' })
+}
+
+const removeClaimMapping = (index: number) => {
+  ssoForm.claim_mappings.splice(index, 1)
+}
+
+const loadSSOConfig = async () => {
+  try {
+    const { data } = await getSSOAdminConfig()
+    const cfg = data.data
+    ssoForm.enabled = cfg.enabled
+    ssoForm.provider_name = cfg.provider_name
+    ssoForm.client_id = cfg.client_id
+    ssoForm.issuer_url = cfg.issuer_url
+    ssoForm.redirect_uri = cfg.redirect_uri
+    ssoForm.scopes = cfg.scopes
+    ssoForm.auto_create_user = cfg.auto_create_user
+    ssoForm.default_role = cfg.default_role
+    if (cfg.claim_mappings && cfg.claim_mappings.length > 0) {
+      ssoForm.claim_mappings = cfg.claim_mappings
+    }
+    // client_secret 不会从后端返回，保持为空
+    ssoForm.client_secret = ''
+  } catch (error) {
+    console.error('Failed to load SSO config:', error)
+  }
+}
+
+const saveSSOConfig = async () => {
+  ssoSaving.value = true
+  try {
+    await updateSSOConfig(ssoForm)
+    ElMessage.success('SSO 配置保存成功')
+  } catch (error) {
+    console.error('Failed to save SSO config:', error)
+  } finally {
+    ssoSaving.value = false
+  }
+}
+
 // ============ 初始化 ============
 onMounted(() => {
   loadGeneralConfig()
   loadEmailConfig()
   loadSecurityConfig()
   loadRateLimitConfig()
+  loadSSOConfig()
 })
 </script>
 
@@ -744,6 +1020,11 @@ onMounted(() => {
 
     &.general-icon {
       background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: #fff;
+    }
+
+    &.sso-icon {
+      background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
       color: #fff;
     }
   }
@@ -954,6 +1235,77 @@ onMounted(() => {
 
   .setting-block {
     margin-bottom: 16px;
+  }
+}
+
+// Claims 映射动态列表
+.claim-mappings {
+  .claim-mapping-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .claim-mapping-hint {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+}
+
+// 配置说明面板
+.config-tips {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #bae6fd;
+
+  .tip-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0369a1;
+    margin-bottom: 12px;
+  }
+
+  .tip-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .tip-item {
+    .tip-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .tip-desc {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.8;
+
+      code {
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #0369a1;
+        word-break: break-all;
+      }
+    }
+
+    .tip-example {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+      font-style: italic;
+    }
   }
 }
 </style>

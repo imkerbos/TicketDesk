@@ -79,6 +79,7 @@ type Router struct {
 	datasourceService      alertService.DatasourceService
 	notifChannelHandler    *projectHandler.NotificationChannelHandler
 	configSvc              configService.ConfigService
+	ssoHandler             *userHandler.SSOHandler
 }
 
 // NewRouter 创建路由管理器
@@ -103,6 +104,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	userSvc := userService.NewUserService(userRepository, userRoleRepository, jwtManager, emailSvc, configSvc)
 	mfaSvc := userService.NewMFAService(userRepository)
 	userHdl := userHandler.NewUserHandler(userSvc, mfaSvc)
+
+	// ============ 初始化 SSO 模块（仅在启用时创建完整的 service/handler）============
+	var ssoHdl *userHandler.SSOHandler
+	ssoSvc := userService.NewSSOService(configSvc, userRepository, userRoleRepository, jwtManager)
+	ssoHdl = userHandler.NewSSOHandler(ssoSvc)
 
 	// ============ 初始化 Project 模块 ============
 	projectRepository := projectRepo.NewProjectRepository(db)
@@ -370,6 +376,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		datasourceService:      datasourceSvc,
 		notifChannelHandler:    notifChannelHdl,
 		configSvc:              configSvc,
+		ssoHandler:             ssoHdl,
 	}
 }
 
@@ -455,6 +462,13 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 		auth.POST("/forgot-password", r.userHandler.HandleForgotPassword)
 		auth.GET("/verify-reset-token", r.userHandler.HandleVerifyResetToken)
 		auth.POST("/reset-password", r.userHandler.HandleResetPasswordWithToken)
+
+		// SSO 相关路由
+		if r.ssoHandler != nil {
+			auth.GET("/sso/config", r.ssoHandler.HandleGetSSOConfig)
+			auth.GET("/sso/authorize", r.ssoHandler.HandleSSOAuthorize)
+			auth.POST("/sso/callback", r.ssoHandler.HandleSSOCallback)
+		}
 	}
 
 	// 告警 Webhook（无需认证）
@@ -807,6 +821,14 @@ func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
 	{
 		ratelimit.GET("", r.configHandler.HandleGetRateLimitConfig)
 		ratelimit.PUT("", r.configHandler.HandleUpdateRateLimitConfig)
+	}
+
+	// SSO 配置（需要管理员权限）
+	sso := rg.Group("/system/sso")
+	sso.Use(r.rbac.RequireAdmin())
+	{
+		sso.GET("", r.configHandler.HandleGetSSOConfig)
+		sso.PUT("", r.configHandler.HandleUpdateSSOConfig)
 	}
 
 	// Webhook 管理（需要管理员权限）

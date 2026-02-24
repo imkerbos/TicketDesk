@@ -67,6 +67,21 @@ const (
 	KeyRateLimitWebhook = "ratelimit.webhook_limit" // 默认 100
 	KeyRateLimitAuth    = "ratelimit.auth_limit"     // 默认 20
 	KeyRateLimitAPI     = "ratelimit.api_limit"      // 默认 300
+
+	// SSO 配置分类
+	CategorySSO = "sso"
+
+	// SSO 配置键
+	KeySSOEnabled          = "sso.enabled"
+	KeySSOProviderName     = "sso.provider_name"
+	KeySSOClientID         = "sso.client_id"
+	KeySSOClientSecret     = "sso.client_secret"
+	KeySSOIssuerURL        = "sso.issuer_url"
+	KeySSORedirectURI      = "sso.redirect_uri"
+	KeySSOScopes           = "sso.scopes"
+	KeySSOAutoCreateUser   = "sso.auto_create_user"
+	KeySSODefaultRole      = "sso.default_role"
+	KeySSOClaimMappings    = "sso.claim_mappings" // JSON: [{"local_field":"username","claim_name":"preferred_username"}, ...]
 )
 
 // 业务错误定义
@@ -104,6 +119,10 @@ type ConfigService interface {
 	// 限流配置
 	GetRateLimitConfig(ctx context.Context) (*dto.RateLimitConfig, error)
 	UpdateRateLimitConfig(ctx context.Context, req *dto.UpdateRateLimitConfigRequest, userID uint64) error
+
+	// SSO 配置
+	GetSSOConfig(ctx context.Context) (*dto.SSOConfig, error)
+	UpdateSSOConfig(ctx context.Context, req *dto.UpdateSSOConfigRequest, userID uint64) error
 
 	// Webhook 管理
 	CreateWebhook(ctx context.Context, req *dto.CreateWebhookRequest, userID uint64) (*dto.WebhookResponse, error)
@@ -683,6 +702,110 @@ func (s *configService) UpdateRateLimitConfig(ctx context.Context, req *dto.Upda
 	s.InvalidateAllCache(ctx)
 
 	logger.Info("ratelimit config updated", zap.Uint64("updated_by", userID))
+
+	return nil
+}
+
+// ============ SSO 配置 ============
+
+// GetSSOConfig 获取 SSO 配置
+func (s *configService) GetSSOConfig(ctx context.Context) (*dto.SSOConfig, error) {
+	configs, err := s.configRepo.GetByCategory(ctx, CategorySSO)
+	if err != nil {
+		return nil, fmt.Errorf("获取 SSO 配置失败: %w", err)
+	}
+
+	// 默认值
+	config := &dto.SSOConfig{
+		Enabled:        false,
+		ProviderName:   "企业统一认证",
+		RedirectURI:    "http://localhost:5173/auth/sso/callback",
+		Scopes:         "openid,profile,email",
+		AutoCreateUser: true,
+		DefaultRole:    "user",
+		ClaimMappings: []dto.SSOClaimMapping{
+			{LocalField: "username", ClaimName: "preferred_username"},
+			{LocalField: "email", ClaimName: "email"},
+			{LocalField: "display_name", ClaimName: "name"},
+			{LocalField: "avatar", ClaimName: "picture"},
+		},
+	}
+
+	for _, c := range configs {
+		switch c.ConfigKey {
+		case KeySSOEnabled:
+			config.Enabled = c.ConfigValue == "true"
+		case KeySSOProviderName:
+			config.ProviderName = c.ConfigValue
+		case KeySSOClientID:
+			config.ClientID = c.ConfigValue
+		case KeySSOClientSecret:
+			// 密钥不返回
+		case KeySSOIssuerURL:
+			config.IssuerURL = c.ConfigValue
+		case KeySSORedirectURI:
+			config.RedirectURI = c.ConfigValue
+		case KeySSOScopes:
+			config.Scopes = c.ConfigValue
+		case KeySSOAutoCreateUser:
+			config.AutoCreateUser = c.ConfigValue == "true"
+		case KeySSODefaultRole:
+			config.DefaultRole = c.ConfigValue
+		case KeySSOClaimMappings:
+			var mappings []dto.SSOClaimMapping
+			if err := json.Unmarshal([]byte(c.ConfigValue), &mappings); err == nil && len(mappings) > 0 {
+				config.ClaimMappings = mappings
+			}
+		}
+	}
+
+	return config, nil
+}
+
+// UpdateSSOConfig 更新 SSO 配置
+func (s *configService) UpdateSSOConfig(ctx context.Context, req *dto.UpdateSSOConfigRequest, userID uint64) error {
+	// 序列化 claim mappings 为 JSON
+	claimMappingsJSON, err := json.Marshal(req.ClaimMappings)
+	if err != nil {
+		return fmt.Errorf("序列化 claim mappings 失败: %w", err)
+	}
+
+	configs := []*model.SystemConfig{
+		{ConfigKey: KeySSOEnabled, ConfigValue: strconv.FormatBool(req.Enabled), ConfigType: "boolean", Category: CategorySSO, Description: "是否启用 SSO"},
+		{ConfigKey: KeySSOProviderName, ConfigValue: req.ProviderName, ConfigType: "string", Category: CategorySSO, Description: "SSO 提供方名称"},
+		{ConfigKey: KeySSOClientID, ConfigValue: req.ClientID, ConfigType: "string", Category: CategorySSO, Description: "OIDC Client ID"},
+		{ConfigKey: KeySSOIssuerURL, ConfigValue: req.IssuerURL, ConfigType: "string", Category: CategorySSO, Description: "OIDC Issuer URL"},
+		{ConfigKey: KeySSORedirectURI, ConfigValue: req.RedirectURI, ConfigType: "string", Category: CategorySSO, Description: "OIDC 回调地址"},
+		{ConfigKey: KeySSOScopes, ConfigValue: req.Scopes, ConfigType: "string", Category: CategorySSO, Description: "OIDC Scopes"},
+		{ConfigKey: KeySSOAutoCreateUser, ConfigValue: strconv.FormatBool(req.AutoCreateUser), ConfigType: "boolean", Category: CategorySSO, Description: "是否自动创建用户"},
+		{ConfigKey: KeySSODefaultRole, ConfigValue: req.DefaultRole, ConfigType: "string", Category: CategorySSO, Description: "自动创建用户的默认角色"},
+		{ConfigKey: KeySSOClaimMappings, ConfigValue: string(claimMappingsJSON), ConfigType: "json", Category: CategorySSO, Description: "Claims 映射配置"},
+	}
+
+	// 如果 ClientSecret 不为空，则更新
+	if req.ClientSecret != "" {
+		configs = append(configs, &model.SystemConfig{
+			ConfigKey:   KeySSOClientSecret,
+			ConfigValue: req.ClientSecret,
+			ConfigType:  "string",
+			Category:    CategorySSO,
+			Description: "OIDC Client Secret",
+			IsSecret:    true,
+		})
+	}
+
+	for _, c := range configs {
+		c.UpdatedBy = &userID
+	}
+
+	if err := s.configRepo.BatchUpsert(ctx, configs); err != nil {
+		return fmt.Errorf("更新 SSO 配置失败: %w", err)
+	}
+
+	// 清除缓存
+	s.InvalidateAllCache(ctx)
+
+	logger.Info("SSO config updated", zap.Uint64("updated_by", userID))
 
 	return nil
 }

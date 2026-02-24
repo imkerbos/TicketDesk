@@ -23,6 +23,18 @@ const router = createRouter({
       meta: { title: '重置密码', public: true },
     },
     {
+      path: '/auth/sso/callback',
+      name: 'SSOCallback',
+      component: () => import('@/views/auth/SSOCallback.vue'),
+      meta: { title: 'SSO 登录', public: true },
+    },
+    {
+      path: '/auth/sso/login',
+      name: 'SSOLogin',
+      component: () => import('@/views/auth/SSOLogin.vue'),
+      meta: { title: 'SSO 登录', public: true },
+    },
+    {
       path: '/',
       redirect: '/dashboard',
     },

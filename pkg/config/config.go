@@ -16,6 +16,29 @@ type Config struct {
 	JWT         JWTConfig         `mapstructure:"jwt"`
 	Log         LogConfig         `mapstructure:"log"`
 	Nightingale NightingaleConfig `mapstructure:"nightingale"`
+	SSO         SSOConfig         `mapstructure:"sso"`
+}
+
+// SSOConfig SSO 单点登录配置
+type SSOConfig struct {
+	Enabled        bool            `mapstructure:"enabled"`
+	ProviderName   string          `mapstructure:"provider_name"`   // 前端展示的名称，如 "企业统一认证"
+	ClientID       string          `mapstructure:"client_id"`
+	ClientSecret   string          `mapstructure:"client_secret"`
+	IssuerURL      string          `mapstructure:"issuer_url"`
+	RedirectURI    string          `mapstructure:"redirect_uri"`
+	Scopes         []string        `mapstructure:"scopes"`
+	AutoCreateUser bool            `mapstructure:"auto_create_user"` // 是否自动创建用户
+	DefaultRole    string          `mapstructure:"default_role"`     // 自动创建用户的默认角色
+	ClaimMapping   SSOClaimMapping `mapstructure:"claim_mapping"`
+}
+
+// SSOClaimMapping OIDC claims 映射配置
+type SSOClaimMapping struct {
+	Username    string `mapstructure:"username"`     // 映射到 username 的 claim 名称
+	Email       string `mapstructure:"email"`        // 映射到 email 的 claim 名称
+	DisplayName string `mapstructure:"display_name"` // 映射到 display_name 的 claim 名称
+	Avatar      string `mapstructure:"avatar"`       // 映射到 avatar_url 的 claim 名称
 }
 
 // NightingaleConfig 夜莺告警系统配置

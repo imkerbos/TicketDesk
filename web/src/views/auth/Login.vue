@@ -101,6 +101,21 @@
           </el-form-item>
         </el-form>
 
+        <!-- SSO 登录区域 -->
+        <div v-if="ssoConfig?.enabled" class="sso-section">
+          <div class="sso-divider">
+            <span class="sso-divider-text">或</span>
+          </div>
+          <el-button
+            size="large"
+            class="sso-button"
+            :loading="ssoLoading"
+            @click="handleSSOLogin"
+          >
+            {{ ssoConfig.provider_name || 'SSO 登录' }}
+          </el-button>
+        </div>
+
         <div class="login-footer">
           <span class="footer-text">还没有账户？</span>
           <a href="#" class="register-link" @click.prevent>联系管理员</a>
@@ -111,11 +126,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Tickets, Bell, Connection } from '@element-plus/icons-vue'
-import { login } from '@/api/auth'
+import { login, getSSOConfig, getSSOAuthorizeURL, type SSOConfigResponse } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -123,6 +138,8 @@ const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const rememberMe = ref(false)
+const ssoConfig = ref<SSOConfigResponse | null>(null)
+const ssoLoading = ref(false)
 
 const form = reactive({
   username: '',
@@ -165,6 +182,29 @@ const handleLogin = async () => {
     }
   })
 }
+
+// SSO 登录
+const handleSSOLogin = async () => {
+  ssoLoading.value = true
+  try {
+    const res = await getSSOAuthorizeURL()
+    const { authorize_url } = res.data.data
+    window.location.href = authorize_url
+  } catch {
+    ElMessage.error('获取 SSO 登录地址失败')
+    ssoLoading.value = false
+  }
+}
+
+// 获取 SSO 配置
+onMounted(async () => {
+  try {
+    const res = await getSSOConfig()
+    ssoConfig.value = res.data.data
+  } catch {
+    // SSO 配置获取失败不影响正常登录
+  }
+})
 </script>
 
 <style scoped>
@@ -368,6 +408,48 @@ const handleLogin = async () => {
 
 .login-button:active {
   transform: translateY(0);
+}
+
+/* SSO 登录区域 */
+.sso-section {
+  margin-top: 8px;
+}
+
+.sso-divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.sso-divider::before,
+.sso-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sso-divider-text {
+  padding: 0 16px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.sso-button {
+  width: 100%;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.sso-button:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: #f0f7ff;
 }
 
 .login-footer {

@@ -8,6 +8,8 @@ import type {
   UpdateLarkConfigRequest,
   TelegramConfig,
   UpdateTelegramConfigRequest,
+  SSOAdminConfig,
+  UpdateSSOConfigRequest,
   Webhook,
   CreateWebhookRequest,
   UpdateWebhookRequest,
@@ -175,4 +177,16 @@ export function updateTelegramConfig(config: UpdateTelegramConfigRequest) {
 // 测试 Telegram 通知
 export function testTelegram() {
   return request.post('/system/telegram/test')
+}
+
+// ============ SSO 配置 ============
+
+// 获取 SSO 配置
+export function getSSOAdminConfig() {
+  return request.get<{ data: SSOAdminConfig }>('/system/sso')
+}
+
+// 更新 SSO 配置
+export function updateSSOConfig(config: UpdateSSOConfigRequest) {
+  return request.put('/system/sso', config)
 }

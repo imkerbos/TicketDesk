@@ -30,11 +30,22 @@ type User struct {
 	MFAVerifiedAt        *time.Time `json:"mfa_verified_at,omitempty"`               // MFA 验证时间
 	ResetPasswordToken   string     `gorm:"size:64;index" json:"-"`                  // 重置密码令牌
 	ResetPasswordExpires *time.Time `json:"-"`                                       // 重置密码令牌过期时间
+	SSOProvider          string     `gorm:"size:50;index:idx_sso_subject" json:"sso_provider,omitempty"`  // SSO 提供方标识（如 "eiam"）
+	SSOSubject           string     `gorm:"size:255;index:idx_sso_subject" json:"sso_subject,omitempty"` // OIDC sub claim
+	ExtraAttributes      string     `gorm:"type:json" json:"extra_attributes,omitempty"`    // SSO 扩展属性（JSON）
 }
 
 // TableName 指定表名
 func (User) TableName() string {
 	return "users"
+}
+
+// BeforeCreate GORM 钩子：确保 JSON 字段不为空字符串
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	if u.ExtraAttributes == "" {
+		u.ExtraAttributes = "{}"
+	}
+	return nil
 }
 
 // Role 角色模型

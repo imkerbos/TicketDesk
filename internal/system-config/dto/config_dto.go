@@ -233,3 +233,39 @@ type UpdateTelegramConfigRequest struct {
 	BotToken string `json:"bot_token"`            // 为空时不更新
 	ChatID   string `json:"chat_id" binding:"required_if=Enabled true"`
 }
+
+// ============ SSO 配置 DTO ============
+
+// SSOClaimMapping 单条 claim 映射
+type SSOClaimMapping struct {
+	LocalField string `json:"local_field"` // 本地字段名（username/email/display_name/avatar 或自定义扩展属性名）
+	ClaimName  string `json:"claim_name"`  // OIDC claim 名称
+}
+
+// SSOConfig SSO 配置
+type SSOConfig struct {
+	Enabled        bool              `json:"enabled"`
+	ProviderName   string            `json:"provider_name"`
+	ClientID       string            `json:"client_id"`
+	ClientSecret   string            `json:"client_secret,omitempty"` // 返回时隐藏
+	IssuerURL      string            `json:"issuer_url"`
+	RedirectURI    string            `json:"redirect_uri"`
+	Scopes         string            `json:"scopes"`
+	AutoCreateUser bool              `json:"auto_create_user"`
+	DefaultRole    string            `json:"default_role"`
+	ClaimMappings  []SSOClaimMapping `json:"claim_mappings"` // 动态 claim 映射列表
+}
+
+// UpdateSSOConfigRequest 更新 SSO 配置请求
+type UpdateSSOConfigRequest struct {
+	Enabled        bool              `json:"enabled"`
+	ProviderName   string            `json:"provider_name"`
+	ClientID       string            `json:"client_id"`
+	ClientSecret   string            `json:"client_secret"`     // 为空时不更新
+	IssuerURL      string            `json:"issuer_url"`
+	RedirectURI    string            `json:"redirect_uri"`
+	Scopes         string            `json:"scopes"`
+	AutoCreateUser bool              `json:"auto_create_user"`
+	DefaultRole    string            `json:"default_role"`
+	ClaimMappings  []SSOClaimMapping `json:"claim_mappings"`
+}

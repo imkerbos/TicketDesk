@@ -1,0 +1,102 @@
+// Package handler 提供用户模块的 HTTP 处理器
+package handler
+
+import (
+	"errors"
+
+	"github.com/gin-gonic/gin"
+	"github.com/kerbos/ticketdesk/internal/api/response"
+	"github.com/kerbos/ticketdesk/internal/core-user/dto"
+	"github.com/kerbos/ticketdesk/internal/core-user/service"
+)
+
+// SSOHandler SSO 处理器
+type SSOHandler struct {
+	ssoService service.SSOService
+}
+
+// NewSSOHandler 创建 SSO 处理器实例
+func NewSSOHandler(ssoService service.SSOService) *SSOHandler {
+	return &SSOHandler{
+		ssoService: ssoService,
+	}
+}
+
+// HandleGetSSOConfig 获取 SSO 配置
+// @Summary 获取 SSO 配置
+// @Description 获取 SSO 配置信息（是否启用、提供方名称）
+// @Tags SSO
+// @Produce json
+// @Success 200 {object} dto.SSOConfigResponse
+// @Router /api/v1/auth/sso/config [get]
+func (h *SSOHandler) HandleGetSSOConfig(c *gin.Context) {
+	result := h.ssoService.GetSSOConfig(c.Request.Context())
+	response.Success(c, result)
+}
+
+// HandleSSOAuthorize 获取 SSO 授权 URL
+// @Summary 获取 SSO 授权 URL
+// @Description 生成 SSO 授权 URL，前端跳转到该 URL 进行认证
+// @Tags SSO
+// @Produce json
+// @Success 200 {object} dto.SSOAuthorizeResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/auth/sso/authorize [get]
+func (h *SSOHandler) HandleSSOAuthorize(c *gin.Context) {
+	result, err := h.ssoService.GetAuthURL(c.Request.Context())
+	if err != nil {
+		if errors.Is(err, service.ErrSSODisabled) {
+			response.BadRequest(c, "SSO 未启用")
+			return
+		}
+		response.InternalError(c, "获取 SSO 授权地址失败")
+		return
+	}
+
+	response.Success(c, result)
+}
+
+// HandleSSOCallback 处理 SSO 回调
+// @Summary SSO 回调
+// @Description 处理 SSO 认证回调，验证 code 并返回 JWT
+// @Tags SSO
+// @Accept json
+// @Produce json
+// @Param request body dto.SSOCallbackRequest true "SSO 回调请求"
+// @Success 200 {object} dto.LoginResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse
+// @Router /api/v1/auth/sso/callback [post]
+func (h *SSOHandler) HandleSSOCallback(c *gin.Context) {
+	var req dto.SSOCallbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.ssoService.HandleCallback(c.Request.Context(), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrSSODisabled):
+			response.BadRequest(c, "SSO 未启用")
+		case errors.Is(err, service.ErrSSOInvalidState):
+			response.BadRequest(c, "无效的认证请求，请重新登录")
+		case errors.Is(err, service.ErrSSOCodeExchange):
+			response.Unauthorized(c, "SSO 认证失败")
+		case errors.Is(err, service.ErrSSOTokenVerify):
+			response.Unauthorized(c, "SSO 令牌验证失败")
+		case errors.Is(err, service.ErrSSONonceMismatch):
+			response.Unauthorized(c, "SSO 认证请求已过期，请重新登录")
+		case errors.Is(err, service.ErrSSOUserDisabled):
+			response.Forbidden(c, "用户已被禁用")
+		case errors.Is(err, service.ErrSSOUserNotAllowed):
+			response.Forbidden(c, "用户不允许登录，请联系管理员")
+		default:
+			response.InternalError(c, "SSO 登录失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}

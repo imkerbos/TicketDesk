@@ -74,3 +74,37 @@ export const verifyResetToken = (token: string) => {
 export const resetPasswordWithToken = (data: ResetPasswordWithTokenRequest) => {
   return request.post<ApiResponse<{ message: string }>>('/auth/reset-password', data)
 }
+
+// ============ SSO 相关 ============
+
+// SSO 配置响应
+export interface SSOConfigResponse {
+  enabled: boolean
+  provider_name?: string
+}
+
+// SSO 授权 URL 响应
+export interface SSOAuthorizeResponse {
+  authorize_url: string
+}
+
+// SSO 回调请求
+export interface SSOCallbackRequest {
+  code: string
+  state: string
+}
+
+// 获取 SSO 配置
+export const getSSOConfig = () => {
+  return request.get<ApiResponse<SSOConfigResponse>>('/auth/sso/config')
+}
+
+// 获取 SSO 授权 URL
+export const getSSOAuthorizeURL = () => {
+  return request.get<ApiResponse<SSOAuthorizeResponse>>('/auth/sso/authorize')
+}
+
+// SSO 回调
+export const ssoCallback = (data: SSOCallbackRequest) => {
+  return request.post<ApiResponse<LoginResponse>>('/auth/sso/callback', data)
+}

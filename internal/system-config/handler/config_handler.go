@@ -432,3 +432,33 @@ func (h *ConfigHandler) HandleTestTelegram(c *gin.Context) {
 
 	response.Success(c, nil)
 }
+
+// ============ SSO 配置 ============
+
+// HandleGetSSOConfig 获取 SSO 配置
+func (h *ConfigHandler) HandleGetSSOConfig(c *gin.Context) {
+	config, err := h.configService.GetSSOConfig(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, config)
+}
+
+// HandleUpdateSSOConfig 更新 SSO 配置
+func (h *ConfigHandler) HandleUpdateSSOConfig(c *gin.Context) {
+	var req dto.UpdateSSOConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+	if err := h.configService.UpdateSSOConfig(c.Request.Context(), &req, userID); err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
