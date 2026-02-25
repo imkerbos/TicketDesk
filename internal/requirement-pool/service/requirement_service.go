@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	issueDto "github.com/kerbos/ticketdesk/internal/core-issue/dto"
 	"github.com/kerbos/ticketdesk/internal/model"
@@ -83,6 +84,26 @@ func (s *requirementService) Create(ctx context.Context, req *dto.CreateRequirem
 		tags = strings.Join(req.Tags, ",")
 	}
 
+	// 解析开始时间
+	var startDate *time.Time
+	if req.StartDate != nil && *req.StartDate != "" {
+		t, err := dto.ParseDateTime(*req.StartDate)
+		if err != nil {
+			return nil, fmt.Errorf("开始时间格式错误: %w", err)
+		}
+		startDate = &t
+	}
+
+	// 解析结束时间
+	var endDate *time.Time
+	if req.EndDate != nil && *req.EndDate != "" {
+		t, err := dto.ParseDateTime(*req.EndDate)
+		if err != nil {
+			return nil, fmt.Errorf("结束时间格式错误: %w", err)
+		}
+		endDate = &t
+	}
+
 	requirement := &model.Requirement{
 		PoolID:          req.PoolID,
 		Title:           req.Title,
@@ -92,8 +113,8 @@ func (s *requirementService) Create(ctx context.Context, req *dto.CreateRequirem
 		Category:        req.Category,
 		ReporterID:      req.ReporterID,
 		AssigneeID:      req.AssigneeID,
-		StartDate:       req.StartDate,
-		EndDate:         req.EndDate,
+		StartDate:       startDate,
+		EndDate:         endDate,
 		TargetProjectID: req.TargetProjectID,
 		CreatedBy:       userID,
 		Tags:            tags,
@@ -172,10 +193,26 @@ func (s *requirementService) Update(ctx context.Context, id uint64, req *dto.Upd
 		requirement.AssigneeID = req.AssigneeID
 	}
 	if req.StartDate != nil {
-		requirement.StartDate = req.StartDate
+		if *req.StartDate == "" {
+			requirement.StartDate = nil
+		} else {
+			t, err := dto.ParseDateTime(*req.StartDate)
+			if err != nil {
+				return fmt.Errorf("开始时间格式错误: %w", err)
+			}
+			requirement.StartDate = &t
+		}
 	}
 	if req.EndDate != nil {
-		requirement.EndDate = req.EndDate
+		if *req.EndDate == "" {
+			requirement.EndDate = nil
+		} else {
+			t, err := dto.ParseDateTime(*req.EndDate)
+			if err != nil {
+				return fmt.Errorf("结束时间格式错误: %w", err)
+			}
+			requirement.EndDate = &t
+		}
 	}
 	if req.Progress != nil {
 		requirement.Progress = *req.Progress
@@ -302,13 +339,26 @@ func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req 
 	}
 
 	// 通过 IssueService 标准流程创建工单（包含工作流实例、关注人、通知等）
+	// 将需求的日期转换为工单的日期格式
+	var plannedStartDate, plannedEndDate *string
+	if requirement.StartDate != nil {
+		s := requirement.StartDate.Format("2006-01-02")
+		plannedStartDate = &s
+	}
+	if requirement.EndDate != nil {
+		s := requirement.EndDate.Format("2006-01-02")
+		plannedEndDate = &s
+	}
+
 	issueReq := &issueDto.CreateIssueRequest{
-		ProjectKey:  req.ProjectKey,
-		IssueTypeID: req.IssueTypeID,
-		Title:       requirement.Title,
-		Description: requirement.Description,
-		Priority:    string(requirement.Priority),
-		AssigneeID:  req.AssigneeID,
+		ProjectKey:       req.ProjectKey,
+		IssueTypeID:      req.IssueTypeID,
+		Title:            requirement.Title,
+		Description:      requirement.Description,
+		Priority:         string(requirement.Priority),
+		AssigneeID:       req.AssigneeID,
+		PlannedStartDate: plannedStartDate,
+		PlannedEndDate:   plannedEndDate,
 	}
 
 	issueResp, err := s.issueSvc.CreateIssue(ctx, issueReq, userID)

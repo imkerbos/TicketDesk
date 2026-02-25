@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
+import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 
@@ -26,6 +26,25 @@ const request: AxiosInstance = axios.create({
   },
 })
 
+// Token 刷新状态管理
+let isRefreshing = false
+let pendingRequests: Array<(token: string) => void> = []
+
+const processQueue = (token: string) => {
+  pendingRequests.forEach(cb => cb(token))
+  pendingRequests = []
+}
+
+const clearAuthAndRedirect = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('user')
+  if (window.location.pathname !== '/login') {
+    ElMessage.error('登录已过期，请重新登录')
+    window.location.href = '/login'
+  }
+}
+
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
@@ -50,21 +69,66 @@ request.interceptors.response.use(
     }
     return response
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
     // 支持静默错误：请求配置中设置 _silent 则不弹出错误提示
     const silent = (error.config as any)?._silent
+
     if (error.response) {
       const { status, data } = error.response
+
+      // 401 且不是刷新请求本身 → 尝试用 Refresh Token 刷新
+      if (status === 401 && !originalRequest._retry && window.location.pathname !== '/login') {
+        const refreshTokenStr = localStorage.getItem('refresh_token')
+        if (!refreshTokenStr) {
+          clearAuthAndRedirect()
+          return Promise.reject(error)
+        }
+
+        if (isRefreshing) {
+          // 已经在刷新中，排队等待
+          return new Promise((resolve) => {
+            pendingRequests.push((newToken: string) => {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`
+              resolve(request(originalRequest))
+            })
+          })
+        }
+
+        originalRequest._retry = true
+        isRefreshing = true
+
+        try {
+          const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshTokenStr })
+          const { access_token, refresh_token: newRefreshToken } = res.data.data
+
+          localStorage.setItem('token', access_token)
+          if (newRefreshToken) {
+            localStorage.setItem('refresh_token', newRefreshToken)
+          }
+
+          // 处理排队的请求
+          processQueue(access_token)
+
+          // 重试原请求
+          originalRequest.headers.Authorization = `Bearer ${access_token}`
+          return request(originalRequest)
+        } catch {
+          // Refresh Token 也过期了，跳登录
+          processQueue('')
+          clearAuthAndRedirect()
+          return Promise.reject(error)
+        } finally {
+          isRefreshing = false
+        }
+      }
+
       if (!silent) {
         switch (status) {
           case 401:
             // 登录页面的 401 只显示错误信息，不跳转
             if (window.location.pathname === '/login') {
               ElMessage.error(data?.message || '用户名或密码错误')
-            } else {
-              ElMessage.error('未登录或登录已过期')
-              localStorage.removeItem('token')
-              window.location.href = '/login'
             }
             break
           case 403:

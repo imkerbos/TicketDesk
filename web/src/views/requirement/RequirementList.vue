@@ -149,19 +149,31 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button
-              link
-              type="success"
-              size="small"
-              @click="handleConvert(row)"
-              v-if="row.status !== 'completed' && row.status !== 'rejected' && !row.converted_issue_id"
-            >
-              转工单
-            </el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleRowCommand(row, cmd)">
+              <el-button link type="primary" size="small">
+                更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="planning" v-if="row.status === 'pending_review'">流转：规划中</el-dropdown-item>
+                  <el-dropdown-item command="in_progress" v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'on_hold'">流转：进行中</el-dropdown-item>
+                  <el-dropdown-item command="completed" v-if="row.status === 'in_progress'">流转：已完成</el-dropdown-item>
+                  <el-dropdown-item command="on_hold" v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'in_progress'">流转：搁置</el-dropdown-item>
+                  <el-dropdown-item command="rejected" v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'in_progress'">流转：拒绝</el-dropdown-item>
+                  <el-dropdown-item command="pending_review" v-if="row.status === 'rejected' || row.status === 'on_hold'">恢复：待评估</el-dropdown-item>
+                  <el-dropdown-item command="in_progress" v-if="row.status === 'completed'">恢复：进行中</el-dropdown-item>
+                  <el-dropdown-item
+                    command="convert"
+                    divided
+                    v-if="row.status !== 'completed' && row.status !== 'rejected' && !row.converted_issue_id"
+                  >转工单</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided style="color: #f56c6c;">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -263,9 +275,9 @@
             <el-form-item label="开始时间" prop="start_date">
               <el-date-picker
                 v-model="form.start_date"
-                type="date"
-                placeholder="选择日期"
-                value-format="YYYY-MM-DD"
+                type="datetime"
+                placeholder="选择日期时间"
+                value-format="YYYY-MM-DD HH:mm:ss"
                 style="width: 100%"
               />
             </el-form-item>
@@ -274,9 +286,9 @@
             <el-form-item label="结束时间" prop="end_date">
               <el-date-picker
                 v-model="form.end_date"
-                type="date"
-                placeholder="选择日期"
-                value-format="YYYY-MM-DD"
+                type="datetime"
+                placeholder="选择日期时间"
+                value-format="YYYY-MM-DD HH:mm:ss"
                 style="width: 100%"
               />
             </el-form-item>
@@ -408,8 +420,8 @@
           </div>
           <span v-else>-</span>
         </el-descriptions-item>
-        <el-descriptions-item label="开始时间">{{ formatDate(selectedRequirement.start_date) }}</el-descriptions-item>
-        <el-descriptions-item label="结束时间">{{ formatDate(selectedRequirement.end_date) }}</el-descriptions-item>
+        <el-descriptions-item label="开始时间">{{ formatDateTime(selectedRequirement.start_date) }}</el-descriptions-item>
+        <el-descriptions-item label="结束时间">{{ formatDateTime(selectedRequirement.end_date) }}</el-descriptions-item>
         <el-descriptions-item label="创建时间" :span="2">{{ formatDateTime(selectedRequirement.created_at) }}</el-descriptions-item>
       </el-descriptions>
 
@@ -446,7 +458,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Grid } from '@element-plus/icons-vue'
+import { Plus, Grid, ArrowDown } from '@element-plus/icons-vue'
 import {
   getRequirementList,
   getRequirementPoolList,
@@ -756,6 +768,28 @@ const handleViewDetail = (requirement: Requirement) => {
   showDetailDrawer.value = true
 }
 
+// 处理行操作命令（更多下拉菜单）
+const handleRowCommand = (requirement: Requirement, command: string) => {
+  if (command === 'convert') {
+    handleConvert(requirement)
+  } else if (command === 'delete') {
+    handleDelete(requirement)
+  } else {
+    handleStatusChange(requirement, command as RequirementStatus)
+  }
+}
+
+// 变更需求状态
+const handleStatusChange = async (requirement: Requirement, status: RequirementStatus) => {
+  try {
+    await updateRequirement(requirement.id, { status })
+    ElMessage.success(`状态已更新为${getStatusLabel(status)}`)
+    loadData()
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || '状态更新失败')
+  }
+}
+
 // 编辑
 const handleEdit = (requirement: Requirement) => {
   editingRequirement.value = requirement
@@ -862,10 +896,10 @@ const handleSubmit = async () => {
           createData.assignee_id = form.assignee_id
         }
         if (form.start_date) {
-          createData.start_date = new Date(form.start_date).toISOString()
+          createData.start_date = form.start_date
         }
         if (form.end_date) {
-          createData.end_date = new Date(form.end_date).toISOString()
+          createData.end_date = form.end_date
         }
         if (form.target_project_id !== undefined) {
           createData.target_project_id = form.target_project_id

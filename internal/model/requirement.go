@@ -51,8 +51,8 @@ type Requirement struct {
 	Category         RequirementCategory `gorm:"type:varchar(30);not null;index;default:'other'" json:"category"`            // 分类
 	ReporterID       *uint64             `gorm:"index" json:"reporter_id,omitempty"`                                         // 需求来源（报告人）
 	AssigneeID       *uint64             `gorm:"index" json:"assignee_id,omitempty"`                                         // 负责人ID
-	StartDate        *time.Time          `gorm:"type:date" json:"start_date,omitempty"`                                      // 开始时间
-	EndDate          *time.Time          `gorm:"type:date;index" json:"end_date,omitempty"`                                  // 结束时间
+	StartDate        *time.Time          `gorm:"type:datetime" json:"start_date,omitempty"`                                   // 开始时间
+	EndDate          *time.Time          `gorm:"type:datetime;index" json:"end_date,omitempty"`                               // 结束时间
 	Progress         string              `gorm:"type:text" json:"progress,omitempty"`                                        // 当前进度描述
 	Result           string              `gorm:"type:text" json:"result,omitempty"`                                          // 结果描述
 	ConvertedIssueID *uint64             `gorm:"index" json:"converted_issue_id,omitempty"`                                  // 转化后的工单ID

@@ -340,8 +340,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Check, QuestionFilled } from '@element-plus/icons-vue'
 import { getIssueList, createIssue } from '@/api/issue'
@@ -355,6 +355,7 @@ import type { FieldSchemeItem } from '@/types/field'
 import { FieldRenderer } from '@/components/field'
 import dayjs from 'dayjs'
 
+const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
@@ -371,18 +372,35 @@ const fieldScheme = ref<FieldSchemeItem[]>([])
 const customFieldValues = ref<Record<number, any>>({})
 const fieldSchemeLoading = ref(false)
 
+// 从 URL query 初始化筛选条件
+const initQuery = route.query
 const queryParams = reactive({
-  page: 1,
-  page_size: 20,
-  project_key: undefined as string | undefined,
-  status: undefined as IssueStatus | undefined,
-  priority: undefined as IssuePriority | undefined,
-  assignee_id: undefined as number | undefined,
-  reporter_id: undefined as number | undefined,
-  issue_type_id: undefined as number | undefined,
-  epic_id: undefined as number | undefined,
-  keyword: undefined as string | undefined,
+  page: initQuery.page ? Number(initQuery.page) : 1,
+  page_size: initQuery.page_size ? Number(initQuery.page_size) : 20,
+  project_key: (initQuery.project_key as string) || undefined,
+  status: (initQuery.status as IssueStatus) || undefined,
+  priority: (initQuery.priority as IssuePriority) || undefined,
+  assignee_id: initQuery.assignee_id ? Number(initQuery.assignee_id) : undefined,
+  reporter_id: initQuery.reporter_id ? Number(initQuery.reporter_id) : undefined,
+  issue_type_id: initQuery.issue_type_id ? Number(initQuery.issue_type_id) : undefined,
+  epic_id: initQuery.epic_id ? Number(initQuery.epic_id) : undefined,
+  keyword: (initQuery.keyword as string) || undefined,
 })
+
+// 筛选条件同步到 URL query params
+const syncQueryToUrl = () => {
+  const query: Record<string, string> = {}
+  if (queryParams.keyword) query.keyword = queryParams.keyword
+  if (queryParams.project_key) query.project_key = queryParams.project_key
+  if (queryParams.status) query.status = queryParams.status
+  if (queryParams.priority) query.priority = queryParams.priority
+  if (queryParams.assignee_id) query.assignee_id = String(queryParams.assignee_id)
+  if (queryParams.reporter_id) query.reporter_id = String(queryParams.reporter_id)
+  if (queryParams.issue_type_id) query.issue_type_id = String(queryParams.issue_type_id)
+  if (queryParams.epic_id) query.epic_id = String(queryParams.epic_id)
+  if (queryParams.page > 1) query.page = String(queryParams.page)
+  router.replace({ query })
+}
 
 const kanbanColumns = computed<KanbanColumn[]>(() => {
   const columns: KanbanColumn[] = [
@@ -493,13 +511,14 @@ const loadFilterEpics = async () => {
   }
 }
 
-const handleQuery = () => { queryParams.page = 1; loadData() }
-const handlePageChange = () => { loadData() }
+const handleQuery = () => { queryParams.page = 1; syncQueryToUrl(); loadData() }
+const handlePageChange = () => { syncQueryToUrl(); loadData() }
 
 const handleProjectFilterChange = async () => {
   queryParams.issue_type_id = undefined
   queryParams.epic_id = undefined
   queryParams.page = 1
+  syncQueryToUrl()
   await loadFilterIssueTypes()
   loadFilterEpics()
   loadData()
@@ -518,6 +537,7 @@ const handleReset = () => {
   queryParams.keyword = undefined
   filterIssueTypes.value = []
   filterEpics.value = []
+  syncQueryToUrl()
   loadData()
 }
 
@@ -661,7 +681,15 @@ const getStatusText = (status: string) => {
 }
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
 
-onMounted(() => { loadFilterOptions(); loadData() })
+onMounted(async () => {
+  await loadFilterOptions()
+  // 如果 URL 中有 project_key，加载对应的工单类型和 Epic 选项
+  if (queryParams.project_key) {
+    await loadFilterIssueTypes()
+    loadFilterEpics()
+  }
+  loadData()
+})
 </script>
 
 <style scoped lang="scss">

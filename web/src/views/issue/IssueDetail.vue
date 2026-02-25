@@ -369,23 +369,6 @@
             </div>
           </el-card>
 
-          <!-- 附件 -->
-          <el-card shadow="never" class="content-card">
-            <template #header>
-              <div class="card-header-group">
-                <div class="card-icon attachment">
-                  <el-icon><Paperclip /></el-icon>
-                </div>
-                <span class="card-title">附件</span>
-                <span class="card-count">{{ attachments.length }}</span>
-              </div>
-            </template>
-            <div class="attachment-section">
-              <AttachmentUpload v-if="issue" :issue-key="issue.issue_key" @success="loadAttachments(issue.issue_key)" />
-              <AttachmentList v-if="issue" :issue-key="issue.issue_key" :attachments="attachments" @refresh="loadAttachments(issue.issue_key)" />
-            </div>
-          </el-card>
-
           <!-- 关联告警 -->
           <el-card v-if="issueAlerts.length > 0" shadow="never" class="content-card alert-card">
             <template #header>
@@ -433,6 +416,30 @@
                 </template>
               </el-table-column>
             </el-table>
+          </el-card>
+
+          <!-- 附件 -->
+          <el-card shadow="never" class="content-card attachment-card">
+            <template #header>
+              <div class="card-header-with-action">
+                <div class="card-header-group">
+                  <div class="card-icon attachment">
+                    <el-icon><Paperclip /></el-icon>
+                  </div>
+                  <span class="card-title">附件</span>
+                  <span class="card-count">{{ attachments.length }}</span>
+                </div>
+                <el-button v-if="!showAttachmentUpload && attachments.length === 0" link type="primary" size="small" @click="showAttachmentUpload = true">
+                  <el-icon><Plus /></el-icon>
+                  上传附件
+                </el-button>
+              </div>
+            </template>
+            <div class="attachment-section">
+              <AttachmentUpload v-if="issue && (showAttachmentUpload || attachments.length > 0)" :issue-key="issue.issue_key" @success="loadAttachments(issue.issue_key)" />
+              <AttachmentList v-if="issue && attachments.length > 0" :issue-key="issue.issue_key" :attachments="attachments" @refresh="loadAttachments(issue.issue_key)" />
+              <div v-if="attachments.length === 0 && !showAttachmentUpload" class="empty-placeholder sm">暂无附件</div>
+            </div>
           </el-card>
 
           <!-- 评论和工作日志 -->
@@ -1119,6 +1126,7 @@ const epicIssues = ref<Issue[]>([])
 const subtasks = ref<Issue[]>([])
 const attachments = ref<Attachment[]>([])
 const issueAlerts = ref<Alert[]>([])
+const showAttachmentUpload = ref(false)
 
 // 工作流相关
 const workflowInstance = ref<WorkflowInstance | null>(null)

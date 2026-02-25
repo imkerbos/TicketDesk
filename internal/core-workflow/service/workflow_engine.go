@@ -440,6 +440,26 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 			"updated_at":      closedAt,
 		})
 
+		// 需求联动：工单关闭时同步关联需求状态为已完成
+		result := e.db.WithContext(ctx).
+			Model(&model.Requirement{}).
+			Where("converted_issue_id = ? AND status NOT IN ?", instance.IssueID, []string{"completed", "rejected"}).
+			Updates(map[string]any{
+				"status":     "completed",
+				"updated_at": closedAt,
+			})
+		if result.Error != nil {
+			logger.Warn("failed to sync requirement status on reject",
+				zap.Uint64("issue_id", instance.IssueID),
+				zap.Error(result.Error),
+			)
+		} else if result.RowsAffected > 0 {
+			logger.Info("requirement status synced to completed on reject",
+				zap.Uint64("issue_id", instance.IssueID),
+				zap.Int64("affected", result.RowsAffected),
+			)
+		}
+
 		// 同步告警状态和级联合并工单（Reject 无退回边时也需要同步）
 		if e.issueStatusSyncer != nil {
 			issueID := instance.IssueID
@@ -1007,6 +1027,28 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 			zap.String("target_status", targetStatus),
 			zap.String("node_type", node.NodeType),
 		)
+
+		// 需求联动：工单终态时同步关联需求状态为已完成
+		if targetStatus == "resolved" || targetStatus == "closed" {
+			result := e.db.WithContext(ctx).
+				Model(&model.Requirement{}).
+				Where("converted_issue_id = ? AND status NOT IN ?", issueID, []string{"completed", "rejected"}).
+				Updates(map[string]any{
+					"status":     "completed",
+					"updated_at": now,
+				})
+			if result.Error != nil {
+				logger.Warn("failed to sync requirement status from issue",
+					zap.Uint64("issue_id", issueID),
+					zap.Error(result.Error),
+				)
+			} else if result.RowsAffected > 0 {
+				logger.Info("requirement status synced to completed",
+					zap.Uint64("issue_id", issueID),
+					zap.Int64("affected", result.RowsAffected),
+				)
+			}
+		}
 
 		// 告警联动：同步工单状态到告警 + 级联更新被合并的旧工单
 		if e.issueStatusSyncer != nil {

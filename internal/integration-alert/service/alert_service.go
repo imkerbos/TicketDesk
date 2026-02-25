@@ -43,6 +43,7 @@ type AlertService interface {
 	// 告警查询
 	GetAlert(ctx context.Context, id uint64) (*dto.AlertResponse, error)
 	ListAlerts(ctx context.Context, req *dto.AlertListRequest) (*dto.AlertListResponse, error)
+	ListAlertsByIssueID(ctx context.Context, issueID uint64) ([]*dto.AlertResponse, error)
 	GetAlertStats(ctx context.Context) (*dto.AlertStatsResponse, error)
 	GroupAlerts(ctx context.Context, req *dto.AlertGroupRequest) (*dto.AlertGroupResponse, error)
 	GetAlertLabelKeys(ctx context.Context) ([]string, error)
@@ -773,7 +774,7 @@ func (s *alertService) generateIssueKey(ctx context.Context, projectKey string) 
 	return fmt.Sprintf("%s-%d", projectKey, nextNum), nil
 }
 
-// appendAlertToIssue 合并告警时追加实例信息到工单
+// appendAlertToIssue 合并告警时更新工单标题计数，不再追加描述
 func (s *alertService) appendAlertToIssue(
 	ctx context.Context,
 	issueID uint64,
@@ -793,41 +794,84 @@ func (s *alertService) appendAlertToIssue(
 	}
 	alertCount := len(linkedAlerts)
 
-	// 更新标题：[告警] AlertName (N 个实例)
+	// 只更新标题计数：[告警] AlertName (N 个实例)
 	issue.Title = fmt.Sprintf("[告警] %s (%d 个实例)", alert.AlertName, alertCount)
-
-	// 追加实例信息到描述
-	instance := labels["instance"]
-	if instance == "" {
-		instance = labels["target_ident"]
-	}
-	nodename := labels["nodename"]
-	description := ""
-	if d, ok := annotations["description"]; ok {
-		description = d
-	}
-
-	appendInfo := fmt.Sprintf("\n\n---\n### 合并告警 #%d (%s)\n", alertCount, alert.StartsAt.Format("2006-01-02 15:04:05"))
-	appendInfo += fmt.Sprintf("- **实例**: %s\n", instance)
-	if nodename != "" {
-		appendInfo += fmt.Sprintf("- **主机名**: %s\n", nodename)
-	}
-	appendInfo += fmt.Sprintf("- **指纹**: %s\n", alert.Fingerprint)
-	if description != "" {
-		appendInfo += fmt.Sprintf("- **描述**: %s\n", description)
-	}
-
-	issue.Description += appendInfo
 
 	if err := s.issueRepo.Update(ctx, issue); err != nil {
 		return fmt.Errorf("failed to update issue: %w", err)
 	}
 
-	logger.Info("appended alert info to issue",
+	// 添加系统评论通知有新告警合并
+	instance := labels["instance"]
+	if instance == "" {
+		instance = labels["target_ident"]
+	}
+	commentContent := fmt.Sprintf("🔔 新告警实例已合并：**%s** (指纹: %s，触发时间: %s)",
+		instance, alert.Fingerprint, alert.StartsAt.Format("2006-01-02 15:04:05"))
+	if err := s.addSystemComment(ctx, issueID, commentContent); err != nil {
+		logger.Warn("failed to add merge notification comment",
+			zap.Uint64("issue_id", issueID),
+			zap.Error(err),
+		)
+	}
+
+	logger.Info("alert merged to issue",
 		zap.Uint64("issue_id", issueID),
 		zap.String("instance", instance),
 		zap.Int("alert_count", alertCount),
 	)
+
+	// 站内通知指派人和关注人：有新告警合并
+	if s.notifSender != nil {
+		go func() {
+			notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			notifTitle := fmt.Sprintf("🔔 工单 %s 有新告警合并 (%d 个实例)", issue.IssueKey, alertCount)
+			notifContent := fmt.Sprintf("新告警实例: %s (指纹: %s)", instance, alert.Fingerprint)
+
+			// 收集需要通知的用户（指派人 + 关注人）
+			notifyUserIDs := make(map[uint64]bool)
+			if issue.AssigneeID != nil {
+				notifyUserIDs[*issue.AssigneeID] = true
+			}
+			if watchers, err := s.watcherRepo.ListByIssue(notifCtx, issueID); err == nil {
+				for _, w := range watchers {
+					notifyUserIDs[w.UserID] = true
+				}
+			}
+
+			for uid := range notifyUserIDs {
+				_ = s.notifSender.CreateNotification(notifCtx, &AlertNotificationRequest{
+					UserID:     uid,
+					Type:       "alert_merged",
+					Title:      notifTitle,
+					Content:    notifContent,
+					EntityType: "issue",
+					EntityID:   issueID,
+					EntityKey:  issue.IssueKey,
+					ActorID:    0,
+					ActorName:  "alert-bot",
+				})
+			}
+		}()
+	}
+
+	// 通知项目外部渠道（飞书/Telegram）
+	if s.projectNotifier != nil {
+		go func() {
+			notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = s.projectNotifier.NotifyProject(notifCtx, issue.ProjectID, "alert.merged", map[string]any{
+				"issue_key":   issue.IssueKey,
+				"issue_title": issue.Title,
+				"alert_count": alertCount,
+				"instance":    instance,
+				"fingerprint": alert.Fingerprint,
+				"source":      "alert",
+			})
+		}()
+	}
 
 	return nil
 }
@@ -1138,6 +1182,21 @@ func (s *alertService) GetAlert(ctx context.Context, id uint64) (*dto.AlertRespo
 	}
 
 	return s.toAlertResponse(alert), nil
+}
+
+// ListAlertsByIssueID 根据工单 ID 获取关联的告警列表
+func (s *alertService) ListAlertsByIssueID(ctx context.Context, issueID uint64) ([]*dto.AlertResponse, error) {
+	alerts, err := s.alertRepo.ListByIssueID(ctx, issueID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list alerts by issue_id: %w", err)
+	}
+
+	items := make([]*dto.AlertResponse, 0, len(alerts))
+	for _, alert := range alerts {
+		items = append(items, s.toAlertResponse(alert))
+	}
+
+	return items, nil
 }
 
 // ListAlerts 获取告警列表

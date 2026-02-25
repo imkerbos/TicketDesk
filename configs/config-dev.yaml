@@ -30,7 +30,7 @@ redis:
 # JWT 配置
 jwt:
   secret: your-secret-key-change-in-production
-  access_expire: 7200      # Access Token 有效期（秒）- 2小时
+  access_expire: 36000     # Access Token 有效期（秒）- 10小时
   refresh_expire: 604800   # Refresh Token 有效期（秒）- 7天
   issuer: ticketdesk
 

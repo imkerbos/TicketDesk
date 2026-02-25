@@ -1,10 +1,29 @@
 package dto
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/kerbos/ticketdesk/internal/model"
 )
+
+// 支持的日期时间格式（优先匹配带时间的格式）
+var dateTimeFormats = []string{
+	"2006-01-02 15:04:05",
+	"2006-01-02T15:04:05Z07:00",
+	"2006-01-02T15:04:05",
+	"2006-01-02",
+}
+
+// ParseDateTime 解析日期时间字符串，支持多种格式
+func ParseDateTime(s string) (time.Time, error) {
+	for _, layout := range dateTimeFormats {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("不支持的日期格式: %s，支持格式: 2006-01-02 或 2006-01-02 15:04:05", s)
+}
 
 // CreateRequirementRequest 创建需求请求
 type CreateRequirementRequest struct {
@@ -15,8 +34,8 @@ type CreateRequirementRequest struct {
 	Category        model.RequirementCategory `json:"category" binding:"required,oneof=feature optimization bugfix security infrastructure other"`
 	ReporterID      *uint64                   `json:"reporter_id"`
 	AssigneeID      *uint64                   `json:"assignee_id"`
-	StartDate       *time.Time                `json:"start_date"`
-	EndDate         *time.Time                `json:"end_date"`
+	StartDate       *string                   `json:"start_date"`       // 格式: 2006-01-02 或 2006-01-02 15:04:05
+	EndDate         *string                   `json:"end_date"`         // 格式: 2006-01-02 或 2006-01-02 15:04:05
 	TargetProjectID *uint64                   `json:"target_project_id"`
 	Tags            []string                  `json:"tags"`
 }
@@ -30,8 +49,8 @@ type UpdateRequirementRequest struct {
 	Category        *model.RequirementCategory `json:"category" binding:"omitempty,oneof=feature optimization bugfix security infrastructure other"`
 	ReporterID      *uint64                    `json:"reporter_id"`
 	AssigneeID      *uint64                    `json:"assignee_id"`
-	StartDate       *time.Time                 `json:"start_date"`
-	EndDate         *time.Time                 `json:"end_date"`
+	StartDate       *string                    `json:"start_date"`      // 格式: 2006-01-02 或 2006-01-02 15:04:05
+	EndDate         *string                    `json:"end_date"`        // 格式: 2006-01-02 或 2006-01-02 15:04:05
 	Progress        *string                    `json:"progress" binding:"omitempty,max=10000"`
 	Result          *string                    `json:"result" binding:"omitempty,max=10000"`
 	TargetProjectID *uint64                    `json:"target_project_id"`

@@ -30,7 +30,7 @@ type CustomFieldValue struct {
 // UpdateIssueRequest 更新工单请求
 type UpdateIssueRequest struct {
 	Title            *string            `json:"title" binding:"omitempty,min=1,max=200"`
-	Description      *string            `json:"description" binding:"omitempty,max=10000"`
+	Description      *string            `json:"description" binding:"omitempty"`
 	Priority         *string            `json:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
 	Resolution       *string            `json:"resolution" binding:"omitempty,oneof=fixed wont_fix duplicate cannot_reproduce works_as_designed incomplete done"`
 	AssigneeID       *uint64            `json:"assignee_id"`

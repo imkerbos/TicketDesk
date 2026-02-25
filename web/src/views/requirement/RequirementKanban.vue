@@ -81,7 +81,7 @@
                 </span>
                 <span v-if="requirement.end_date">
                   <el-icon><Calendar /></el-icon>
-                  {{ requirement.end_date }}
+                  {{ formatDateTime(requirement.end_date) }}
                 </span>
               </div>
               <!-- 关联工单信息 -->
@@ -158,8 +158,8 @@
             </div>
             <span v-else>-</span>
           </el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{ selectedRequirement.start_date || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="结束时间">{{ selectedRequirement.end_date || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="开始时间">{{ formatDateTime(selectedRequirement.start_date) }}</el-descriptions-item>
+          <el-descriptions-item label="结束时间">{{ formatDateTime(selectedRequirement.end_date) }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ selectedRequirement.created_at }}</el-descriptions-item>
         </el-descriptions>
 
@@ -435,6 +435,18 @@ const getIssueStatusType = (status: string): TagType => {
     reopened: 'danger',
   }
   return map[status] || 'info'
+}
+
+// 格式化日期时间
+const formatDateTime = (dateStr: string | undefined) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
 // 加载看板数据
