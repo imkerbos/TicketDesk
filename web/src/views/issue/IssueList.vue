@@ -340,7 +340,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Check, QuestionFilled } from '@element-plus/icons-vue'
@@ -378,8 +378,8 @@ const queryParams = reactive({
   page: initQuery.page ? Number(initQuery.page) : 1,
   page_size: initQuery.page_size ? Number(initQuery.page_size) : 20,
   project_key: (initQuery.project_key as string) || undefined,
-  status: (initQuery.status as IssueStatus) || undefined,
-  priority: (initQuery.priority as IssuePriority) || undefined,
+  status: (initQuery.status as IssueStatus | undefined) || undefined,
+  priority: (initQuery.priority as IssuePriority | undefined) || undefined,
   assignee_id: initQuery.assignee_id ? Number(initQuery.assignee_id) : undefined,
   reporter_id: initQuery.reporter_id ? Number(initQuery.reporter_id) : undefined,
   issue_type_id: initQuery.issue_type_id ? Number(initQuery.issue_type_id) : undefined,
