@@ -104,13 +104,13 @@
           />
         </el-form-item>
         <el-form-item label="类型" prop="type">
-          <el-radio-group v-model="form.type">
+          <el-radio-group v-model="form.type" :disabled="!!editingPool">
             <el-radio label="global">全局需求池</el-radio>
             <el-radio label="project">项目级需求池</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="关联项目" prop="project_id" v-if="form.type === 'project'">
-          <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%">
+          <el-select v-model="form.project_id" placeholder="请选择项目" :disabled="!!editingPool" style="width: 100%">
             <el-option
               v-for="project in projects"
               :key="project.id"

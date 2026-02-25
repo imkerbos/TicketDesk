@@ -200,7 +200,7 @@
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="需求池" prop="pool_id">
-          <el-select v-model="form.pool_id" placeholder="请选择需求池" style="width: 100%">
+          <el-select v-model="form.pool_id" placeholder="请选择需求池" :disabled="!!editingRequirement" style="width: 100%">
             <el-option
               v-for="pool in pools"
               :key="pool.id"
@@ -860,22 +860,22 @@ const handleSubmit = async () => {
     submitting.value = true
     try {
       if (editingRequirement.value) {
-        // 更新
-        const updateData: UpdateRequirementRequest = {
+        // 更新 — 可空字段用 null 替代 undefined，确保 JSON 序列化时字段不被省略
+        const updateData: Record<string, any> = {
           title: form.title,
           description: form.description,
           priority: form.priority,
           category: form.category,
-          reporter_id: form.reporter_id,
-          assignee_id: form.assignee_id,
-          start_date: form.start_date ? form.start_date : undefined,
-          end_date: form.end_date ? form.end_date : undefined,
-          progress: form.progress,
-          result: form.result,
-          target_project_id: form.target_project_id,
-          tags: form.tags,
+          reporter_id: form.reporter_id ?? null,
+          assignee_id: form.assignee_id ?? null,
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+          progress: form.progress ?? null,
+          result: form.result ?? null,
+          target_project_id: form.target_project_id ?? null,
+          tags: form.tags ?? [],
         }
-        await updateRequirement(editingRequirement.value.id, updateData)
+        await updateRequirement(editingRequirement.value.id, updateData as UpdateRequirementRequest)
         ElMessage.success('更新成功')
       } else {
         // 创建 - 构建请求数据，只包含有值的字段

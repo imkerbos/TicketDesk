@@ -14,6 +14,7 @@ type RequirementRepository interface {
 	Create(ctx context.Context, req *model.Requirement) error
 	GetByID(ctx context.Context, id uint64) (*model.Requirement, error)
 	Update(ctx context.Context, req *model.Requirement) error
+	UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error
 	Delete(ctx context.Context, id uint64) error
 	List(ctx context.Context, filter *RequirementFilter) ([]*model.Requirement, int64, error)
 	GetByPoolID(ctx context.Context, poolID uint64) ([]*model.Requirement, error)
@@ -98,6 +99,11 @@ func (r *requirementRepository) GetByID(ctx context.Context, id uint64) (*model.
 // Update 更新需求
 func (r *requirementRepository) Update(ctx context.Context, req *model.Requirement) error {
 	return r.db.WithContext(ctx).Save(req).Error
+}
+
+// UpdateFields 按字段更新需求（避免 Save + Preload 关联对象干扰）
+func (r *requirementRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]interface{}) error {
+	return r.db.WithContext(ctx).Model(&model.Requirement{}).Where("id = ?", id).Updates(fields).Error
 }
 
 // Delete 删除需求（软删除）

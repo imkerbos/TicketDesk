@@ -11,6 +11,7 @@ import (
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/dto"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/repository"
+	"github.com/kerbos/ticketdesk/pkg/cache"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -166,68 +167,75 @@ func (s *requirementService) Update(ctx context.Context, id uint64, req *dto.Upd
 		return fmt.Errorf("获取需求失败: %w", err)
 	}
 
-	// 更新字段
+	// 使用 map 收集变更字段，避免 GORM Save + Preload 关联对象干扰
+	fields := make(map[string]interface{})
+
 	if req.Title != nil {
-		requirement.Title = *req.Title
+		fields["title"] = *req.Title
 	}
 	if req.Description != nil {
-		requirement.Description = *req.Description
+		fields["description"] = *req.Description
 	}
 	if req.Priority != nil {
-		requirement.Priority = *req.Priority
+		fields["priority"] = *req.Priority
 	}
 	if req.Status != nil {
 		// 验证状态转换
 		if err := s.validateStatusTransition(requirement.Status, *req.Status); err != nil {
 			return err
 		}
-		requirement.Status = *req.Status
+		fields["status"] = *req.Status
 	}
 	if req.Category != nil {
-		requirement.Category = *req.Category
+		fields["category"] = *req.Category
 	}
-	if req.ReporterID != nil {
-		requirement.ReporterID = req.ReporterID
+	// 可空字段：前端全量提交，通过 RawFields 判断字段是否出现在 JSON 中
+	if req.HasField("reporter_id") {
+		fields["reporter_id"] = req.ReporterID // nil 表示清空
 	}
-	if req.AssigneeID != nil {
-		requirement.AssigneeID = req.AssigneeID
+	if req.HasField("assignee_id") {
+		fields["assignee_id"] = req.AssigneeID
 	}
-	if req.StartDate != nil {
-		if *req.StartDate == "" {
-			requirement.StartDate = nil
+	if req.HasField("target_project_id") {
+		fields["target_project_id"] = req.TargetProjectID
+	}
+	if req.HasField("start_date") {
+		if req.StartDate == nil || *req.StartDate == "" {
+			fields["start_date"] = nil
 		} else {
 			t, err := dto.ParseDateTime(*req.StartDate)
 			if err != nil {
 				return fmt.Errorf("开始时间格式错误: %w", err)
 			}
-			requirement.StartDate = &t
+			fields["start_date"] = &t
 		}
 	}
-	if req.EndDate != nil {
-		if *req.EndDate == "" {
-			requirement.EndDate = nil
+	if req.HasField("end_date") {
+		if req.EndDate == nil || *req.EndDate == "" {
+			fields["end_date"] = nil
 		} else {
 			t, err := dto.ParseDateTime(*req.EndDate)
 			if err != nil {
 				return fmt.Errorf("结束时间格式错误: %w", err)
 			}
-			requirement.EndDate = &t
+			fields["end_date"] = &t
 		}
 	}
 	if req.Progress != nil {
-		requirement.Progress = *req.Progress
+		fields["progress"] = *req.Progress
 	}
 	if req.Result != nil {
-		requirement.Result = *req.Result
-	}
-	if req.TargetProjectID != nil {
-		requirement.TargetProjectID = req.TargetProjectID
+		fields["result"] = *req.Result
 	}
 	if req.Tags != nil {
-		requirement.Tags = strings.Join(req.Tags, ",")
+		fields["tags"] = strings.Join(req.Tags, ",")
 	}
 
-	if err := s.repo.Update(ctx, requirement); err != nil {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
 		s.logger.Error("failed to update requirement",
 			zap.Error(err),
 			zap.Uint64("requirement_id", id),
@@ -315,6 +323,13 @@ func (s *requirementService) List(ctx context.Context, req *dto.RequirementListR
 func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req *dto.ConvertToIssueRequest, userID uint64) (*dto.ConvertToIssueResponse, error) {
 	if s.issueSvc == nil {
 		return nil, errors.New("工单创建服务未初始化")
+	}
+
+	// 分布式锁防止同一需求被并发转化
+	lockKey := fmt.Sprintf("requirement:convert:%d", id)
+	lockVal := cache.TryLock(ctx, lockKey, 30*time.Second)
+	if lockVal != "" {
+		defer cache.UnlockWithValue(ctx, lockKey, lockVal)
 	}
 
 	requirement, err := s.repo.GetByID(ctx, id)
@@ -616,10 +631,11 @@ func (s *requirementService) GetReport(ctx context.Context, req *dto.ReportReque
 	}
 
 	// 按状态统计
-	statusCounts, err := s.repo.CountByStatus(ctx, 0)
+	poolID := uint64(0)
 	if req.PoolID != nil {
-		statusCounts, err = s.repo.CountByStatus(ctx, *req.PoolID)
+		poolID = *req.PoolID
 	}
+	statusCounts, err := s.repo.CountByStatus(ctx, poolID)
 	if err == nil {
 		response.StatusSummary = make([]*dto.StatusSummary, 0)
 		for status, count := range statusCounts {
@@ -631,10 +647,7 @@ func (s *requirementService) GetReport(ctx context.Context, req *dto.ReportReque
 	}
 
 	// 按优先级统计
-	priorityCounts, err := s.repo.CountByPriority(ctx, 0)
-	if req.PoolID != nil {
-		priorityCounts, err = s.repo.CountByPriority(ctx, *req.PoolID)
-	}
+	priorityCounts, err := s.repo.CountByPriority(ctx, poolID)
 	if err == nil {
 		response.PrioritySummary = make([]*dto.PrioritySummary, 0)
 		for priority, count := range priorityCounts {

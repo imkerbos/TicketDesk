@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -55,6 +56,35 @@ type UpdateRequirementRequest struct {
 	Result          *string                    `json:"result" binding:"omitempty,max=10000"`
 	TargetProjectID *uint64                    `json:"target_project_id"`
 	Tags            []string                   `json:"tags"`
+
+	// rawFields 记录 JSON 中实际出现的字段名，用于区分"未传"和"传 null"
+	rawFields map[string]bool `json:"-"`
+}
+
+// UnmarshalJSON 自定义反序列化，记录 JSON 中出现了哪些字段
+func (r *UpdateRequirementRequest) UnmarshalJSON(data []byte) error {
+	// 先解析出所有 key
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	r.rawFields = make(map[string]bool, len(raw))
+	for k := range raw {
+		r.rawFields[k] = true
+	}
+
+	// 用别名避免递归调用 UnmarshalJSON
+	type Alias UpdateRequirementRequest
+	aux := &struct{ *Alias }{Alias: (*Alias)(r)}
+	return json.Unmarshal(data, aux)
+}
+
+// HasField 判断 JSON 请求中是否包含指定字段（区分"未传"和"传 null"）
+func (r *UpdateRequirementRequest) HasField(field string) bool {
+	if r.rawFields == nil {
+		return false
+	}
+	return r.rawFields[field]
 }
 
 // RequirementResponse 需求响应
