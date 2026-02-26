@@ -669,6 +669,38 @@ func (ProjectRolePermission) TableName() string {
 	return "project_role_permissions"
 }
 
+// FieldSchemeTemplate 字段方案模板
+type FieldSchemeTemplate struct {
+	BaseModel
+	Name        string `gorm:"size:100;not null;uniqueIndex" json:"name"`
+	Description string `gorm:"size:500" json:"description"`
+	CreatedBy   uint64 `gorm:"not null" json:"created_by"`
+	IsActive    bool   `gorm:"default:true" json:"is_active"`
+}
+
+// TableName 指定表名
+func (FieldSchemeTemplate) TableName() string {
+	return "field_scheme_templates"
+}
+
+// FieldSchemeTemplateItem 模板字段项
+type FieldSchemeTemplateItem struct {
+	BaseModel
+	TemplateID      uint64 `gorm:"not null;uniqueIndex:uk_tpl_field,priority:1;index" json:"template_id"`
+	FieldID         uint64 `gorm:"not null;uniqueIndex:uk_tpl_field,priority:2;index" json:"field_id"`
+	IsRequired      bool   `gorm:"default:false" json:"is_required"`
+	IsVisibleCreate bool   `gorm:"default:true" json:"is_visible_create"`
+	IsVisibleEdit   bool   `gorm:"default:true" json:"is_visible_edit"`
+	IsVisibleDetail bool   `gorm:"default:true" json:"is_visible_detail"`
+	SortOrder       int    `gorm:"default:0" json:"sort_order"`
+	DefaultValue    string `gorm:"size:500" json:"default_value"`
+}
+
+// TableName 指定表名
+func (FieldSchemeTemplateItem) TableName() string {
+	return "field_scheme_template_items"
+}
+
 // 字段类型常量
 const (
 	FieldTypeText         = "text"          // 单行文本

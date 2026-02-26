@@ -18,6 +18,8 @@ type FieldRepository interface {
 	ListByProject(ctx context.Context, projectID uint64) ([]*model.FieldDefinition, error)
 	ListSystemFields(ctx context.Context) ([]*model.FieldDefinition, error)
 	ListAllAvailable(ctx context.Context, projectID uint64) ([]*model.FieldDefinition, error)
+	ListByIDs(ctx context.Context, ids []uint64) ([]*model.FieldDefinition, error)
+	ListGlobalFields(ctx context.Context) ([]*model.FieldDefinition, error)
 }
 
 // fieldRepository 字段定义仓储实现
@@ -95,8 +97,28 @@ func (r *fieldRepository) ListSystemFields(ctx context.Context) ([]*model.FieldD
 func (r *fieldRepository) ListAllAvailable(ctx context.Context, projectID uint64) ([]*model.FieldDefinition, error) {
 	var fields []*model.FieldDefinition
 	err := r.db.WithContext(ctx).
-		Where("(project_id IS NULL AND is_system = ?) OR project_id = ?", true, projectID).
+		Where("project_id IS NULL OR project_id = ?", projectID).
 		Where("is_active = ?", true).
+		Order("is_system DESC, sort_order ASC, id ASC").
+		Find(&fields).Error
+	return fields, err
+}
+
+// ListByIDs 根据ID列表批量获取字段定义
+func (r *fieldRepository) ListByIDs(ctx context.Context, ids []uint64) ([]*model.FieldDefinition, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var fields []*model.FieldDefinition
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&fields).Error
+	return fields, err
+}
+
+// ListGlobalFields 获取全局字段列表（系统字段+全局自定义字段）
+func (r *fieldRepository) ListGlobalFields(ctx context.Context) ([]*model.FieldDefinition, error) {
+	var fields []*model.FieldDefinition
+	err := r.db.WithContext(ctx).
+		Where("project_id IS NULL").
 		Order("is_system DESC, sort_order ASC, id ASC").
 		Find(&fields).Error
 	return fields, err

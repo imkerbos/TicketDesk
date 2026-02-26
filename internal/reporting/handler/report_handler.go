@@ -130,6 +130,34 @@ func (h *ReportHandler) HandleGetAlertStats(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// HandleGetWorklogStats 获取工时统计
+// @Summary 获取工时统计
+// @Description 获取工时统计数据（按日/按人/按类型汇总）
+// @Tags Report
+// @Produce json
+// @Param project_key query string false "项目 Key"
+// @Param start_date query string false "开始日期 (YYYY-MM-DD)"
+// @Param end_date query string false "结束日期 (YYYY-MM-DD)"
+// @Success 200 {object} dto.WorklogStatsResponse
+// @Failure 400 {object} response.ErrorResponse
+// @Router /api/v1/reports/worklogs [get]
+// @Security BearerAuth
+func (h *ReportHandler) HandleGetWorklogStats(c *gin.Context) {
+	var req dto.WorklogStatsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	result, err := h.reportService.GetWorklogStats(c.Request.Context(), &req)
+	if err != nil {
+		response.InternalError(c, "获取工时统计失败")
+		return
+	}
+
+	response.Success(c, result)
+}
+
 // HandleGetUserPerformance 获取用户绩效
 // @Summary 获取用户绩效
 // @Description 获取用户处理工单的绩效数据

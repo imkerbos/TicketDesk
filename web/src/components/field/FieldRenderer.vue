@@ -32,6 +32,9 @@ import LabelSelectField from './fields/LabelSelectField.vue'
 import EpicLinkField from './fields/EpicLinkField.vue'
 import TimeEstimateField from './fields/TimeEstimateField.vue'
 
+// 需要数组值的字段类型
+const ARRAY_FIELD_TYPES: string[] = [FieldType.MULTISELECT, FieldType.LABEL, FieldType.COMPONENT]
+
 const props = defineProps<{
   field: FieldDefinition
   scheme?: FieldSchemeItem
@@ -46,10 +49,32 @@ const emit = defineEmits<{
   (e: 'change', value: any): void
 }>()
 
-const internalValue = ref(props.modelValue)
+// 根据字段类型确保值的类型正确
+function coerceValue(fieldType: string, value: any): any {
+  if (ARRAY_FIELD_TYPES.includes(fieldType)) {
+    if (Array.isArray(value)) return value
+    if (typeof value === 'string' && value) {
+      try {
+        const parsed = JSON.parse(value)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+  return value
+}
+
+const internalValue = ref(coerceValue(props.field.field_type, props.modelValue))
 
 watch(() => props.modelValue, (newVal) => {
-  internalValue.value = newVal
+  const coerced = coerceValue(props.field.field_type, newVal)
+  // 对数组类型做内容比较，避免引用不同但内容相同时触发子组件不必要的重渲染
+  if (ARRAY_FIELD_TYPES.includes(props.field.field_type)) {
+    if (JSON.stringify(coerced) === JSON.stringify(internalValue.value)) return
+  }
+  internalValue.value = coerced
 })
 
 watch(internalValue, (newVal) => {

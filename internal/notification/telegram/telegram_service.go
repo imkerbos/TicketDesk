@@ -134,7 +134,17 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 	var text string
 	var replyMarkup *telegramInlineKeyboard
 
+	// 告警来源的工单创建，使用独立标题
+	if event == "issue.created" {
+		if source, _ := dataMap["source"].(string); source == "alert" {
+			title = "🚨 告警建单"
+		}
+	}
+
 	switch {
+	case event == "issue.created" && dataMap["source"] == "alert":
+		text, replyMarkup = buildAlertIssueTelegram(title, dataMap, siteURL)
+
 	case len(event) > 6 && event[:6] == "issue.":
 		issueKey, _ := dataMap["issue_key"].(string)
 		issueTitle, _ := dataMap["issue_title"].(string)
@@ -206,6 +216,67 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 		text = fmt.Sprintf("%s\n\n", title)
 		jsonBytes, _ := json.MarshalIndent(dataMap, "", "  ")
 		text += fmt.Sprintf("<pre>%s</pre>", html.EscapeString(string(jsonBytes)))
+	}
+
+	return text, replyMarkup
+}
+
+// buildAlertIssueTelegram 构建告警建单的 Telegram 消息
+func buildAlertIssueTelegram(title string, data map[string]interface{}, siteURL string) (string, *telegramInlineKeyboard) {
+	issueKey, _ := data["issue_key"].(string)
+	alertName, _ := data["alert_name"].(string)
+	projectName, _ := data["project_name"].(string)
+	if projectName == "" {
+		projectName, _ = data["project_key"].(string)
+	}
+	status, _ := data["status"].(string)
+	priority, _ := data["priority"].(string)
+	severity, _ := data["severity"].(string)
+	assignee, _ := data["assignee"].(string)
+	alertTime, _ := data["alert_time"].(string)
+
+	priEmoji := "🟡"
+	switch priority {
+	case "P0":
+		priEmoji = "🔴"
+	case "P1":
+		priEmoji = "🟠"
+	case "P2":
+		priEmoji = "🟡"
+	case "P3":
+		priEmoji = "🟢"
+	}
+
+	text := fmt.Sprintf("%s\n\n", title)
+	text += fmt.Sprintf("<b>%s</b>\n", html.EscapeString(issueKey))
+	text += fmt.Sprintf("%s\n\n", html.EscapeString(alertName))
+	text += fmt.Sprintf("%s 优先级：<b>%s</b>　　📊 状态：<b>%s</b>\n", priEmoji, html.EscapeString(priority), html.EscapeString(status))
+	if projectName != "" || assignee != "" {
+		text += fmt.Sprintf("📁 项目：<b>%s</b>", html.EscapeString(projectName))
+		if assignee != "" {
+			text += fmt.Sprintf("　　👤 指派：<b>%s</b>", html.EscapeString(assignee))
+		}
+		text += "\n"
+	}
+	if severity != "" {
+		text += fmt.Sprintf("⚠️ 级别：<b>%s</b>\n", html.EscapeString(severity))
+	}
+	if alertTime != "" {
+		text += fmt.Sprintf("⏰ 告警时间：%s\n", html.EscapeString(alertTime))
+	}
+
+	var replyMarkup *telegramInlineKeyboard
+	if issueKey != "" {
+		replyMarkup = &telegramInlineKeyboard{
+			InlineKeyboard: [][]telegramInlineButton{
+				{
+					{
+						Text: "📋 查看工单",
+						URL:  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
+					},
+				},
+			},
+		}
 	}
 
 	return text, replyMarkup
@@ -296,14 +367,20 @@ func (s *telegramService) doSend(ctx context.Context, botToken, chatID, text str
 type DirectTelegramSender struct {
 	botToken   string
 	chatID     string
+	siteURL    string
 	httpClient *http.Client
 }
 
 // NewDirectTelegramSender 创建直接 Telegram 发送器
-func NewDirectTelegramSender(botToken, chatID string) *DirectTelegramSender {
+func NewDirectTelegramSender(botToken, chatID string, siteURL ...string) *DirectTelegramSender {
+	url := ""
+	if len(siteURL) > 0 {
+		url = siteURL[0]
+	}
 	return &DirectTelegramSender{
 		botToken: botToken,
 		chatID:   chatID,
+		siteURL:  url,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -331,13 +408,26 @@ func (d *DirectTelegramSender) SendTestMessage(ctx context.Context) error {
 // buildMessage 根据事件类型构建 Telegram 消息（HTML 格式）
 func (d *DirectTelegramSender) buildMessage(event string, data interface{}) (string, *telegramInlineKeyboard) {
 	dataMap := toMap(data)
-	siteURL := "https://ticketdesk.example.com"
+	siteURL := d.siteURL
+	if siteURL == "" {
+		siteURL = "https://ticketdesk.example.com"
+	}
 
 	title := directGetEventTitle(event)
 	var text string
 	var replyMarkup *telegramInlineKeyboard
 
+	// 告警来源的工单创建，使用独立标题
+	if event == "issue.created" {
+		if source, _ := dataMap["source"].(string); source == "alert" {
+			title = "🚨 <b>告警建单</b>"
+		}
+	}
+
 	switch {
+	case event == "issue.created" && dataMap["source"] == "alert":
+		text, replyMarkup = buildAlertIssueTelegram(title, dataMap, siteURL)
+
 	case len(event) > 6 && event[:6] == "issue.":
 		issueKey, _ := dataMap["issue_key"].(string)
 		issueTitle, _ := dataMap["issue_title"].(string)

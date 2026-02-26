@@ -45,6 +45,7 @@ type IssueFilter struct {
 	IssueTypeID      *uint64
 	EpicID           *uint64
 	Keyword          string
+	Category         string // "normal" = 排除告警工单, "alert" = 仅告警工单
 }
 
 // issueRepository 工单数据访问实现
@@ -139,6 +140,11 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 		if filter.Keyword != "" {
 			keyword := "%" + filter.Keyword + "%"
 			query = query.Where("issue_key LIKE ? OR title LIKE ?", keyword, keyword)
+		}
+		if filter.Category == "alert" {
+			query = query.Where("issue_type_id IN (SELECT id FROM issue_types WHERE name = 'Alert' AND deleted_at IS NULL)")
+		} else if filter.Category == "normal" {
+			query = query.Where("issue_type_id NOT IN (SELECT id FROM issue_types WHERE name = 'Alert' AND deleted_at IS NULL)")
 		}
 	}
 

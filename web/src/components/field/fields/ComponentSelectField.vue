@@ -45,7 +45,13 @@ const emit = defineEmits<{
   (e: 'change', value: number[]): void
 }>()
 
-const internalValue = ref<number[]>(props.modelValue || [])
+// 确保值为数组类型
+function ensureArray(val: unknown): number[] {
+  if (Array.isArray(val)) return val
+  return []
+}
+
+const internalValue = ref<number[]>(ensureArray(props.modelValue))
 const components = ref<ProjectComponent[]>([])
 
 const loadComponents = async () => {
@@ -67,7 +73,10 @@ watch(() => props.projectKey, () => {
 })
 
 watch(() => props.modelValue, (newVal) => {
-  internalValue.value = newVal || []
+  const coerced = ensureArray(newVal)
+  if (JSON.stringify(coerced) !== JSON.stringify(internalValue.value)) {
+    internalValue.value = coerced
+  }
 })
 
 watch(internalValue, (newVal) => {

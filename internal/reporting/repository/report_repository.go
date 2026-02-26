@@ -39,6 +39,12 @@ type ReportRepository interface {
 
 	// 用户绩效
 	GetUserPerformance(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]UserPerformance, error)
+
+	// 工时统计
+	GetWorklogDailyStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogDailyStat, error)
+	GetWorklogUserStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogUserStat, error)
+	GetWorklogTypeStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogTypeStat, error)
+	GetWorklogSummary(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (*WorklogSummaryData, error)
 }
 
 // DateCount 日期计数
@@ -78,6 +84,35 @@ type UserPerformance struct {
 	Assigned       int64
 	Resolved       int64
 	AvgResolveTime float64
+}
+
+// WorklogDailyStat 每日工时统计
+type WorklogDailyStat struct {
+	Date         string
+	TotalTimeSec int64
+	EntryCount   int64
+}
+
+// WorklogUserStat 用户工时统计
+type WorklogUserStat struct {
+	UserID       uint64
+	DisplayName  string
+	TotalTimeSec int64
+	EntryCount   int64
+}
+
+// WorklogTypeStat 工时类型统计
+type WorklogTypeStat struct {
+	WorkType     string
+	TotalTimeSec int64
+	EntryCount   int64
+}
+
+// WorklogSummaryData 工时汇总数据
+type WorklogSummaryData struct {
+	TotalTimeSec int64
+	TotalEntries int64
+	ActiveUsers  int64
 }
 
 // reportRepository 报表数据访问实现
@@ -566,4 +601,80 @@ func (r *reportRepository) GetUserPerformance(ctx context.Context, projectID *ui
 	}
 
 	return performance, nil
+}
+
+// GetWorklogDailyStats 按日期统计工时
+func (r *reportRepository) GetWorklogDailyStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogDailyStat, error) {
+	var results []WorklogDailyStat
+	query := r.db.WithContext(ctx).Table("issue_worklogs").
+		Select("DATE(worked_at) as date, SUM(time_spent_sec) as total_time_sec, COUNT(*) as entry_count").
+		Where("issue_worklogs.deleted_at IS NULL").
+		Where("worked_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
+			Where("issues.project_id = ?", *projectID).
+			Where("issues.deleted_at IS NULL")
+	}
+
+	err := query.Group("DATE(worked_at)").Order("date").Find(&results).Error
+	return results, err
+}
+
+// GetWorklogUserStats 按用户统计工时
+func (r *reportRepository) GetWorklogUserStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogUserStat, error) {
+	var results []WorklogUserStat
+	query := r.db.WithContext(ctx).Table("issue_worklogs").
+		Select("issue_worklogs.user_id, COALESCE(users.display_name, users.username, '未知') as display_name, SUM(issue_worklogs.time_spent_sec) as total_time_sec, COUNT(*) as entry_count").
+		Joins("LEFT JOIN users ON issue_worklogs.user_id = users.id").
+		Where("issue_worklogs.deleted_at IS NULL").
+		Where("issue_worklogs.worked_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
+			Where("issues.project_id = ?", *projectID).
+			Where("issues.deleted_at IS NULL")
+	}
+
+	err := query.Group("issue_worklogs.user_id").Order("total_time_sec DESC").Find(&results).Error
+	return results, err
+}
+
+// GetWorklogTypeStats 按工作类型统计工时
+func (r *reportRepository) GetWorklogTypeStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogTypeStat, error) {
+	var results []WorklogTypeStat
+	query := r.db.WithContext(ctx).Table("issue_worklogs").
+		Select("COALESCE(NULLIF(work_type, ''), '未分类') as work_type, SUM(time_spent_sec) as total_time_sec, COUNT(*) as entry_count").
+		Where("issue_worklogs.deleted_at IS NULL").
+		Where("worked_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
+			Where("issues.project_id = ?", *projectID).
+			Where("issues.deleted_at IS NULL")
+	}
+
+	err := query.Group("work_type").Order("total_time_sec DESC").Find(&results).Error
+	return results, err
+}
+
+// GetWorklogSummary 获取工时汇总数据
+func (r *reportRepository) GetWorklogSummary(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (*WorklogSummaryData, error) {
+	var result WorklogSummaryData
+	query := r.db.WithContext(ctx).Table("issue_worklogs").
+		Select("COALESCE(SUM(time_spent_sec), 0) as total_time_sec, COUNT(*) as total_entries, COUNT(DISTINCT user_id) as active_users").
+		Where("issue_worklogs.deleted_at IS NULL").
+		Where("worked_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
+			Where("issues.project_id = ?", *projectID).
+			Where("issues.deleted_at IS NULL")
+	}
+
+	err := query.Take(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }

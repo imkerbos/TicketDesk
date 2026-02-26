@@ -54,6 +54,7 @@ type ListIssuesRequest struct {
 	IssueTypeID *uint64  `form:"issue_type_id"`
 	EpicID      *uint64  `form:"epic_id"`
 	Keyword     string   `form:"keyword" binding:"omitempty,max=100"`
+	Category    string   `form:"category" binding:"omitempty,oneof=normal alert"`
 	ProjectIDs  []uint64 `form:"-" json:"-"` // 内部使用：限定可访问的项目范围
 }
 

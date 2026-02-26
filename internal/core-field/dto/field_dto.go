@@ -177,6 +177,88 @@ type UserBrief struct {
 	AvatarURL   string `json:"avatar_url"`
 }
 
+// ============ 方案模板 DTO ============
+
+// CreateTemplateRequest 创建方案模板请求
+type CreateTemplateRequest struct {
+	Name        string `json:"name" binding:"required,min=1,max=100"`
+	Description string `json:"description" binding:"max=500"`
+}
+
+// UpdateTemplateRequest 更新方案模板请求
+type UpdateTemplateRequest struct {
+	Name        *string `json:"name" binding:"omitempty,min=1,max=100"`
+	Description *string `json:"description" binding:"omitempty,max=500"`
+	IsActive    *bool   `json:"is_active"`
+}
+
+// UpdateTemplateItemsRequest 更新模板字段项请求
+type UpdateTemplateItemsRequest struct {
+	Items []TemplateItemInput `json:"items" binding:"required,dive"`
+}
+
+// TemplateItemInput 模板字段项输入
+type TemplateItemInput struct {
+	FieldID         uint64 `json:"field_id" binding:"required"`
+	IsRequired      bool   `json:"is_required"`
+	IsVisibleCreate bool   `json:"is_visible_create"`
+	IsVisibleEdit   bool   `json:"is_visible_edit"`
+	IsVisibleDetail bool   `json:"is_visible_detail"`
+	SortOrder       int    `json:"sort_order"`
+	DefaultValue    string `json:"default_value"`
+}
+
+// ApplyTemplateRequest 套用模板请求
+type ApplyTemplateRequest struct {
+	TemplateID uint64 `json:"template_id" binding:"required"`
+	Mode       string `json:"mode" binding:"required,oneof=replace merge"`
+}
+
+// TemplateResponse 模板响应
+type TemplateResponse struct {
+	ID          uint64    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedBy   uint64    `json:"created_by"`
+	IsActive    bool      `json:"is_active"`
+	ItemCount   int       `json:"item_count"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// TemplateDetailResponse 模板详情响应（含字段项）
+type TemplateDetailResponse struct {
+	ID          uint64                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	CreatedBy   uint64                 `json:"created_by"`
+	IsActive    bool                   `json:"is_active"`
+	Items       []*TemplateItemResponse `json:"items"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+}
+
+// TemplateItemResponse 模板字段项响应
+type TemplateItemResponse struct {
+	ID              uint64                   `json:"id"`
+	TemplateID      uint64                   `json:"template_id"`
+	FieldID         uint64                   `json:"field_id"`
+	Field           *FieldDefinitionResponse `json:"field,omitempty"`
+	IsRequired      bool                     `json:"is_required"`
+	IsVisibleCreate bool                     `json:"is_visible_create"`
+	IsVisibleEdit   bool                     `json:"is_visible_edit"`
+	IsVisibleDetail bool                     `json:"is_visible_detail"`
+	SortOrder       int                      `json:"sort_order"`
+	DefaultValue    string                   `json:"default_value"`
+}
+
+// FieldUsageResponse 字段使用情况响应
+type FieldUsageResponse struct {
+	SchemeCount   int64 `json:"scheme_count"`
+	ValueCount    int64 `json:"value_count"`
+	TemplateCount int64 `json:"template_count"`
+}
+
 // ============ 自定义字段值 ============
 
 // CustomFieldValue 自定义字段值（用于工单创建/更新）

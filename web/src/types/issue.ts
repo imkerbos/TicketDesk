@@ -69,6 +69,7 @@ export interface IssueListRequest {
   issue_type_id?: number
   epic_id?: number
   keyword?: string
+  category?: '' | 'normal' | 'alert'
 }
 
 export interface IssueListResponse {

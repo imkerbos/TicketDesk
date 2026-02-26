@@ -203,6 +203,51 @@ type UserPerformanceResponse struct {
 	AvgResolveTime float64 `json:"avg_resolve_time"` // 平均解决时间
 }
 
+// WorklogStatsRequest 工时统计请求
+type WorklogStatsRequest struct {
+	ProjectKey string `form:"project_key" binding:"omitempty"`
+	StartDate  string `form:"start_date" binding:"omitempty"`
+	EndDate    string `form:"end_date" binding:"omitempty"`
+}
+
+// WorklogStatsResponse 工时统计响应
+type WorklogStatsResponse struct {
+	Summary    WorklogSummary     `json:"summary"`
+	DailyStats []DailyWorklogStat `json:"daily_stats"`
+	UserStats  []UserWorklogStat  `json:"user_stats"`
+	TypeStats  []WorklogTypeStat  `json:"type_stats"`
+}
+
+// WorklogSummary 工时汇总
+type WorklogSummary struct {
+	TotalTimeSec    int64   `json:"total_time_sec"`
+	TotalEntries    int64   `json:"total_entries"`
+	ActiveUsers     int64   `json:"active_users"`
+	AvgDailyTimeSec float64 `json:"avg_daily_time_sec"`
+}
+
+// DailyWorklogStat 每日工时统计
+type DailyWorklogStat struct {
+	Date         string `json:"date"`
+	TotalTimeSec int64  `json:"total_time_sec"`
+	EntryCount   int64  `json:"entry_count"`
+}
+
+// UserWorklogStat 用户工时统计
+type UserWorklogStat struct {
+	UserID       uint64 `json:"user_id"`
+	DisplayName  string `json:"display_name"`
+	TotalTimeSec int64  `json:"total_time_sec"`
+	EntryCount   int64  `json:"entry_count"`
+}
+
+// WorklogTypeStat 工时类型统计
+type WorklogTypeStat struct {
+	WorkType     string `json:"work_type"`
+	TotalTimeSec int64  `json:"total_time_sec"`
+	EntryCount   int64  `json:"entry_count"`
+}
+
 // DateRange 日期范围
 type DateRange struct {
 	StartDate time.Time

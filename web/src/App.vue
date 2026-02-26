@@ -43,6 +43,9 @@
             <el-menu-item v-if="userStore.isProjectAdmin" index="/workflows">
               <span>工作流管理</span>
             </el-menu-item>
+            <el-menu-item v-if="userStore.isProjectAdmin" index="/fields">
+              <span>字段管理</span>
+            </el-menu-item>
           </el-sub-menu>
 
           <!-- 通知中心 -->

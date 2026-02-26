@@ -586,6 +586,199 @@ func (h *FieldHandler) GetIssueFieldValues(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// ============ 全局字段管理 ============
+
+// ListGlobalFields 获取全局字段列表
+func (h *FieldHandler) ListGlobalFields(c *gin.Context) {
+	result, err := h.fieldService.ListGlobalFields(c.Request.Context())
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// CreateGlobalField 创建全局自定义字段
+func (h *FieldHandler) CreateGlobalField(c *gin.Context) {
+	var req dto.CreateFieldRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	result, err := h.fieldService.CreateGlobalField(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Created(c, result)
+}
+
+// UpdateGlobalField 更新全局字段
+func (h *FieldHandler) UpdateGlobalField(c *gin.Context) {
+	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的字段ID")
+		return
+	}
+	var req dto.UpdateFieldRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	result, err := h.fieldService.UpdateGlobalField(c.Request.Context(), fieldID, &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// DeleteGlobalField 删除全局字段
+func (h *FieldHandler) DeleteGlobalField(c *gin.Context) {
+	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的字段ID")
+		return
+	}
+	if err := h.fieldService.DeleteGlobalField(c.Request.Context(), fieldID); err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, nil)
+}
+
+// GetFieldUsage 获取字段使用情况
+func (h *FieldHandler) GetFieldUsage(c *gin.Context) {
+	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的字段ID")
+		return
+	}
+	result, err := h.fieldService.GetFieldUsage(c.Request.Context(), fieldID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// ============ 方案模板 ============
+
+// ListTemplates 获取所有方案模板
+func (h *FieldHandler) ListTemplates(c *gin.Context) {
+	result, err := h.fieldService.ListTemplates(c.Request.Context())
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// CreateTemplate 创建方案模板
+func (h *FieldHandler) CreateTemplate(c *gin.Context) {
+	var req dto.CreateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	userID := c.GetUint64("user_id")
+	result, err := h.fieldService.CreateTemplate(c.Request.Context(), userID, &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Created(c, result)
+}
+
+// GetTemplate 获取模板详情
+func (h *FieldHandler) GetTemplate(c *gin.Context) {
+	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的模板ID")
+		return
+	}
+	result, err := h.fieldService.GetTemplate(c.Request.Context(), templateID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// UpdateTemplate 更新模板
+func (h *FieldHandler) UpdateTemplate(c *gin.Context) {
+	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的模板ID")
+		return
+	}
+	var req dto.UpdateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	result, err := h.fieldService.UpdateTemplate(c.Request.Context(), templateID, &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+// DeleteTemplate 删除模板
+func (h *FieldHandler) DeleteTemplate(c *gin.Context) {
+	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的模板ID")
+		return
+	}
+	if err := h.fieldService.DeleteTemplate(c.Request.Context(), templateID); err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, nil)
+}
+
+// UpdateTemplateItems 更新模板字段项
+func (h *FieldHandler) UpdateTemplateItems(c *gin.Context) {
+	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的模板ID")
+		return
+	}
+	var req dto.UpdateTemplateItemsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.fieldService.UpdateTemplateItems(c.Request.Context(), templateID, &req); err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, nil)
+}
+
+// ApplyTemplate 套用模板到工单类型
+func (h *FieldHandler) ApplyTemplate(c *gin.Context) {
+	projectKey := c.Param("key")
+	issueTypeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "无效的工单类型ID")
+		return
+	}
+	var req dto.ApplyTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	result, err := h.fieldService.ApplyTemplate(c.Request.Context(), projectKey, issueTypeID, &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 // handleError 统一错误处理
 func (h *FieldHandler) handleError(c *gin.Context, err error) {
 	switch {
@@ -613,6 +806,10 @@ func (h *FieldHandler) handleError(c *gin.Context, err error) {
 		response.NotFound(c, "标签不存在")
 	case errors.Is(err, service.ErrLabelNameExists):
 		response.Error(c, http.StatusConflict, "CONFLICT", "标签名称已存在")
+	case errors.Is(err, service.ErrTemplateNotFound):
+		response.NotFound(c, "模板不存在")
+	case errors.Is(err, service.ErrTemplateNameExists):
+		response.Error(c, http.StatusConflict, "CONFLICT", "模板名称已存在")
 	default:
 		response.InternalError(c, err.Error())
 	}

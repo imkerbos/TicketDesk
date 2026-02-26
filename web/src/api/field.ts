@@ -15,6 +15,7 @@ import type {
   UpdateComponentRequest,
   CreateLabelRequest,
   UpdateLabelRequest,
+  ApplyTemplateRequest,
 } from '@/types/field'
 
 // ============ 字段定义 API ============
@@ -122,4 +123,11 @@ export function deleteLabel(projectKey: string, labelId: number) {
 // 获取工单的自定义字段值
 export function getIssueFieldValues(issueId: number) {
   return request.get<ApiResponse<FieldValue[]>>(`/issue-field-values/${issueId}`)
+}
+
+// ============ 套用模板 API ============
+
+// 套用方案模板到工单类型
+export function applyTemplate(projectKey: string, issueTypeId: number, data: ApplyTemplateRequest) {
+  return request.post<ApiResponse<FieldSchemeItem[]>>(`/projects/${projectKey}/issue-types/${issueTypeId}/apply-template`, data)
 }

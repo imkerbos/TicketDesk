@@ -23,7 +23,7 @@
           :shortcuts="dateShortcuts"
           @change="handleDateChange"
         />
-        <el-select v-model="selectedProject" placeholder="全部项目" clearable style="width: 200px" @change="loadData" filterable>
+        <el-select v-model="selectedProject" placeholder="全部项目" clearable style="width: 200px" @change="handleProjectChange" filterable>
           <el-option v-for="p in projects" :key="p.project_key" :label="`${p.project_key} - ${p.name}`" :value="p.project_key" />
         </el-select>
       </div>
@@ -387,28 +387,164 @@
           </el-card>
         </div>
       </el-tab-pane>
+
+      <el-tab-pane label="工时统计" name="worklogs">
+        <div v-loading="loading.worklogs" class="tab-content">
+          <!-- 汇总卡片 -->
+          <el-row :gutter="16" class="summary-row">
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-default">
+                <div class="summary-icon-wrap default"><el-icon :size="20"><Clock /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ formatWorklogTime(worklogStats.summary?.total_time_sec || 0) }}</div>
+                  <div class="summary-label">总工时</div>
+                </div>
+              </div>
+            </el-col>
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-success">
+                <div class="summary-icon-wrap success"><el-icon :size="20"><Tickets /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ worklogStats.summary?.total_entries || 0 }}</div>
+                  <div class="summary-label">记录条数</div>
+                </div>
+              </div>
+            </el-col>
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-warning">
+                <div class="summary-icon-wrap warning"><el-icon :size="20"><User /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ worklogStats.summary?.active_users || 0 }}</div>
+                  <div class="summary-label">参与人数</div>
+                </div>
+              </div>
+            </el-col>
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-info">
+                <div class="summary-icon-wrap info"><el-icon :size="20"><Timer /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ formatWorklogTime(worklogStats.summary?.avg_daily_time_sec || 0) }}</div>
+                  <div class="summary-label">日均工时</div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="16">
+            <!-- 每日工时柱状图 -->
+            <el-col :xs="24" :lg="16">
+              <el-card shadow="never" class="chart-card">
+                <template #header>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #6366f1"></span>
+                    <span class="card-title">每日工时</span>
+                  </div>
+                </template>
+                <div class="daily-worklog-chart">
+                  <div v-if="worklogStats.daily_stats?.length" class="bar-chart">
+                    <div v-for="item in worklogStats.daily_stats" :key="item.date" class="bar-item">
+                      <div class="bar-value">{{ formatWorklogTime(item.total_time_sec) }}</div>
+                      <div class="bar-fill" :style="{ height: getDailyBarHeight(item.total_time_sec) + '%' }"></div>
+                      <div class="bar-label">{{ formatShortDate(item.date) }}</div>
+                    </div>
+                  </div>
+                  <el-empty v-else description="暂无工时数据" :image-size="60" />
+                </div>
+              </el-card>
+            </el-col>
+
+            <!-- 工作类型分布 -->
+            <el-col :xs="24" :lg="8">
+              <el-card shadow="never" class="chart-card">
+                <template #header>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #f59e0b"></span>
+                    <span class="card-title">工作类型分布</span>
+                  </div>
+                </template>
+                <div class="distribution-list">
+                  <div v-for="(item, idx) in worklogStats.type_stats" :key="item.work_type" class="distribution-item">
+                    <div class="dist-header">
+                      <span class="dist-dot" :style="{ background: worklogTypeColors[idx % worklogTypeColors.length] }"></span>
+                      <span class="dist-name">{{ item.work_type }}</span>
+                      <span class="dist-value">{{ formatWorklogTime(item.total_time_sec) }}<span class="dist-ratio">{{ item.entry_count }}条</span></span>
+                    </div>
+                    <el-progress :percentage="getTypePercentage(item.total_time_sec)" :show-text="false" :stroke-width="6" :color="worklogTypeColors[idx % worklogTypeColors.length]" />
+                  </div>
+                  <el-empty v-if="!worklogStats.type_stats?.length" description="暂无数据" :image-size="60" />
+                </div>
+              </el-card>
+            </el-col>
+          </el-row>
+
+          <!-- 个人工时排行 -->
+          <el-card shadow="never" class="chart-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-dot" style="background: #8b5cf6"></span>
+                <span class="card-title">个人工时排行</span>
+              </div>
+            </template>
+            <el-table :data="worklogStats.user_stats || []" stripe size="small" :header-cell-style="{ background: '#f8fafc', color: '#475569', fontWeight: 600 }">
+              <el-table-column label="排名" width="60" align="center">
+                <template #default="{ $index }">
+                  <span :class="['rank-badge', { 'top-3': $index < 3 }]">{{ $index + 1 }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="display_name" label="用户" min-width="150">
+                <template #default="{ row }">
+                  <div class="user-cell">
+                    <el-avatar :size="24" class="dist-avatar">{{ row.display_name?.charAt(0) }}</el-avatar>
+                    <span>{{ row.display_name }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="总工时" min-width="120">
+                <template #default="{ row }">
+                  <span class="worklog-time-value">{{ formatWorklogTime(row.total_time_sec) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="entry_count" label="记录数" width="100" align="center" />
+              <el-table-column label="占比" width="200">
+                <template #default="{ row }">
+                  <el-progress :percentage="getUserPercentage(row.total_time_sec)" :stroke-width="8" :show-text="true" :format="(p: number) => p.toFixed(1) + '%'" />
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!worklogStats.user_stats?.length" description="暂无工时数据" :image-size="60" />
+          </el-card>
+        </div>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { DataAnalysis, Tickets, CircleCheck, Loading, Timer } from '@element-plus/icons-vue'
-import { getIssueStats, getSLAReport, getAlertStats, getUserPerformance } from '@/api/report'
+import { useRoute, useRouter } from 'vue-router'
+import { DataAnalysis, Tickets, CircleCheck, Loading, Timer, Clock, User } from '@element-plus/icons-vue'
+import { getIssueStats, getSLAReport, getAlertStats, getUserPerformance, getWorklogStats } from '@/api/report'
 import { getAllProjects } from '@/api/project'
-import type { IssueStats, SLAReport, AlertStats, UserPerformance } from '@/types/report'
+import type { IssueStats, SLAReport, AlertStats, UserPerformance, WorklogStats } from '@/types/report'
 import type { Project } from '@/types/project'
 import dayjs from 'dayjs'
+
+const route = useRoute()
+const router = useRouter()
 
 // 多色调色板
 const typeColors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a']
 const assigneeColors = ['#8b5cf6', '#6366f1', '#a78bfa', '#7c3aed', '#c084fc', '#818cf8']
 const epicColors = ['#f59e0b', '#f97316', '#fbbf24', '#fb923c', '#d97706', '#ea580c']
 
-// 日期范围
+// 从 URL query 初始化筛选条件
+const initQuery = route.query
+const defaultStart = dayjs().subtract(30, 'day').format('YYYY-MM-DD')
+const defaultEnd = dayjs().format('YYYY-MM-DD')
+
 const dateRange = ref<[string, string]>([
-  dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-  dayjs().format('YYYY-MM-DD'),
+  (initQuery.start_date as string) || defaultStart,
+  (initQuery.end_date as string) || defaultEnd,
 ])
 
 const dateShortcuts = [
@@ -417,21 +553,38 @@ const dateShortcuts = [
   { text: '最近三月', value: () => [dayjs().subtract(90, 'day').toDate(), dayjs().toDate()] },
 ]
 
-const selectedProject = ref('')
+const selectedProject = ref((initQuery.project_key as string) || '')
 const projects = ref<Project[]>([])
 
-const activeTab = ref('issues')
+const validTabs = ['issues', 'sla', 'alerts', 'performance', 'worklogs']
+const activeTab = ref(validTabs.includes(initQuery.tab as string) ? (initQuery.tab as string) : 'issues')
+
+// 筛选条件同步到 URL query params
+const syncQueryToUrl = () => {
+  const query: Record<string, string> = {}
+  if (activeTab.value && activeTab.value !== 'issues') query.tab = activeTab.value
+  if (selectedProject.value) query.project_key = selectedProject.value
+  // 仅当日期非默认值时持久化
+  if (dateRange.value[0] !== defaultStart) query.start_date = dateRange.value[0]
+  if (dateRange.value[1] !== defaultEnd) query.end_date = dateRange.value[1]
+  router.replace({ query })
+}
 const loading = reactive({
   issues: false,
   sla: false,
   alerts: false,
   performance: false,
+  worklogs: false,
 })
 
 const issueStats = ref<Partial<IssueStats>>({})
 const slaReport = ref<Partial<SLAReport>>({})
 const alertStats = ref<Partial<AlertStats>>({})
 const userPerformance = ref<UserPerformance[]>([])
+const worklogStats = ref<Partial<WorklogStats>>({})
+
+// 工时统计调色板
+const worklogTypeColors = ['#f59e0b', '#6366f1', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
 
 // 加载项目列表
 const loadProjects = async () => {
@@ -511,6 +664,23 @@ const loadUserPerformance = async () => {
   }
 }
 
+// 加载工时统计
+const loadWorklogStats = async () => {
+  loading.worklogs = true
+  try {
+    const { data } = await getWorklogStats({
+      project_key: selectedProject.value || undefined,
+      start_date: dateRange.value[0],
+      end_date: dateRange.value[1],
+    })
+    worklogStats.value = data.data
+  } catch (error) {
+    console.error('Failed to load worklog stats:', error)
+  } finally {
+    loading.worklogs = false
+  }
+}
+
 // 根据当前 tab 加载数据
 const loadData = () => {
   switch (activeTab.value) {
@@ -526,14 +696,24 @@ const loadData = () => {
     case 'performance':
       loadUserPerformance()
       break
+    case 'worklogs':
+      loadWorklogStats()
+      break
   }
 }
 
 const handleDateChange = () => {
+  syncQueryToUrl()
   loadData()
 }
 
 const handleTabChange = () => {
+  syncQueryToUrl()
+  loadData()
+}
+
+const handleProjectChange = () => {
+  syncQueryToUrl()
   loadData()
 }
 
@@ -595,6 +775,45 @@ const getSLARateClass = (rate?: number) => {
   if (rate >= 90) return 'success'
   if (rate >= 70) return 'warning'
   return 'danger'
+}
+
+// 工时格式化：秒 → 可读字符串
+const formatWorklogTime = (seconds: number) => {
+  if (!seconds || seconds <= 0) return '0h'
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  if (hours >= 8) {
+    const days = Math.floor(hours / 8)
+    const remainHours = hours % 8
+    if (remainHours > 0) return `${days}d ${remainHours}h`
+    return `${days}d`
+  }
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`
+  if (hours > 0) return `${hours}h`
+  return `${minutes}m`
+}
+
+const formatShortDate = (date: string) => {
+  if (!date) return ''
+  return dayjs(date).format('MM/DD')
+}
+
+// 每日柱状图高度计算
+const getDailyBarHeight = (timeSec: number) => {
+  const maxTime = Math.max(...(worklogStats.value.daily_stats || []).map(d => d.total_time_sec), 1)
+  return Math.max((timeSec / maxTime) * 100, 2)
+}
+
+// 类型占比计算
+const getTypePercentage = (timeSec: number) => {
+  const total = worklogStats.value.summary?.total_time_sec || 1
+  return Math.round((timeSec / total) * 100)
+}
+
+// 用户占比计算
+const getUserPercentage = (timeSec: number) => {
+  const total = worklogStats.value.summary?.total_time_sec || 1
+  return Math.round((timeSec / total) * 1000) / 10
 }
 
 // 初始化
@@ -937,5 +1156,82 @@ onMounted(() => {
       font-size: 20px;
     }
   }
+}
+
+// 工时统计柱状图
+.daily-worklog-chart {
+  min-height: 240px;
+}
+
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 220px;
+  padding: 20px 0 0;
+  overflow-x: auto;
+}
+
+.bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 36px;
+  max-width: 60px;
+  height: 100%;
+  justify-content: flex-end;
+
+  .bar-value {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 4px;
+    white-space: nowrap;
+  }
+
+  .bar-fill {
+    width: 100%;
+    max-width: 32px;
+    background: linear-gradient(180deg, #6366f1, #818cf8);
+    border-radius: 4px 4px 0 0;
+    min-height: 2px;
+    transition: height 0.3s ease;
+  }
+
+  .bar-label {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 6px;
+    white-space: nowrap;
+  }
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+
+  &.top-3 {
+    color: #fff;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+  }
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.worklog-time-value {
+  font-weight: 600;
+  color: #1e293b;
 }
 </style>

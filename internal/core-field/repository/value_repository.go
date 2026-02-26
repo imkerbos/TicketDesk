@@ -5,9 +5,8 @@ import (
 	"context"
 
 	"github.com/kerbos/ticketdesk/internal/model"
-	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ValueRepository 字段值仓储接口
@@ -74,53 +73,16 @@ func (r *valueRepository) ListByIssue(ctx context.Context, issueID uint64) ([]*m
 	return values, err
 }
 
-// BatchUpsert 批量插入或更新字段值
+// BatchUpsert 批量插入或更新字段值（MySQL ON DUPLICATE KEY UPDATE）
 func (r *valueRepository) BatchUpsert(ctx context.Context, values []*model.IssueFieldValue) error {
-	logger.Info("BatchUpsert: starting", zap.Int("values_count", len(values)))
 	if len(values) == 0 {
-		logger.Info("BatchUpsert: no values to save")
 		return nil
 	}
-
-	for _, v := range values {
-		valueJSON := ""
-		if v.ValueJSON != nil {
-			valueJSON = *v.ValueJSON
-		}
-		logger.Info("BatchUpsert: processing value",
-			zap.Uint64("issue_id", v.IssueID),
-			zap.Uint64("field_id", v.FieldID),
-			zap.Any("value_text", v.ValueText),
-			zap.Any("value_number", v.ValueNumber),
-			zap.Any("value_date", v.ValueDate),
-			zap.String("value_json", valueJSON),
-		)
-		var existing model.IssueFieldValue
-		err := r.db.WithContext(ctx).
-			Where("issue_id = ? AND field_id = ?", v.IssueID, v.FieldID).
-			First(&existing).Error
-
-		if err == gorm.ErrRecordNotFound {
-			// 创建新记录
-			if err := r.db.WithContext(ctx).Create(v).Error; err != nil {
-				logger.Error("BatchUpsert: failed to create", zap.Error(err))
-				return err
-			}
-			logger.Info("BatchUpsert: created new record", zap.Uint64("id", v.ID))
-		} else if err != nil {
-			logger.Error("BatchUpsert: failed to query existing", zap.Error(err))
-			return err
-		} else {
-			// 更新现有记录
-			v.ID = existing.ID
-			if err := r.db.WithContext(ctx).Save(v).Error; err != nil {
-				logger.Error("BatchUpsert: failed to update", zap.Error(err))
-				return err
-			}
-			logger.Info("BatchUpsert: updated existing record", zap.Uint64("id", v.ID))
-		}
-	}
-
-	logger.Info("BatchUpsert: completed successfully")
-	return nil
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "issue_id"}, {Name: "field_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"value_text", "value_number", "value_date", "value_json", "updated_at",
+			}),
+		}).Create(&values).Error
 }

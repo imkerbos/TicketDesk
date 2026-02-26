@@ -18,6 +18,7 @@ type SchemeRepository interface {
 	GetByProjectTypeAndField(ctx context.Context, projectID, issueTypeID, fieldID uint64) (*model.IssueTypeFieldScheme, error)
 	ListByProjectAndType(ctx context.Context, projectID, issueTypeID uint64) ([]*model.IssueTypeFieldScheme, error)
 	BatchCreate(ctx context.Context, schemes []*model.IssueTypeFieldScheme) error
+	WithTx(tx *gorm.DB) SchemeRepository
 }
 
 // schemeRepository 字段方案仓储实现
@@ -45,9 +46,9 @@ func (r *schemeRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&model.IssueTypeFieldScheme{}, id).Error
 }
 
-// DeleteByProjectAndType 删除项目工单类型的所有字段方案
+// DeleteByProjectAndType 硬删除项目工单类型的所有字段方案（替换场景，避免软删除与唯一键冲突）
 func (r *schemeRepository) DeleteByProjectAndType(ctx context.Context, projectID, issueTypeID uint64) error {
-	return r.db.WithContext(ctx).
+	return r.db.WithContext(ctx).Unscoped().
 		Where("project_id = ? AND issue_type_id = ?", projectID, issueTypeID).
 		Delete(&model.IssueTypeFieldScheme{}).Error
 }
@@ -90,4 +91,9 @@ func (r *schemeRepository) BatchCreate(ctx context.Context, schemes []*model.Iss
 		return nil
 	}
 	return r.db.WithContext(ctx).Create(&schemes).Error
+}
+
+// WithTx 返回使用指定事务的仓储实例
+func (r *schemeRepository) WithTx(tx *gorm.DB) SchemeRepository {
+	return &schemeRepository{db: tx}
 }

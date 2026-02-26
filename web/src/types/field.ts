@@ -195,11 +195,127 @@ export interface UpdateLabelRequest {
   description?: string
 }
 
-// 解析字段选项
+// ============ 方案模板类型 ============
+
+// 方案模板
+export interface FieldSchemeTemplate {
+  id: number
+  name: string
+  description: string
+  created_by: number
+  is_active: boolean
+  item_count: number
+  created_at: string
+  updated_at: string
+}
+
+// 模板详情（含字段项）
+export interface FieldSchemeTemplateDetail {
+  id: number
+  name: string
+  description: string
+  created_by: number
+  is_active: boolean
+  items: FieldSchemeTemplateItem[]
+  created_at: string
+  updated_at: string
+}
+
+// 模板字段项
+export interface FieldSchemeTemplateItem {
+  id: number
+  template_id: number
+  field_id: number
+  field?: FieldDefinition
+  is_required: boolean
+  is_visible_create: boolean
+  is_visible_edit: boolean
+  is_visible_detail: boolean
+  sort_order: number
+  default_value: string
+}
+
+// 字段使用情况
+export interface FieldUsage {
+  scheme_count: number
+  value_count: number
+  template_count: number
+}
+
+// 创建模板请求
+export interface CreateTemplateRequest {
+  name: string
+  description?: string
+}
+
+// 更新模板请求
+export interface UpdateTemplateRequest {
+  name?: string
+  description?: string
+  is_active?: boolean
+}
+
+// 模板字段项输入
+export interface TemplateItemInput {
+  field_id: number
+  is_required: boolean
+  is_visible_create: boolean
+  is_visible_edit: boolean
+  is_visible_detail: boolean
+  sort_order: number
+  default_value?: string
+}
+
+// 套用模板请求
+export interface ApplyTemplateRequest {
+  template_id: number
+  mode: 'replace' | 'merge'
+}
+
+// ============ 内置字段常量 ============
+
+// 内置字段 key 列表（对应 Issue 表列，不存 EAV）
+export const BUILTIN_FIELD_KEYS = [
+  'description', 'priority', 'assignee',
+  'planned_start_date', 'planned_end_date', 'epic_link'
+] as const
+
+// 内置字段 key → CreateIssueRequest/UpdateIssueRequest 中的属性名映射
+export const BUILTIN_FIELD_MAP: Record<string, string> = {
+  'description': 'description',
+  'priority': 'priority',
+  'assignee': 'assignee_id',
+  'planned_start_date': 'planned_start_date',
+  'planned_end_date': 'planned_end_date',
+  'epic_link': 'epic_id',
+}
+
+// 判断是否为内置字段
+export function isBuiltinField(fieldKey: string): boolean {
+  return (BUILTIN_FIELD_KEYS as readonly string[]).includes(fieldKey)
+}
+
+// 解析字段选项（容错处理各种 JSON 格式）
 export function parseFieldOptions(optionsJson: string): FieldOption[] {
   if (!optionsJson) return []
   try {
-    return JSON.parse(optionsJson)
+    const parsed = JSON.parse(optionsJson)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((item: any) => {
+      // 支持纯字符串格式: ["opt1", "opt2"]
+      if (typeof item === 'string') {
+        return { value: item, label: item }
+      }
+      // 支持对象格式，value/label 互相 fallback
+      if (typeof item === 'object' && item !== null) {
+        return {
+          value: String(item.value ?? item.label ?? ''),
+          label: String(item.label ?? item.value ?? ''),
+        }
+      }
+      // 其他类型转字符串
+      return { value: String(item), label: String(item) }
+    })
   } catch {
     return []
   }

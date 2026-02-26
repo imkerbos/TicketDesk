@@ -12,6 +12,7 @@ import (
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/notification/lark"
 	"github.com/kerbos/ticketdesk/internal/notification/telegram"
+	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -43,16 +44,19 @@ type NotificationChannelService interface {
 type notificationChannelService struct {
 	channelRepo repository.NotificationChannelRepository
 	projectRepo repository.ProjectRepository
+	configSvc   configService.ConfigService
 }
 
 // NewNotificationChannelService 创建项目通知渠道服务实例
 func NewNotificationChannelService(
 	channelRepo repository.NotificationChannelRepository,
 	projectRepo repository.ProjectRepository,
+	configSvc configService.ConfigService,
 ) NotificationChannelService {
 	return &notificationChannelService{
 		channelRepo: channelRepo,
 		projectRepo: projectRepo,
+		configSvc:   configSvc,
 	}
 }
 
@@ -251,6 +255,17 @@ func (s *notificationChannelService) validateAndMarshalConfig(channelType string
 	return string(configBytes), nil
 }
 
+// getSiteURL 获取站点 URL
+func (s *notificationChannelService) getSiteURL(ctx context.Context) string {
+	if s.configSvc != nil {
+		url, err := s.configSvc.GetConfigValue(ctx, configService.KeyGeneralSiteURL)
+		if err == nil && url != "" {
+			return url
+		}
+	}
+	return ""
+}
+
 // testLarkChannel 测试飞书渠道
 func (s *notificationChannelService) testLarkChannel(ctx context.Context, channel *model.ProjectNotificationChannel) error {
 	var config dto.LarkChannelConfig
@@ -258,7 +273,7 @@ func (s *notificationChannelService) testLarkChannel(ctx context.Context, channe
 		return fmt.Errorf("解析飞书配置失败: %w", err)
 	}
 
-	svc := lark.NewDirectLarkSender(config.WebhookURL, config.Secret)
+	svc := lark.NewDirectLarkSender(config.WebhookURL, config.Secret, s.getSiteURL(ctx))
 	return svc.SendTestMessage(ctx)
 }
 
@@ -269,7 +284,7 @@ func (s *notificationChannelService) testTelegramChannel(ctx context.Context, ch
 		return fmt.Errorf("解析 Telegram 配置失败: %w", err)
 	}
 
-	svc := telegram.NewDirectTelegramSender(config.BotToken, config.ChatID)
+	svc := telegram.NewDirectTelegramSender(config.BotToken, config.ChatID, s.getSiteURL(ctx))
 	return svc.SendTestMessage(ctx)
 }
 
@@ -280,7 +295,7 @@ func (s *notificationChannelService) sendLarkNotification(ctx context.Context, c
 		return fmt.Errorf("解析飞书配置失败: %w", err)
 	}
 
-	svc := lark.NewDirectLarkSender(config.WebhookURL, config.Secret)
+	svc := lark.NewDirectLarkSender(config.WebhookURL, config.Secret, s.getSiteURL(ctx))
 	return svc.SendNotification(ctx, event, data)
 }
 
@@ -291,7 +306,7 @@ func (s *notificationChannelService) sendTelegramNotification(ctx context.Contex
 		return fmt.Errorf("解析 Telegram 配置失败: %w", err)
 	}
 
-	svc := telegram.NewDirectTelegramSender(config.BotToken, config.ChatID)
+	svc := telegram.NewDirectTelegramSender(config.BotToken, config.ChatID, s.getSiteURL(ctx))
 	return svc.SendNotification(ctx, event, data)
 }
 

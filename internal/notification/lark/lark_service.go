@@ -171,6 +171,14 @@ func (s *larkService) buildCard(event string, data interface{}) map[string]inter
 	// 根据事件类型确定标题和颜色
 	title, template := s.getEventMeta(event)
 
+	// 告警来源的工单创建，使用独立标题和颜色
+	if event == "issue.created" {
+		if source, _ := dataMap["source"].(string); source == "alert" {
+			title = "🚨 告警建单"
+			template = "red"
+		}
+	}
+
 	// 构建内容字段
 	contentLines := s.buildContentLines(event, dataMap)
 
@@ -261,7 +269,19 @@ func (s *larkService) getEventMeta(event string) (title, template string) {
 
 // buildContentLines 根据事件类型构建消息内容
 func (s *larkService) buildContentLines(event string, data map[string]interface{}) string {
+	return sharedBuildContentLines(event, data)
+}
+
+// sharedBuildContentLines 统一的消息内容构建逻辑
+func sharedBuildContentLines(event string, data map[string]interface{}) string {
 	var content string
+
+	// 告警来源的工单创建，使用独立模板
+	if event == "issue.created" {
+		if source, _ := data["source"].(string); source == "alert" {
+			return buildAlertIssueContent(data)
+		}
+	}
 
 	switch {
 	case len(event) > 6 && event[:6] == "issue.":
@@ -282,7 +302,6 @@ func (s *larkService) buildContentLines(event string, data map[string]interface{
 			content += fmt.Sprintf("🔴 优先级：%s\n", priority)
 		}
 		if comment, ok := data["comment"].(string); ok && comment != "" {
-			// 截断过长的评论
 			if len(comment) > 200 {
 				comment = comment[:200] + "..."
 			}
@@ -307,9 +326,55 @@ func (s *larkService) buildContentLines(event string, data map[string]interface{
 		}
 
 	default:
-		// 通用格式
 		jsonBytes, _ := json.MarshalIndent(data, "", "  ")
 		content = string(jsonBytes)
+	}
+
+	return content
+}
+
+// buildAlertIssueContent 构建告警建单的消息内容
+func buildAlertIssueContent(data map[string]interface{}) string {
+	issueKey, _ := data["issue_key"].(string)
+	alertName, _ := data["alert_name"].(string)
+	projectName, _ := data["project_name"].(string)
+	if projectName == "" {
+		projectName, _ = data["project_key"].(string)
+	}
+	status, _ := data["status"].(string)
+	priority, _ := data["priority"].(string)
+	severity, _ := data["severity"].(string)
+	assignee, _ := data["assignee"].(string)
+	alertTime, _ := data["alert_time"].(string)
+
+	// 优先级 emoji
+	priEmoji := "🟡"
+	switch priority {
+	case "P0":
+		priEmoji = "🔴"
+	case "P1":
+		priEmoji = "🟠"
+	case "P2":
+		priEmoji = "🟡"
+	case "P3":
+		priEmoji = "🟢"
+	}
+
+	content := fmt.Sprintf("**%s**\n", issueKey)
+	content += fmt.Sprintf("%s\n\n", alertName)
+	content += fmt.Sprintf("%s 优先级：**%s**　　📊 状态：**%s**\n", priEmoji, priority, status)
+	if projectName != "" || assignee != "" {
+		content += fmt.Sprintf("📁 项目：**%s**", projectName)
+		if assignee != "" {
+			content += fmt.Sprintf("　　👤 指派：**%s**", assignee)
+		}
+		content += "\n"
+	}
+	if severity != "" {
+		content += fmt.Sprintf("⚠️ 级别：**%s**\n", severity)
+	}
+	if alertTime != "" {
+		content += fmt.Sprintf("⏰ 告警时间：%s\n", alertTime)
 	}
 
 	return content
@@ -375,14 +440,20 @@ func (s *larkService) doSend(ctx context.Context, webhookURL string, body map[st
 type DirectLarkSender struct {
 	webhookURL string
 	secret     string
+	siteURL    string
 	httpClient *http.Client
 }
 
 // NewDirectLarkSender 创建直接飞书发送器
-func NewDirectLarkSender(webhookURL, secret string) *DirectLarkSender {
+func NewDirectLarkSender(webhookURL, secret string, siteURL ...string) *DirectLarkSender {
+	url := ""
+	if len(siteURL) > 0 {
+		url = siteURL[0]
+	}
 	return &DirectLarkSender{
 		webhookURL: webhookURL,
 		secret:     secret,
+		siteURL:    url,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -393,9 +464,21 @@ func NewDirectLarkSender(webhookURL, secret string) *DirectLarkSender {
 func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, data interface{}) error {
 	dataMap := toMap(data)
 	title, template := directGetEventMeta(event)
-	contentLines := directBuildContentLines(event, dataMap)
 
-	siteURL := "https://ticketdesk.example.com"
+	// 告警来源的工单创建，使用独立标题和颜色
+	if event == "issue.created" {
+		if source, _ := dataMap["source"].(string); source == "alert" {
+			title = "🚨 告警建单"
+			template = "red"
+		}
+	}
+
+	contentLines := sharedBuildContentLines(event, dataMap)
+
+	siteURL := d.siteURL
+	if siteURL == "" {
+		siteURL = "https://ticketdesk.example.com"
+	}
 
 	elements := []interface{}{
 		map[string]interface{}{
@@ -545,59 +628,6 @@ func directGetEventMeta(event string) (title, template string) {
 	default:
 		return "📢 系统通知", "blue"
 	}
-}
-
-func directBuildContentLines(event string, data map[string]interface{}) string {
-	var content string
-
-	switch {
-	case len(event) > 6 && event[:6] == "issue.":
-		issueKey, _ := data["issue_key"].(string)
-		issueTitle, _ := data["issue_title"].(string)
-		projectName, _ := data["project_name"].(string)
-		status, _ := data["status"].(string)
-		priority, _ := data["priority"].(string)
-
-		content = fmt.Sprintf("**%s** %s\n", issueKey, issueTitle)
-		if projectName != "" {
-			content += fmt.Sprintf("📁 项目：%s\n", projectName)
-		}
-		if status != "" {
-			content += fmt.Sprintf("📊 状态：%s\n", status)
-		}
-		if priority != "" {
-			content += fmt.Sprintf("🔴 优先级：%s\n", priority)
-		}
-		if comment, ok := data["comment"].(string); ok && comment != "" {
-			if len(comment) > 200 {
-				comment = comment[:200] + "..."
-			}
-			content += fmt.Sprintf("💬 评论：%s\n", comment)
-		}
-
-	case len(event) > 6 && event[:6] == "alert.":
-		alertName, _ := data["alert_name"].(string)
-		severity, _ := data["severity"].(string)
-		alertStatus, _ := data["status"].(string)
-		issueKey, _ := data["issue_key"].(string)
-
-		content = fmt.Sprintf("**%s**\n", alertName)
-		if severity != "" {
-			content += fmt.Sprintf("⚠️ 级别：%s\n", severity)
-		}
-		if alertStatus != "" {
-			content += fmt.Sprintf("📊 状态：%s\n", alertStatus)
-		}
-		if issueKey != "" {
-			content += fmt.Sprintf("🎫 关联工单：%s\n", issueKey)
-		}
-
-	default:
-		jsonBytes, _ := json.MarshalIndent(data, "", "  ")
-		content = string(jsonBytes)
-	}
-
-	return content
 }
 
 func directGenerateSign(secret string, timestamp int64) (string, error) {

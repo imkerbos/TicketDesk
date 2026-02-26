@@ -3,87 +3,7 @@
     <!-- 顶部操作栏 -->
     <div class="config-header">
       <div class="header-left">
-        <el-segmented v-model="viewMode" :options="viewModeOptions" />
-      </div>
-      <div class="header-right">
-        <el-button type="primary" @click="openFieldDialog()">
-          <el-icon><Plus /></el-icon>
-          创建自定义字段
-        </el-button>
-      </div>
-    </div>
-
-    <!-- 字段列表视图 -->
-    <div v-if="viewMode === 'fields'" v-loading="fieldsLoading" class="fields-view">
-      <div class="fields-section">
-        <div class="section-title">
-          <el-icon><Collection /></el-icon>
-          <span>系统字段</span>
-          <el-tag size="small" type="info">{{ systemFields.length }}</el-tag>
-        </div>
-        <div class="fields-grid">
-          <div v-for="field in systemFields" :key="field.id" class="field-card system">
-            <div class="field-icon" :class="getFieldTypeClass(field.field_type)">
-              <el-icon><component :is="getFieldTypeIcon(field.field_type)" /></el-icon>
-            </div>
-            <div class="field-info">
-              <div class="field-name">{{ field.field_name }}</div>
-              <div class="field-meta">
-                <span class="field-key">{{ field.field_key }}</span>
-                <el-tag size="small" type="info">{{ getFieldTypeLabel(field.field_type) }}</el-tag>
-              </div>
-              <div v-if="field.description" class="field-desc">{{ field.description }}</div>
-            </div>
-            <div class="field-badge">
-              <el-tag size="small">系统</el-tag>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="fields-section">
-        <div class="section-title">
-          <el-icon><EditPen /></el-icon>
-          <span>自定义字段</span>
-          <el-tag size="small" type="success">{{ customFields.length }}</el-tag>
-        </div>
-        <div v-if="customFields.length > 0" class="fields-grid">
-          <div v-for="field in customFields" :key="field.id" class="field-card custom">
-            <div class="field-icon" :class="getFieldTypeClass(field.field_type)">
-              <el-icon><component :is="getFieldTypeIcon(field.field_type)" /></el-icon>
-            </div>
-            <div class="field-info">
-              <div class="field-name">{{ field.field_name }}</div>
-              <div class="field-meta">
-                <span class="field-key">{{ field.field_key }}</span>
-                <el-tag size="small" type="success">{{ getFieldTypeLabel(field.field_type) }}</el-tag>
-              </div>
-              <div v-if="field.description" class="field-desc">{{ field.description }}</div>
-            </div>
-            <div class="field-actions">
-              <el-button size="small" @click="openFieldDialog(field)">
-                <el-icon><Edit /></el-icon>
-              </el-button>
-              <el-button size="small" type="danger" @click="handleDeleteField(field)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-          </div>
-        </div>
-        <el-empty v-else description="暂无自定义字段" :image-size="80">
-          <el-button type="primary" @click="openFieldDialog()">
-            <el-icon><Plus /></el-icon>
-            创建第一个自定义字段
-          </el-button>
-        </el-empty>
-      </div>
-    </div>
-
-    <!-- 字段方案视图（按工单类型配置） -->
-    <div v-else-if="viewMode === 'schemes'" v-loading="schemesLoading" class="schemes-view">
-      <div class="issue-type-selector">
-        <span class="selector-label">选择工单类型:</span>
-        <el-select v-model="selectedIssueTypeId" placeholder="请选择工单类型" @change="loadFieldScheme">
+        <el-select v-model="selectedIssueTypeId" placeholder="请选择工单类型" @change="loadFieldScheme" style="width: 240px">
           <el-option
             v-for="type in issueTypes"
             :key="type.id"
@@ -97,17 +17,26 @@
           </el-option>
         </el-select>
       </div>
+      <div class="header-right">
+        <el-button @click="openApplyTemplateDialog">
+          <el-icon><DocumentCopy /></el-icon>
+          从模板套用
+        </el-button>
+        <el-button type="primary" @click="openSchemeFieldDialog">
+          <el-icon><Plus /></el-icon>
+          添加字段
+        </el-button>
+      </div>
+    </div>
 
+    <!-- 字段方案视图 -->
+    <div v-loading="schemesLoading" class="schemes-view">
       <div v-if="selectedIssueTypeId" class="scheme-config">
         <div class="scheme-header">
           <div class="scheme-title">
             <span>{{ getSelectedIssueTypeName() }} 字段配置</span>
             <el-tag size="small" type="info">{{ currentScheme.length }} 个字段</el-tag>
           </div>
-          <el-button type="primary" @click="openSchemeFieldDialog">
-            <el-icon><Plus /></el-icon>
-            添加字段
-          </el-button>
         </div>
 
         <el-table :data="currentScheme" stripe class="scheme-table">
@@ -204,82 +133,6 @@
       <el-empty v-else description="请选择一个工单类型以配置字段" :image-size="100" />
     </div>
 
-    <!-- 创建/编辑字段对话框 -->
-    <el-dialog
-      v-model="fieldDialogVisible"
-      :title="isEditingField ? '编辑字段' : '创建自定义字段'"
-      width="560px"
-      destroy-on-close
-      class="custom-dialog"
-    >
-      <el-form ref="fieldFormRef" :model="fieldForm" :rules="fieldRules" label-width="100px">
-        <el-form-item label="字段标识" prop="field_key">
-          <el-input
-            v-model="fieldForm.field_key"
-            placeholder="如: custom_status"
-            :disabled="isEditingField"
-          />
-          <div class="form-tip">小写字母和下划线，创建后不可修改</div>
-        </el-form-item>
-        <el-form-item label="字段名称" prop="field_name">
-          <el-input v-model="fieldForm.field_name" placeholder="如: 自定义状态" />
-        </el-form-item>
-        <el-form-item label="字段类型" prop="field_type">
-          <el-select
-            v-model="fieldForm.field_type"
-            placeholder="请选择字段类型"
-            style="width: 100%"
-            :disabled="isEditingField"
-          >
-            <el-option
-              v-for="type in fieldTypes"
-              :key="type.value"
-              :label="type.label"
-              :value="type.value"
-            >
-              <div class="type-option">
-                <el-icon><component :is="type.icon" /></el-icon>
-                <span>{{ type.label }}</span>
-              </div>
-            </el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="showOptionsInput" label="选项配置">
-          <div class="options-editor">
-            <div v-for="(opt, index) in fieldOptions" :key="index" class="option-item">
-              <el-input v-model="opt.label" placeholder="选项显示名" style="width: 45%" />
-              <el-input v-model="opt.value" placeholder="选项值" style="width: 45%" />
-              <el-button type="danger" text @click="removeOption(index)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </div>
-            <el-button text @click="addOption">
-              <el-icon><Plus /></el-icon>
-              添加选项
-            </el-button>
-          </div>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input
-            v-model="fieldForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="字段描述"
-          />
-        </el-form-item>
-        <el-form-item label="默认值">
-          <el-input v-model="fieldForm.default_value" placeholder="默认值" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="fieldDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="fieldSubmitLoading" @click="submitField">
-          <el-icon><Check /></el-icon>
-          确定
-        </el-button>
-      </template>
-    </el-dialog>
-
     <!-- 添加字段到方案对话框 -->
     <el-dialog
       v-model="schemeFieldDialogVisible"
@@ -325,19 +178,85 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 套用模板对话框 -->
+    <el-dialog
+      v-model="applyTemplateDialogVisible"
+      title="从模板套用字段方案"
+      width="520px"
+      destroy-on-close
+    >
+      <div class="apply-form">
+        <div class="apply-field">
+          <label class="apply-label">选择模板</label>
+          <el-select v-model="selectedTemplateId" placeholder="请选择模板" style="width: 100%">
+            <el-option
+              v-for="tpl in templates"
+              :key="tpl.id"
+              :label="tpl.name"
+              :value="tpl.id"
+            >
+              <div class="template-option">
+                <span>{{ tpl.name }}</span>
+                <el-tag size="small" type="info">{{ tpl.item_count }} 个字段</el-tag>
+              </div>
+            </el-option>
+          </el-select>
+        </div>
+        <div class="apply-field">
+          <label class="apply-label">套用模式</label>
+          <div class="mode-cards">
+            <div
+              class="mode-card"
+              :class="{ active: applyMode === 'merge' }"
+              @click="applyMode = 'merge'"
+            >
+              <div class="mode-card-radio">
+                <div class="radio-dot" :class="{ checked: applyMode === 'merge' }"></div>
+              </div>
+              <div class="mode-card-content">
+                <div class="mode-card-title">合并</div>
+                <div class="mode-card-desc">保留现有字段，添加模板中新字段</div>
+              </div>
+            </div>
+            <div
+              class="mode-card"
+              :class="{ active: applyMode === 'replace' }"
+              @click="applyMode = 'replace'"
+            >
+              <div class="mode-card-radio">
+                <div class="radio-dot" :class="{ checked: applyMode === 'replace' }"></div>
+              </div>
+              <div class="mode-card-content">
+                <div class="mode-card-title">替换</div>
+                <div class="mode-card-desc">删除现有字段，使用模板字段</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="applyTemplateDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="applyTemplateLoading"
+          :disabled="!selectedTemplateId"
+          @click="handleApplyTemplate"
+        >
+          套用
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
-  Edit,
-  Delete,
   Check,
-  Collection,
-  EditPen,
   Document,
   List,
   Calendar,
@@ -347,97 +266,63 @@ import {
   Timer,
   Link,
   Grid,
+  DocumentCopy,
 } from '@element-plus/icons-vue'
 import {
   getFields,
-  createField,
-  updateField,
-  deleteField,
   getFieldScheme,
   updateFieldScheme,
+  applyTemplate,
 } from '@/api/field'
+import { getTemplates } from '@/api/admin-field'
 import { getProjectIssueTypes } from '@/api/project'
 import type {
   FieldDefinition,
   FieldSchemeItem,
-  CreateFieldRequest,
-  UpdateFieldRequest,
-  FieldOption,
+  FieldSchemeTemplate,
 } from '@/types/field'
 import type { ProjectIssueType } from '@/types/project'
-import { getFieldTypeLabel, parseFieldOptions } from '@/types/field'
 
 const props = defineProps<{
   projectKey: string
 }>()
 
-// 视图模式
-const viewModeOptions = [
-  { label: '字段列表', value: 'fields' },
-  { label: '字段方案', value: 'schemes' },
-]
-const viewMode = ref('fields')
+const route = useRoute()
+const router = useRouter()
 
 // 字段列表
-const fieldsLoading = ref(false)
 const allFields = ref<FieldDefinition[]>([])
-const systemFields = computed(() => allFields.value.filter(f => f.is_system))
-const customFields = computed(() => allFields.value.filter(f => !f.is_system))
 
 // 字段方案
 const schemesLoading = ref(false)
 const issueTypes = ref<ProjectIssueType[]>([])
-const selectedIssueTypeId = ref<number | undefined>()
+const selectedIssueTypeId = ref<number | undefined>(
+  route.query.issueTypeId ? Number(route.query.issueTypeId) : undefined
+)
 const currentScheme = ref<FieldSchemeItem[]>([])
 
-// 字段类型配置
-const fieldTypes = [
-  { value: 'text', label: '单行文本', icon: Document },
-  { value: 'textarea', label: '多行文本', icon: Document },
-  { value: 'number', label: '数字', icon: Grid },
-  { value: 'date', label: '日期', icon: Calendar },
-  { value: 'select', label: '单选下拉', icon: Select },
-  { value: 'multiselect', label: '多选下拉', icon: List },
-  { value: 'user', label: '用户选择', icon: User },
-  { value: 'version', label: '版本选择', icon: PriceTag },
-  { value: 'component', label: '组件选择', icon: Grid },
-  { value: 'label', label: '标签选择', icon: PriceTag },
-  { value: 'epic_link', label: 'Epic 链接', icon: Link },
-  { value: 'time_estimate', label: '时间预估', icon: Timer },
-]
-
-// 字段对话框
-const fieldDialogVisible = ref(false)
-const isEditingField = ref(false)
-const editingFieldId = ref<number | null>(null)
-const fieldSubmitLoading = ref(false)
-const fieldFormRef = ref<FormInstance>()
-const fieldForm = reactive<CreateFieldRequest>({
-  field_key: '',
-  field_name: '',
-  field_type: 'text',
-  description: '',
-  options: '',
-  default_value: '',
-})
-const fieldOptions = ref<FieldOption[]>([])
-const fieldRules: FormRules = {
-  field_key: [
-    { required: true, message: '请输入字段标识', trigger: 'blur' },
-    { pattern: /^[a-z_]+$/, message: '只能包含小写字母和下划线', trigger: 'blur' },
-  ],
-  field_name: [{ required: true, message: '请输入字段名称', trigger: 'blur' }],
-  field_type: [{ required: true, message: '请选择字段类型', trigger: 'change' }],
+// 同步状态到 URL
+const syncStateToUrl = () => {
+  const query: Record<string, string> = { ...route.query as Record<string, string> }
+  if (selectedIssueTypeId.value) {
+    query.issueTypeId = String(selectedIssueTypeId.value)
+  } else {
+    delete query.issueTypeId
+  }
+  router.replace({ query })
 }
-
-const showOptionsInput = computed(() => {
-  return ['select', 'multiselect'].includes(fieldForm.field_type)
-})
 
 // 字段方案对话框
 const schemeFieldDialogVisible = ref(false)
 const selectedFieldIds = ref<number[]>([])
 const addToSchemeLoading = ref(false)
+
+// 套用模板
+const applyTemplateDialogVisible = ref(false)
+const templates = ref<FieldSchemeTemplate[]>([])
+const selectedTemplateId = ref<number | undefined>()
+const applyMode = ref<'replace' | 'merge'>('merge')
+const applyTemplateLoading = ref(false)
 
 const availableFieldsForScheme = computed(() => {
   const usedFieldIds = currentScheme.value.map(s => s.field_id)
@@ -446,14 +331,11 @@ const availableFieldsForScheme = computed(() => {
 
 // 加载字段列表
 const loadFields = async () => {
-  fieldsLoading.value = true
   try {
     const { data } = await getFields(props.projectKey)
     allFields.value = data.data || []
   } catch (error) {
     console.error('Failed to load fields:', error)
-  } finally {
-    fieldsLoading.value = false
   }
 }
 
@@ -528,101 +410,6 @@ const getFieldTypeClass = (fieldType: string) => {
   return classMap[fieldType] || 'default'
 }
 
-// 打开字段对话框
-const openFieldDialog = (field?: FieldDefinition) => {
-  if (field) {
-    isEditingField.value = true
-    editingFieldId.value = field.id
-    Object.assign(fieldForm, {
-      field_key: field.field_key,
-      field_name: field.field_name,
-      field_type: field.field_type,
-      description: field.description,
-      options: field.options,
-      default_value: field.default_value,
-    })
-    fieldOptions.value = parseFieldOptions(field.options)
-  } else {
-    isEditingField.value = false
-    editingFieldId.value = null
-    Object.assign(fieldForm, {
-      field_key: '',
-      field_name: '',
-      field_type: 'text',
-      description: '',
-      options: '',
-      default_value: '',
-    })
-    fieldOptions.value = []
-  }
-  fieldDialogVisible.value = true
-}
-
-// 添加选项
-const addOption = () => {
-  fieldOptions.value.push({ label: '', value: '' })
-}
-
-// 移除选项
-const removeOption = (index: number) => {
-  fieldOptions.value.splice(index, 1)
-}
-
-// 提交字段
-const submitField = async () => {
-  if (!fieldFormRef.value) return
-  await fieldFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    fieldSubmitLoading.value = true
-    try {
-      // 处理选项
-      if (showOptionsInput.value && fieldOptions.value.length > 0) {
-        fieldForm.options = JSON.stringify(fieldOptions.value.filter(o => o.label && o.value))
-      } else {
-        fieldForm.options = ''
-      }
-
-      if (isEditingField.value && editingFieldId.value) {
-        const updateReq: UpdateFieldRequest = {
-          field_name: fieldForm.field_name,
-          description: fieldForm.description,
-          options: fieldForm.options,
-          default_value: fieldForm.default_value,
-        }
-        await updateField(props.projectKey, editingFieldId.value, updateReq)
-        ElMessage.success('更新成功')
-      } else {
-        await createField(props.projectKey, fieldForm)
-        ElMessage.success('创建成功')
-      }
-      fieldDialogVisible.value = false
-      loadFields()
-    } catch (error) {
-      console.error('Failed to submit field:', error)
-      ElMessage.error(isEditingField.value ? '更新失败' : '创建失败')
-    } finally {
-      fieldSubmitLoading.value = false
-    }
-  })
-}
-
-// 删除字段
-const handleDeleteField = async (field: FieldDefinition) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除字段 "${field.field_name}" 吗？`, '删除确认', {
-      type: 'warning',
-    })
-    await deleteField(props.projectKey, field.id)
-    ElMessage.success('删除成功')
-    loadFields()
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete field:', error)
-      ElMessage.error('删除失败')
-    }
-  }
-}
-
 // 打开添加字段到方案对话框
 const openSchemeFieldDialog = () => {
   selectedFieldIds.value = []
@@ -644,7 +431,6 @@ const addFieldsToScheme = async () => {
   if (!selectedIssueTypeId.value || selectedFieldIds.value.length === 0) return
   addToSchemeLoading.value = true
   try {
-    // 构建新的方案配置
     const newSchemeItems = selectedFieldIds.value.map((fieldId, index) => ({
       field_id: fieldId,
       is_required: false,
@@ -670,7 +456,7 @@ const addFieldsToScheme = async () => {
     await updateFieldScheme(props.projectKey, selectedIssueTypeId.value, { items: allItems })
     ElMessage.success('添加成功')
     schemeFieldDialogVisible.value = false
-    loadFieldScheme()
+    await loadFieldScheme()
   } catch (error) {
     console.error('Failed to add fields to scheme:', error)
     ElMessage.error('添加失败')
@@ -679,7 +465,7 @@ const addFieldsToScheme = async () => {
   }
 }
 
-// 处理方案变更
+// 处理方案变更（失败时回滚）
 const handleSchemeChange = async (_item: FieldSchemeItem) => {
   if (!selectedIssueTypeId.value) return
   try {
@@ -697,6 +483,8 @@ const handleSchemeChange = async (_item: FieldSchemeItem) => {
   } catch (error) {
     console.error('Failed to update scheme:', error)
     ElMessage.error('保存失败')
+    // 回滚：重新加载后端数据
+    await loadFieldScheme()
   }
 }
 
@@ -720,7 +508,7 @@ const handleRemoveSchemeField = async (item: FieldSchemeItem) => {
       }))
     await updateFieldScheme(props.projectKey, selectedIssueTypeId.value, { items: remainingItems })
     ElMessage.success('移除成功')
-    loadFieldScheme()
+    await loadFieldScheme()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to remove field from scheme:', error)
@@ -729,26 +517,74 @@ const handleRemoveSchemeField = async (item: FieldSchemeItem) => {
   }
 }
 
-// 监听视图模式变化
-watch(viewMode, (mode) => {
-  if (mode === 'schemes') {
-    loadIssueTypes()
-    if (selectedIssueTypeId.value) {
-      loadFieldScheme()
-    }
+// 打开套用模板对话框
+const openApplyTemplateDialog = async () => {
+  if (!selectedIssueTypeId.value) {
+    ElMessage.warning('请先选择工单类型')
+    return
   }
+  try {
+    const { data } = await getTemplates()
+    templates.value = (data.data || []).filter((t: FieldSchemeTemplate) => t.is_active)
+  } catch (error) {
+    console.error('Failed to load templates:', error)
+  }
+  selectedTemplateId.value = undefined
+  applyMode.value = 'merge'
+  applyTemplateDialogVisible.value = true
+}
+
+// 套用模板
+const handleApplyTemplate = async () => {
+  if (!selectedIssueTypeId.value || !selectedTemplateId.value) return
+  const modeName = applyMode.value === 'replace' ? '替换' : '合并'
+  try {
+    await ElMessageBox.confirm(
+      `确定要以「${modeName}」模式套用此模板吗？${applyMode.value === 'replace' ? '这将删除当前所有字段配置。' : ''}`,
+      '套用确认',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  applyTemplateLoading.value = true
+  try {
+    await applyTemplate(props.projectKey, selectedIssueTypeId.value, {
+      template_id: selectedTemplateId.value,
+      mode: applyMode.value,
+    })
+    ElMessage.success('模板套用成功')
+    applyTemplateDialogVisible.value = false
+    await loadFieldScheme()
+  } catch (error) {
+    console.error('Failed to apply template:', error)
+    ElMessage.error('套用失败')
+  } finally {
+    applyTemplateLoading.value = false
+  }
+}
+
+// 监听工单类型选择变化
+watch(selectedIssueTypeId, () => {
+  syncStateToUrl()
 })
 
 // 监听 projectKey 变化
-watch(() => props.projectKey, () => {
-  loadFields()
-  if (viewMode.value === 'schemes') {
-    loadIssueTypes()
+watch(() => props.projectKey, async () => {
+  await loadFields()
+  await loadIssueTypes()
+  if (selectedIssueTypeId.value) {
+    await loadFieldScheme()
   }
 })
 
-onMounted(() => {
-  loadFields()
+onMounted(async () => {
+  await loadFields()
+  await loadIssueTypes()
+  if (selectedIssueTypeId.value) {
+    await loadFieldScheme()
+  }
 })
 </script>
 
@@ -768,53 +604,66 @@ onMounted(() => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.fields-view {
+.header-right {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  gap: 8px;
 }
 
-.fields-section {
+.type-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .type-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+}
+
+// 方案视图
+.schemes-view {
   background: #fff;
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.section-title {
+.scheme-config {
+  .scheme-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .scheme-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+}
+
+.scheme-table {
+  border-radius: 8px;
+  overflow: hidden;
+
+  :deep(.el-table__header) {
+    th {
+      background: #f9fafb !important;
+      font-weight: 600;
+      color: #374151;
+    }
+  }
+}
+
+.field-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.fields-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-}
-
-.field-card {
-  display: flex;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  transition: all 0.2s;
-
-  &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: #d1d5db;
-  }
-
-  &.system {
-    background: #f9fafb;
-  }
+  gap: 12px;
 }
 
 .field-icon {
@@ -881,93 +730,6 @@ onMounted(() => {
   }
 }
 
-.field-badge {
-  flex-shrink: 0;
-  align-self: flex-start;
-}
-
-.field-actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-  align-self: flex-start;
-}
-
-// 方案视图
-.schemes-view {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.issue-type-selector {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e5e7eb;
-
-  .selector-label {
-    font-weight: 500;
-    color: #374151;
-  }
-
-  .el-select {
-    width: 240px;
-  }
-}
-
-.type-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  .type-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-  }
-}
-
-.scheme-config {
-  .scheme-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-  }
-
-  .scheme-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #1f2937;
-  }
-}
-
-.scheme-table {
-  border-radius: 8px;
-  overflow: hidden;
-
-  :deep(.el-table__header) {
-    th {
-      background: #f9fafb !important;
-      font-weight: 600;
-      color: #374151;
-    }
-  }
-}
-
-.field-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 // 对话框样式
 .custom-dialog {
   :deep(.el-dialog__header) {
@@ -978,24 +740,6 @@ onMounted(() => {
   :deep(.el-dialog__body) {
     padding: 24px;
   }
-}
-
-.form-tip {
-  font-size: 12px;
-  color: #9ca3af;
-  margin-top: 4px;
-}
-
-.options-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.option-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
 
 // 方案字段选择对话框
@@ -1024,5 +768,105 @@ onMounted(() => {
     background: #f0f9ff;
     border-color: #3b82f6;
   }
+}
+
+// 套用模板对话框
+.apply-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.apply-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apply-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.template-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.mode-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #bfdbfe;
+    background: #fafbff;
+  }
+
+  &.active {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+}
+
+.mode-card-radio {
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.radio-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  transition: all 0.2s;
+  position: relative;
+
+  &.checked {
+    border-color: #3b82f6;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3b82f6;
+    }
+  }
+}
+
+.mode-card-content {
+  flex: 1;
+}
+
+.mode-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.3;
+}
+
+.mode-card-desc {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 3px;
+  line-height: 1.4;
 }
 </style>

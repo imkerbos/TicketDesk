@@ -304,6 +304,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	fieldRepository := fieldRepo.NewFieldRepository(db)
 	schemeRepository := fieldRepo.NewSchemeRepository(db)
 	valueRepository := fieldRepo.NewValueRepository(db)
+	templateRepository := fieldRepo.NewTemplateRepository(db)
 	versionRepository := fieldRepo.NewVersionRepository(db)
 	componentRepository := fieldRepo.NewComponentRepository(db)
 	labelRepository := fieldRepo.NewLabelRepository(db)
@@ -311,6 +312,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		fieldRepository,
 		schemeRepository,
 		valueRepository,
+		templateRepository,
 		versionRepository,
 		componentRepository,
 		labelRepository,
@@ -338,7 +340,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 
 	// ============ 初始化项目通知渠道模块 ============
 	notifChannelRepo := projectRepo.NewNotificationChannelRepository(db)
-	notifChannelSvc := projectService.NewNotificationChannelService(notifChannelRepo, projectRepository)
+	notifChannelSvc := projectService.NewNotificationChannelService(notifChannelRepo, projectRepository, configSvc)
 	notifChannelHdl := projectHandler.NewNotificationChannelHandler(notifChannelSvc, projectSvc)
 
 	// ============ 设置项目通知服务（避免循环依赖）============
@@ -807,6 +809,7 @@ func (r *Router) registerReportRoutes(rg *gin.RouterGroup) {
 		reports.GET("/issues", r.reportHandler.HandleGetIssueStats)
 		reports.GET("/sla", r.reportHandler.HandleGetSLAReport)
 		reports.GET("/alerts", r.reportHandler.HandleGetAlertStats)
+		reports.GET("/worklogs", r.reportHandler.HandleGetWorklogStats)
 		reports.GET("/user-performance", r.reportHandler.HandleGetUserPerformance)
 	}
 }
@@ -987,6 +990,29 @@ func Setup(cfg *config.Config, jwtManager *jwt.Manager) *gin.Engine {
 
 // registerFieldRoutes 注册字段配置路由
 func (r *Router) registerFieldRoutes(rg *gin.RouterGroup) {
+	// ============ 全局字段管理（需要项目管理员权限）============
+	adminFields := rg.Group("/admin/fields")
+	adminFields.Use(r.rbac.RequireProjectAdmin())
+	{
+		adminFields.GET("", r.fieldHandler.ListGlobalFields)
+		adminFields.POST("", r.fieldHandler.CreateGlobalField)
+		adminFields.PUT("/:id", r.fieldHandler.UpdateGlobalField)
+		adminFields.DELETE("/:id", r.fieldHandler.DeleteGlobalField)
+		adminFields.GET("/:id/usage", r.fieldHandler.GetFieldUsage)
+	}
+
+	// ============ 方案模板管理（需要项目管理员权限）============
+	templates := rg.Group("/admin/field-scheme-templates")
+	templates.Use(r.rbac.RequireProjectAdmin())
+	{
+		templates.GET("", r.fieldHandler.ListTemplates)
+		templates.POST("", r.fieldHandler.CreateTemplate)
+		templates.GET("/:id", r.fieldHandler.GetTemplate)
+		templates.PUT("/:id", r.fieldHandler.UpdateTemplate)
+		templates.DELETE("/:id", r.fieldHandler.DeleteTemplate)
+		templates.PUT("/:id/items", r.fieldHandler.UpdateTemplateItems)
+	}
+
 	// 字段定义（在项目下）
 	projectFields := rg.Group("/projects/:key/fields")
 	{
@@ -1002,6 +1028,9 @@ func (r *Router) registerFieldRoutes(rg *gin.RouterGroup) {
 		fieldScheme.GET("", r.fieldHandler.GetFieldScheme)
 		fieldScheme.PUT("", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateFieldScheme)
 	}
+
+	// 套用模板
+	rg.POST("/projects/:key/issue-types/:id/apply-template", r.rbac.RequireProjectAdmin(), r.fieldHandler.ApplyTemplate)
 
 	// 版本管理
 	versions := rg.Group("/projects/:key/versions")

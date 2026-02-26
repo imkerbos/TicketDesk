@@ -684,16 +684,32 @@ func (s *alertService) createIssueFromAlert(
 
 	// 通知项目外部渠道（飞书/Telegram）
 	if s.projectNotifier != nil {
+		// 获取指派人名称
+		assigneeName := ""
+		if assigneeID != nil {
+			var user model.User
+			if err := s.db.Select("username", "display_name").Where("id = ?", *assigneeID).First(&user).Error; err == nil {
+				assigneeName = user.DisplayName
+				if assigneeName == "" {
+					assigneeName = user.Username
+				}
+			}
+		}
 		go func() {
 			notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			if err := s.projectNotifier.NotifyProject(notifCtx, rule.ProjectID, "issue.created", map[string]any{
-				"issue_key":   issueKey,
-				"issue_title": issue.Title,
-				"project_key": project.ProjectKey,
-				"status":      issue.Status,
-				"priority":    issue.Priority,
-				"source":      "alert",
+				"issue_key":    issueKey,
+				"issue_title":  issue.Title,
+				"project_key":  project.ProjectKey,
+				"project_name": project.Name,
+				"status":       issue.Status,
+				"priority":     issue.Priority,
+				"source":       "alert",
+				"alert_name":   alert.AlertName,
+				"severity":     alert.Severity,
+				"alert_time":   alert.StartsAt.Format("2006-01-02 15:04:05"),
+				"assignee":     assigneeName,
 			}); err != nil {
 				logger.Warn("failed to notify project channels for alert issue",
 					zap.String("issue_key", issueKey), zap.Error(err))

@@ -17,6 +17,13 @@
       </el-button>
     </div>
 
+    <!-- 分类 Tab -->
+    <el-tabs v-model="queryParams.category" class="category-tabs" @tab-change="handleCategoryChange">
+      <el-tab-pane label="全部工单" name="" />
+      <el-tab-pane label="常规工单" name="normal" />
+      <el-tab-pane label="告警工单" name="alert" />
+    </el-tabs>
+
     <!-- 过滤器 -->
     <el-card shadow="never" class="filter-card">
       <div class="filter-content">
@@ -108,6 +115,8 @@
               <div class="issue-title-cell">
                 <div class="priority-dot" :class="row.priority"></div>
                 <span class="title-text">{{ row.title }}</span>
+                <el-tag v-if="getDueDateStatus(row) === 'overdue'" type="danger" size="small" class="due-tag">已超时</el-tag>
+                <el-tag v-else-if="getDueDateStatus(row) === 'due_soon'" type="warning" size="small" class="due-tag">即将超时</el-tag>
               </div>
             </template>
           </el-table-column>
@@ -243,64 +252,9 @@
         <el-form-item label="标题" prop="title">
           <el-input v-model="createForm.title" placeholder="请输入工单标题" maxlength="200" show-word-limit />
         </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="优先级" prop="priority">
-              <el-select v-model="createForm.priority" placeholder="请选择优先级" style="width: 100%">
-                <el-option label="P0 - 紧急" value="P0" />
-                <el-option label="P1 - 高" value="P1" />
-                <el-option label="P2 - 中" value="P2" />
-                <el-option label="P3 - 低" value="P3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="指派人">
-              <el-select v-model="createForm.assignee_id" placeholder="请选择指派人" style="width: 100%" clearable filterable>
-                <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="描述">
-          <el-input v-model="createForm.description" type="textarea" :rows="3" placeholder="请输入工单描述" />
-        </el-form-item>
-        <el-form-item v-if="epicOptions.length > 0" label="Epic">
-          <el-select v-model="createForm.epic_id" placeholder="请选择Epic" style="width: 100%" clearable filterable>
-            <el-option v-for="epic in epicOptions" :key="epic.id" :label="`${epic.issue_key}: ${epic.title}`" :value="epic.id" />
-          </el-select>
-        </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="预计开始时间">
-              <el-date-picker
-                v-model="createForm.planned_start_date"
-                type="date"
-                placeholder="请选择预计开始时间"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="预计交付时间">
-              <el-date-picker
-                v-model="createForm.planned_end_date"
-                type="date"
-                placeholder="请选择预计交付时间"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
 
-        <!-- 动态自定义字段 -->
+        <!-- 所有字段由字段方案驱动 -->
         <div v-if="fieldScheme.length > 0" v-loading="fieldSchemeLoading" class="custom-fields-section">
-          <div class="section-divider">
-            <span class="divider-text">扩展字段</span>
-            <span class="field-count">{{ fieldScheme.length }} 个</span>
-          </div>
           <el-row :gutter="20">
             <el-col
               v-for="item in fieldScheme"
@@ -348,11 +302,12 @@ import { getIssueList, createIssue } from '@/api/issue'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import { getFieldScheme } from '@/api/field'
-import type { Issue, IssueStatus, IssuePriority, CreateIssueRequest, KanbanColumn, CustomFieldValue } from '@/types/issue'
+import type { Issue, IssueStatus, IssuePriority, CreateIssueRequest, KanbanColumn } from '@/types/issue'
 import type { Project, ProjectIssueType } from '@/types/project'
 import type { UserOption } from '@/types/user'
 import type { FieldSchemeItem } from '@/types/field'
 import { FieldRenderer } from '@/components/field'
+import { extractBuiltinFields } from '@/utils/builtin-fields'
 import dayjs from 'dayjs'
 
 const route = useRoute()
@@ -385,6 +340,7 @@ const queryParams = reactive({
   issue_type_id: initQuery.issue_type_id ? Number(initQuery.issue_type_id) : undefined,
   epic_id: initQuery.epic_id ? Number(initQuery.epic_id) : undefined,
   keyword: (initQuery.keyword as string) || undefined,
+  category: ((initQuery.category as string) || '') as '' | 'normal' | 'alert',
 })
 
 // 筛选条件同步到 URL query params
@@ -398,6 +354,7 @@ const syncQueryToUrl = () => {
   if (queryParams.reporter_id) query.reporter_id = String(queryParams.reporter_id)
   if (queryParams.issue_type_id) query.issue_type_id = String(queryParams.issue_type_id)
   if (queryParams.epic_id) query.epic_id = String(queryParams.epic_id)
+  if (queryParams.category) query.category = queryParams.category
   if (queryParams.page > 1) query.page = String(queryParams.page)
   router.replace({ query })
 }
@@ -424,33 +381,18 @@ interface CreateFormData {
   project_key: string
   issue_type_id: number | undefined
   title: string
-  description: string
-  priority: IssuePriority
-  assignee_id: number | undefined
-  epic_id: number | undefined
-  planned_start_date: string | undefined
-  planned_end_date: string | undefined
 }
 
 const createForm = reactive<CreateFormData>({
   project_key: '',
   issue_type_id: undefined,
   title: '',
-  description: '',
-  priority: 'P2',
-  assignee_id: undefined,
-  epic_id: undefined,
-  planned_start_date: undefined,
-  planned_end_date: undefined,
 })
-
-const epicOptions = ref<Issue[]>([])
 
 const createRules: FormRules = {
   project_key: [{ required: true, message: '请选择项目', trigger: 'change' }],
   issue_type_id: [{ required: true, message: '请选择类型', trigger: 'change' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
 }
 
 const loadData = async () => {
@@ -511,6 +453,7 @@ const loadFilterEpics = async () => {
   }
 }
 
+const handleCategoryChange = () => { queryParams.page = 1; syncQueryToUrl(); loadData() }
 const handleQuery = () => { queryParams.page = 1; syncQueryToUrl(); loadData() }
 const handlePageChange = () => { syncQueryToUrl(); loadData() }
 
@@ -535,6 +478,7 @@ const handleReset = () => {
   queryParams.issue_type_id = undefined
   queryParams.epic_id = undefined
   queryParams.keyword = undefined
+  queryParams.category = ''
   filterIssueTypes.value = []
   filterEpics.value = []
   syncQueryToUrl()
@@ -562,8 +506,7 @@ const navigateTo = (path: string, event: MouseEvent) => {
 const handleCreate = () => {
   Object.assign(createForm, {
     project_key: queryParams.project_key || '',
-    issue_type_id: undefined, title: '', description: '', priority: 'P2', assignee_id: undefined,
-    epic_id: undefined, planned_start_date: undefined, planned_end_date: undefined,
+    issue_type_id: undefined, title: '',
   })
   fieldScheme.value = []
   customFieldValues.value = {}
@@ -573,18 +516,12 @@ const handleCreate = () => {
 
 const handleProjectChange = async (projectKey: string) => {
   createForm.issue_type_id = undefined
-  createForm.epic_id = undefined
-  epicOptions.value = []
   fieldScheme.value = []
   customFieldValues.value = {}
   if (!projectKey) { issueTypes.value = []; return }
   try {
-    const [typesRes, issuesRes] = await Promise.all([
-      getProjectIssueTypes(projectKey),
-      getIssueList({ project_key: projectKey, page: 1, page_size: 100 }),
-    ])
-    issueTypes.value = typesRes.data.data
-    epicOptions.value = issuesRes.data.data.items.filter(i => i.issue_type?.name?.toLowerCase() === 'epic')
+    const { data } = await getProjectIssueTypes(projectKey)
+    issueTypes.value = data.data
   } catch (error) {
     console.error('Failed to load issue types:', error)
   }
@@ -596,7 +533,7 @@ const getFieldColSpan = (fieldType?: string): number => {
   if (fieldType === 'textarea' || fieldType === 'epic_link') {
     return 24
   }
-  // 其他类型占半行
+  // user、select、date、number 等类型占半行
   return 12
 }
 
@@ -608,11 +545,24 @@ const handleIssueTypeChange = async (issueTypeId: number) => {
   try {
     const { data } = await getFieldScheme(createForm.project_key, issueTypeId)
     const schemeItems = data.data || []
-    // Only show fields that are visible in create mode, filter out epic_link (handled by built-in Epic field)
-    fieldScheme.value = schemeItems.filter(item => item.is_visible_create && item.field?.field_key !== 'epic_link')
-    // Initialize custom field values with default values
+    fieldScheme.value = schemeItems.filter(item => item.is_visible_create)
+    // Initialize custom field values with default values (multiselect 等数组类型需要解析 JSON)
+    const arrayFieldTypes = ['multiselect', 'label', 'component']
     fieldScheme.value.forEach(item => {
-      if (item.default_value) {
+      const fieldType = item.field?.field_type || ''
+      if (arrayFieldTypes.includes(fieldType)) {
+        // 数组类型字段：初始化为空数组或解析默认值
+        if (item.default_value) {
+          try {
+            const parsed = JSON.parse(item.default_value)
+            customFieldValues.value[item.field_id] = Array.isArray(parsed) ? parsed : []
+          } catch {
+            customFieldValues.value[item.field_id] = []
+          }
+        } else {
+          customFieldValues.value[item.field_id] = []
+        }
+      } else if (item.default_value) {
         customFieldValues.value[item.field_id] = item.default_value
       }
     })
@@ -629,33 +579,38 @@ const submitCreate = async () => {
     if (!valid) return
     createLoading.value = true
     try {
-      // Ensure issue_type_id is set before submitting
       if (!createForm.issue_type_id) {
         ElMessage.error('请选择工单类型')
         createLoading.value = false
         return
       }
 
-      // Validate required custom fields
+      // 校验必填字段（支持数组类型的空值校验）
       for (const item of fieldScheme.value) {
-        if (item.is_required && !customFieldValues.value[item.field_id]) {
-          ElMessage.error(`请填写 ${item.field?.field_name}`)
-          createLoading.value = false
-          return
+        if (item.is_required) {
+          const val = customFieldValues.value[item.field_id]
+          const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+          if (isEmpty) {
+            ElMessage.error(`请填写 ${item.field?.field_name}`)
+            createLoading.value = false
+            return
+          }
         }
       }
 
-      // Build custom fields array
-      const customFields: CustomFieldValue[] = Object.entries(customFieldValues.value)
-        .filter(([_, value]) => value !== undefined && value !== null && value !== '')
-        .map(([fieldId, value]) => ({
-          field_id: parseInt(fieldId),
-          value: value,
-        }))
+      // 分离内置字段和扩展字段
+      const { builtinValues, customFields } = extractBuiltinFields(fieldScheme.value, customFieldValues.value)
 
       const requestData: CreateIssueRequest = {
-        ...createForm,
+        project_key: createForm.project_key,
         issue_type_id: createForm.issue_type_id,
+        title: createForm.title,
+        description: builtinValues.description || '',
+        priority: builtinValues.priority || 'P2',
+        assignee_id: builtinValues.assignee_id || undefined,
+        planned_start_date: builtinValues.planned_start_date || undefined,
+        planned_end_date: builtinValues.planned_end_date || undefined,
+        epic_id: builtinValues.epic_id || undefined,
         custom_fields: customFields.length > 0 ? customFields : undefined,
       }
       const { data } = await createIssue(requestData)
@@ -680,6 +635,32 @@ const getStatusText = (status: string) => {
   return map[status] || status
 }
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
+
+// SLA 目标（分钟），与后端 slaTargets 保持一致
+const SLA_TARGETS: Record<string, number> = { P0: 60, P1: 240, P2: 1440, P3: 4320 }
+
+const getDueDateStatus = (row: Issue): 'overdue' | 'due_soon' | null => {
+  if (['resolved', 'closed', 'merged'].includes(row.status)) return null
+  const now = dayjs()
+
+  let deadline: ReturnType<typeof dayjs>
+  let slaMinutes: number
+
+  if (row.planned_end_date) {
+    deadline = dayjs(row.planned_end_date).endOf('day')
+    slaMinutes = deadline.diff(dayjs(row.created_at), 'minute')
+  } else {
+    slaMinutes = SLA_TARGETS[row.priority] || SLA_TARGETS.P2
+    deadline = dayjs(row.created_at).add(slaMinutes, 'minute')
+  }
+
+  const minutesLeft = deadline.diff(now, 'minute', true)
+  const threshold = slaMinutes * 0.25
+
+  if (minutesLeft < 0) return 'overdue'
+  if (minutesLeft < threshold) return 'due_soon'
+  return null
+}
 
 onMounted(async () => {
   await loadFilterOptions()
@@ -735,6 +716,26 @@ onMounted(async () => {
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: #fff;
     &:hover { background: rgba(255, 255, 255, 0.3); }
+  }
+}
+
+// 分类 Tab
+.category-tabs {
+  margin-bottom: 16px;
+
+  :deep(.el-tabs__header) {
+    margin: 0;
+  }
+
+  :deep(.el-tabs__nav-wrap::after) {
+    height: 1px;
+    background-color: #e4e7ed;
+  }
+
+  :deep(.el-tabs__item) {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 0 20px;
   }
 }
 
@@ -832,6 +833,11 @@ onMounted(async () => {
     .title-text {
       font-weight: 500;
       color: #1f2937;
+    }
+
+    .due-tag {
+      flex-shrink: 0;
+      margin-left: 4px;
     }
   }
 

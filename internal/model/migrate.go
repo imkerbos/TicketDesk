@@ -50,6 +50,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&FieldDefinition{},
 		&IssueTypeFieldScheme{},
 		&IssueFieldValue{},
+		&FieldSchemeTemplate{},
+		&FieldSchemeTemplateItem{},
 		&ProjectVersion{},
 		&ProjectComponent{},
 		&IssueLabel{},
@@ -391,7 +393,348 @@ func SeedData(db *gorm.DB) error {
 		logger.Warn("failed to seed role permissions for existing projects", zap.Error(err))
 	}
 
+	// 初始化默认字段方案模板
+	if err := SeedDefaultFieldSchemeTemplates(db, adminUser.ID); err != nil {
+		logger.Warn("failed to seed default field scheme templates", zap.Error(err))
+	}
+
+	// 一次性迁移：为已有项目补充内置字段到字段方案
+	if err := MigrateBuiltinFieldSchemes(db); err != nil {
+		logger.Warn("failed to migrate builtin field schemes", zap.Error(err))
+	}
+
+	// 一次性迁移：修复 Alert 类型 priority 字段可见性
+	if err := MigrateAlertPriorityVisibility(db); err != nil {
+		logger.Warn("failed to migrate alert priority visibility", zap.Error(err))
+	}
+
 	logger.Info("seed data completed")
+	return nil
+}
+
+// MigrateBuiltinFieldSchemes 为已有项目的字段方案补充内置字段（一次性迁移）
+func MigrateBuiltinFieldSchemes(db *gorm.DB) error {
+	const migrationKey = "migration.builtin_field_schemes_v2"
+
+	// 检查是否已执行
+	var config SystemConfig
+	if err := db.Where("config_key = ?", migrationKey).First(&config).Error; err == nil {
+		return nil // 已执行过
+	}
+
+	logger.Info("migrating builtin field schemes for existing projects...")
+
+	// 获取内置字段 key→ID 映射
+	builtinKeys := []string{"description", "priority", "assignee", "planned_start_date", "planned_end_date"}
+	var systemFields []FieldDefinition
+	if err := db.Where("project_id IS NULL AND is_system = ? AND field_key IN ?", true, builtinKeys).Find(&systemFields).Error; err != nil {
+		return err
+	}
+	if len(systemFields) == 0 {
+		return nil // 内置字段还未创建
+	}
+	fieldMap := make(map[string]uint64)
+	for _, f := range systemFields {
+		fieldMap[f.FieldKey] = f.ID
+	}
+
+	// 内置字段默认配置
+	type builtinCfg struct {
+		FieldKey        string
+		IsRequired      bool
+		SortOrder       int
+		IsVisibleCreate bool
+		IsVisibleEdit   bool
+		IsVisibleDetail bool
+	}
+	builtinDefaults := []builtinCfg{
+		{FieldKey: "description", IsRequired: false, SortOrder: -5, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "priority", IsRequired: true, SortOrder: -4, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "assignee", IsRequired: false, SortOrder: -3, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "planned_start_date", IsRequired: false, SortOrder: -2, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "planned_end_date", IsRequired: false, SortOrder: -1, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+	}
+
+	// 查询所有项目+工单类型组合（含已有字段方案的组合 + 所有项目×全局工单类型）
+	type projectType struct {
+		ProjectID   uint64
+		IssueTypeID uint64
+	}
+	// 先从已有字段方案取组合
+	var existingCombos []projectType
+	if err := db.Model(&IssueTypeFieldScheme{}).
+		Select("DISTINCT project_id, issue_type_id").
+		Scan(&existingCombos).Error; err != nil {
+		return err
+	}
+	// 再从所有项目×全局工单类型取组合（覆盖之前没有任何字段方案的工单类型）
+	var projectIDs []uint64
+	db.Model(&Project{}).Where("deleted_at IS NULL").Pluck("id", &projectIDs)
+	var globalTypeIDs []uint64
+	db.Model(&IssueType{}).Where("project_id IS NULL AND deleted_at IS NULL").Pluck("id", &globalTypeIDs)
+
+	comboSet := make(map[[2]uint64]bool)
+	var combos []projectType
+	for _, c := range existingCombos {
+		key := [2]uint64{c.ProjectID, c.IssueTypeID}
+		if !comboSet[key] {
+			comboSet[key] = true
+			combos = append(combos, c)
+		}
+	}
+	for _, pid := range projectIDs {
+		for _, tid := range globalTypeIDs {
+			key := [2]uint64{pid, tid}
+			if !comboSet[key] {
+				comboSet[key] = true
+				combos = append(combos, projectType{ProjectID: pid, IssueTypeID: tid})
+			}
+		}
+	}
+
+	count := 0
+	for _, combo := range combos {
+		for _, bc := range builtinDefaults {
+			fieldID, ok := fieldMap[bc.FieldKey]
+			if !ok {
+				continue
+			}
+			scheme := IssueTypeFieldScheme{
+				ProjectID:       combo.ProjectID,
+				IssueTypeID:     combo.IssueTypeID,
+				FieldID:         fieldID,
+				IsRequired:      bc.IsRequired,
+				IsVisibleCreate: bc.IsVisibleCreate,
+				IsVisibleEdit:   bc.IsVisibleEdit,
+				IsVisibleDetail: bc.IsVisibleDetail,
+				SortOrder:       bc.SortOrder,
+			}
+			result := db.Where("project_id = ? AND issue_type_id = ? AND field_id = ?",
+				combo.ProjectID, combo.IssueTypeID, fieldID).FirstOrCreate(&scheme)
+			if result.Error != nil {
+				logger.Warn("failed to migrate builtin field",
+					zap.Uint64("project_id", combo.ProjectID),
+					zap.String("field_key", bc.FieldKey),
+					zap.Error(result.Error))
+			}
+			if result.RowsAffected > 0 {
+				count++
+			}
+		}
+	}
+
+	// 标记已完成
+	db.Create(&SystemConfig{
+		ConfigKey:   migrationKey,
+		ConfigValue: "done",
+		ConfigType:  "string",
+		Category:    "migration",
+		Description: "内置字段方案迁移标记",
+	})
+
+	logger.Info("builtin field schemes migration completed", zap.Int("fields_added", count))
+	return nil
+}
+
+// MigrateAlertPriorityVisibility 修复 Alert 类型 priority 字段 is_visible_create 应为 false
+func MigrateAlertPriorityVisibility(db *gorm.DB) error {
+	const migrationKey = "migration.alert_priority_visibility_v1"
+
+	var config SystemConfig
+	if err := db.Where("config_key = ?", migrationKey).First(&config).Error; err == nil {
+		return nil
+	}
+
+	// 查找 Alert 工单类型 ID
+	var alertType IssueType
+	if err := db.Where("name = ? AND project_id IS NULL AND deleted_at IS NULL", "Alert").First(&alertType).Error; err != nil {
+		return nil // Alert 类型不存在，跳过
+	}
+
+	// 查找 priority 系统字段 ID
+	var priorityField FieldDefinition
+	if err := db.Where("field_key = ? AND project_id IS NULL AND is_system = ?", "priority", true).First(&priorityField).Error; err != nil {
+		return nil // priority 字段不存在，跳过
+	}
+
+	// 更新所有项目中 Alert 类型的 priority 字段 is_visible_create = false
+	result := db.Model(&IssueTypeFieldScheme{}).
+		Where("issue_type_id = ? AND field_id = ?", alertType.ID, priorityField.ID).
+		Update("is_visible_create", false)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	// 标记已完成
+	db.Create(&SystemConfig{
+		ConfigKey:   migrationKey,
+		ConfigValue: "done",
+		ConfigType:  "string",
+		Category:    "migration",
+		Description: "Alert 类型 priority 可见性修复",
+	})
+
+	logger.Info("alert priority visibility migration completed", zap.Int64("rows_affected", result.RowsAffected))
+	return nil
+}
+
+// SeedDefaultFieldSchemeTemplates 初始化默认字段方案模板（从 typeFieldConfig 转化）
+func SeedDefaultFieldSchemeTemplates(db *gorm.DB, createdBy uint64) error {
+	logger.Info("seeding default field scheme templates...")
+
+	// 获取系统字段 key→ID 映射
+	var systemFields []FieldDefinition
+	if err := db.Where("project_id IS NULL AND is_system = ?", true).Find(&systemFields).Error; err != nil {
+		return err
+	}
+	fieldMap := make(map[string]uint64)
+	for _, f := range systemFields {
+		fieldMap[f.FieldKey] = f.ID
+	}
+
+	// 定义模板（与 InitProjectFieldSchemes 中的 typeFieldConfig 一致）
+	type fieldCfg struct {
+		FieldKey   string
+		IsRequired bool
+		SortOrder  int
+	}
+
+	// 内置字段（所有模板共享前缀）
+	builtinTplFields := []fieldCfg{
+		{FieldKey: "description", IsRequired: false, SortOrder: -5},
+		{FieldKey: "priority", IsRequired: true, SortOrder: -4},
+		{FieldKey: "assignee", IsRequired: false, SortOrder: -3},
+		{FieldKey: "planned_start_date", IsRequired: false, SortOrder: -2},
+		{FieldKey: "planned_end_date", IsRequired: false, SortOrder: -1},
+	}
+
+	templates := []struct {
+		Name        string
+		Description string
+		Fields      []fieldCfg
+	}{
+		{
+			Name:        "缺陷(Bug)默认方案",
+			Description: "适用于缺陷(Bug)工单类型的字段方案模板",
+			Fields: append(append([]fieldCfg{}, builtinTplFields...), []fieldCfg{
+				{FieldKey: "severity", IsRequired: true, SortOrder: 1},
+				{FieldKey: "environment", IsRequired: false, SortOrder: 2},
+				{FieldKey: "steps_to_reproduce", IsRequired: false, SortOrder: 3},
+				{FieldKey: "affects_version", IsRequired: false, SortOrder: 4},
+				{FieldKey: "fix_version", IsRequired: false, SortOrder: 5},
+				{FieldKey: "epic_link", IsRequired: false, SortOrder: 6},
+				{FieldKey: "labels", IsRequired: false, SortOrder: 7},
+				{FieldKey: "components", IsRequired: false, SortOrder: 8},
+			}...),
+		},
+		{
+			Name:        "Epic默认方案",
+			Description: "适用于Epic工单类型的字段方案模板",
+			Fields: append(append([]fieldCfg{}, builtinTplFields...), []fieldCfg{
+				{FieldKey: "epic_name", IsRequired: true, SortOrder: 1},
+				{FieldKey: "epic_color", IsRequired: false, SortOrder: 2},
+				{FieldKey: "story_points", IsRequired: false, SortOrder: 3},
+				{FieldKey: "labels", IsRequired: false, SortOrder: 4},
+				{FieldKey: "components", IsRequired: false, SortOrder: 5},
+			}...),
+		},
+		{
+			Name:        "任务(Task)默认方案",
+			Description: "适用于任务(Task)工单类型的字段方案模板",
+			Fields: append(append([]fieldCfg{}, builtinTplFields...), []fieldCfg{
+				{FieldKey: "epic_link", IsRequired: false, SortOrder: 1},
+				{FieldKey: "story_points", IsRequired: false, SortOrder: 2},
+				{FieldKey: "fix_version", IsRequired: false, SortOrder: 3},
+				{FieldKey: "labels", IsRequired: false, SortOrder: 4},
+				{FieldKey: "components", IsRequired: false, SortOrder: 5},
+			}...),
+		},
+		{
+			Name:        "故障(Fault)默认方案",
+			Description: "适用于故障(Fault)工单类型的字段方案模板",
+			Fields: append(append([]fieldCfg{}, builtinTplFields...), []fieldCfg{
+				{FieldKey: "severity", IsRequired: true, SortOrder: 1},
+				{FieldKey: "environment", IsRequired: false, SortOrder: 2},
+				{FieldKey: "affects_version", IsRequired: false, SortOrder: 3},
+				{FieldKey: "labels", IsRequired: false, SortOrder: 4},
+				{FieldKey: "components", IsRequired: false, SortOrder: 5},
+			}...),
+		},
+		{
+			Name:        "变更(Change)默认方案",
+			Description: "适用于变更(Change)工单类型的字段方案模板",
+			Fields: append(append([]fieldCfg{}, builtinTplFields...), []fieldCfg{
+				{FieldKey: "fix_version", IsRequired: false, SortOrder: 1},
+				{FieldKey: "labels", IsRequired: false, SortOrder: 2},
+				{FieldKey: "components", IsRequired: false, SortOrder: 3},
+			}...),
+		},
+		{
+			Name:        "服务请求(ServiceRequest)默认方案",
+			Description: "适用于服务请求(ServiceRequest)工单类型的字段方案模板",
+			Fields: append(append([]fieldCfg{}, builtinTplFields...), []fieldCfg{
+				{FieldKey: "labels", IsRequired: false, SortOrder: 1},
+				{FieldKey: "components", IsRequired: false, SortOrder: 2},
+			}...),
+		},
+		{
+			Name:        "子任务(Subtask)默认方案",
+			Description: "适用于子任务(Subtask)工单类型的字段方案模板",
+			Fields: append(append([]fieldCfg{}, builtinTplFields...), []fieldCfg{
+				{FieldKey: "labels", IsRequired: false, SortOrder: 1},
+			}...),
+		},
+		{
+			Name:        "告警(Alert)默认方案",
+			Description: "适用于告警(Alert)工单类型的字段方案模板",
+			Fields: append([]fieldCfg{}, builtinTplFields...),
+		},
+	}
+
+	for _, tplDef := range templates {
+		// 幂等：按名称检查
+		var existing FieldSchemeTemplate
+		result := db.Where("name = ?", tplDef.Name).First(&existing)
+		if result.Error == nil {
+			continue // 已存在，跳过
+		}
+
+		tpl := FieldSchemeTemplate{
+			Name:        tplDef.Name,
+			Description: tplDef.Description,
+			CreatedBy:   createdBy,
+			IsActive:    true,
+		}
+		if err := db.Create(&tpl).Error; err != nil {
+			logger.Error("failed to create template", zap.String("name", tplDef.Name), zap.Error(err))
+			return err
+		}
+
+		items := make([]FieldSchemeTemplateItem, 0, len(tplDef.Fields))
+		for _, fc := range tplDef.Fields {
+			fieldID, ok := fieldMap[fc.FieldKey]
+			if !ok {
+				continue
+			}
+			items = append(items, FieldSchemeTemplateItem{
+				TemplateID:      tpl.ID,
+				FieldID:         fieldID,
+				IsRequired:      fc.IsRequired,
+				IsVisibleCreate: true,
+				IsVisibleEdit:   true,
+				IsVisibleDetail: true,
+				SortOrder:       fc.SortOrder,
+			})
+		}
+		if len(items) > 0 {
+			if err := db.Create(&items).Error; err != nil {
+				logger.Error("failed to create template items", zap.String("name", tplDef.Name), zap.Error(err))
+				return err
+			}
+		}
+	}
+
+	logger.Info("default field scheme templates seeded")
 	return nil
 }
 
@@ -645,6 +988,54 @@ func SeedSystemFields(db *gorm.DB) error {
 			IsActive:    true,
 			SortOrder:   13,
 		},
+		// 内置字段（对应 Issue 表列，通过字段方案控制可见性，不存 EAV）
+		{
+			FieldKey:     "description",
+			FieldName:    "描述",
+			FieldType:    FieldTypeTextarea,
+			Description:  "工单描述",
+			IsSystem:     true,
+			IsActive:     true,
+			SortOrder:    100,
+		},
+		{
+			FieldKey:     "priority",
+			FieldName:    "优先级",
+			FieldType:    FieldTypeSelect,
+			Description:  "工单优先级",
+			IsSystem:     true,
+			IsActive:     true,
+			Options:      `[{"value":"P0","label":"P0 - 紧急"},{"value":"P1","label":"P1 - 高"},{"value":"P2","label":"P2 - 中"},{"value":"P3","label":"P3 - 低"}]`,
+			DefaultValue: "P2",
+			SortOrder:    101,
+		},
+		{
+			FieldKey:    "assignee",
+			FieldName:   "指派人",
+			FieldType:   FieldTypeUser,
+			Description: "工单指派人",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   102,
+		},
+		{
+			FieldKey:    "planned_start_date",
+			FieldName:   "预计开始时间",
+			FieldType:   FieldTypeDate,
+			Description: "计划开始日期",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   103,
+		},
+		{
+			FieldKey:    "planned_end_date",
+			FieldName:   "预计交付时间",
+			FieldType:   FieldTypeDate,
+			Description: "计划结束日期",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   104,
+		},
 		// 通用字段
 		{
 			FieldKey:    "labels",
@@ -715,13 +1106,38 @@ func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
 		typeMap[it.Name] = it.ID
 	}
 
-	// 定义每种工单类型的字段配置
-	// key: 工单类型名, value: 字段key列表及配置
-	typeFieldConfig := map[string][]struct {
+	// 内置字段配置（所有工单类型共享，SortOrder 使用负数排在扩展字段前面）
+	type fieldCfgItem struct {
+		FieldKey        string
+		IsRequired      bool
+		SortOrder       int
+		IsVisibleCreate bool
+		IsVisibleEdit   bool
+		IsVisibleDetail bool
+	}
+	builtinFields := []fieldCfgItem{
+		{FieldKey: "description", IsRequired: false, SortOrder: -5, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "priority", IsRequired: true, SortOrder: -4, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "assignee", IsRequired: false, SortOrder: -3, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "planned_start_date", IsRequired: false, SortOrder: -2, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "planned_end_date", IsRequired: false, SortOrder: -1, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+	}
+	// Alert 类型的内置字段（priority 创建时不可见，由规则决定）
+	builtinFieldsAlert := []fieldCfgItem{
+		{FieldKey: "description", IsRequired: false, SortOrder: -5, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "priority", IsRequired: true, SortOrder: -4, IsVisibleCreate: false, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "assignee", IsRequired: false, SortOrder: -3, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "planned_start_date", IsRequired: false, SortOrder: -2, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+		{FieldKey: "planned_end_date", IsRequired: false, SortOrder: -1, IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true},
+	}
+
+	// 定义每种工单类型的扩展字段配置
+	type extFieldCfg struct {
 		FieldKey   string
 		IsRequired bool
 		SortOrder  int
-	}{
+	}
+	typeExtFieldConfig := map[string][]extFieldCfg{
 		"Bug": {
 			{FieldKey: "severity", IsRequired: true, SortOrder: 1},
 			{FieldKey: "environment", IsRequired: false, SortOrder: 2},
@@ -735,21 +1151,16 @@ func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
 		"Epic": {
 			{FieldKey: "epic_name", IsRequired: true, SortOrder: 1},
 			{FieldKey: "epic_color", IsRequired: false, SortOrder: 2},
-			{FieldKey: "start_date", IsRequired: false, SortOrder: 3},
-			{FieldKey: "end_date", IsRequired: false, SortOrder: 4},
-			{FieldKey: "story_points", IsRequired: false, SortOrder: 5},
-			{FieldKey: "labels", IsRequired: false, SortOrder: 6},
-			{FieldKey: "components", IsRequired: false, SortOrder: 7},
+			{FieldKey: "story_points", IsRequired: false, SortOrder: 3},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 4},
+			{FieldKey: "components", IsRequired: false, SortOrder: 5},
 		},
 		"Task": {
-			{FieldKey: "original_estimate", IsRequired: false, SortOrder: 1},
-			{FieldKey: "remaining_estimate", IsRequired: false, SortOrder: 2},
-			{FieldKey: "start_date", IsRequired: false, SortOrder: 3},
-			{FieldKey: "fix_version", IsRequired: false, SortOrder: 4},
-			{FieldKey: "epic_link", IsRequired: false, SortOrder: 5},
-			{FieldKey: "story_points", IsRequired: false, SortOrder: 6},
-			{FieldKey: "labels", IsRequired: false, SortOrder: 7},
-			{FieldKey: "components", IsRequired: false, SortOrder: 8},
+			{FieldKey: "epic_link", IsRequired: false, SortOrder: 1},
+			{FieldKey: "story_points", IsRequired: false, SortOrder: 2},
+			{FieldKey: "fix_version", IsRequired: false, SortOrder: 3},
+			{FieldKey: "labels", IsRequired: false, SortOrder: 4},
+			{FieldKey: "components", IsRequired: false, SortOrder: 5},
 		},
 		"Fault": {
 			{FieldKey: "severity", IsRequired: true, SortOrder: 1},
@@ -759,22 +1170,50 @@ func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
 			{FieldKey: "components", IsRequired: false, SortOrder: 5},
 		},
 		"Change": {
-			{FieldKey: "start_date", IsRequired: false, SortOrder: 1},
-			{FieldKey: "end_date", IsRequired: false, SortOrder: 2},
-			{FieldKey: "fix_version", IsRequired: false, SortOrder: 3},
-			{FieldKey: "labels", IsRequired: false, SortOrder: 4},
-			{FieldKey: "components", IsRequired: false, SortOrder: 5},
-		},
-		"ServiceRequest": {
-			{FieldKey: "original_estimate", IsRequired: false, SortOrder: 1},
+			{FieldKey: "fix_version", IsRequired: false, SortOrder: 1},
 			{FieldKey: "labels", IsRequired: false, SortOrder: 2},
 			{FieldKey: "components", IsRequired: false, SortOrder: 3},
 		},
-		"Subtask": {
-			{FieldKey: "original_estimate", IsRequired: false, SortOrder: 1},
-			{FieldKey: "remaining_estimate", IsRequired: false, SortOrder: 2},
-			{FieldKey: "labels", IsRequired: false, SortOrder: 3},
+		"ServiceRequest": {
+			{FieldKey: "labels", IsRequired: false, SortOrder: 1},
+			{FieldKey: "components", IsRequired: false, SortOrder: 2},
 		},
+		"Subtask": {
+			{FieldKey: "labels", IsRequired: false, SortOrder: 1},
+		},
+		"Alert": {},
+	}
+
+	// 合并内置字段和扩展字段，用旧类型结构兼容下方创建逻辑
+	type fullFieldCfg struct {
+		FieldKey        string
+		IsRequired      bool
+		SortOrder       int
+		IsVisibleCreate bool
+		IsVisibleEdit   bool
+		IsVisibleDetail bool
+	}
+	typeFieldConfig := make(map[string][]fullFieldCfg)
+	for typeName, extFields := range typeExtFieldConfig {
+		var allFields []fullFieldCfg
+		// 选择内置字段列表
+		bi := builtinFields
+		if typeName == "Alert" {
+			bi = builtinFieldsAlert
+		}
+		for _, bf := range bi {
+			allFields = append(allFields, fullFieldCfg{
+				FieldKey: bf.FieldKey, IsRequired: bf.IsRequired, SortOrder: bf.SortOrder,
+				IsVisibleCreate: bf.IsVisibleCreate, IsVisibleEdit: bf.IsVisibleEdit, IsVisibleDetail: bf.IsVisibleDetail,
+			})
+		}
+		for _, ef := range extFields {
+			allFields = append(allFields, fullFieldCfg{
+				FieldKey: ef.FieldKey, IsRequired: ef.IsRequired, SortOrder: ef.SortOrder,
+				IsVisibleCreate: true, IsVisibleEdit: true, IsVisibleDetail: true,
+			})
+		}
+		typeFieldConfig[typeName] = allFields
 	}
 
 	// 为每个工单类型创建字段方案
@@ -795,9 +1234,9 @@ func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
 				IssueTypeID:     typeID,
 				FieldID:         fieldID,
 				IsRequired:      fieldConfig.IsRequired,
-				IsVisibleCreate: true,
-				IsVisibleEdit:   true,
-				IsVisibleDetail: true,
+				IsVisibleCreate: fieldConfig.IsVisibleCreate,
+				IsVisibleEdit:   fieldConfig.IsVisibleEdit,
+				IsVisibleDetail: fieldConfig.IsVisibleDetail,
 				SortOrder:       fieldConfig.SortOrder,
 			}
 

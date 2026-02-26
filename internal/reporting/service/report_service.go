@@ -27,6 +27,7 @@ type ReportService interface {
 	GetSLAReport(ctx context.Context, req *dto.SLAReportRequest) (*dto.SLAReportResponse, error)
 	GetAlertStats(ctx context.Context, req *dto.AlertStatsRequest) (*dto.AlertStatsResponse, error)
 	GetUserPerformance(ctx context.Context, req *dto.IssueStatsRequest) ([]*dto.UserPerformanceResponse, error)
+	GetWorklogStats(ctx context.Context, req *dto.WorklogStatsRequest) (*dto.WorklogStatsResponse, error)
 }
 
 // reportService 报表服务实现
@@ -395,6 +396,86 @@ func (s *reportService) mergeTimelineData(created, inProgress, resolved, closed 
 	}
 
 	return result
+}
+
+// GetWorklogStats 获取工时统计数据
+func (s *reportService) GetWorklogStats(ctx context.Context, req *dto.WorklogStatsRequest) (*dto.WorklogStatsResponse, error) {
+	resp := &dto.WorklogStatsResponse{}
+
+	dateRange := s.parseDateRange(req.StartDate, req.EndDate)
+
+	var projectID *uint64
+	if req.ProjectKey != "" {
+		project, err := s.projectRepo.GetByKey(ctx, req.ProjectKey)
+		if err != nil {
+			return nil, err
+		}
+		projectID = &project.ID
+	}
+
+	// 获取汇总数据
+	summary, err := s.reportRepo.GetWorklogSummary(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Error("failed to get worklog summary", zap.Error(err))
+		return nil, err
+	}
+	resp.Summary.TotalTimeSec = summary.TotalTimeSec
+	resp.Summary.TotalEntries = summary.TotalEntries
+	resp.Summary.ActiveUsers = summary.ActiveUsers
+
+	// 计算日均工时
+	days := dateRange.EndDate.Sub(dateRange.StartDate).Hours() / 24
+	if days > 0 && summary.TotalTimeSec > 0 {
+		resp.Summary.AvgDailyTimeSec = float64(summary.TotalTimeSec) / days
+	}
+
+	// 获取每日统计
+	dailyStats, err := s.reportRepo.GetWorklogDailyStats(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get worklog daily stats", zap.Error(err))
+	} else {
+		resp.DailyStats = make([]dto.DailyWorklogStat, len(dailyStats))
+		for i, d := range dailyStats {
+			resp.DailyStats[i] = dto.DailyWorklogStat{
+				Date:         d.Date,
+				TotalTimeSec: d.TotalTimeSec,
+				EntryCount:   d.EntryCount,
+			}
+		}
+	}
+
+	// 获取用户统计
+	userStats, err := s.reportRepo.GetWorklogUserStats(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get worklog user stats", zap.Error(err))
+	} else {
+		resp.UserStats = make([]dto.UserWorklogStat, len(userStats))
+		for i, u := range userStats {
+			resp.UserStats[i] = dto.UserWorklogStat{
+				UserID:       u.UserID,
+				DisplayName:  u.DisplayName,
+				TotalTimeSec: u.TotalTimeSec,
+				EntryCount:   u.EntryCount,
+			}
+		}
+	}
+
+	// 获取类型统计
+	typeStats, err := s.reportRepo.GetWorklogTypeStats(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get worklog type stats", zap.Error(err))
+	} else {
+		resp.TypeStats = make([]dto.WorklogTypeStat, len(typeStats))
+		for i, t := range typeStats {
+			resp.TypeStats[i] = dto.WorklogTypeStat{
+				WorkType:     t.WorkType,
+				TotalTimeSec: t.TotalTimeSec,
+				EntryCount:   t.EntryCount,
+			}
+		}
+	}
+
+	return resp, nil
 }
 
 // mapToDistribution 将 map 转换为分布数据

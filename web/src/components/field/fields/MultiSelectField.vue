@@ -38,14 +38,32 @@ const emit = defineEmits<{
   (e: 'change', value: string[]): void
 }>()
 
-const internalValue = ref<string[]>(props.modelValue || [])
+// 确保值始终为 string[]，处理后端可能返回的各种格式
+function ensureStringArray(val: unknown): string[] {
+  if (Array.isArray(val)) return val.map(String)
+  if (typeof val === 'string' && val) {
+    try {
+      const parsed = JSON.parse(val)
+      return Array.isArray(parsed) ? parsed.map(String) : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+const internalValue = ref<string[]>(ensureStringArray(props.modelValue))
 
 const options = computed<FieldOption[]>(() => {
   return parseFieldOptions(props.field.options)
 })
 
 watch(() => props.modelValue, (newVal) => {
-  internalValue.value = newVal || []
+  const coerced = ensureStringArray(newVal)
+  // 内容相同时不更新，避免不必要的 el-select 重渲染
+  if (JSON.stringify(coerced) !== JSON.stringify(internalValue.value)) {
+    internalValue.value = coerced
+  }
 })
 
 watch(internalValue, (newVal) => {

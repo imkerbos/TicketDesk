@@ -715,6 +715,7 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 		IssueTypeID:     req.IssueTypeID,
 		EpicID:          req.EpicID,
 		Keyword:         req.Keyword,
+		Category:        req.Category,
 		ProjectIDs:      req.ProjectIDs,
 		LimitByProjects: req.ProjectIDs != nil,
 	}

@@ -129,3 +129,37 @@ export interface UserPerformance {
   resolved: number
   avg_resolve_time: number
 }
+
+// 工时统计响应
+export interface WorklogStats {
+  summary: WorklogSummary
+  daily_stats: DailyWorklogStat[]
+  user_stats: UserWorklogStat[]
+  type_stats: WorklogTypeStat[]
+}
+
+export interface WorklogSummary {
+  total_time_sec: number
+  total_entries: number
+  active_users: number
+  avg_daily_time_sec: number
+}
+
+export interface DailyWorklogStat {
+  date: string
+  total_time_sec: number
+  entry_count: number
+}
+
+export interface UserWorklogStat {
+  user_id: number
+  display_name: string
+  total_time_sec: number
+  entry_count: number
+}
+
+export interface WorklogTypeStat {
+  work_type: string
+  total_time_sec: number
+  entry_count: number
+}

@@ -90,6 +90,13 @@ const router = createRouter({
       component: () => import('@/views/workflow/WorkflowDesigner.vue'),
       meta: { title: '工作流设计器', requiresProjectAdmin: true },
     },
+    // 字段管理（需要项目管理员权限）
+    {
+      path: '/fields',
+      name: 'FieldManagement',
+      component: () => import('@/views/field/FieldManagement.vue'),
+      meta: { title: '字段管理', requiresProjectAdmin: true },
+    },
     // 告警中心
     {
       path: '/alerts',

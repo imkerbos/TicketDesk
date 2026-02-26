@@ -180,7 +180,7 @@
           <!-- 工作流卡片 -->
           <el-card v-if="workflowInstance" shadow="never" class="content-card workflow-card">
             <template #header>
-              <div class="card-header-group">
+              <div class="card-header-group" style="flex: 1;">
                 <div class="card-icon workflow">
                   <el-icon><Promotion /></el-icon>
                 </div>
@@ -188,6 +188,16 @@
                 <el-tag :type="getWorkflowStatusType(workflowInstance.status)" size="small" effect="dark">
                   {{ getWorkflowStatusText(workflowInstance.status) }}
                 </el-tag>
+                <el-button
+                  v-if="(workflowInstance.approvals && workflowInstance.approvals.length > 0) || workflowHistoryList.length > 0"
+                  link
+                  size="small"
+                  style="margin-left: auto;"
+                  @click.stop="workflowExpanded = !workflowExpanded"
+                >
+                  {{ workflowExpanded ? '收起' : '展开详情' }}
+                  <el-icon><component :is="workflowExpanded ? ArrowUp : ArrowDown" /></el-icon>
+                </el-button>
               </div>
             </template>
 
@@ -204,8 +214,8 @@
               </div>
             </div>
 
-            <!-- 审批记录 -->
-            <div v-if="workflowInstance.approvals && workflowInstance.approvals.length > 0" class="workflow-approvals">
+            <!-- 审批记录（默认折叠） -->
+            <div v-show="workflowExpanded" v-if="workflowInstance.approvals && workflowInstance.approvals.length > 0" class="workflow-approvals">
               <div class="approvals-label">审批记录</div>
               <div class="approvals-list">
                 <div v-for="approval in workflowInstance.approvals" :key="approval.id" class="approval-item">
@@ -265,8 +275,8 @@
               </div>
             </div>
 
-            <!-- 流转历史时间线 -->
-            <div v-if="workflowHistoryList.length > 0" class="workflow-history">
+            <!-- 流转历史时间线（默认折叠） -->
+            <div v-show="workflowExpanded" v-if="workflowHistoryList.length > 0" class="workflow-history">
               <div class="history-label">流转历史</div>
               <el-timeline class="workflow-timeline">
                 <el-timeline-item
@@ -304,13 +314,17 @@
               <div v-for="field in customFields" :key="field.field_id" class="field-item">
                 <div class="field-label">{{ field.field_name }}</div>
                 <div class="field-value">
-                  <template v-if="field.value !== null && field.value !== undefined && field.value !== ''">
+                  <template v-if="isFieldValueSet(field)">
                     <!-- Epic Link 特殊显示 -->
                     <template v-if="field.field_type === 'epic_link' && typeof field.value === 'object' && field.value.issue_key">
                       <router-link :to="`/issues/${field.value.issue_key}`" class="epic-link">
                         <el-icon><Link /></el-icon>
                         {{ field.value.issue_key }}: {{ field.value.title }}
                       </router-link>
+                    </template>
+                    <!-- 多选类型：标签展示 -->
+                    <template v-else-if="Array.isArray(field.value)">
+                      <el-tag v-for="item in field.value" :key="item" size="small" style="margin-right: 4px;">{{ item }}</el-tag>
                     </template>
                     <!-- 其他字段 -->
                     <template v-else>
@@ -675,6 +689,15 @@
                   <span>{{ getStatusText(issue.status) }}</span>
                 </div>
               </div>
+              <div v-if="slaStatus" class="info-item">
+                <span class="info-label">SLA 状态</span>
+                <div class="sla-status-wrap">
+                  <el-tag v-if="slaStatus.level === 'overdue'" type="danger" size="small" effect="dark">已超时</el-tag>
+                  <el-tag v-else-if="slaStatus.level === 'due_soon'" type="warning" size="small" effect="dark">即将超时</el-tag>
+                  <el-tag v-else type="success" size="small" effect="dark">进行中</el-tag>
+                  <span class="sla-hint">{{ slaStatus.hint }}</span>
+                </div>
+              </div>
               <div class="info-item">
                 <span class="info-label">优先级</span>
                 <el-tag :type="getPriorityType(issue.priority)" size="small" effect="dark">{{ issue.priority }}</el-tag>
@@ -696,22 +719,46 @@
               <div class="info-item">
                 <span class="info-label">指派人</span>
                 <div class="assignee-with-action">
-                  <template v-if="issue.assignee">
-                    <div class="user-info">
-                      <div class="mini-avatar">{{ issue.assignee.display_name?.charAt(0) || '?' }}</div>
-                      <span>{{ issue.assignee.display_name }}</span>
-                    </div>
+                  <template v-if="!editingAssignee">
+                    <template v-if="issue.assignee">
+                      <div class="user-info">
+                        <div class="mini-avatar">{{ issue.assignee.display_name?.charAt(0) || '?' }}</div>
+                        <span>{{ issue.assignee.display_name }}</span>
+                      </div>
+                    </template>
+                    <span v-else class="text-muted">未指派</span>
+                    <el-button
+                      v-if="issue.assignee?.id !== userStore.user?.id"
+                      link
+                      type="primary"
+                      size="small"
+                      @click="handleAssignToMe"
+                    >
+                      分配给我
+                    </el-button>
+                    <el-button
+                      v-if="userStore.isProjectAdmin"
+                      link
+                      size="small"
+                      @click="startEditAssignee"
+                    >
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
                   </template>
-                  <span v-else class="text-muted">未指派</span>
-                  <el-button
-                    v-if="issue.assignee?.id !== userStore.user?.id"
-                    link
-                    type="primary"
-                    size="small"
-                    @click="handleAssignToMe"
-                  >
-                    分配给我
-                  </el-button>
+                  <template v-else>
+                    <el-select
+                      v-model="editAssigneeId"
+                      placeholder="选择指派人"
+                      filterable
+                      clearable
+                      size="small"
+                      style="width: 160px;"
+                      @change="handleAssigneeChange"
+                    >
+                      <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
+                    </el-select>
+                    <el-button link size="small" @click="editingAssignee = false">取消</el-button>
+                  </template>
                 </div>
               </div>
               <div class="info-item">
@@ -729,6 +776,8 @@
               <div v-if="issue.due_date" class="info-item">
                 <span class="info-label">截止时间</span>
                 <span>{{ formatDate(issue.due_date) }}</span>
+                <el-tag v-if="dueDateStatus === 'overdue'" type="danger" size="small" style="margin-left: 6px;">已超时</el-tag>
+                <el-tag v-else-if="dueDateStatus === 'due_soon'" type="warning" size="small" style="margin-left: 6px;">即将超时</el-tag>
               </div>
               <div v-if="issue.planned_start_date" class="info-item">
                 <span class="info-label">预计开始</span>
@@ -845,16 +894,6 @@
         </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="优先级" prop="priority">
-              <el-select v-model="editForm.priority" style="width: 100%">
-                <el-option label="P0 - 紧急" value="P0" />
-                <el-option label="P1 - 高" value="P1" />
-                <el-option label="P2 - 中" value="P2" />
-                <el-option label="P3 - 低" value="P3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="解决结果">
               <el-select v-model="editForm.resolution" placeholder="请选择" style="width: 100%" clearable>
                 <el-option label="已解决" value="fixed" />
@@ -868,65 +907,36 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="指派人">
-              <div style="display: flex; gap: 8px;">
-                <el-select v-model="editForm.assignee_id" placeholder="请选择" style="flex: 1" clearable filterable>
-                  <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
-                </el-select>
-                <el-button @click="assignToMe">分配给我</el-button>
-              </div>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="描述">
-          <el-input v-model="editForm.description" type="textarea" :rows="3" />
-        </el-form-item>
-        <el-form-item label="Epic">
-          <el-select v-model="editForm.epic_id" placeholder="请选择Epic" style="width: 100%" clearable filterable>
-            <el-option v-for="epic in epicOptions" :key="epic.id" :label="`${epic.issue_key}: ${epic.title}`" :value="epic.id" />
-          </el-select>
-        </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="预计开始时间">
-              <el-date-picker
-                v-model="editForm.planned_start_date"
-                type="date"
-                placeholder="请选择预计开始时间"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="预计交付时间">
-              <el-date-picker
-                v-model="editForm.planned_end_date"
-                type="date"
-                placeholder="请选择预计交付时间"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
 
-        <!-- 自定义字段 -->
+        <!-- 所有字段由字段方案驱动 -->
         <div v-if="editFieldScheme.length > 0" class="edit-custom-fields">
-          <div class="section-divider">
-            <span>扩展字段</span>
-          </div>
           <el-row :gutter="20">
             <el-col
               v-for="item in editFieldScheme"
               :key="item.field_id"
-              :span="item.field?.field_type === 'textarea' ? 24 : 12"
+              :span="getEditFieldColSpan(item)"
             >
-              <el-form-item :label="item.field?.field_name" :required="item.is_required">
+              <el-form-item :required="item.is_required">
+                <template #label>
+                  <span>{{ item.field?.field_name }}</span>
+                  <el-tooltip v-if="item.field?.description" :content="item.field?.description" placement="top">
+                    <el-icon class="field-hint" style="margin-left: 4px; font-size: 14px; color: #c0c4cc; cursor: help;"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
+                <!-- assignee 字段：包装"分配给我"按钮 -->
+                <div v-if="item.field?.field_key === 'assignee'" style="display: flex; gap: 8px; width: 100%;">
+                  <FieldRenderer
+                    v-if="item.field && issue"
+                    :field="item.field"
+                    :scheme="item"
+                    :project-key="issue.project_key"
+                    v-model="editFieldValues[item.field_id]"
+                    style="flex: 1;"
+                  />
+                  <el-button @click="assignToMeField(item.field_id)">分配给我</el-button>
+                </div>
                 <FieldRenderer
-                  v-if="item.field && issue"
+                  v-else-if="item.field && issue"
                   :field="item.field"
                   :scheme="item"
                   :project-key="issue.project_key"
@@ -968,41 +978,22 @@
         <el-form-item label="标题" prop="title">
           <el-input v-model="createSubtaskForm.title" placeholder="请输入子任务标题" maxlength="200" show-word-limit />
         </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="优先级" prop="priority">
-              <el-select v-model="createSubtaskForm.priority" placeholder="请选择优先级" style="width: 100%">
-                <el-option label="P0 - 紧急" value="P0" />
-                <el-option label="P1 - 高" value="P1" />
-                <el-option label="P2 - 中" value="P2" />
-                <el-option label="P3 - 低" value="P3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="指派人">
-              <el-select v-model="createSubtaskForm.assignee_id" placeholder="请选择指派人" style="width: 100%" clearable filterable>
-                <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="描述">
-          <el-input v-model="createSubtaskForm.description" type="textarea" :rows="3" placeholder="请输入子任务描述" />
-        </el-form-item>
 
-        <!-- 动态自定义字段 -->
+        <!-- 所有字段由字段方案驱动 -->
         <div v-if="createSubtaskFieldScheme.length > 0" class="custom-fields-section">
-          <div class="section-divider">
-            <span>扩展字段</span>
-          </div>
           <el-row :gutter="20">
             <el-col
               v-for="item in createSubtaskFieldScheme"
               :key="item.field_id"
-              :span="item.field?.field_type === 'textarea' ? 24 : 12"
+              :span="getEditFieldColSpan(item)"
             >
-              <el-form-item :label="item.field?.field_name" :required="item.is_required">
+              <el-form-item :required="item.is_required">
+                <template #label>
+                  <span>{{ item.field?.field_name }}</span>
+                  <el-tooltip v-if="item.field?.description" :content="item.field?.description" placement="top">
+                    <el-icon class="field-hint" style="margin-left: 4px; font-size: 14px; color: #c0c4cc; cursor: help;"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
                 <FieldRenderer
                   v-if="item.field"
                   :field="item.field"
@@ -1088,11 +1079,11 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
-  User, Clock, Edit, ArrowDown, ArrowRight, Plus, Document, Bell,
-  ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion
+  User, Clock, Edit, ArrowDown, ArrowUp, ArrowRight, Plus, Document, Bell,
+  ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion, QuestionFilled
 } from '@element-plus/icons-vue'
 import {
-  getIssueDetail, updateIssue, deleteIssue, createIssue, getIssueList,
+  getIssueDetail, updateIssue, deleteIssue, createIssue,
   getIssueComments, addIssueComment, getIssueActivities, getIssueWatchers,
   getWorklogs, addWorklog, deleteWorklog,
   addIssueWatcher, removeIssueWatcher, getEpicIssues, getSubtasks,
@@ -1109,11 +1100,13 @@ import { getAllUsers } from '@/api/user'
 import { getIssueFieldValues, getFieldScheme } from '@/api/field'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { useUserStore } from '@/stores/user'
-import type { Issue, IssueComment, IssueActivity, IssueWatcher, UpdateIssueRequest, Worklog, CreateWorklogRequest, CreateIssueRequest, IssuePriority } from '@/types/issue'
+import type { Issue, IssueComment, IssueActivity, IssueWatcher, IssueResolution, UpdateIssueRequest, Worklog, CreateWorklogRequest, CreateIssueRequest } from '@/types/issue'
 import type { UserOption } from '@/types/user'
 import type { FieldValue, FieldSchemeItem, FieldTypeValue } from '@/types/field'
 import type { Project, ProjectIssueType } from '@/types/project'
 import FieldRenderer from '@/components/field/FieldRenderer.vue'
+import { isBuiltinField } from '@/types/field'
+import { extractBuiltinFields, backfillBuiltinFields } from '@/utils/builtin-fields'
 import dayjs from 'dayjs'
 
 const route = useRoute()
@@ -1136,6 +1129,7 @@ const issueAlerts = ref<Alert[]>([])
 const showAttachmentUpload = ref(false)
 
 // 工作流相关
+const workflowExpanded = ref(false)
 const workflowInstance = ref<WorkflowInstance | null>(null)
 const workflowHistoryList = ref<WorkflowHistory[]>([])
 const approveComment = ref('')
@@ -1157,25 +1151,18 @@ interface CreateSubtaskFormData {
   project_key: string
   issue_type_id: number | undefined
   title: string
-  description: string
-  priority: IssuePriority
-  assignee_id: number | undefined
 }
 
 const createSubtaskForm = reactive<CreateSubtaskFormData>({
   project_key: '',
   issue_type_id: undefined,
   title: '',
-  description: '',
-  priority: 'P2',
-  assignee_id: undefined,
 })
 
 const createSubtaskRules: FormRules = {
   project_key: [{ required: true, message: '请选择项目', trigger: 'change' }],
   issue_type_id: [{ required: true, message: '请选择类型', trigger: 'change' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
 }
 
 const newComment = ref('')
@@ -1183,9 +1170,9 @@ const commentLoading = ref(false)
 const editDialogVisible = ref(false)
 const editLoading = ref(false)
 const editFormRef = ref<FormInstance>()
-const editForm = reactive<UpdateIssueRequest>({
-  title: '', description: '', priority: undefined, resolution: undefined, epic_id: undefined, assignee_id: undefined,
-  planned_start_date: undefined, planned_end_date: undefined,
+const editForm = reactive({
+  title: '',
+  resolution: undefined as IssueResolution | undefined,
 })
 const editRules: FormRules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
@@ -1193,7 +1180,6 @@ const editRules: FormRules = {
 // 编辑用的字段方案和值
 const editFieldScheme = ref<FieldSchemeItem[]>([])
 const editFieldValues = ref<Record<number, any>>({})
-const epicOptions = ref<Issue[]>([])
 
 const loadIssue = async () => {
   const key = route.params.key as string
@@ -1630,6 +1616,13 @@ const getHistoryActionText = (action: string) => {
   return map[action] || action
 }
 
+// 判断字段值是否已设置（支持数组类型）
+const isFieldValueSet = (field: FieldValue): boolean => {
+  if (field.value === null || field.value === undefined || field.value === '') return false
+  if (Array.isArray(field.value) && field.value.length === 0) return false
+  return true
+}
+
 const loadCustomFields = async (issueId: number) => {
   if (!issue.value) return
   try {
@@ -1637,8 +1630,8 @@ const loadCustomFields = async (issueId: number) => {
     const schemeRes = await getFieldScheme(issue.value.project_key, issue.value.issue_type_id)
     const scheme = schemeRes.data.data || []
 
-    // 只获取详情页可见的字段
-    const visibleScheme = scheme.filter((s: FieldSchemeItem) => s.is_visible_detail)
+    // 只获取详情页可见的字段，排除内置字段（已在右侧硬编码展示）
+    const visibleScheme = scheme.filter((s: FieldSchemeItem) => s.is_visible_detail && !isBuiltinField(s.field?.field_key || ''))
 
     // 获取已保存的字段值
     const valuesRes = await getIssueFieldValues(issueId)
@@ -1649,7 +1642,7 @@ const loadCustomFields = async (issueId: number) => {
 
     customFields.value = visibleScheme.map((item: FieldSchemeItem) => {
       const savedValue = valueMap.get(item.field_id)
-      const result = {
+      return {
         field_id: item.field_id,
         field_key: item.field?.field_key || '',
         field_name: item.field?.field_name || '',
@@ -1657,8 +1650,6 @@ const loadCustomFields = async (issueId: number) => {
         value: savedValue?.value ?? null,
         display_value: savedValue?.display_value || ''
       }
-      console.log(`字段 ${item.field?.field_name}:`, result)
-      return result
     })
   } catch (e) {
     console.error('Failed to load custom fields:', e)
@@ -1677,10 +1668,18 @@ const submitComment = async () => {
   finally { commentLoading.value = false }
 }
 
-const assignToMe = () => {
+// 通过 field_id 设置"分配给我"
+const assignToMeField = (fieldId: number) => {
   if (userStore.user) {
-    editForm.assignee_id = userStore.user.id
+    editFieldValues.value[fieldId] = userStore.user.id
   }
+}
+
+// 编辑/子任务表单的字段列宽
+const getEditFieldColSpan = (item: FieldSchemeItem): number => {
+  const fieldType = item.field?.field_type || ''
+  if (fieldType === 'textarea' || fieldType === 'epic_link') return 24
+  return 12
 }
 
 const handleAssignToMe = async () => {
@@ -1694,6 +1693,31 @@ const handleAssignToMe = async () => {
   } catch (error) {
     console.error('Failed to assign to me:', error)
     ElMessage.error('分配失败')
+  }
+}
+
+// 指派人内联编辑（项目管理员）
+const editingAssignee = ref(false)
+const editAssigneeId = ref<number | undefined>(undefined)
+
+const startEditAssignee = async () => {
+  if (users.value.length === 0) {
+    try { const { data } = await getAllUsers(); users.value = data.data } catch (e) { console.error(e) }
+  }
+  editAssigneeId.value = issue.value?.assignee?.id
+  editingAssignee.value = true
+}
+
+const handleAssigneeChange = async (userId: number | undefined) => {
+  if (!issue.value) return
+  try {
+    await updateIssue(issue.value.issue_key, { assignee_id: userId || 0 })
+    ElMessage.success('指派人已更新')
+    editingAssignee.value = false
+    loadIssue()
+  } catch (error) {
+    console.error('Failed to update assignee:', error)
+    ElMessage.error('更新指派人失败')
   }
 }
 
@@ -1740,9 +1764,6 @@ const handleCreateSubtask = async () => {
     project_key: issue.value.project_key,
     issue_type_id: undefined,
     title: '',
-    description: '',
-    priority: 'P2',
-    assignee_id: undefined,
   })
   createSubtaskFieldScheme.value = []
   createSubtaskFieldValues.value = {}
@@ -1776,9 +1797,22 @@ const handleSubtaskIssueTypeChange = async (issueTypeId: number) => {
   try {
     const { data } = await getFieldScheme(createSubtaskForm.project_key, issueTypeId)
     const schemeItems = data.data || []
-    createSubtaskFieldScheme.value = schemeItems.filter(item => item.is_visible_create && item.field?.field_key !== 'epic_link')
+    createSubtaskFieldScheme.value = schemeItems.filter(item => item.is_visible_create)
+    const arrayFieldTypes = ['multiselect', 'label', 'component']
     createSubtaskFieldScheme.value.forEach(item => {
-      if (item.default_value) {
+      const fieldType = item.field?.field_type || ''
+      if (arrayFieldTypes.includes(fieldType)) {
+        if (item.default_value) {
+          try {
+            const parsed = JSON.parse(item.default_value)
+            createSubtaskFieldValues.value[item.field_id] = Array.isArray(parsed) ? parsed : []
+          } catch {
+            createSubtaskFieldValues.value[item.field_id] = []
+          }
+        } else {
+          createSubtaskFieldValues.value[item.field_id] = []
+        }
+      } else if (item.default_value) {
         createSubtaskFieldValues.value[item.field_id] = item.default_value
       }
     })
@@ -1793,24 +1827,39 @@ const submitCreateSubtask = async () => {
     if (!valid) return
     createSubtaskLoading.value = true
     try {
-      const customFields = Object.entries(createSubtaskFieldValues.value)
-        .filter(([_, value]) => value !== undefined && value !== null && value !== '')
-        .map(([fieldId, value]) => ({
-          field_id: parseInt(fieldId),
-          value: value,
-        }))
+      // 校验必填字段
+      for (const item of createSubtaskFieldScheme.value) {
+        if (item.is_required) {
+          const val = createSubtaskFieldValues.value[item.field_id]
+          const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+          if (isEmpty) {
+            ElMessage.error(`请填写 ${item.field?.field_name}`)
+            createSubtaskLoading.value = false
+            return
+          }
+        }
+      }
+
+      // 分离内置字段和扩展字段
+      const { builtinValues, customFields } = extractBuiltinFields(createSubtaskFieldScheme.value, createSubtaskFieldValues.value)
 
       const requestData: CreateIssueRequest = {
-        ...createSubtaskForm,
+        project_key: createSubtaskForm.project_key,
         issue_type_id: createSubtaskForm.issue_type_id!,
-        parent_id: issue.value!.id,  // 设置父工单ID
+        title: createSubtaskForm.title,
+        description: builtinValues.description || '',
+        priority: builtinValues.priority || 'P2',
+        assignee_id: builtinValues.assignee_id || undefined,
+        planned_start_date: builtinValues.planned_start_date || undefined,
+        planned_end_date: builtinValues.planned_end_date || undefined,
+        epic_id: builtinValues.epic_id || undefined,
+        parent_id: issue.value!.id,
         custom_fields: customFields.length > 0 ? customFields : undefined,
       }
 
       await createIssue(requestData)
       ElMessage.success('子任务创建成功')
       createSubtaskDialogVisible.value = false
-      // 重新加载子任务列表
       await loadSubtasks(issue.value!.issue_key)
     } catch (error) {
       console.error('Failed to create subtask:', error)
@@ -1825,39 +1874,38 @@ const handleEdit = async () => {
   if (!issue.value) return
   try { const { data } = await getAllUsers(); users.value = data.data } catch (e) { console.error(e) }
 
-  // 加载Epic选项（获取当前项目的所有Epic类型工单）
-  try {
-    const { data } = await getIssueList({
-      project_key: issue.value.project_key,
-      page: 1,
-      page_size: 100
-    })
-    // 过滤出Epic类型的工单
-    epicOptions.value = data.data.items.filter(i => i.issue_type?.name?.toLowerCase() === 'epic')
-  } catch (e) {
-    console.error('Failed to load epic options:', e)
-  }
-
   Object.assign(editForm, {
-    title: issue.value.title, description: issue.value.description,
-    priority: issue.value.priority, resolution: issue.value.resolution || undefined,
-    epic_id: issue.value.epic_id, assignee_id: issue.value.assignee_id,
-    planned_start_date: issue.value.planned_start_date ? dayjs(issue.value.planned_start_date).format('YYYY-MM-DD') : undefined,
-    planned_end_date: issue.value.planned_end_date ? dayjs(issue.value.planned_end_date).format('YYYY-MM-DD') : undefined,
+    title: issue.value.title,
+    resolution: issue.value.resolution || undefined,
   })
 
   // 加载编辑用的字段方案
   try {
     const schemeRes = await getFieldScheme(issue.value.project_key, issue.value.issue_type_id)
     const scheme = schemeRes.data.data || []
-    editFieldScheme.value = scheme.filter((s: FieldSchemeItem) => s.is_visible_edit && s.field?.field_key !== 'epic_link')
+    editFieldScheme.value = scheme.filter((s: FieldSchemeItem) => s.is_visible_edit)
 
-    // 加载当前字段值
+    // 初始化字段值
+    const arrayFieldTypes = ['multiselect', 'label', 'component']
+    editFieldValues.value = {}
+    // 先为所有数组类型字段初始化空数组
+    editFieldScheme.value.forEach(item => {
+      if (item.field && arrayFieldTypes.includes(item.field.field_type)) {
+        editFieldValues.value[item.field_id] = []
+      }
+    })
+
+    // 回填内置字段值（从 issue 对象读取）
+    backfillBuiltinFields(issue.value, editFieldScheme.value, editFieldValues.value)
+
+    // 加载 EAV 保存的扩展字段值
     const valuesRes = await getIssueFieldValues(issue.value.id)
     const savedValues = valuesRes.data.data || []
-    editFieldValues.value = {}
     savedValues.forEach((v: FieldValue) => {
-      editFieldValues.value[v.field_id] = v.value
+      // 只回填非内置字段（内置字段已从 issue 对象回填）
+      if (!isBuiltinField(v.field_key)) {
+        editFieldValues.value[v.field_id] = v.value
+      }
     })
   } catch (e) { console.error('Failed to load field scheme for edit:', e) }
 
@@ -1870,16 +1918,31 @@ const submitEdit = async () => {
     if (!valid) return
     editLoading.value = true
     try {
-      // 构建自定义字段值
-      const customFields = Object.entries(editFieldValues.value)
-        .filter(([_, value]) => value !== undefined && value !== null && value !== '')
-        .map(([fieldId, value]) => ({
-          field_id: parseInt(fieldId),
-          value: value,
-        }))
+      // 校验必填字段
+      for (const item of editFieldScheme.value) {
+        if (item.is_required) {
+          const val = editFieldValues.value[item.field_id]
+          const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+          if (isEmpty) {
+            ElMessage.error(`请填写 ${item.field?.field_name}`)
+            editLoading.value = false
+            return
+          }
+        }
+      }
+
+      // 分离内置字段和扩展字段
+      const { builtinValues, customFields } = extractBuiltinFields(editFieldScheme.value, editFieldValues.value)
 
       const updateData: UpdateIssueRequest = {
-        ...editForm,
+        title: editForm.title,
+        resolution: editForm.resolution,
+        description: builtinValues.description || '',
+        priority: builtinValues.priority || undefined,
+        assignee_id: builtinValues.assignee_id || undefined,
+        planned_start_date: builtinValues.planned_start_date || undefined,
+        planned_end_date: builtinValues.planned_end_date || undefined,
+        epic_id: builtinValues.epic_id || undefined,
         custom_fields: customFields.length > 0 ? customFields : undefined,
       }
       await updateIssue(issue.value!.issue_key, updateData)
@@ -2103,6 +2166,67 @@ const getResolutionText = (resolution: string) => {
 
 const formatTime = (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
 const formatDate = (date: string) => dayjs(date).format('YYYY-MM-DD')
+
+// SLA 目标（分钟），与后端 slaTargets 保持一致
+const SLA_TARGETS: Record<string, number> = { P0: 60, P1: 240, P2: 1440, P3: 4320 }
+
+// SLA 超时状态计算（基于优先级 SLA 或 due_date）
+const slaStatus = computed<{ level: 'overdue' | 'due_soon' | 'normal'; hint: string } | null>(() => {
+  if (!issue.value) return null
+  // 已完成/已关闭/已合并不显示
+  if (['resolved', 'closed', 'merged'].includes(issue.value.status)) return null
+
+  const now = dayjs()
+
+  // 优先使用预计交付时间，没有则用优先级默认 SLA
+  let deadline: ReturnType<typeof dayjs>
+  let slaMinutes: number
+
+  if (issue.value.planned_end_date) {
+    deadline = dayjs(issue.value.planned_end_date).endOf('day')
+    slaMinutes = deadline.diff(dayjs(issue.value.created_at), 'minute')
+  } else {
+    slaMinutes = SLA_TARGETS[issue.value.priority] || SLA_TARGETS.P2
+    deadline = dayjs(issue.value.created_at).add(slaMinutes, 'minute')
+  }
+
+  const minutesLeft = deadline.diff(now, 'minute', true)
+  const threshold = slaMinutes * 0.25 // 剩余不到 25% 时即将超时
+
+  if (minutesLeft < 0) {
+    const overMinutes = Math.abs(Math.round(minutesLeft))
+    return { level: 'overdue', hint: `已超时 ${formatSLADuration(overMinutes)}` }
+  }
+  if (minutesLeft < threshold) {
+    return { level: 'due_soon', hint: `剩余 ${formatSLADuration(Math.round(minutesLeft))}` }
+  }
+  return { level: 'normal', hint: `剩余 ${formatSLADuration(Math.round(minutesLeft))}` }
+})
+
+// 格式化 SLA 时长
+const formatSLADuration = (minutes: number): string => {
+  if (minutes < 60) return `${minutes}分钟`
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  if (hours < 24) {
+    return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`
+  }
+  const days = Math.floor(hours / 24)
+  const remainHours = hours % 24
+  return remainHours > 0 ? `${days}天${remainHours}小时` : `${days}天`
+}
+
+// 截止时间超时状态（仅用于 due_date 字段旁的标签）
+const dueDateStatus = computed<'overdue' | 'due_soon' | 'normal' | null>(() => {
+  if (!issue.value?.due_date) return null
+  if (['resolved', 'closed'].includes(issue.value.status)) return null
+  const now = dayjs()
+  const due = dayjs(issue.value.due_date)
+  const hoursLeft = due.diff(now, 'hour', true)
+  if (hoursLeft < 0) return 'overdue'
+  if (hoursLeft < 24) return 'due_soon'
+  return 'normal'
+})
 
 const getAlertSeverityType = (severity: string) => {
   const map: Record<string, TagType> = { critical: 'danger', warning: 'warning', info: 'info' }
@@ -2690,6 +2814,20 @@ const showWorkflowDiagram = async () => {
       color: #1f2937;
       font-size: 13px;
       justify-self: start;
+    }
+
+    .sla-status-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      min-width: 0;
+
+      .sla-hint {
+        font-size: 12px;
+        color: #9ca3af;
+        white-space: nowrap;
+      }
     }
   }
 }

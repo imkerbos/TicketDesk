@@ -62,3 +62,16 @@ export function getUserPerformance(params?: {
     params,
   })
 }
+
+// 获取工时统计
+export function getWorklogStats(params?: {
+  project_key?: string
+  start_date?: string
+  end_date?: string
+}) {
+  return request({
+    url: '/reports/worklogs',
+    method: 'get',
+    params,
+  })
+}
