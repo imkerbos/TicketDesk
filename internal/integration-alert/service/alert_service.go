@@ -964,52 +964,91 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 // forceCompleteWorkflow 强制完成工单关联的工作流实例
 // 当告警恢复自动关闭工单时，需要同步完成工作流，避免工单"已完成"但工作流仍"进行中"的不一致
 func (s *alertService) forceCompleteWorkflow(ctx context.Context, issueID uint64) {
+	// 先查出工作流实例，获取 workflow_id 以便找到结束节点
+	var instance model.WorkflowInstance
+	err := s.db.WithContext(ctx).
+		Where("issue_id = ? AND status IN ?", issueID, []string{"active", "reviewing"}).
+		First(&instance).Error
+	if err != nil {
+		logger.Debug("forceCompleteWorkflow: no active/reviewing workflow instance found",
+			zap.Uint64("issue_id", issueID),
+		)
+		return
+	}
+
 	now := time.Now()
+	updates := map[string]any{
+		"status":       "completed",
+		"completed_at": now,
+		"updated_at":   now,
+	}
+
+	// 查找结束节点，更新 current_node_id 使前端工作流图正确显示
+	var endNode model.WorkflowNode
+	if err := s.db.WithContext(ctx).
+		Where("workflow_id = ? AND node_type = ?", instance.WorkflowID, "end").
+		First(&endNode).Error; err == nil {
+		updates["current_node_id"] = endNode.ID
+	}
+
 	result := s.db.WithContext(ctx).
 		Model(&model.WorkflowInstance{}).
-		Where("issue_id = ? AND status IN ?", issueID, []string{"active", "reviewing"}).
-		Updates(map[string]any{
-			"status":       "completed",
-			"completed_at": now,
-			"updated_at":   now,
-		})
+		Where("id = ?", instance.ID).
+		Updates(updates)
 	if result.Error != nil {
 		logger.Warn("failed to force-complete workflow instance on alert recovery",
 			zap.Uint64("issue_id", issueID),
 			zap.Error(result.Error),
 		)
-	} else if result.RowsAffected > 0 {
+	} else {
 		logger.Info("workflow instance force-completed by alert recovery",
 			zap.Uint64("issue_id", issueID),
-		)
-	} else {
-		logger.Debug("forceCompleteWorkflow: no active/reviewing workflow instance found",
-			zap.Uint64("issue_id", issueID),
+			zap.Uint64("instance_id", instance.ID),
 		)
 	}
 }
 
-// setWorkflowReviewing 将工作流实例设为验收中
-// 告警恢复但未自动关单时，工作流进入验收状态，等待处理人确认
+// setWorkflowReviewing 告警恢复时将工作流流转到"待确认"节点
+// 通过工作流定义中的节点驱动，不再直接修改工作流状态为 reviewing
 func (s *alertService) setWorkflowReviewing(ctx context.Context, issueID uint64) {
-	now := time.Now()
-	result := s.db.WithContext(ctx).
-		Model(&model.WorkflowInstance{}).
+	// 查找工作流实例
+	var instance model.WorkflowInstance
+	if err := s.db.WithContext(ctx).
 		Where("issue_id = ? AND status = ?", issueID, "active").
-		Updates(map[string]any{
-			"status":     "reviewing",
-			"updated_at": now,
-		})
-	if result.Error != nil {
-		logger.Warn("failed to set workflow instance to reviewing",
-			zap.Uint64("issue_id", issueID),
-			zap.Error(result.Error),
-		)
-	} else if result.RowsAffected > 0 {
-		logger.Info("workflow instance set to reviewing by alert recovery",
-			zap.Uint64("issue_id", issueID),
-		)
+		First(&instance).Error; err != nil {
+		logger.Debug("setWorkflowReviewing: no active workflow instance found",
+			zap.Uint64("issue_id", issueID))
+		return
 	}
+
+	// 查找"待确认"节点
+	var reviewNode model.WorkflowNode
+	if err := s.db.WithContext(ctx).
+		Where("workflow_id = ? AND name = ?", instance.WorkflowID, "待确认").
+		First(&reviewNode).Error; err != nil {
+		// 没有"待确认"节点（旧工作流），回退到直接改状态
+		logger.Warn("review node not found, falling back to status change",
+			zap.Uint64("workflow_id", instance.WorkflowID))
+		now := time.Now()
+		s.db.WithContext(ctx).Model(&model.WorkflowInstance{}).
+			Where("id = ?", instance.ID).
+			Updates(map[string]any{"status": "reviewing", "updated_at": now})
+		return
+	}
+
+	// 流转到"待确认"节点
+	now := time.Now()
+	s.db.WithContext(ctx).Model(&model.WorkflowInstance{}).
+		Where("id = ?", instance.ID).
+		Updates(map[string]any{
+			"current_node_id": reviewNode.ID,
+			"updated_at":      now,
+		})
+
+	logger.Info("workflow instance moved to review node by alert recovery",
+		zap.Uint64("issue_id", issueID),
+		zap.Uint64("instance_id", instance.ID),
+		zap.Uint64("review_node_id", reviewNode.ID))
 }
 
 // reactivateIssueIfPendingReview 当新告警合并到 pending_review 工单时，重新激活工单和工作流
@@ -1028,16 +1067,45 @@ func (s *alertService) reactivateIssueIfPendingReview(ctx context.Context, issue
 		return
 	}
 
-	// 恢复工作流实例从 reviewing 到 active
-	now := time.Now()
-	s.db.WithContext(ctx).
-		Model(&model.WorkflowInstance{}).
-		Where("issue_id = ? AND status = ?", issueID, "reviewing").
-		Updates(map[string]any{
-			"status":     "active",
-			"updated_at": now,
-		})
+	// 查找工作流实例，将 current_node_id 移回"处理中"节点
+	var instance model.WorkflowInstance
+	if err := s.db.WithContext(ctx).
+		Where("issue_id = ? AND status = ?", issueID, "active").
+		First(&instance).Error; err != nil {
+		// 兼容旧的 reviewing 状态
+		if err2 := s.db.WithContext(ctx).
+			Where("issue_id = ? AND status = ?", issueID, "reviewing").
+			First(&instance).Error; err2 != nil {
+			logger.Debug("reactivateIssueIfPendingReview: no active/reviewing workflow instance",
+				zap.Uint64("issue_id", issueID))
+			goto comment
+		}
+	}
 
+	{
+		// 查找"处理中"节点
+		var workNode model.WorkflowNode
+		if err := s.db.WithContext(ctx).
+			Where("workflow_id = ? AND name = ? AND node_type = ?", instance.WorkflowID, "处理中", "work").
+			First(&workNode).Error; err == nil {
+			now := time.Now()
+			s.db.WithContext(ctx).Model(&model.WorkflowInstance{}).
+				Where("id = ?", instance.ID).
+				Updates(map[string]any{
+					"current_node_id": workNode.ID,
+					"status":          "active",
+					"updated_at":      now,
+				})
+		} else {
+			// 没有"处理中"节点，回退到直接改状态
+			now := time.Now()
+			s.db.WithContext(ctx).Model(&model.WorkflowInstance{}).
+				Where("id = ?", instance.ID).
+				Updates(map[string]any{"status": "active", "updated_at": now})
+		}
+	}
+
+comment:
 	// 添加系统评论
 	_ = s.addSystemComment(ctx, issueID, "新告警触发，工单已从「待确认」恢复为「进行中」")
 

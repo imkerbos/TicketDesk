@@ -243,6 +243,7 @@ func SeedData(db *gorm.DB) error {
 		{Name: "Fault", DisplayName: "故障", Description: "生产故障/告警工单", Icon: "alert-triangle", Color: "#FF5630"},
 		{Name: "Change", DisplayName: "变更", Description: "变更工单", Icon: "git-branch", Color: "#36B37E"},
 		{Name: "ServiceRequest", DisplayName: "服务请求", Description: "服务申请", Icon: "help-circle", Color: "#00B8D9"},
+		{Name: "Alert", DisplayName: "告警", Description: "监控告警自动建单", Icon: "bell", Color: "#FF5630"},
 	}
 
 	for _, issueType := range issueTypes {
@@ -360,9 +361,29 @@ func SeedData(db *gorm.DB) error {
 		return err
 	}
 
+	// 一次性迁移：为现有全局工作流添加审批节点（通过 system_configs 标记只执行一次）
+	if err := MigrateWorkflowApprovalNodes(db); err != nil {
+		logger.Warn("failed to migrate workflow approval nodes", zap.Error(err))
+	}
+
 	// 为已有项目初始化工作流方案（幂等）
 	if err := seedExistingProjectWorkflowSchemes(db); err != nil {
 		logger.Warn("failed to seed workflow schemes for existing projects", zap.Error(err))
+	}
+
+	// 一次性迁移：为已有项目补充 Alert 工作流方案并修复无工作流实例的告警工单
+	if err := MigrateAlertWorkflowSchemes(db); err != nil {
+		logger.Warn("failed to migrate alert workflow schemes", zap.Error(err))
+	}
+
+	// 一次性迁移：为现有工作流的审批节点添加拒绝分支（已取消节点 + rejected 边）
+	if err := MigrateApprovalRejectBranch(db); err != nil {
+		logger.Warn("failed to migrate approval reject branches", zap.Error(err))
+	}
+
+	// 一次性迁移：为告警工作流添加"待确认"节点和条件边
+	if err := MigrateAlertWorkflowReviewNode(db); err != nil {
+		logger.Warn("failed to migrate alert workflow review node", zap.Error(err))
 	}
 
 	// 为已有项目初始化角色权限（幂等）

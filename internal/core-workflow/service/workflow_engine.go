@@ -986,7 +986,7 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 	if targetStatus == "" {
 		switch node.NodeType {
 		case "approval":
-			targetStatus = "in_progress"
+			targetStatus = "open" // 审批中工单保持 open，审批通过后才流转
 		case "work":
 			targetStatus = "in_progress"
 		case "end":

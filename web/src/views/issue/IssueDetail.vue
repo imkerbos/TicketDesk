@@ -86,8 +86,15 @@
                     </el-dropdown-item>
                   </template>
                 </template>
+                <!-- 工作流可操作但节点信息缺失（如 reviewing 状态且节点被重建） -->
+                <template v-else-if="isWorkflowOperable">
+                  <el-dropdown-item command="complete">
+                    <el-icon style="color: #409eff"><Check /></el-icon>
+                    确认完成
+                  </el-dropdown-item>
+                </template>
                 <!-- 工作流已结束提示 -->
-                <template v-else-if="!isWorkflowOperable">
+                <template v-else>
                   <el-dropdown-item disabled>
                     工作流{{ getWorkflowStatusText(workflowInstance.status) }}
                   </el-dropdown-item>
@@ -1347,6 +1354,8 @@ const workNodeOutgoingActions = computed<OutgoingAction[]>(() => {
   const presetLabels: Record<string, string> = {
     approved: '通过',
     rejected: '退回',
+    confirmed: '确认完成',
+    continue: '继续处理',
   }
 
   return outEdges
@@ -1403,7 +1412,7 @@ const workflowActionBtnText = computed(() => {
   }
   // active 和 reviewing 都显示当前节点名
   const nodeName = workflowInstance.value.current_node?.name || '当前节点'
-  return status === 'reviewing' ? `${nodeName}(待确认)` : nodeName
+  return nodeName
 })
 
 // 工作流下拉菜单命令处理
@@ -2211,7 +2220,7 @@ const diagramLayout = computed(() => {
   }
 
   // 生成布局边
-  const presetConditionLabels: Record<string, string> = { approved: '通过', rejected: '拒绝' }
+  const presetConditionLabels: Record<string, string> = { approved: '通过', rejected: '拒绝', confirmed: '确认完成', continue: '继续处理' }
   for (const edge of edges) {
     const fromPos = nodePositions.get(edge.source_node_id)
     const toPos = nodePositions.get(edge.target_node_id)
@@ -2269,8 +2278,10 @@ const getNodeDiagramClass = (node: WorkflowNode) => {
   const isVisited = visitedNodeIds.value.has(node.id) && !isCurrent
   const instanceStatus = workflowInstance.value?.status
 
+  const isOperable = instanceStatus === 'active' || instanceStatus === 'reviewing'
+
   return {
-    current: isCurrent && instanceStatus === 'active',
+    current: isCurrent && isOperable,
     visited: isVisited || (isCurrent && instanceStatus === 'completed'),
     cancelled: instanceStatus === 'cancelled' && isCurrent,
     pending: !isCurrent && !isVisited,
