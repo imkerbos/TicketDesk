@@ -362,6 +362,13 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		alertSvcImpl.SetProjectNotifier(notifChannelSvc)
 	}
 
+	// 设置工作流引擎的项目外部渠道通知（用于状态变更通知）
+	if engineImpl, ok := workflowEngine.(interface {
+		SetProjectNotifier(workflowService.ProjectNotifier)
+	}); ok {
+		engineImpl.SetProjectNotifier(notifChannelSvc)
+	}
+
 	// 设置告警服务的站内通知发送器
 	alertNotifAdapter := &alertNotificationAdapter{svc: notificationSvc}
 	if alertSvcImpl, ok := alertSvc.(interface{ SetNotificationSender(alertService.NotificationSender) }); ok {

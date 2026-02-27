@@ -721,6 +721,7 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 				issue.IssueKey,
 				details,
 			)
+
 		}
 	}
 
@@ -1068,16 +1069,6 @@ func (s *issueService) AddComment(ctx context.Context, issueKey string, req *dto
 			EntityType: "issue",
 			EntityID:   issue.ID,
 			EntityKey:  issue.IssueKey,
-		})
-	}
-
-	// 通知项目外部渠道（飞书/Telegram）
-	if project, _ := s.projectRepo.GetByID(ctx, issue.ProjectID); project != nil {
-		s.notifyProjectChannels(project.ID, "issue.commented", map[string]interface{}{
-			"issue_key":    issue.IssueKey,
-			"issue_title":  issue.Title,
-			"project_name": project.Name,
-			"comment":      req.Content,
 		})
 	}
 

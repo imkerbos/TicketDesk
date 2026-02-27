@@ -54,11 +54,18 @@ type WorkflowEngine interface {
 	SetIssueStatusSyncer(syncer IssueStatusSyncer)
 	// 设置活动日志记录器
 	SetActivityLogger(logger ActivityLogger)
+	// 设置项目外部通知服务
+	SetProjectNotifier(notifier ProjectNotifier)
 }
 
 // ActivityLogger 活动日志记录接口（避免循环依赖）
 type ActivityLogger interface {
 	LogActivity(ctx context.Context, userID uint64, userName, action, entityType string, entityID uint64, entityKey, details string) error
+}
+
+// ProjectNotifier 项目外部通知接口（避免循环依赖）
+type ProjectNotifier interface {
+	NotifyProject(ctx context.Context, projectID uint64, event string, data any) error
 }
 
 // workflowEngine 工作流引擎实现
@@ -75,6 +82,7 @@ type workflowEngine struct {
 	db                 *gorm.DB
 	issueStatusSyncer  IssueStatusSyncer // 告警联动（可选）
 	activityLogger     ActivityLogger    // 活动日志（可选）
+	projectNotifier    ProjectNotifier   // 项目外部通知（可选）
 }
 
 // NewWorkflowEngine 创建工作流引擎实例
@@ -112,6 +120,11 @@ func (e *workflowEngine) SetIssueStatusSyncer(syncer IssueStatusSyncer) {
 // SetActivityLogger 设置活动日志记录器（避免循环依赖）
 func (e *workflowEngine) SetActivityLogger(logger ActivityLogger) {
 	e.activityLogger = logger
+}
+
+// SetProjectNotifier 设置项目外部通知服务（避免循环依赖）
+func (e *workflowEngine) SetProjectNotifier(notifier ProjectNotifier) {
+	e.projectNotifier = notifier
 }
 
 // logIssueActivity 记录工单相关的活动日志
@@ -1083,6 +1096,25 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 			statusName = targetStatus
 		}
 		e.logIssueActivity(ctx, 0, "状态变更", issueID, fmt.Sprintf("工作流流转，状态变更为: %s", statusName))
+
+		// 项目外部通知：工单状态变更
+		if e.projectNotifier != nil {
+			var issue model.Issue
+			if err := e.db.WithContext(ctx).Select("id, issue_key, title, project_id, priority, status").
+				Where("id = ?", issueID).First(&issue).Error; err == nil {
+				go func() {
+					notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					_ = e.projectNotifier.NotifyProject(notifCtx, issue.ProjectID, "issue.transitioned", map[string]any{
+						"issue_key":    issue.IssueKey,
+						"issue_title":  issue.Title,
+						"status":       targetStatus,
+						"status_name":  statusName,
+						"priority":     issue.Priority,
+					})
+				}()
+			}
+		}
 
 		// 需求联动：工单终态时同步关联需求状态为已完成
 		if targetStatus == "resolved" || targetStatus == "closed" {
