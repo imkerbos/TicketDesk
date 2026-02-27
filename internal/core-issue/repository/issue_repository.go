@@ -46,6 +46,8 @@ type IssueFilter struct {
 	EpicID           *uint64
 	Keyword          string
 	Category         string // "normal" = 排除告警工单, "alert" = 仅告警工单
+	SortBy           string // 排序字段
+	Order            string // asc / desc
 }
 
 // issueRepository 工单数据访问实现
@@ -162,8 +164,29 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 		result.Total = cappedCount
 	}
 
+	// 排序
+	orderClause := "id DESC" // 默认按 ID 倒序
+	if filter != nil && filter.SortBy != "" {
+		// 白名单校验（DTO 层已校验，这里双重保护防注入）
+		allowedSortFields := map[string]string{
+			"id":            "id",
+			"priority":      "FIELD(priority,'P0','P1','P2','P3')",
+			"status":        "FIELD(status,'open','in_progress','pending_review','resolved','closed')",
+			"issue_type_id": "issue_type_id",
+			"created_at":    "created_at",
+			"updated_at":    "updated_at",
+		}
+		if col, ok := allowedSortFields[filter.SortBy]; ok {
+			dir := "DESC"
+			if filter.Order == "asc" {
+				dir = "ASC"
+			}
+			orderClause = fmt.Sprintf("%s %s", col, dir)
+		}
+	}
+
 	// 分页查询
-	if err := query.Offset(offset).Limit(limit).Order("id DESC").Find(&issues).Error; err != nil {
+	if err := query.Offset(offset).Limit(limit).Order(orderClause).Find(&issues).Error; err != nil {
 		return nil, err
 	}
 	result.Issues = issues

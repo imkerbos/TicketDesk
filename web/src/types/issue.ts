@@ -70,6 +70,8 @@ export interface IssueListRequest {
   epic_id?: number
   keyword?: string
   category?: '' | 'normal' | 'alert'
+  sort_by?: string
+  order?: 'asc' | 'desc'
 }
 
 export interface IssueListResponse {

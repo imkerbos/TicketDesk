@@ -101,9 +101,11 @@
           :data="issueList"
           style="width: 100%"
           :row-class-name="() => 'clickable-row'"
+          :default-sort="defaultSort as any"
           @row-click="handleRowClick"
+          @sort-change="handleSortChange"
         >
-          <el-table-column prop="issue_key" label="工单号" width="120" fixed>
+          <el-table-column prop="issue_key" label="工单号" width="120" fixed sortable="custom" :sort-orders="['ascending', 'descending', null]">
             <template #default="{ row }">
               <el-link type="primary" underline="never" @click.stop="navigateTo(`/issues/${row.issue_key}`, $event)">
                 <span class="issue-key-text">{{ row.issue_key }}</span>
@@ -125,19 +127,19 @@
               <el-tag size="small" effect="plain" type="info">{{ row.project_key }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="类型" width="90">
+          <el-table-column prop="issue_type_id" label="类型" width="90" sortable="custom" :sort-orders="['ascending', 'descending', null]">
             <template #default="{ row }">
               <span class="type-text">{{ row.issue_type?.display_name || '-' }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="priority" label="优先级" width="80" align="center">
+          <el-table-column prop="priority" label="优先级" width="80" align="center" sortable="custom" :sort-orders="['ascending', 'descending', null]">
             <template #default="{ row }">
               <el-tag :type="getPriorityType(row.priority)" size="small" effect="dark" class="priority-tag">
                 {{ row.priority }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="100" align="center">
+          <el-table-column prop="status" label="状态" width="100" align="center" sortable="custom" :sort-orders="['ascending', 'descending', null]">
             <template #default="{ row }">
               <div class="status-badge" :class="row.status">
                 <span class="status-dot"></span>
@@ -163,7 +165,7 @@
               <span v-else class="text-muted">未知</span>
             </template>
           </el-table-column>
-          <el-table-column prop="created_at" label="创建时间" width="150" show-overflow-tooltip>
+          <el-table-column prop="created_at" label="创建时间" width="150" show-overflow-tooltip sortable="custom" :sort-orders="['ascending', 'descending', null]">
             <template #default="{ row }">
               <div class="time-cell">
                 <el-icon><Clock /></el-icon>
@@ -341,6 +343,8 @@ const queryParams = reactive({
   epic_id: initQuery.epic_id ? Number(initQuery.epic_id) : undefined,
   keyword: (initQuery.keyword as string) || undefined,
   category: ((initQuery.category as string) || '') as '' | 'normal' | 'alert',
+  sort_by: (initQuery.sort_by as string) || undefined,
+  order: (initQuery.order as 'asc' | 'desc' | undefined) || undefined,
 })
 
 // 筛选条件同步到 URL query params
@@ -355,6 +359,8 @@ const syncQueryToUrl = () => {
   if (queryParams.issue_type_id) query.issue_type_id = String(queryParams.issue_type_id)
   if (queryParams.epic_id) query.epic_id = String(queryParams.epic_id)
   if (queryParams.category) query.category = queryParams.category
+  if (queryParams.sort_by) query.sort_by = queryParams.sort_by
+  if (queryParams.order) query.order = queryParams.order
   if (queryParams.page > 1) query.page = String(queryParams.page)
   router.replace({ query })
 }
@@ -456,6 +462,36 @@ const loadFilterEpics = async () => {
 const handleCategoryChange = () => { queryParams.page = 1; syncQueryToUrl(); loadData() }
 const handleQuery = () => { queryParams.page = 1; syncQueryToUrl(); loadData() }
 const handlePageChange = () => { syncQueryToUrl(); loadData() }
+
+// 排序：prop 到后端字段的映射
+const sortFieldMap: Record<string, string> = {
+  issue_key: 'id',
+  issue_type_id: 'issue_type_id',
+  priority: 'priority',
+  status: 'status',
+  created_at: 'created_at',
+}
+
+const defaultSort = computed(() => {
+  if (!queryParams.sort_by) return {}
+  // 反向查找 prop
+  const prop = Object.entries(sortFieldMap).find(([, v]) => v === queryParams.sort_by)?.[0]
+  if (!prop) return {}
+  return { prop, order: queryParams.order === 'asc' ? 'ascending' : 'descending' }
+})
+
+const handleSortChange = ({ prop, order }: { prop: string; order: string | null }) => {
+  if (!order) {
+    queryParams.sort_by = undefined
+    queryParams.order = undefined
+  } else {
+    queryParams.sort_by = sortFieldMap[prop] || prop
+    queryParams.order = order === 'ascending' ? 'asc' : 'desc'
+  }
+  queryParams.page = 1
+  syncQueryToUrl()
+  loadData()
+}
 
 const handleProjectFilterChange = async () => {
   queryParams.issue_type_id = undefined

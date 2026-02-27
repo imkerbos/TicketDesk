@@ -55,6 +55,8 @@ type ListIssuesRequest struct {
 	EpicID      *uint64  `form:"epic_id"`
 	Keyword     string   `form:"keyword" binding:"omitempty,max=100"`
 	Category    string   `form:"category" binding:"omitempty,oneof=normal alert"`
+	SortBy      string   `form:"sort_by" binding:"omitempty,oneof=id priority status issue_type_id created_at updated_at"`
+	Order       string   `form:"order" binding:"omitempty,oneof=asc desc"`
 	ProjectIDs  []uint64 `form:"-" json:"-"` // 内部使用：限定可访问的项目范围
 }
 

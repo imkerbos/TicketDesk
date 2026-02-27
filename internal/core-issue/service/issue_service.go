@@ -769,6 +769,8 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 		Category:        req.Category,
 		ProjectIDs:      req.ProjectIDs,
 		LimitByProjects: req.ProjectIDs != nil,
+		SortBy:          req.SortBy,
+		Order:           req.Order,
 	}
 
 	// 如果指定了项目 Key，获取项目 ID
