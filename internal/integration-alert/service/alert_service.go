@@ -1060,7 +1060,7 @@ func (s *alertService) setWorkflowReviewing(ctx context.Context, issueID uint64)
 		now := time.Now()
 		s.db.WithContext(ctx).Model(&model.WorkflowInstance{}).
 			Where("id = ?", instance.ID).
-			Updates(map[string]any{"status": "reviewing", "updated_at": now})
+			Updates(map[string]any{"status": "active", "updated_at": now})
 		return
 	}
 

@@ -1076,7 +1076,7 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 		// 记录状态变更活动日志
 		statusNames := map[string]string{
 			"open": "待处理", "in_progress": "进行中", "resolved": "已解决",
-			"closed": "已关闭", "reviewing": "审批中",
+			"closed": "已关闭", "reviewing": "待确认", "pending_review": "待确认",
 		}
 		statusName := statusNames[targetStatus]
 		if statusName == "" {
