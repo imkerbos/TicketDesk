@@ -35,6 +35,16 @@ func (h *IssueHandler) SetFieldService(fieldService FieldServiceInterface) {
 	h.fieldService = fieldService
 }
 
+// ctxWithUser 将 Gin context 中的 user_id 注入到标准 Go context 中
+func ctxWithUser(c *gin.Context) context.Context {
+	ctx := c.Request.Context()
+	userID := c.GetUint64("user_id")
+	if userID > 0 {
+		ctx = context.WithValue(ctx, "user_id", userID)
+	}
+	return ctx
+}
+
 // HandleCreateIssue 创建工单
 func (h *IssueHandler) HandleCreateIssue(c *gin.Context) {
 	var req dto.CreateIssueRequest
@@ -87,7 +97,7 @@ func (h *IssueHandler) HandleUpdateIssue(c *gin.Context) {
 		return
 	}
 
-	result, err := h.issueService.UpdateIssue(c.Request.Context(), key, &req)
+	result, err := h.issueService.UpdateIssue(ctxWithUser(c), key, &req)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrIssueNotFound):
@@ -107,7 +117,7 @@ func (h *IssueHandler) HandleUpdateIssue(c *gin.Context) {
 func (h *IssueHandler) HandleDeleteIssue(c *gin.Context) {
 	key := c.Param("key")
 
-	err := h.issueService.DeleteIssue(c.Request.Context(), key)
+	err := h.issueService.DeleteIssue(ctxWithUser(c), key)
 	if err != nil {
 		if errors.Is(err, service.ErrIssueNotFound) {
 			response.NotFound(c, err.Error())
@@ -175,7 +185,7 @@ func (h *IssueHandler) HandleAssignIssue(c *gin.Context) {
 		return
 	}
 
-	result, err := h.issueService.AssignIssue(c.Request.Context(), key, req.AssigneeID)
+	result, err := h.issueService.AssignIssue(ctxWithUser(c), key, req.AssigneeID)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrIssueNotFound):

@@ -50,6 +50,15 @@ type WorkflowEngine interface {
 	GetHistory(ctx context.Context, instanceID uint64) ([]*dto.WorkflowHistoryResponse, error)
 	// 根据项目和工单类型查找工作流方案，如果存在则自动创建工作流实例
 	TryCreateInstanceForIssue(ctx context.Context, issueID, projectID, issueTypeID uint64) (*model.WorkflowInstance, error)
+	// 设置工单状态同步器
+	SetIssueStatusSyncer(syncer IssueStatusSyncer)
+	// 设置活动日志记录器
+	SetActivityLogger(logger ActivityLogger)
+}
+
+// ActivityLogger 活动日志记录接口（避免循环依赖）
+type ActivityLogger interface {
+	LogActivity(ctx context.Context, userID uint64, userName, action, entityType string, entityID uint64, entityKey, details string) error
 }
 
 // workflowEngine 工作流引擎实现
@@ -65,6 +74,7 @@ type workflowEngine struct {
 	userRepo           userRepo.UserRepository
 	db                 *gorm.DB
 	issueStatusSyncer  IssueStatusSyncer // 告警联动（可选）
+	activityLogger     ActivityLogger    // 活动日志（可选）
 }
 
 // NewWorkflowEngine 创建工作流引擎实例
@@ -97,6 +107,38 @@ func NewWorkflowEngine(
 // SetIssueStatusSyncer 设置工单状态同步器（告警联动，避免循环依赖）
 func (e *workflowEngine) SetIssueStatusSyncer(syncer IssueStatusSyncer) {
 	e.issueStatusSyncer = syncer
+}
+
+// SetActivityLogger 设置活动日志记录器（避免循环依赖）
+func (e *workflowEngine) SetActivityLogger(logger ActivityLogger) {
+	e.activityLogger = logger
+}
+
+// logIssueActivity 记录工单相关的活动日志
+func (e *workflowEngine) logIssueActivity(ctx context.Context, userID uint64, action string, issueID uint64, details string) {
+	if e.activityLogger == nil {
+		return
+	}
+	userName := "系统"
+	if userID > 0 {
+		if user, err := e.userRepo.GetByID(ctx, userID); err == nil {
+			userName = user.DisplayName
+			if userName == "" {
+				userName = user.Username
+			}
+		}
+	}
+	// 获取工单 key
+	issueKey := ""
+	var issue model.Issue
+	if err := e.db.WithContext(ctx).Select("issue_key").Where("id = ?", issueID).First(&issue).Error; err == nil {
+		issueKey = issue.IssueKey
+	}
+	go func() {
+		logCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = e.activityLogger.LogActivity(logCtx, userID, userName, action, "issue", issueID, issueKey, details)
+	}()
 }
 
 // CreateInstance 创建工作流实例
@@ -439,6 +481,9 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 			"actual_end_date": closedAt,
 			"updated_at":      closedAt,
 		})
+
+		// 记录状态变更活动日志
+		e.logIssueActivity(ctx, userID, "状态变更", instance.IssueID, "审批拒绝，工单已关闭")
 
 		// 需求联动：工单关闭时同步关联需求状态为已完成
 		result := e.db.WithContext(ctx).
@@ -1027,6 +1072,17 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 			zap.String("target_status", targetStatus),
 			zap.String("node_type", node.NodeType),
 		)
+
+		// 记录状态变更活动日志
+		statusNames := map[string]string{
+			"open": "待处理", "in_progress": "进行中", "resolved": "已解决",
+			"closed": "已关闭", "reviewing": "审批中",
+		}
+		statusName := statusNames[targetStatus]
+		if statusName == "" {
+			statusName = targetStatus
+		}
+		e.logIssueActivity(ctx, 0, "状态变更", issueID, fmt.Sprintf("工作流流转，状态变更为: %s", statusName))
 
 		// 需求联动：工单终态时同步关联需求状态为已完成
 		if targetStatus == "resolved" || targetStatus == "closed" {

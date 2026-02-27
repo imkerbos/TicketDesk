@@ -231,6 +231,13 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		engineImpl.SetIssueStatusSyncer(alertSvc)
 	}
 
+	// 将活动日志记录器注入工作流引擎，用于记录状态变更
+	if engineImpl, ok := workflowEngine.(interface {
+		SetActivityLogger(workflowService.ActivityLogger)
+	}); ok {
+		engineImpl.SetActivityLogger(activitySvc)
+	}
+
 	// ============ 初始化 Report 模块 ============
 	reportRepository := reportRepo.NewReportRepository(db)
 	reportSvc := reportService.NewReportService(reportRepository, projectRepository)

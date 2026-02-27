@@ -268,6 +268,18 @@ func (s *alertService) mergeOldIssues(ctx context.Context, rule *model.AlertRule
 			zap.Int("migrated_alerts", migratedAlertCount),
 		)
 
+		// 记录合并活动日志
+		if s.activityLogger != nil {
+			for _, oldIssue := range directOldIssues {
+				_ = s.activityLogger.LogActivity(ctx, 0, "alert-bot", "工单合并",
+					"issue", oldIssue.ID, oldIssue.IssueKey,
+					fmt.Sprintf("工单已合并到 %s", newIssueKey))
+			}
+			_ = s.activityLogger.LogActivity(ctx, 0, "alert-bot", "工单合并",
+				"issue", newIssueID, newIssueKey,
+				fmt.Sprintf("合并了 %d 个旧工单（%s），迁移 %d 个告警", len(mergedKeys), strings.Join(mergedKeys, ", "), migratedAlertCount))
+		}
+
 		return nil
 	})
 

@@ -253,6 +253,23 @@ func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID uint64, 
 	}
 }
 
+// getUserFromCtx 从 context 中获取当前用户信息
+func (s *issueService) getUserFromCtx(ctx context.Context) (uint64, string) {
+	userID, _ := ctx.Value("user_id").(uint64)
+	if userID == 0 {
+		return 0, "系统"
+	}
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		return userID, "未知用户"
+	}
+	name := user.DisplayName
+	if name == "" {
+		name = user.Username
+	}
+	return userID, name
+}
+
 // logActivity 记录活动日志（内部辅助方法）
 func (s *issueService) logActivity(ctx context.Context, userID uint64, userName, action, entityKey, details string, entityID uint64) {
 	if s.activityLogger == nil {
@@ -640,9 +657,7 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 
 	// 记录活动日志 - 记录具体的变更
 	if s.activityLogger != nil {
-		// 获取当前用户信息（从 context 中获取，如果没有则使用默认值）
-		userID := uint64(1) // TODO: 从 context 中获取当前用户 ID
-		userName := "系统"
+		userID, userName := s.getUserFromCtx(ctx)
 
 		var changes []string
 		if req.Title != nil {
@@ -661,6 +676,37 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 			if assignee, err := s.userRepo.GetByID(ctx, *req.AssigneeID); err == nil {
 				changes = append(changes, fmt.Sprintf("指派人 → %s", assignee.DisplayName))
 			}
+		}
+		if req.PlannedStartDate != nil {
+			if *req.PlannedStartDate == "" {
+				changes = append(changes, "预计开始时间 → 清除")
+			} else {
+				changes = append(changes, fmt.Sprintf("预计开始时间 → %s", *req.PlannedStartDate))
+			}
+		}
+		if req.PlannedEndDate != nil {
+			if *req.PlannedEndDate == "" {
+				changes = append(changes, "预计交付时间 → 清除")
+			} else {
+				changes = append(changes, fmt.Sprintf("预计交付时间 → %s", *req.PlannedEndDate))
+			}
+		}
+		if req.DueDate != nil {
+			if *req.DueDate == "" {
+				changes = append(changes, "截止日期 → 清除")
+			} else {
+				changes = append(changes, fmt.Sprintf("截止日期 → %s", *req.DueDate))
+			}
+		}
+		if req.EpicID != nil {
+			if *req.EpicID == 0 {
+				changes = append(changes, "Epic 关联 → 清除")
+			} else {
+				changes = append(changes, fmt.Sprintf("Epic 关联 → #%d", *req.EpicID))
+			}
+		}
+		if len(req.CustomFields) > 0 {
+			changes = append(changes, "扩展字段")
 		}
 
 		if len(changes) > 0 {
@@ -697,6 +743,10 @@ func (s *issueService) DeleteIssue(ctx context.Context, key string) error {
 	}
 
 	logger.Info("issue deleted successfully", zap.String("issue_key", key))
+
+	// 记录活动日志
+	userID, userName := s.getUserFromCtx(ctx)
+	s.logActivity(ctx, userID, userName, "删除工单", issue.IssueKey, fmt.Sprintf("删除了工单: %s", issue.Title), issue.ID)
 
 	return nil
 }
@@ -906,6 +956,21 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 		})
 	}
 
+	// 记录活动日志
+	if s.activityLogger != nil {
+		actorID, actorName := s.getUserFromCtx(ctx)
+		assignee, _ := s.userRepo.GetByID(ctx, assigneeID)
+		assigneeName := "未知用户"
+		if assignee != nil {
+			assigneeName = assignee.DisplayName
+			if assigneeName == "" {
+				assigneeName = assignee.Username
+			}
+		}
+		details := fmt.Sprintf("指派给 %s", assigneeName)
+		s.logActivity(ctx, actorID, actorName, "指派工单", issue.IssueKey, details, issue.ID)
+	}
+
 	return s.toIssueResponse(ctx, issue, projectKey), nil
 }
 
@@ -1057,7 +1122,33 @@ func (s *issueService) DeleteComment(ctx context.Context, commentID uint64, user
 		return fmt.Errorf("只能删除自己的评论")
 	}
 
-	return s.commentRepo.Delete(ctx, commentID)
+	if err := s.commentRepo.Delete(ctx, commentID); err != nil {
+		return err
+	}
+
+	// 记录活动日志
+	if s.activityLogger != nil {
+		issue, _ := s.issueRepo.GetByID(ctx, comment.IssueID)
+		user, _ := s.userRepo.GetByID(ctx, userID)
+		userName := "未知用户"
+		issueKey := ""
+		if user != nil {
+			userName = user.DisplayName
+			if userName == "" {
+				userName = user.Username
+			}
+		}
+		if issue != nil {
+			issueKey = issue.IssueKey
+		}
+		content := comment.Content
+		if len(content) > 50 {
+			content = content[:50] + "..."
+		}
+		s.logActivity(ctx, userID, userName, "删除评论", issueKey, fmt.Sprintf("删除了评论: %s", content), comment.IssueID)
+	}
+
+	return nil
 }
 
 // AddWatcher 添加关注人

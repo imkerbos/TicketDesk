@@ -949,6 +949,12 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 			)
 		}
 
+		// 记录活动日志
+		if s.activityLogger != nil {
+			_ = s.activityLogger.LogActivity(ctx, 0, "alert-bot", "状态变更",
+				"issue", issueID, issue.IssueKey, "告警自动恢复，工单已自动关闭")
+		}
+
 		logger.Info("issue auto-resolved by alert recovery",
 			zap.Uint64("issue_id", issueID),
 		)
@@ -967,6 +973,12 @@ func (s *alertService) autoUpdateIssueOnRecovery(ctx context.Context, issueID ui
 				zap.Uint64("issue_id", issueID),
 				zap.Error(err),
 			)
+		}
+
+		// 记录活动日志
+		if s.activityLogger != nil {
+			_ = s.activityLogger.LogActivity(ctx, 0, "alert-bot", "状态变更",
+				"issue", issueID, issue.IssueKey, "告警自动恢复，工单进入待确认状态")
 		}
 
 		logger.Info("issue set to pending_review by alert recovery",
@@ -1368,7 +1380,20 @@ func (s *alertService) AckAlert(ctx context.Context, id uint64, userID uint64, r
 
 	// 确认告警
 	now := time.Now()
-	return s.alertRepo.Ack(ctx, id, userID, now)
+	if err := s.alertRepo.Ack(ctx, id, userID, now); err != nil {
+		return err
+	}
+
+	// 记录活动日志（关联工单）
+	if s.activityLogger != nil && alert.IssueID != nil {
+		if issue, err := s.issueRepo.GetByID(ctx, *alert.IssueID); err == nil && issue != nil {
+			_ = s.activityLogger.LogActivity(ctx, userID, "", "确认告警",
+				"issue", *alert.IssueID, issue.IssueKey,
+				fmt.Sprintf("手动确认告警 [%s]", alert.AlertName))
+		}
+	}
+
+	return nil
 }
 
 // ResolveAlert 解决告警
@@ -1388,6 +1413,15 @@ func (s *alertService) ResolveAlert(ctx context.Context, id uint64, userID uint6
 	now := time.Now()
 	if err := s.alertRepo.Resolve(ctx, id, userID, now); err != nil {
 		return err
+	}
+
+	// 记录活动日志（关联工单）
+	if s.activityLogger != nil && alert.IssueID != nil {
+		if issue, err := s.issueRepo.GetByID(ctx, *alert.IssueID); err == nil && issue != nil {
+			_ = s.activityLogger.LogActivity(ctx, userID, "", "手动解决告警",
+				"issue", *alert.IssueID, issue.IssueKey,
+				fmt.Sprintf("手动解决告警 [%s]", alert.AlertName))
+		}
 	}
 
 	// 手动解决告警后，检查关联工单是否可以自动处理
