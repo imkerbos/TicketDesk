@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
@@ -101,6 +102,7 @@ func (s *larkService) SendTestMessage(ctx context.Context) error {
 	if siteURL == "" {
 		siteURL = "https://ticketdesk.example.com"
 	}
+	siteURL = strings.TrimRight(siteURL, "/")
 
 	card := map[string]interface{}{
 		"config": map[string]interface{}{
@@ -164,6 +166,7 @@ func (s *larkService) buildCard(event string, data interface{}) map[string]inter
 	if siteURL == "" {
 		siteURL = "https://ticketdesk.example.com"
 	}
+	siteURL = strings.TrimRight(siteURL, "/")
 
 	// 解析事件数据
 	dataMap := toMap(data)
@@ -479,6 +482,7 @@ func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, d
 	if siteURL == "" {
 		siteURL = "https://ticketdesk.example.com"
 	}
+	siteURL = strings.TrimRight(siteURL, "/")
 
 	elements := []interface{}{
 		map[string]interface{}{

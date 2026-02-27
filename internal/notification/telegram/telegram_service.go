@@ -9,6 +9,7 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
@@ -129,6 +130,7 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 	if siteURL == "" {
 		siteURL = "https://ticketdesk.example.com"
 	}
+	siteURL = strings.TrimRight(siteURL, "/")
 
 	title := s.getEventTitle(event)
 	var text string
@@ -412,6 +414,7 @@ func (d *DirectTelegramSender) buildMessage(event string, data interface{}) (str
 	if siteURL == "" {
 		siteURL = "https://ticketdesk.example.com"
 	}
+	siteURL = strings.TrimRight(siteURL, "/")
 
 	title := directGetEventTitle(event)
 	var text string
