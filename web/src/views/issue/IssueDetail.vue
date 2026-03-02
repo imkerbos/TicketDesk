@@ -2067,7 +2067,7 @@ const workTypeOptions = ref<{ value: string; label: string }[]>(defaultWorkTypes
 const loadWorkTypeOptions = async () => {
   try {
     const res = await getPublicConfig('worklog.work_types')
-    const parsed = JSON.parse(res.data.data.config_value)
+    const parsed = JSON.parse(res.data.data.config_value || '[]')
     if (Array.isArray(parsed) && parsed.length > 0) {
       workTypeOptions.value = parsed
     }

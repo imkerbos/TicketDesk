@@ -976,7 +976,7 @@ const loadWorkTypeConfig = async () => {
   try {
     const res = await getConfig('worklog.work_types')
     if (res.data.data) {
-      const parsed = JSON.parse(res.data.data.config_value)
+      const parsed = JSON.parse(res.data.data.config_value || '[]')
       if (Array.isArray(parsed)) {
         workTypeList.value = parsed
       }
