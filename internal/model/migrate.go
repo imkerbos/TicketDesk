@@ -338,6 +338,14 @@ func SeedData(db *gorm.DB) error {
 			Description: "站点域名（用于生成邮件中的链接）",
 			IsSecret:    false,
 		},
+		{
+			ConfigKey:   "worklog.work_types",
+			ConfigValue: `[{"value":"开发","label":"开发"},{"value":"测试","label":"测试"},{"value":"调试","label":"调试"},{"value":"文档","label":"文档"},{"value":"故障排查","label":"故障排查"},{"value":"监控运维","label":"监控运维"},{"value":"部署发布","label":"部署发布"},{"value":"配置变更","label":"配置变更"},{"value":"巡检","label":"巡检"},{"value":"安全响应","label":"安全响应"},{"value":"其他","label":"其他"}]`,
+			ConfigType:  "json",
+			Category:    "worklog",
+			Description: "工时记录的工作类型选项列表",
+			IsSecret:    false,
+		},
 	}
 
 	for _, config := range defaultConfigs {

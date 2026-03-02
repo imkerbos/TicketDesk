@@ -440,6 +440,79 @@
           </el-button>
         </div>
       </el-tab-pane>
+      <!-- 工时配置 -->
+      <el-tab-pane label="工时配置" name="worklog">
+        <el-card shadow="never" class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <div class="card-title">
+                <div class="title-icon worklog-icon">
+                  <el-icon><Clock /></el-icon>
+                </div>
+                <div class="title-text">
+                  <span class="title">工作类型管理</span>
+                  <span class="subtitle">配置工时记录中可选的工作类型</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <el-row :gutter="40">
+            <el-col :xs="24" :lg="14">
+              <div class="work-type-list">
+                <div
+                  v-for="(item, index) in workTypeList"
+                  :key="index"
+                  class="work-type-item"
+                >
+                  <el-input
+                    v-model="item.label"
+                    placeholder="工作类型名称"
+                    @input="item.value = item.label"
+                    style="flex: 1"
+                  />
+                  <el-button
+                    type="danger"
+                    link
+                    @click="removeWorkType(index)"
+                    :disabled="workTypeList.length <= 1"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <el-button type="primary" link @click="addWorkType" style="margin-top: 8px">
+                  + 添加工作类型
+                </el-button>
+              </div>
+
+              <el-form-item style="margin-top: 24px">
+                <el-button type="primary" :loading="worklogSaving" @click="saveWorkTypeConfig">
+                  <el-icon><Check /></el-icon>
+                  保存配置
+                </el-button>
+              </el-form-item>
+            </el-col>
+
+            <el-col :xs="24" :lg="10">
+              <div class="config-tips">
+                <div class="tip-title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>配置说明</span>
+                </div>
+                <div class="tip-content">
+                  <div class="tip-item">
+                    <div class="tip-label">工作类型</div>
+                    <div class="tip-desc">
+                      工作类型用于工时记录中分类工作内容。修改后前端刷新即生效，已有工时记录不受影响。
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-tab-pane>
+
       <!-- SSO 配置 -->
       <el-tab-pane label="SSO 认证" name="sso">
         <el-card shadow="never" class="settings-card">
@@ -676,7 +749,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
   Message, Lock, Check, Promotion, InfoFilled,
   Key, Timer, Monitor, User, Setting, Link,
-  Connection, UserFilled, DataLine
+  Connection, UserFilled, DataLine, Clock, Delete
 } from '@element-plus/icons-vue'
 import {
   getEmailConfig,
@@ -895,6 +968,54 @@ const saveRateLimitConfig = async () => {
   }
 }
 
+// ============ 工时配置 ============
+const worklogSaving = ref(false)
+const workTypeList = ref<{ value: string; label: string }[]>([])
+
+const loadWorkTypeConfig = async () => {
+  try {
+    const res = await getConfig('worklog.work_types')
+    if (res.data.data) {
+      const parsed = JSON.parse(res.data.data.config_value)
+      if (Array.isArray(parsed)) {
+        workTypeList.value = parsed
+      }
+    }
+  } catch (error: any) {
+    if (error?.response?.status !== 404) {
+      console.error('加载工时配置失败:', error)
+    }
+  }
+}
+
+const addWorkType = () => {
+  workTypeList.value.push({ value: '', label: '' })
+}
+
+const removeWorkType = (index: number) => {
+  workTypeList.value.splice(index, 1)
+}
+
+const saveWorkTypeConfig = async () => {
+  // 过滤掉空项
+  const filtered = workTypeList.value.filter(item => item.label.trim())
+  if (filtered.length === 0) {
+    ElMessage.warning('至少需要一个工作类型')
+    return
+  }
+
+  worklogSaving.value = true
+  try {
+    await updateConfig('worklog.work_types', JSON.stringify(filtered))
+    workTypeList.value = filtered
+    ElMessage.success('工时配置保存成功')
+  } catch (error) {
+    console.error('Failed to save worklog config:', error)
+  } finally {
+    worklogSaving.value = false
+  }
+}
+
 // ============ SSO 配置 ============
 const ssoFormRef = ref<FormInstance>()
 const ssoSaving = ref(false)
@@ -964,6 +1085,7 @@ onMounted(() => {
   loadEmailConfig()
   loadSecurityConfig()
   loadRateLimitConfig()
+  loadWorkTypeConfig()
   loadSSOConfig()
 })
 </script>
@@ -1025,6 +1147,11 @@ onMounted(() => {
 
     &.sso-icon {
       background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+      color: #fff;
+    }
+
+    &.worklog-icon {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
       color: #fff;
     }
   }
@@ -1251,6 +1378,16 @@ onMounted(() => {
     color: #909399;
     margin-top: 8px;
     line-height: 1.6;
+  }
+}
+
+// 工作类型列表
+.work-type-list {
+  .work-type-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
   }
 }
 

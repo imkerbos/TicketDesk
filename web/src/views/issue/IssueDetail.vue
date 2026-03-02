@@ -543,11 +543,7 @@
                       <el-col :span="8">
                         <el-form-item label="工作类型">
                           <el-select v-model="worklogForm.work_type" placeholder="选择类型" style="width: 100%" clearable>
-                            <el-option label="开发" value="开发" />
-                            <el-option label="测试" value="测试" />
-                            <el-option label="调试" value="调试" />
-                            <el-option label="文档" value="文档" />
-                            <el-option label="其他" value="其他" />
+                            <el-option v-for="opt in workTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
                           </el-select>
                         </el-form-item>
                       </el-col>
@@ -1097,6 +1093,7 @@ import type { Attachment } from '@/types/attachment'
 import AttachmentUpload from '@/components/attachment/AttachmentUpload.vue'
 import AttachmentList from '@/components/attachment/AttachmentList.vue'
 import { getAllUsers } from '@/api/user'
+import { getPublicConfig } from '@/api/system'
 import { getIssueFieldValues, getFieldScheme } from '@/api/field'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { useUserStore } from '@/stores/user'
@@ -2057,6 +2054,28 @@ const handleUnwatchIssue = async () => {
 }
 
 // Worklog related
+const defaultWorkTypes = [
+  { value: '开发', label: '开发' }, { value: '测试', label: '测试' },
+  { value: '调试', label: '调试' }, { value: '文档', label: '文档' },
+  { value: '故障排查', label: '故障排查' }, { value: '监控运维', label: '监控运维' },
+  { value: '部署发布', label: '部署发布' }, { value: '配置变更', label: '配置变更' },
+  { value: '巡检', label: '巡检' }, { value: '安全响应', label: '安全响应' },
+  { value: '其他', label: '其他' },
+]
+const workTypeOptions = ref<{ value: string; label: string }[]>(defaultWorkTypes)
+
+const loadWorkTypeOptions = async () => {
+  try {
+    const res = await getPublicConfig('worklog.work_types')
+    const parsed = JSON.parse(res.data.data.config_value)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      workTypeOptions.value = parsed
+    }
+  } catch {
+    // 加载失败时使用默认值，不影响使用
+  }
+}
+
 const worklogLoading = ref(false)
 const worklogForm = reactive<CreateWorklogRequest>({
   description: '',
@@ -2241,7 +2260,10 @@ const getAlertStatusText = (status: string) => {
   return map[status] || status
 }
 
-onMounted(() => { loadIssue() })
+onMounted(() => {
+  loadIssue()
+  loadWorkTypeOptions()
+})
 
 // 监听路由参数变化，当切换到不同的 Issue 时重新加载数据
 watch(() => route.params.key, (newKey, oldKey) => {

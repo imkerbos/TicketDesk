@@ -35,6 +35,11 @@ export function getConfig(key: string) {
   return request.get<{ data: SystemConfig }>(`/system/configs/${key}`)
 }
 
+// 获取公共配置（普通用户可访问）
+export function getPublicConfig(key: string) {
+  return request.get<{ data: SystemConfig }>(`/system/configs/public/${key}`)
+}
+
 // 获取配置值（只返回值）
 export function getConfigValue(key: string) {
   return request.get<{ data: string }>(`/system/configs/${key}`)

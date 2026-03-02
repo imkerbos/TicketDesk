@@ -147,20 +147,120 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 	case event == "issue.created" && dataMap["source"] == "alert":
 		text, replyMarkup = buildAlertIssueTelegram(title, dataMap, siteURL)
 
-	case len(event) > 6 && event[:6] == "issue.":
+	// 工单状态变更：专用模板，显示新旧状态对比
+	case event == "issue.transitioned":
 		issueKey, _ := dataMap["issue_key"].(string)
 		issueTitle, _ := dataMap["issue_title"].(string)
 		projectName, _ := dataMap["project_name"].(string)
-		status, _ := dataMap["status"].(string)
 		priority, _ := dataMap["priority"].(string)
+		assignee, _ := dataMap["assignee"].(string)
+		dueDate, _ := dataMap["due_date"].(string)
+		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
+		oldStatusName := tgGetStatusDisplayName(dataMap, "old_status", "old_status_name")
+
+		text = fmt.Sprintf("%s\n\n", title)
+		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
+		if oldStatusName != "" && statusName != "" {
+			text += fmt.Sprintf("📊 %s → <b>%s</b>\n", html.EscapeString(oldStatusName), html.EscapeString(statusName))
+		} else if statusName != "" {
+			text += fmt.Sprintf("📊 状态：<b>%s</b>\n", html.EscapeString(statusName))
+		}
+		if projectName != "" {
+			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
+		}
+		if priority != "" {
+			text += fmt.Sprintf("🔴 优先级：%s\n", html.EscapeString(priority))
+		}
+		if assignee != "" {
+			text += fmt.Sprintf("👤 处理人：%s\n", html.EscapeString(assignee))
+		}
+		if dueDate != "" {
+			text += fmt.Sprintf("⏰ 截止时间：<b>%s</b>\n", html.EscapeString(dueDate))
+		}
+		if issueKey != "" {
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
+		}
+
+	// 工单指派：专用模板，显示操作人和指派人
+	case event == "issue.assigned":
+		issueKey, _ := dataMap["issue_key"].(string)
+		issueTitle, _ := dataMap["issue_title"].(string)
+		projectName, _ := dataMap["project_name"].(string)
+		priority, _ := dataMap["priority"].(string)
+		assignee, _ := dataMap["assignee"].(string)
+		operator, _ := dataMap["operator"].(string)
+		dueDate, _ := dataMap["due_date"].(string)
+		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
 
 		text = fmt.Sprintf("%s\n\n", title)
 		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
 		if projectName != "" {
 			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
 		}
-		if status != "" {
-			text += fmt.Sprintf("📊 状态：%s\n", html.EscapeString(status))
+		if operator != "" && assignee != "" {
+			text += fmt.Sprintf("👤 %s 指派给 <b>%s</b>\n", html.EscapeString(operator), html.EscapeString(assignee))
+		} else if assignee != "" {
+			text += fmt.Sprintf("👤 指派给：<b>%s</b>\n", html.EscapeString(assignee))
+		}
+		if priority != "" {
+			text += fmt.Sprintf("🔴 优先级：%s\n", html.EscapeString(priority))
+		}
+		if statusName != "" {
+			text += fmt.Sprintf("📊 状态：%s\n", html.EscapeString(statusName))
+		}
+		if dueDate != "" {
+			text += fmt.Sprintf("⏰ 截止时间：<b>%s</b>\n", html.EscapeString(dueDate))
+		}
+		if issueKey != "" {
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
+		}
+
+	// 告警合并：专用模板，显示合并详情
+	case event == "alert.merged":
+		issueKey, _ := dataMap["issue_key"].(string)
+		issueTitle, _ := dataMap["issue_title"].(string)
+		alertName, _ := dataMap["alert_name"].(string)
+		instance, _ := dataMap["instance"].(string)
+		var alertCount string
+		switch v := dataMap["alert_count"].(type) {
+		case float64:
+			alertCount = fmt.Sprintf("%d", int(v))
+		case int:
+			alertCount = fmt.Sprintf("%d", v)
+		case int64:
+			alertCount = fmt.Sprintf("%d", v)
+		}
+
+		text = fmt.Sprintf("%s\n\n", title)
+		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
+		if alertName != "" {
+			text += fmt.Sprintf("⚠️ 告警：%s\n", html.EscapeString(alertName))
+		}
+		if instance != "" {
+			text += fmt.Sprintf("📊 新增实例：<b>%s</b>\n", html.EscapeString(instance))
+		}
+		if alertCount != "" {
+			text += fmt.Sprintf("🔢 当前实例数：<b>%s</b>\n", alertCount)
+		}
+		if issueKey != "" {
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
+		}
+
+	// 通用工单事件
+	case len(event) > 6 && event[:6] == "issue.":
+		issueKey, _ := dataMap["issue_key"].(string)
+		issueTitle, _ := dataMap["issue_title"].(string)
+		projectName, _ := dataMap["project_name"].(string)
+		priority, _ := dataMap["priority"].(string)
+		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
+
+		text = fmt.Sprintf("%s\n\n", title)
+		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
+		if projectName != "" {
+			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
+		}
+		if statusName != "" {
+			text += fmt.Sprintf("📊 状态：%s\n", html.EscapeString(statusName))
 		}
 		if priority != "" {
 			text += fmt.Sprintf("🔴 优先级：%s\n", html.EscapeString(priority))
@@ -171,19 +271,8 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 			}
 			text += fmt.Sprintf("💬 评论：%s\n", html.EscapeString(comment))
 		}
-
-		// 添加查看按钮
 		if issueKey != "" {
-			replyMarkup = &telegramInlineKeyboard{
-				InlineKeyboard: [][]telegramInlineButton{
-					{
-						{
-							Text: "📋 查看工单",
-							URL:  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
-						},
-					},
-				},
-			}
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
 		}
 
 	case len(event) > 6 && event[:6] == "alert.":
@@ -202,16 +291,7 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 		}
 		if issueKey != "" {
 			text += fmt.Sprintf("🎫 关联工单：%s\n", html.EscapeString(issueKey))
-			replyMarkup = &telegramInlineKeyboard{
-				InlineKeyboard: [][]telegramInlineButton{
-					{
-						{
-							Text: "📋 查看工单",
-							URL:  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
-						},
-					},
-				},
-			}
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
 		}
 
 	default:
@@ -301,6 +381,8 @@ func (s *telegramService) getEventTitle(event string) string {
 		return "🔥 <b>告警触发</b>"
 	case "alert.resolved":
 		return "✅ <b>告警恢复</b>"
+	case "alert.merged":
+		return "🔗 <b>告警合并</b>"
 	case "alert.acked":
 		return "👁️ <b>告警确认</b>"
 	default:
@@ -431,20 +513,120 @@ func (d *DirectTelegramSender) buildMessage(event string, data interface{}) (str
 	case event == "issue.created" && dataMap["source"] == "alert":
 		text, replyMarkup = buildAlertIssueTelegram(title, dataMap, siteURL)
 
-	case len(event) > 6 && event[:6] == "issue.":
+	// 工单状态变更：专用模板，显示新旧状态对比
+	case event == "issue.transitioned":
 		issueKey, _ := dataMap["issue_key"].(string)
 		issueTitle, _ := dataMap["issue_title"].(string)
 		projectName, _ := dataMap["project_name"].(string)
-		status, _ := dataMap["status"].(string)
 		priority, _ := dataMap["priority"].(string)
+		assignee, _ := dataMap["assignee"].(string)
+		dueDate, _ := dataMap["due_date"].(string)
+		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
+		oldStatusName := tgGetStatusDisplayName(dataMap, "old_status", "old_status_name")
+
+		text = fmt.Sprintf("%s\n\n", title)
+		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
+		if oldStatusName != "" && statusName != "" {
+			text += fmt.Sprintf("📊 %s → <b>%s</b>\n", html.EscapeString(oldStatusName), html.EscapeString(statusName))
+		} else if statusName != "" {
+			text += fmt.Sprintf("📊 状态：<b>%s</b>\n", html.EscapeString(statusName))
+		}
+		if projectName != "" {
+			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
+		}
+		if priority != "" {
+			text += fmt.Sprintf("🔴 优先级：%s\n", html.EscapeString(priority))
+		}
+		if assignee != "" {
+			text += fmt.Sprintf("👤 处理人：%s\n", html.EscapeString(assignee))
+		}
+		if dueDate != "" {
+			text += fmt.Sprintf("⏰ 截止时间：<b>%s</b>\n", html.EscapeString(dueDate))
+		}
+		if issueKey != "" {
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
+		}
+
+	// 工单指派：专用模板，显示操作人和指派人
+	case event == "issue.assigned":
+		issueKey, _ := dataMap["issue_key"].(string)
+		issueTitle, _ := dataMap["issue_title"].(string)
+		projectName, _ := dataMap["project_name"].(string)
+		priority, _ := dataMap["priority"].(string)
+		assignee, _ := dataMap["assignee"].(string)
+		operator, _ := dataMap["operator"].(string)
+		dueDate, _ := dataMap["due_date"].(string)
+		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
 
 		text = fmt.Sprintf("%s\n\n", title)
 		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
 		if projectName != "" {
 			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
 		}
-		if status != "" {
-			text += fmt.Sprintf("📊 状态：%s\n", html.EscapeString(status))
+		if operator != "" && assignee != "" {
+			text += fmt.Sprintf("👤 %s 指派给 <b>%s</b>\n", html.EscapeString(operator), html.EscapeString(assignee))
+		} else if assignee != "" {
+			text += fmt.Sprintf("👤 指派给：<b>%s</b>\n", html.EscapeString(assignee))
+		}
+		if priority != "" {
+			text += fmt.Sprintf("🔴 优先级：%s\n", html.EscapeString(priority))
+		}
+		if statusName != "" {
+			text += fmt.Sprintf("📊 状态：%s\n", html.EscapeString(statusName))
+		}
+		if dueDate != "" {
+			text += fmt.Sprintf("⏰ 截止时间：<b>%s</b>\n", html.EscapeString(dueDate))
+		}
+		if issueKey != "" {
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
+		}
+
+	// 告警合并：专用模板，显示合并详情
+	case event == "alert.merged":
+		issueKey, _ := dataMap["issue_key"].(string)
+		issueTitle, _ := dataMap["issue_title"].(string)
+		alertName, _ := dataMap["alert_name"].(string)
+		instance, _ := dataMap["instance"].(string)
+		var alertCount string
+		switch v := dataMap["alert_count"].(type) {
+		case float64:
+			alertCount = fmt.Sprintf("%d", int(v))
+		case int:
+			alertCount = fmt.Sprintf("%d", v)
+		case int64:
+			alertCount = fmt.Sprintf("%d", v)
+		}
+
+		text = fmt.Sprintf("%s\n\n", title)
+		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
+		if alertName != "" {
+			text += fmt.Sprintf("⚠️ 告警：%s\n", html.EscapeString(alertName))
+		}
+		if instance != "" {
+			text += fmt.Sprintf("📊 新增实例：<b>%s</b>\n", html.EscapeString(instance))
+		}
+		if alertCount != "" {
+			text += fmt.Sprintf("🔢 当前实例数：<b>%s</b>\n", alertCount)
+		}
+		if issueKey != "" {
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
+		}
+
+	// 通用工单事件
+	case len(event) > 6 && event[:6] == "issue.":
+		issueKey, _ := dataMap["issue_key"].(string)
+		issueTitle, _ := dataMap["issue_title"].(string)
+		projectName, _ := dataMap["project_name"].(string)
+		priority, _ := dataMap["priority"].(string)
+		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
+
+		text = fmt.Sprintf("%s\n\n", title)
+		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
+		if projectName != "" {
+			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
+		}
+		if statusName != "" {
+			text += fmt.Sprintf("📊 状态：%s\n", html.EscapeString(statusName))
 		}
 		if priority != "" {
 			text += fmt.Sprintf("🔴 优先级：%s\n", html.EscapeString(priority))
@@ -455,18 +637,8 @@ func (d *DirectTelegramSender) buildMessage(event string, data interface{}) (str
 			}
 			text += fmt.Sprintf("💬 评论：%s\n", html.EscapeString(comment))
 		}
-
 		if issueKey != "" {
-			replyMarkup = &telegramInlineKeyboard{
-				InlineKeyboard: [][]telegramInlineButton{
-					{
-						{
-							Text: "📋 查看工单",
-							URL:  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
-						},
-					},
-				},
-			}
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
 		}
 
 	case len(event) > 6 && event[:6] == "alert.":
@@ -485,16 +657,7 @@ func (d *DirectTelegramSender) buildMessage(event string, data interface{}) (str
 		}
 		if issueKey != "" {
 			text += fmt.Sprintf("🎫 关联工单：%s\n", html.EscapeString(issueKey))
-			replyMarkup = &telegramInlineKeyboard{
-				InlineKeyboard: [][]telegramInlineButton{
-					{
-						{
-							Text: "📋 查看工单",
-							URL:  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
-						},
-					},
-				},
-			}
+			replyMarkup = buildTelegramIssueButton(siteURL, issueKey)
 		}
 
 	default:
@@ -571,10 +734,51 @@ func directGetEventTitle(event string) string {
 		return "🔥 <b>告警触发</b>"
 	case "alert.resolved":
 		return "✅ <b>告警恢复</b>"
+	case "alert.merged":
+		return "🔗 <b>告警合并</b>"
 	case "alert.acked":
 		return "👁️ <b>告警确认</b>"
 	default:
 		return "📢 <b>系统通知</b>"
+	}
+}
+
+// tgStatusDisplayNames 状态中文显示名映射
+var tgStatusDisplayNames = map[string]string{
+	"open":           "待处理",
+	"in_progress":    "进行中",
+	"resolved":       "已解决",
+	"closed":         "已关闭",
+	"reviewing":      "待确认",
+	"pending_review": "待确认",
+	"merged":         "已合并",
+}
+
+// tgGetStatusDisplayName 获取状态的中文显示名，优先使用 nameKey，fallback 到 statusKey 的映射
+func tgGetStatusDisplayName(data map[string]interface{}, statusKey, nameKey string) string {
+	if name, _ := data[nameKey].(string); name != "" {
+		return name
+	}
+	if status, _ := data[statusKey].(string); status != "" {
+		if name, ok := tgStatusDisplayNames[status]; ok {
+			return name
+		}
+		return status
+	}
+	return ""
+}
+
+// buildTelegramIssueButton 构建查看工单的内联按钮
+func buildTelegramIssueButton(siteURL, issueKey string) *telegramInlineKeyboard {
+	return &telegramInlineKeyboard{
+		InlineKeyboard: [][]telegramInlineButton{
+			{
+				{
+					Text: "📋 查看工单",
+					URL:  fmt.Sprintf("%s/issues/%s", siteURL, issueKey),
+				},
+			},
+		},
 	}
 }
 

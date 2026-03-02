@@ -1054,6 +1054,22 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 		}
 	}
 
+	// 状态中文显示名映射
+	statusNames := map[string]string{
+		"open": "待处理", "in_progress": "进行中", "resolved": "已解决",
+		"closed": "已关闭", "reviewing": "待确认", "pending_review": "待确认",
+	}
+
+	// 更新前先查询旧状态（用于通知和日志）
+	var oldIssue model.Issue
+	_ = e.db.WithContext(ctx).Select("id, issue_key, title, project_id, priority, status, assignee_id, due_date").
+		Where("id = ?", issueID).First(&oldIssue).Error
+	oldStatus := oldIssue.Status
+	oldStatusName := statusNames[oldStatus]
+	if oldStatusName == "" {
+		oldStatusName = oldStatus
+	}
+
 	now := time.Now()
 	updates := map[string]any{
 		"status":     targetStatus,
@@ -1087,10 +1103,6 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 		)
 
 		// 记录状态变更活动日志
-		statusNames := map[string]string{
-			"open": "待处理", "in_progress": "进行中", "resolved": "已解决",
-			"closed": "已关闭", "reviewing": "待确认", "pending_review": "待确认",
-		}
 		statusName := statusNames[targetStatus]
 		if statusName == "" {
 			statusName = targetStatus
@@ -1099,21 +1111,45 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 
 		// 项目外部通知：工单状态变更
 		if e.projectNotifier != nil {
-			var issue model.Issue
-			if err := e.db.WithContext(ctx).Select("id, issue_key, title, project_id, priority, status").
-				Where("id = ?", issueID).First(&issue).Error; err == nil {
-				go func() {
-					notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-					defer cancel()
-					_ = e.projectNotifier.NotifyProject(notifCtx, issue.ProjectID, "issue.transitioned", map[string]any{
-						"issue_key":    issue.IssueKey,
-						"issue_title":  issue.Title,
-						"status":       targetStatus,
-						"status_name":  statusName,
-						"priority":     issue.Priority,
-					})
-				}()
+			// 查询项目名称
+			var projectName string
+			if oldIssue.ProjectID > 0 {
+				var proj model.Project
+				if err := e.db.WithContext(ctx).Select("id, name").Where("id = ?", oldIssue.ProjectID).First(&proj).Error; err == nil {
+					projectName = proj.Name
+				}
 			}
+			// 查询指派人名称
+			var assigneeName string
+			if oldIssue.AssigneeID != nil {
+				var user model.User
+				if err := e.db.WithContext(ctx).Select("id, display_name, username").Where("id = ?", *oldIssue.AssigneeID).First(&user).Error; err == nil {
+					assigneeName = user.DisplayName
+					if assigneeName == "" {
+						assigneeName = user.Username
+					}
+				}
+			}
+
+			go func() {
+				notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				notifData := map[string]any{
+					"issue_key":       oldIssue.IssueKey,
+					"issue_title":     oldIssue.Title,
+					"status":          targetStatus,
+					"status_name":     statusName,
+					"old_status":      oldStatus,
+					"old_status_name": oldStatusName,
+					"project_name":    projectName,
+					"priority":        oldIssue.Priority,
+					"assignee":        assigneeName,
+				}
+				if oldIssue.DueDate != nil {
+					notifData["due_date"] = oldIssue.DueDate.Format("2006-01-02 15:04")
+				}
+				_ = e.projectNotifier.NotifyProject(notifCtx, oldIssue.ProjectID, "issue.transitioned", notifData)
+			}()
 		}
 
 		// 需求联动：工单终态时同步关联需求状态为已完成

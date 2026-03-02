@@ -948,28 +948,47 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 		projectKey = project.ProjectKey
 	}
 
+	// 查询指派人名称（通知和活动日志共用）
+	assignee, _ := s.userRepo.GetByID(ctx, assigneeID)
+	assigneeName := "未知用户"
+	if assignee != nil {
+		assigneeName = assignee.DisplayName
+		if assigneeName == "" {
+			assigneeName = assignee.Username
+		}
+	}
+
+	// 查询操作人名称
+	operatorName := "系统"
+	if opID, ok := ctx.Value("user_id").(uint64); ok && opID > 0 {
+		if op, err := s.userRepo.GetByID(ctx, opID); err == nil {
+			operatorName = op.DisplayName
+			if operatorName == "" {
+				operatorName = op.Username
+			}
+		}
+	}
+
 	// 通知项目外部渠道（飞书/Telegram）
 	if project != nil {
-		s.notifyProjectChannels(project.ID, "issue.assigned", map[string]interface{}{
+		notifData := map[string]interface{}{
 			"issue_key":    issue.IssueKey,
 			"issue_title":  issue.Title,
 			"project_name": project.Name,
 			"status":       issue.Status,
 			"priority":     issue.Priority,
-		})
+			"assignee":     assigneeName,
+			"operator":     operatorName,
+		}
+		if issue.DueDate != nil {
+			notifData["due_date"] = issue.DueDate.Format("2006-01-02 15:04")
+		}
+		s.notifyProjectChannels(project.ID, "issue.assigned", notifData)
 	}
 
 	// 记录活动日志
 	if s.activityLogger != nil {
 		actorID, actorName := s.getUserFromCtx(ctx)
-		assignee, _ := s.userRepo.GetByID(ctx, assigneeID)
-		assigneeName := "未知用户"
-		if assignee != nil {
-			assigneeName = assignee.DisplayName
-			if assigneeName == "" {
-				assigneeName = assignee.Username
-			}
-		}
 		details := fmt.Sprintf("指派给 %s", assigneeName)
 		s.logActivity(ctx, actorID, actorName, "指派工单", issue.IssueKey, details, issue.ID)
 	}

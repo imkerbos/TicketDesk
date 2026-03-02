@@ -393,7 +393,7 @@ type IssueWorklog struct {
 	TimeSpent    string    `gorm:"size:50;not null" json:"time_spent"`       // 格式：2h 30m
 	TimeSpentSec int       `gorm:"not null" json:"time_spent_sec"`           // 秒数（用于统计）
 	WorkedAt     time.Time `gorm:"index;not null" json:"worked_at"`
-	WorkType     string    `gorm:"size:30" json:"work_type"`                 // 工作类型：开发、测试、调试、文档等
+	WorkType     string    `gorm:"size:30" json:"work_type"`                 // 工作类型：开发、测试、调试、文档、故障排查、监控运维、部署发布、配置变更、巡检、安全响应等
 }
 
 // TableName 指定表名

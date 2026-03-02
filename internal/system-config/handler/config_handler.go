@@ -35,6 +35,37 @@ func (h *ConfigHandler) SetTelegramService(telegramService telegram.TelegramServ
 	h.telegramService = telegramService
 }
 
+// publicConfigWhitelist 允许普通用户读取的配置 key 白名单
+var publicConfigWhitelist = map[string]bool{
+	"worklog.work_types": true,
+}
+
+// HandleGetPublicConfig 获取公共配置（普通用户可访问，受白名单限制）
+func (h *ConfigHandler) HandleGetPublicConfig(c *gin.Context) {
+	key := c.Param("key")
+	if key == "" {
+		response.BadRequest(c, "配置键不能为空")
+		return
+	}
+
+	if !publicConfigWhitelist[key] {
+		response.Forbidden(c, "无权访问该配置项")
+		return
+	}
+
+	config, err := h.configService.GetConfig(c.Request.Context(), key)
+	if err != nil {
+		if errors.Is(err, service.ErrConfigNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, config)
+}
+
 // ============ 配置管理 ============
 
 // HandleGetConfig 获取单个配置

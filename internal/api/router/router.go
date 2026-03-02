@@ -839,6 +839,12 @@ func (r *Router) registerActivityRoutes(rg *gin.RouterGroup) {
 
 // registerConfigRoutes 注册系统配置路由
 func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
+	// 公共配置（普通认证用户即可访问，白名单限制）
+	publicConfigs := rg.Group("/system/configs/public")
+	{
+		publicConfigs.GET("/:key", r.configHandler.HandleGetPublicConfig)
+	}
+
 	// 系统配置（需要管理员权限）
 	configs := rg.Group("/system/configs")
 	configs.Use(r.rbac.RequireAdmin())

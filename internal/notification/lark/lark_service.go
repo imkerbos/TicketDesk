@@ -263,6 +263,8 @@ func (s *larkService) getEventMeta(event string) (title, template string) {
 		return "🔥 告警触发", "red"
 	case "alert.resolved":
 		return "✅ 告警恢复", "green"
+	case "alert.merged":
+		return "🔗 告警合并", "orange"
 	case "alert.acked":
 		return "👁️ 告警确认", "orange"
 	default:
@@ -287,19 +289,108 @@ func sharedBuildContentLines(event string, data map[string]interface{}) string {
 	}
 
 	switch {
+	// 工单状态变更：专用模板，显示新旧状态对比
+	case event == "issue.transitioned":
+		issueKey, _ := data["issue_key"].(string)
+		issueTitle, _ := data["issue_title"].(string)
+		projectName, _ := data["project_name"].(string)
+		priority, _ := data["priority"].(string)
+		assignee, _ := data["assignee"].(string)
+		dueDate, _ := data["due_date"].(string)
+		statusName := getStatusDisplayName(data, "status", "status_name")
+		oldStatusName := getStatusDisplayName(data, "old_status", "old_status_name")
+
+		content = fmt.Sprintf("**%s** %s\n\n", issueKey, issueTitle)
+		if oldStatusName != "" && statusName != "" {
+			content += fmt.Sprintf("📊 %s → **%s**\n", oldStatusName, statusName)
+		} else if statusName != "" {
+			content += fmt.Sprintf("📊 状态：**%s**\n", statusName)
+		}
+		if projectName != "" {
+			content += fmt.Sprintf("📁 项目：%s\n", projectName)
+		}
+		if priority != "" {
+			content += fmt.Sprintf("🔴 优先级：%s\n", priority)
+		}
+		if assignee != "" {
+			content += fmt.Sprintf("👤 处理人：%s\n", assignee)
+		}
+		if dueDate != "" {
+			content += fmt.Sprintf("⏰ 截止时间：**%s**\n", dueDate)
+		}
+
+	// 工单指派：专用模板，显示操作人和指派人
+	case event == "issue.assigned":
+		issueKey, _ := data["issue_key"].(string)
+		issueTitle, _ := data["issue_title"].(string)
+		projectName, _ := data["project_name"].(string)
+		priority, _ := data["priority"].(string)
+		assignee, _ := data["assignee"].(string)
+		operator, _ := data["operator"].(string)
+		dueDate, _ := data["due_date"].(string)
+		statusName := getStatusDisplayName(data, "status", "status_name")
+
+		content = fmt.Sprintf("**%s** %s\n\n", issueKey, issueTitle)
+		if projectName != "" {
+			content += fmt.Sprintf("📁 项目：%s\n", projectName)
+		}
+		if operator != "" && assignee != "" {
+			content += fmt.Sprintf("👤 %s 指派给 **%s**\n", operator, assignee)
+		} else if assignee != "" {
+			content += fmt.Sprintf("👤 指派给：**%s**\n", assignee)
+		}
+		if priority != "" {
+			content += fmt.Sprintf("🔴 优先级：%s\n", priority)
+		}
+		if statusName != "" {
+			content += fmt.Sprintf("📊 状态：%s\n", statusName)
+		}
+		if dueDate != "" {
+			content += fmt.Sprintf("⏰ 截止时间：**%s**\n", dueDate)
+		}
+
+	// 告警合并：专用模板，显示合并详情
+	case event == "alert.merged":
+		issueKey, _ := data["issue_key"].(string)
+		issueTitle, _ := data["issue_title"].(string)
+		alertName, _ := data["alert_name"].(string)
+		instance, _ := data["instance"].(string)
+		// alert_count 可能是 int 或 float64（JSON 反序列化）
+		var alertCount string
+		switch v := data["alert_count"].(type) {
+		case float64:
+			alertCount = fmt.Sprintf("%d", int(v))
+		case int:
+			alertCount = fmt.Sprintf("%d", v)
+		case int64:
+			alertCount = fmt.Sprintf("%d", v)
+		}
+
+		content = fmt.Sprintf("**%s** %s\n\n", issueKey, issueTitle)
+		if alertName != "" {
+			content += fmt.Sprintf("⚠️ 告警：%s\n", alertName)
+		}
+		if instance != "" {
+			content += fmt.Sprintf("📊 新增实例：**%s**\n", instance)
+		}
+		if alertCount != "" {
+			content += fmt.Sprintf("🔢 当前实例数：**%s**\n", alertCount)
+		}
+
+	// 通用工单事件
 	case len(event) > 6 && event[:6] == "issue.":
 		issueKey, _ := data["issue_key"].(string)
 		issueTitle, _ := data["issue_title"].(string)
 		projectName, _ := data["project_name"].(string)
-		status, _ := data["status"].(string)
 		priority, _ := data["priority"].(string)
+		statusName := getStatusDisplayName(data, "status", "status_name")
 
 		content = fmt.Sprintf("**%s** %s\n", issueKey, issueTitle)
 		if projectName != "" {
 			content += fmt.Sprintf("📁 项目：%s\n", projectName)
 		}
-		if status != "" {
-			content += fmt.Sprintf("📊 状态：%s\n", status)
+		if statusName != "" {
+			content += fmt.Sprintf("📊 状态：%s\n", statusName)
 		}
 		if priority != "" {
 			content += fmt.Sprintf("🔴 优先级：%s\n", priority)
@@ -627,6 +718,8 @@ func directGetEventMeta(event string) (title, template string) {
 		return "🔥 告警触发", "red"
 	case "alert.resolved":
 		return "✅ 告警恢复", "green"
+	case "alert.merged":
+		return "🔗 告警合并", "orange"
 	case "alert.acked":
 		return "👁️ 告警确认", "orange"
 	default:
@@ -642,6 +735,33 @@ func directGenerateSign(secret string, timestamp int64) (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// statusDisplayNames 状态中文显示名映射
+var statusDisplayNames = map[string]string{
+	"open":           "待处理",
+	"in_progress":    "进行中",
+	"resolved":       "已解决",
+	"closed":         "已关闭",
+	"reviewing":      "待确认",
+	"pending_review": "待确认",
+	"merged":         "已合并",
+}
+
+// getStatusDisplayName 获取状态的中文显示名，优先使用 nameKey，fallback 到 statusKey 的映射
+func getStatusDisplayName(data map[string]interface{}, statusKey, nameKey string) string {
+	// 优先使用已有的中文名
+	if name, _ := data[nameKey].(string); name != "" {
+		return name
+	}
+	// fallback：通过英文状态映射
+	if status, _ := data[statusKey].(string); status != "" {
+		if name, ok := statusDisplayNames[status]; ok {
+			return name
+		}
+		return status
+	}
+	return ""
 }
 
 // toMap 将 interface{} 转换为 map[string]interface{}

@@ -881,6 +881,7 @@ func (s *alertService) appendAlertToIssue(
 			_ = s.projectNotifier.NotifyProject(notifCtx, issue.ProjectID, "alert.merged", map[string]any{
 				"issue_key":   issue.IssueKey,
 				"issue_title": issue.Title,
+				"alert_name":  alert.AlertName,
 				"alert_count": alertCount,
 				"instance":    instance,
 				"fingerprint": alert.Fingerprint,
