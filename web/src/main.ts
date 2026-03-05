@@ -27,4 +27,7 @@ userStore.initFromStorage()
 app.use(router)
 app.use(ElementPlus)
 
-app.mount('#app')
+// 等待路由初始导航完成（包括守卫重定向）后再挂载，避免闪屏
+router.isReady().then(() => {
+  app.mount('#app')
+})

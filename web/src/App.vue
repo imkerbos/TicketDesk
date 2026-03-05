@@ -167,10 +167,8 @@ const router = useRouter()
 const userStore = useUserStore()
 const notificationStore = useNotificationStore()
 
-// 初始化用户状态
+// 登录后连接 WebSocket
 onMounted(() => {
-  userStore.initFromStorage()
-  // 登录后连接 WebSocket
   if (userStore.isLoggedIn) {
     notificationStore.connectWebSocket()
   }
@@ -246,7 +244,7 @@ const handleMenuSelect = (index: string) => {
   left: 0;
   top: 0;
   bottom: 0;
-  background: linear-gradient(180deg, #1e1e2d 0%, #1a1a27 100%);
+  background: #1e1e2d;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   z-index: 100;
   overflow-y: auto;
@@ -264,7 +262,7 @@ const handleMenuSelect = (index: string) => {
 .logo-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #3b82f6;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -305,7 +303,7 @@ const handleMenuSelect = (index: string) => {
 .sidebar-menu .el-menu-item .menu-badge :deep(.el-badge__content) {
   position: static;
   transform: none;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: #ef4444;
   border: 2px solid rgba(255, 255, 255, 0.2);
   font-weight: 600;
   font-size: 11px;
@@ -323,8 +321,10 @@ const handleMenuSelect = (index: string) => {
 }
 
 .sidebar-menu .el-menu-item.is-active {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%) !important;
+  background: rgba(59, 130, 246, 0.15) !important;
   color: #fff;
+  border-left: 3px solid #3b82f6;
+  padding-left: calc(20px - 3px);
 }
 
 .sidebar-menu :deep(.el-sub-menu__title) {
@@ -353,7 +353,7 @@ const handleMenuSelect = (index: string) => {
 
 .header {
   background-color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   padding: 0 24px;
   height: 64px;
 }
@@ -384,7 +384,7 @@ const handleMenuSelect = (index: string) => {
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 8px;
-  transition: background-color 0.2s;
+  transition: background-color 150ms ease-out;
 }
 
 .user-info:hover {
@@ -392,7 +392,7 @@ const handleMenuSelect = (index: string) => {
 }
 
 .user-avatar {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #3b82f6;
   font-size: 14px;
 }
 
