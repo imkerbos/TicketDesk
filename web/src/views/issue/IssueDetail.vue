@@ -2517,7 +2517,7 @@ const showWorkflowDiagram = async () => {
       align-items: center;
       gap: 6px;
       padding: 5px 14px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       color: #fff;
       border-radius: 6px;
       font-size: 13px;
@@ -2612,17 +2612,17 @@ const showWorkflowDiagram = async () => {
   font-size: 16px;
   color: #fff;
 
-  &.desc { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-  &.comment { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-  &.activity { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-  &.info { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-  &.watcher { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
-  &.custom { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); }
-  &.epic { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-  &.subtask { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-  &.attachment { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-  &.workflow { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
-  &.alert { background: linear-gradient(135deg, #f56c6c 0%, #e74c3c 100%); }
+  &.desc { background: #3b82f6; }
+  &.comment { background: #10b981; }
+  &.activity { background: #3b82f6; }
+  &.info { background: #ef4444; }
+  &.watcher { background: #f59e0b; }
+  &.custom { background: #8b5cf6; }
+  &.epic { background: #3b82f6; }
+  &.subtask { background: #f59e0b; }
+  &.attachment { background: #f59e0b; }
+  &.workflow { background: #8b5cf6; }
+  &.alert { background: #ef4444; }
 }
 
 .card-title { font-size: 15px; font-weight: 600; color: #1f2937; }
@@ -2734,7 +2734,7 @@ const showWorkflowDiagram = async () => {
       width: 38px;
       height: 38px;
       border-radius: 10px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       color: #fff;
       display: flex;
       align-items: center;
@@ -2744,7 +2744,7 @@ const showWorkflowDiagram = async () => {
       flex-shrink: 0;
 
       &.system-avatar {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+        background: #8b5cf6;
         font-size: 14px;
       }
     }
@@ -2858,7 +2858,7 @@ const showWorkflowDiagram = async () => {
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: #fff;
   display: flex;
   align-items: center;
@@ -2959,7 +2959,7 @@ const showWorkflowDiagram = async () => {
       width: 36px;
       height: 36px;
       border-radius: 8px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       color: #fff;
       display: flex;
       align-items: center;
@@ -3257,17 +3257,17 @@ const showWorkflowDiagram = async () => {
           flex-shrink: 0;
 
           &.task {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #3b82f6;
             color: white;
           }
 
           &.bug {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: #ef4444;
             color: white;
           }
 
           &.epic {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: #3b82f6;
             color: white;
           }
         }
@@ -3373,7 +3373,7 @@ const showWorkflowDiagram = async () => {
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #3b82f6;
             color: white;
             display: flex;
             align-items: center;
@@ -3467,12 +3467,12 @@ const showWorkflowDiagram = async () => {
           flex-shrink: 0;
 
           &.task {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #3b82f6;
             color: white;
           }
 
           &.bug {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: #ef4444;
             color: white;
           }
         }
@@ -3578,7 +3578,7 @@ const showWorkflowDiagram = async () => {
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            background: #f59e0b;
             color: white;
             display: flex;
             align-items: center;

@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(npx vue-tsc --noEmit)",
-      "Bash(go vet:*)"
+      "Bash(go vet:*)",
+      "Bash(npm run:*)",
+      "Bash(npx eslint:*)",
+      "Bash(ls:*)",
+      "Bash(npx vue-tsc:*)"
     ]
   }
 }

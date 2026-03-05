@@ -42,9 +42,7 @@ const router = useRouter()
 .error-code {
   font-size: 120px;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #3b82f6;
   line-height: 1;
   margin-bottom: 8px;
 }

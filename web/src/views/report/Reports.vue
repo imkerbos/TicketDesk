@@ -834,7 +834,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 28px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8b5cf6;
   border-radius: 16px;
   color: #fff;
 
@@ -1003,7 +1003,7 @@ onMounted(() => {
     }
 
     .dist-avatar {
-      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      background: #8b5cf6;
       font-size: 11px;
       color: #fff;
       flex-shrink: 0;
@@ -1192,7 +1192,7 @@ onMounted(() => {
   .bar-fill {
     width: 100%;
     max-width: 32px;
-    background: linear-gradient(180deg, #6366f1, #818cf8);
+    background: #3b82f6;
     border-radius: 4px 4px 0 0;
     min-height: 2px;
     transition: height 0.3s ease;
@@ -1220,7 +1220,7 @@ onMounted(() => {
 
   &.top-3 {
     color: #fff;
-    background: linear-gradient(135deg, #f59e0b, #f97316);
+    background: #f59e0b;
   }
 }
 

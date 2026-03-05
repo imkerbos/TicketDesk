@@ -12,15 +12,15 @@
         </div>
       </div>
       <div class="header-actions">
-        <el-button @click="$router.push('/alerts')" class="header-btn">
+        <el-button @click="$router.push('/alerts')">
           <el-icon><Bell /></el-icon>
           查看告警
         </el-button>
-        <el-button @click="$router.push('/issues')" class="header-btn">
+        <el-button @click="$router.push('/issues')">
           <el-icon><Tickets /></el-icon>
           所有工单
         </el-button>
-        <el-button type="primary" @click="handleCreateIssue" class="header-btn create-btn">
+        <el-button type="primary" @click="handleCreateIssue">
           <el-icon><Plus /></el-icon>
           创建工单
         </el-button>
@@ -32,56 +32,44 @@
       <el-col :xs="12" :sm="6">
         <div class="stat-card todo" @click="$router.push('/issues?filter=my-todo')">
           <div class="stat-icon-wrapper">
-            <el-icon :size="26"><Tickets /></el-icon>
+            <el-icon :size="22"><Tickets /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.myTodo }}</div>
+            <div class="stat-value">{{ animatedStats.myTodo }}</div>
             <div class="stat-label">我的待办</div>
-          </div>
-          <div class="stat-bg-icon">
-            <el-icon><Tickets /></el-icon>
           </div>
         </div>
       </el-col>
       <el-col :xs="12" :sm="6">
         <div class="stat-card created" @click="$router.push('/issues?filter=my-created')">
           <div class="stat-icon-wrapper">
-            <el-icon :size="26"><Edit /></el-icon>
+            <el-icon :size="22"><Edit /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.myCreated }}</div>
+            <div class="stat-value">{{ animatedStats.myCreated }}</div>
             <div class="stat-label">我创建的</div>
-          </div>
-          <div class="stat-bg-icon">
-            <el-icon><Edit /></el-icon>
           </div>
         </div>
       </el-col>
       <el-col :xs="12" :sm="6">
         <div class="stat-card alert" @click="$router.push('/alerts?status=firing')">
           <div class="stat-icon-wrapper">
-            <el-icon :size="26"><Bell /></el-icon>
+            <el-icon :size="22"><Bell /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.pendingAlerts }}</div>
+            <div class="stat-value">{{ animatedStats.pendingAlerts }}</div>
             <div class="stat-label">待确认告警</div>
-          </div>
-          <div class="stat-bg-icon">
-            <el-icon><Bell /></el-icon>
           </div>
         </div>
       </el-col>
       <el-col :xs="12" :sm="6">
         <div class="stat-card done">
           <div class="stat-icon-wrapper">
-            <el-icon :size="26"><CircleCheck /></el-icon>
+            <el-icon :size="22"><CircleCheck /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.weekDone }}</div>
+            <div class="stat-value">{{ animatedStats.weekDone }}</div>
             <div class="stat-label">本周已完成</div>
-          </div>
-          <div class="stat-bg-icon">
-            <el-icon><CircleCheck /></el-icon>
           </div>
         </div>
       </el-col>
@@ -101,7 +89,7 @@
                 </div>
                 <div>
                   <span class="card-title">我的待办工单</span>
-                  <span class="card-count">{{ stats.myTodo }}</span>
+                  <span class="card-count">{{ animatedStats.myTodo }}</span>
                 </div>
               </div>
               <el-button link type="primary" @click="$router.push('/issues?filter=my-todo')">
@@ -152,7 +140,7 @@
                 </div>
                 <div>
                   <span class="card-title">我创建的工单</span>
-                  <span class="card-count">{{ stats.myCreated }}</span>
+                  <span class="card-count">{{ animatedStats.myCreated }}</span>
                 </div>
               </div>
               <el-button link type="primary" @click="$router.push('/issues?filter=my-created')">
@@ -212,7 +200,7 @@
                 </div>
                 <div>
                   <span class="card-title">待确认告警</span>
-                  <span class="card-count danger">{{ stats.pendingAlerts }}</span>
+                  <span class="card-count danger">{{ animatedStats.pendingAlerts }}</span>
                 </div>
               </div>
               <el-button link type="primary" @click="$router.push('/alerts?status=firing')">
@@ -345,7 +333,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
@@ -373,6 +361,40 @@ const stats = reactive({
   pendingAlerts: 0,
   weekDone: 0,
 })
+
+// 计数动画
+const animatedStats = reactive({
+  myTodo: 0,
+  myCreated: 0,
+  pendingAlerts: 0,
+  weekDone: 0,
+})
+
+const animateTo = (key: keyof typeof animatedStats, to: number) => {
+  const from = animatedStats[key]
+  if (from === to) {
+    animatedStats[key] = to
+    return
+  }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    animatedStats[key] = to
+    return
+  }
+  const duration = 250
+  const startTime = performance.now()
+  const step = (now: number) => {
+    const progress = Math.min((now - startTime) / duration, 1)
+    const eased = 1 - (1 - progress) ** 3
+    animatedStats[key] = Math.round(from + (to - from) * eased)
+    if (progress < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+
+watch(() => stats.myTodo, (val) => animateTo('myTodo', val))
+watch(() => stats.myCreated, (val) => animateTo('myCreated', val))
+watch(() => stats.pendingAlerts, (val) => animateTo('pendingAlerts', val))
+watch(() => stats.weekDone, (val) => animateTo('weekDone', val))
 
 // 待办工单
 const loadingTodo = ref(false)
@@ -583,10 +605,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding: 28px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  color: #fff;
+  padding: 24px 28px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #3b82f6;
 
   .header-info {
     display: flex;
@@ -595,47 +618,39 @@ onMounted(() => {
   }
 
   .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    width: 48px;
+    height: 48px;
+    background: #eff6ff;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
+    font-size: 24px;
+    color: #3b82f6;
   }
 
   .header-text {
     .header-title {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       margin: 0 0 4px 0;
+      color: #1f2937;
     }
     .header-desc {
       font-size: 14px;
       margin: 0;
-      opacity: 0.9;
+      color: #6b7280;
     }
   }
 
   .header-actions {
     display: flex;
     gap: 10px;
-  }
 
-  .header-btn {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    color: #fff;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.25);
-    }
-
-    &.create-btn {
-      background: rgba(255, 255, 255, 0.25);
-      border-color: rgba(255, 255, 255, 0.4);
-      font-weight: 600;
+    .el-button--primary {
+      transition: box-shadow 150ms ease-out;
+      &:hover { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+      &:active { background-color: #1d4ed8; border-color: #1d4ed8; }
     }
   }
 }
@@ -647,77 +662,70 @@ onMounted(() => {
 
 .stat-card {
   position: relative;
-  overflow: hidden;
   display: flex;
   align-items: center;
-  padding: 24px;
-  border-radius: 12px;
-  color: #fff;
+  padding: 20px 24px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   cursor: pointer;
-  transition: transform 0.3s, box-shadow 0.3s;
-
-  &:hover {
-    transform: translateY(-4px);
-  }
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
 
   .stat-icon-wrapper {
-    width: 52px;
-    height: 52px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
+    border-radius: 10px;
     margin-right: 16px;
     flex-shrink: 0;
   }
 
   .stat-content {
-    position: relative;
-    z-index: 1;
-
     .stat-value {
-      font-size: 32px;
+      font-size: 28px;
       font-weight: 700;
       line-height: 1.2;
+      color: #1f2937;
     }
     .stat-label {
-      font-size: 14px;
-      opacity: 0.9;
-      margin-top: 4px;
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 2px;
     }
-  }
-
-  .stat-bg-icon {
-    position: absolute;
-    right: -8px;
-    bottom: -8px;
-    font-size: 80px;
-    opacity: 0.1;
   }
 
   &.todo {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    border-left: 4px solid #3b82f6;
+    .stat-icon-wrapper { background: #eff6ff; color: #3b82f6; }
+    &:hover { border-color: #3b82f6; box-shadow: 0 1px 4px rgba(59, 130, 246, 0.1); }
+    &:active { background-color: #f9fafb; }
   }
   &.created {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-    box-shadow: 0 4px 20px rgba(17, 153, 142, 0.3);
+    border-left: 4px solid #10b981;
+    .stat-icon-wrapper { background: #f0fdf4; color: #10b981; }
+    &:hover { border-color: #10b981; box-shadow: 0 1px 4px rgba(16, 185, 129, 0.1); }
+    &:active { background-color: #f9fafb; }
   }
   &.alert {
-    background: linear-gradient(135deg, #f5576c 0%, #ff6b6b 100%);
-    box-shadow: 0 4px 20px rgba(245, 87, 108, 0.3);
+    border-left: 4px solid #ef4444;
+    .stat-icon-wrapper { background: #fef2f2; color: #ef4444; }
+    &:hover { border-color: #ef4444; box-shadow: 0 1px 4px rgba(239, 68, 68, 0.1); }
+    &:active { background-color: #f9fafb; }
   }
   &.done {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    box-shadow: 0 4px 20px rgba(79, 172, 254, 0.3);
+    border-left: 4px solid #3b82f6;
+    .stat-icon-wrapper { background: #eff6ff; color: #3b82f6; }
+    &:hover { border-color: #3b82f6; box-shadow: 0 1px 4px rgba(59, 130, 246, 0.1); }
+    &:active { background-color: #f9fafb; }
   }
 }
 
 // 内容卡片
 .content-card {
   margin-bottom: 20px;
-  border-radius: 12px;
+  border-radius: 8px;
   min-height: 200px;
 
   :deep(.el-card__header) {
@@ -738,23 +746,22 @@ onMounted(() => {
   .card-title-group {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
   }
 
   .card-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    color: #fff;
+    font-size: 16px;
 
-    &.todo { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    &.created { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-    &.alert { background: linear-gradient(135deg, #f5576c 0%, #ff6b6b 100%); }
-    &.activity { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    &.todo { background: #eff6ff; color: #3b82f6; }
+    &.created { background: #f0fdf4; color: #10b981; }
+    &.alert { background: #fef2f2; color: #ef4444; }
+    &.activity { background: #eff6ff; color: #3b82f6; }
   }
 
   .card-title {
@@ -770,7 +777,7 @@ onMounted(() => {
     min-width: 20px;
     height: 20px;
     padding: 0 6px;
-    background: #e5e7eb;
+    background: #f3f4f6;
     border-radius: 10px;
     font-size: 12px;
     font-weight: 600;
@@ -781,6 +788,13 @@ onMounted(() => {
       background: #fef2f2;
       color: #ef4444;
     }
+  }
+
+  .el-button .el-icon {
+    transition: transform 150ms ease-out;
+  }
+  .el-button:hover .el-icon {
+    transform: translateX(2px);
   }
 }
 
@@ -799,11 +813,12 @@ onMounted(() => {
     align-items: center;
     padding: 14px 20px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 150ms ease-out;
     border-bottom: 1px solid #f5f5f5;
 
     &:last-child { border-bottom: none; }
     &:hover { background-color: #f9fafb; }
+    &:active { background-color: #f3f4f6; }
 
     .issue-left {
       display: flex;
@@ -837,10 +852,11 @@ onMounted(() => {
       margin-bottom: 4px;
 
       .issue-key {
-        color: #667eea;
+        color: #3b82f6;
         font-weight: 600;
         font-size: 13px;
         flex-shrink: 0;
+        &:hover { text-decoration: underline; }
       }
       .issue-title {
         color: #1f2937;
@@ -878,11 +894,12 @@ onMounted(() => {
     align-items: center;
     padding: 14px 20px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 150ms ease-out;
     border-bottom: 1px solid #f5f5f5;
 
     &:last-child { border-bottom: none; }
     &:hover { background-color: #fef2f2; }
+    &:active { background-color: #fee2e2; }
 
     .alert-severity-bar {
       width: 4px;
@@ -938,6 +955,10 @@ onMounted(() => {
     .activity-action {
       color: #6b7280;
       margin: 0 4px;
+    }
+
+    :deep(.el-link):hover {
+      text-decoration: underline;
     }
   }
 }

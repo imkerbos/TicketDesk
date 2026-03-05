@@ -30,13 +30,13 @@ body {
 
   &.critical {
     background-color: #fef0f0;
-    color: #f56c6c;
+    color: #ef4444;
     border: 1px solid #fde2e2;
   }
 
   &.warning {
     background-color: #fdf6ec;
-    color: #e6a23c;
+    color: #f59e0b;
     border: 1px solid #faecd8;
   }
 
@@ -57,14 +57,14 @@ body {
 
   &.firing {
     background-color: #fef0f0;
-    color: #f56c6c;
+    color: #ef4444;
     border: 1px solid #fde2e2;
   }
 
   &.resolved {
-    background-color: #f0f9ff;
-    color: #67c23a;
-    border: 1px solid #e1f3d8;
+    background-color: #f0fdf4;
+    color: #10b981;
+    border: 1px solid #d1fae5;
   }
 }
 
@@ -73,7 +73,7 @@ body {
   background: #fff;
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   margin-bottom: 20px;
 }
 
@@ -93,39 +93,69 @@ body {
   h1 {
     font-size: 24px;
     font-weight: 600;
-    color: #303133;
+    color: #1f2937;
   }
 }
 
-// 统计卡片
+// 统计卡片（纯色版）
 .stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  background: #fff;
+  border-radius: 8px;
   padding: 24px;
-  color: #fff;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #3b82f6;
+  transition: border-color 150ms ease-out;
+
+  &:hover {
+    border-color: #3b82f6;
+  }
 
   &.critical {
-    background: linear-gradient(135deg, #f56c6c 0%, #c0392b 100%);
+    border-left-color: #ef4444;
+    &:hover { border-color: #ef4444; }
   }
 
   &.warning {
-    background: linear-gradient(135deg, #e6a23c 0%, #d68910 100%);
+    border-left-color: #f59e0b;
+    &:hover { border-color: #f59e0b; }
   }
 
   &.info {
-    background: linear-gradient(135deg, #409eff 0%, #2c7bd9 100%);
+    border-left-color: #3b82f6;
+    &:hover { border-color: #3b82f6; }
   }
 
   .stat-value {
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 700;
-    margin-bottom: 8px;
+    color: #1f2937;
+    margin-bottom: 4px;
   }
 
   .stat-label {
     font-size: 14px;
-    opacity: 0.9;
+    color: #6b7280;
+  }
+}
+
+// 输入框聚焦环
+.el-input__wrapper:focus-within {
+  box-shadow: 0 0 0 1px #3b82f6 inset, 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+// prefers-reduced-motion 降级
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

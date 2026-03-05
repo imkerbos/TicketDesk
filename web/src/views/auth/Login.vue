@@ -13,15 +13,15 @@
           为运维与技术团队打造的项目化工单管理平台。
         </p>
         <div class="feature-list">
-          <div class="feature-item">
+          <div class="feature-item stagger" style="--i: 0">
             <el-icon class="feature-icon"><Tickets /></el-icon>
             <span>项目化工单管理</span>
           </div>
-          <div class="feature-item">
+          <div class="feature-item stagger" style="--i: 1">
             <el-icon class="feature-icon"><Bell /></el-icon>
             <span>告警自动建单</span>
           </div>
-          <div class="feature-item">
+          <div class="feature-item stagger" style="--i: 2">
             <el-icon class="feature-icon"><Connection /></el-icon>
             <span>审批工作流引擎</span>
           </div>
@@ -34,8 +34,8 @@
 
     <!-- 右侧登录表单区域 -->
     <div class="login-section">
-      <div class="login-container">
-        <div class="login-header">
+      <div :class="['login-container', { shake: shaking }]" @animationend="shaking = false">
+        <div class="login-header fade-up" style="--i: 0">
           <h2 class="login-title">欢迎回来</h2>
           <p class="login-subtitle">请登录您的账户</p>
         </div>
@@ -49,7 +49,7 @@
           hide-required-asterisk
           @submit.prevent="handleLogin"
         >
-          <el-form-item prop="username" label="用户名">
+          <el-form-item prop="username" label="用户名" class="fade-up" style="--i: 1">
             <el-input
               v-model="form.username"
               placeholder="请输入用户名"
@@ -62,13 +62,7 @@
             </el-input>
           </el-form-item>
 
-          <el-form-item prop="password" class="password-item">
-            <template #label>
-              <div class="password-label-row">
-                <span>密码</span>
-                <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
-              </div>
-            </template>
+          <el-form-item prop="password" label="密码" class="fade-up" style="--i: 2">
             <el-input
               v-model="form.password"
               type="password"
@@ -84,11 +78,14 @@
             </el-input>
           </el-form-item>
 
-          <el-form-item class="remember-item">
-            <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+          <el-form-item class="remember-row fade-up" style="--i: 3">
+            <div class="remember-forgot">
+              <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+              <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
+            </div>
           </el-form-item>
 
-          <el-form-item>
+          <el-form-item class="fade-up" style="--i: 4">
             <el-button
               type="primary"
               size="large"
@@ -102,7 +99,7 @@
         </el-form>
 
         <!-- SSO 登录区域 -->
-        <div v-if="ssoConfig?.enabled" class="sso-section">
+        <div v-if="ssoConfig?.enabled" class="sso-section fade-up" style="--i: 5">
           <div class="sso-divider">
             <span class="sso-divider-text">或</span>
           </div>
@@ -116,10 +113,6 @@
           </el-button>
         </div>
 
-        <div class="login-footer">
-          <span class="footer-text">还没有账户？</span>
-          <a href="#" class="register-link" @click.prevent>联系管理员</a>
-        </div>
       </div>
     </div>
   </div>
@@ -140,6 +133,7 @@ const loading = ref(false)
 const rememberMe = ref(false)
 const ssoConfig = ref<SSOConfigResponse | null>(null)
 const ssoLoading = ref(false)
+const shaking = ref(false)
 
 const form = reactive({
   username: '',
@@ -160,7 +154,10 @@ const handleLogin = async () => {
   if (!formRef.value) return
 
   await formRef.value.validate(async (valid) => {
-    if (!valid) return
+    if (!valid) {
+      shaking.value = true
+      return
+    }
 
     loading.value = true
     try {
@@ -177,6 +174,7 @@ const handleLogin = async () => {
       router.push('/')
     } catch {
       // 错误已在 request 拦截器中处理
+      shaking.value = true
     } finally {
       loading.value = false
     }
@@ -221,7 +219,7 @@ onMounted(async () => {
   flex-direction: column;
   justify-content: space-between;
   padding: 48px;
-  background: linear-gradient(135deg, #1e1e2d 0%, #2d2d44 100%);
+  background: #1e1e2d;
   color: #fff;
 }
 
@@ -239,7 +237,7 @@ onMounted(async () => {
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #3b82f6;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -339,11 +337,7 @@ onMounted(async () => {
   padding-bottom: 8px;
 }
 
-.password-item :deep(.el-form-item__label) {
-  width: 100%;
-}
-
-.password-label-row {
+.remember-forgot {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -354,7 +348,7 @@ onMounted(async () => {
   font-size: 13px;
   color: #3b82f6;
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 150ms ease-out;
   font-weight: 400;
 }
 
@@ -366,7 +360,7 @@ onMounted(async () => {
   padding: 4px 12px;
   border-radius: 8px;
   box-shadow: 0 0 0 1px #e5e7eb;
-  transition: all 0.2s;
+  transition: box-shadow 150ms ease-out;
 }
 
 .form-input :deep(.el-input__wrapper:hover) {
@@ -374,18 +368,23 @@ onMounted(async () => {
 }
 
 .form-input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .input-icon {
   color: #9ca3af;
+  transition: color 150ms ease-out;
 }
 
-.remember-item {
+.form-input :deep(.el-input__wrapper.is-focus .input-icon) {
+  color: #3b82f6;
+}
+
+.remember-row {
   margin-bottom: 24px;
 }
 
-.remember-item :deep(.el-checkbox__label) {
+.remember-row :deep(.el-checkbox__label) {
   font-size: 14px;
   color: #4b5563;
 }
@@ -396,18 +395,19 @@ onMounted(async () => {
   font-size: 16px;
   font-weight: 600;
   border-radius: 8px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #3b82f6;
   border: none;
-  transition: all 0.3s;
+  transition: background-color 150ms ease-out, box-shadow 150ms ease-out;
 }
 
 .login-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+  background: #2563eb;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
 }
 
 .login-button:active {
-  transform: translateY(0);
+  background: #1d4ed8;
+  box-shadow: none;
 }
 
 /* SSO 登录区域 */
@@ -443,36 +443,64 @@ onMounted(async () => {
   border: 1px solid #d1d5db;
   background: #fff;
   color: #374151;
-  transition: all 0.2s;
+  transition: border-color 150ms ease-out, color 150ms ease-out, background-color 150ms ease-out;
 }
 
 .sso-button:hover {
   border-color: #3b82f6;
   color: #3b82f6;
-  background: #f0f7ff;
+  background: #eff6ff;
 }
 
-.login-footer {
-  margin-top: 24px;
-  text-align: center;
+
+/* 入场动画 */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.footer-text {
-  font-size: 14px;
-  color: #6b7280;
+.fade-up {
+  opacity: 0;
+  animation: fadeUp 250ms ease-out forwards;
+  animation-delay: calc(var(--i, 0) * 60ms + 80ms);
 }
 
-.register-link {
-  font-size: 14px;
-  color: #3b82f6;
-  text-decoration: none;
-  font-weight: 500;
-  margin-left: 4px;
-  transition: color 0.2s;
+/* 左侧特性列表 stagger 入场 */
+.stagger {
+  opacity: 0;
+  animation: fadeUp 250ms ease-out forwards;
+  animation-delay: calc(var(--i, 0) * 60ms + 200ms);
 }
 
-.register-link:hover {
-  color: #2563eb;
+/* 登录失败 shake */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+.shake {
+  animation: shake 250ms ease-out;
+}
+
+/* prefers-reduced-motion 降级 */
+@media (prefers-reduced-motion: reduce) {
+  .fade-up,
+  .stagger {
+    opacity: 1;
+    animation: none;
+  }
+  .shake {
+    animation: none;
+  }
 }
 
 /* 响应式设计 */

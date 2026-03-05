@@ -124,19 +124,19 @@ const onDragStart = (event: DragEvent, nodeType: NodeType) => {
   }
 
   &.start .item-icon {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
   }
   &.end .item-icon {
-    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    background: #6b7280;
   }
   &.approval .item-icon {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
   }
   &.work .item-icon {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #3b82f6;
   }
   &.system .item-icon {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    background: #8b5cf6;
   }
 
   &.start:hover { border-color: #10b981; background: #ecfdf5; }

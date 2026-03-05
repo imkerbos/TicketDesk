@@ -28,7 +28,7 @@ defineProps<{
     align-items: center;
     gap: 6px;
     padding: 12px 20px;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
     border-radius: 50px;
     color: #fff;
     min-width: 80px;

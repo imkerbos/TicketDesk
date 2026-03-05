@@ -45,9 +45,7 @@ const handleRefresh = () => {
 .error-code {
   font-size: 120px;
   font-weight: 800;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ef4444;
   line-height: 1;
   margin-bottom: 8px;
 }

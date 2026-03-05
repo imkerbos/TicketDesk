@@ -78,7 +78,7 @@ const statusText = computed(() => {
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
     color: #fff;
   }
 

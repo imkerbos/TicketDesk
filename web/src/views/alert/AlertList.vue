@@ -606,7 +606,7 @@ const loadLabelKeys = async () => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: linear-gradient(135deg, #f5576c 0%, #ff6b6b 100%);
+  background: #ef4444;
   border-radius: 12px;
   color: #fff;
 
@@ -663,32 +663,32 @@ const loadLabelKeys = async () => {
   }
 
   &.total {
-    .stat-icon-wrapper { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .stat-icon-wrapper { background: #3b82f6; }
     .stat-value { color: #667eea; }
     &.active { border-color: #667eea; }
   }
   &.firing {
-    .stat-icon-wrapper { background: linear-gradient(135deg, #f56c6c 0%, #e74c3c 100%); }
+    .stat-icon-wrapper { background: #ef4444; }
     .stat-value { color: #e74c3c; }
     &.active { border-color: #e74c3c; }
   }
   &.resolved {
-    .stat-icon-wrapper { background: linear-gradient(135deg, #67c23a 0%, #2ecc71 100%); }
+    .stat-icon-wrapper { background: #10b981; }
     .stat-value { color: #2ecc71; }
     &.active { border-color: #2ecc71; }
   }
   &.critical {
-    .stat-icon-wrapper { background: linear-gradient(135deg, #f56c6c 0%, #c0392b 100%); }
+    .stat-icon-wrapper { background: #ef4444; }
     .stat-value { color: #c0392b; }
     &.active { border-color: #c0392b; }
   }
   &.warning {
-    .stat-icon-wrapper { background: linear-gradient(135deg, #e6a23c 0%, #d68910 100%); }
+    .stat-icon-wrapper { background: #f59e0b; }
     .stat-value { color: #d68910; }
     &.active { border-color: #d68910; }
   }
   &.info {
-    .stat-icon-wrapper { background: linear-gradient(135deg, #909399 0%, #6b7280 100%); }
+    .stat-icon-wrapper { background: #6b7280; }
     .stat-value { color: #6b7280; }
     &.active { border-color: #6b7280; }
   }
@@ -896,8 +896,8 @@ const loadLabelKeys = async () => {
       display: flex; align-items: center; justify-content: center;
       font-size: 24px; color: #fff;
 
-      &.ack { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-      &.resolve { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+      &.ack { background: #3b82f6; }
+      &.resolve { background: #10b981; }
     }
 
     .dialog-tip { font-size: 14px; color: #6b7280; margin: 0; }

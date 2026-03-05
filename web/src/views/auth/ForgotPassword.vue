@@ -102,7 +102,7 @@ const handleSubmit = async () => {
     loading.value = true
     try {
       await forgotPassword({ email: form.email })
-      ElMessage.success('重置密码链接已发送到您的邮箱，请查收')
+      ElMessage.success('如果该邮箱已注册，您将收到重置密码的邮件')
       // 3秒后跳转到登录页
       setTimeout(() => {
         router.push('/login')

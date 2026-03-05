@@ -720,10 +720,11 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding: 24px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  color: #fff;
+  padding: 24px 28px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #3b82f6;
 
   .header-info {
     display: flex;
@@ -732,26 +733,35 @@ onMounted(async () => {
   }
 
   .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    width: 48px;
+    height: 48px;
+    background: #eff6ff;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
+    font-size: 24px;
+    color: #3b82f6;
   }
 
   .header-text {
-    .header-title { font-size: 22px; font-weight: 600; margin: 0 0 4px 0; }
-    .header-desc { font-size: 14px; margin: 0; opacity: 0.9; }
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+      color: #1f2937;
+    }
+    .header-desc {
+      font-size: 14px;
+      margin: 0;
+      color: #6b7280;
+    }
   }
 
   .header-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #fff;
-    &:hover { background: rgba(255, 255, 255, 0.3); }
+    transition: box-shadow 150ms ease-out;
+    &:hover { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+    &:active { background-color: #1d4ed8; border-color: #1d4ed8; }
   }
 }
 
@@ -840,7 +850,9 @@ onMounted(async () => {
 
     .clickable-row {
       cursor: pointer;
+      transition: background-color 150ms ease-out;
       &:hover { background-color: #f9fafb; }
+      &:active { background-color: #f3f4f6; }
     }
   }
 
@@ -919,8 +931,8 @@ onMounted(async () => {
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
+    background: #eff6ff;
+    color: #3b82f6;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1027,11 +1039,15 @@ onMounted(async () => {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
     cursor: pointer;
     border: 1px solid #f0f0f0;
-    transition: box-shadow 0.2s, transform 0.2s;
+    transition: box-shadow 150ms ease-out, border-color 150ms ease-out;
 
     &:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      border-color: #3b82f6;
+    }
+
+    &:active {
+      background-color: #f9fafb;
     }
 
     .card-header {
@@ -1041,7 +1057,7 @@ onMounted(async () => {
       margin-bottom: 8px;
 
       .issue-key {
-        color: #667eea;
+        color: #3b82f6;
         font-size: 12px;
         font-weight: 600;
       }

@@ -1,3 +1,5 @@
+name: ticketdesk-dev
+
 services:
   # 后端服务（开发模式 - 热更新）
   backend:
