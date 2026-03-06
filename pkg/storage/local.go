@@ -53,6 +53,32 @@ func (s *LocalStorage) Save(file io.Reader, filename string) (string, error) {
 	return relPath, nil
 }
 
+// SaveTo 保存文件到指定子路径（支持嵌套目录如 "brand/logo.png"）
+// 返回相对路径（相对于basePath）
+func (s *LocalStorage) SaveTo(file io.Reader, relPath string) (string, error) {
+	fullPath := filepath.Join(s.basePath, relPath)
+
+	// 确保目录存在
+	dir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// 创建文件
+	dst, err := os.Create(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	defer dst.Close()
+
+	// 复制内容
+	if _, err := io.Copy(dst, file); err != nil {
+		return "", fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	return relPath, nil
+}
+
 // Delete 删除文件
 func (s *LocalStorage) Delete(relPath string) error {
 	fullPath := filepath.Join(s.basePath, relPath)

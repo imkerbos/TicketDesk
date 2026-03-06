@@ -14,6 +14,8 @@ import type {
   CreateWebhookRequest,
   UpdateWebhookRequest,
   WebhookLog,
+  BrandConfig,
+  UpdateBrandConfigRequest,
 } from '@/types/system'
 
 // ============ 系统配置 ============
@@ -194,4 +196,24 @@ export function getSSOAdminConfig() {
 // 更新 SSO 配置
 export function updateSSOConfig(config: UpdateSSOConfigRequest) {
   return request.put('/system/sso', config)
+}
+
+// ============ 品牌配置 ============
+
+// 获取品牌配置（公开接口）
+export function getBrandConfig() {
+  return request.get<{ data: BrandConfig }>('/brand')
+}
+
+// 更新品牌配置
+export function updateBrandConfig(config: UpdateBrandConfigRequest) {
+  return request.put('/system/brand', config)
+}
+
+// 上传品牌资源（Logo/Favicon）
+export function uploadBrandAsset(file: File, type: 'logo' | 'favicon') {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('type', type)
+  return request.post<{ data: { url: string } }>('/system/brand/upload', formData)
 }

@@ -29,6 +29,7 @@ const (
 	CategoryLark      = "lark"
 	CategoryTelegram  = "telegram"
 	CategoryRateLimit = "ratelimit"
+	CategoryBrand     = "brand"
 )
 
 // 配置键常量
@@ -83,6 +84,15 @@ const (
 	KeySSOAutoCreateUser = "sso.auto_create_user"
 	KeySSODefaultRole    = "sso.default_role"
 	KeySSOClaimMappings  = "sso.claim_mappings" // JSON: [{"local_field":"username","claim_name":"preferred_username"}, ...]
+
+	// 品牌配置键
+	KeyBrandSystemName        = "brand.system_name"
+	KeyBrandSystemDescription = "brand.system_description"
+	KeyBrandCopyrightText     = "brand.copyright_text"
+	KeyBrandLogoURL           = "brand.logo_url"
+	KeyBrandFaviconURL        = "brand.favicon_url"
+	KeyBrandLoginTitle        = "brand.login_title"
+	KeyBrandLoginDescription  = "brand.login_description"
 )
 
 // 业务错误定义
@@ -124,6 +134,10 @@ type ConfigService interface {
 	// SSO 配置
 	GetSSOConfig(ctx context.Context) (*dto.SSOConfig, error)
 	UpdateSSOConfig(ctx context.Context, req *dto.UpdateSSOConfigRequest, userID uint64) error
+
+	// 品牌配置
+	GetBrandConfig(ctx context.Context) (*dto.BrandConfig, error)
+	UpdateBrandConfig(ctx context.Context, req *dto.UpdateBrandConfigRequest, userID uint64) error
 
 	// Webhook 管理
 	CreateWebhook(ctx context.Context, req *dto.CreateWebhookRequest, userID uint64) (*dto.WebhookResponse, error)
@@ -807,6 +821,80 @@ func (s *configService) UpdateSSOConfig(ctx context.Context, req *dto.UpdateSSOC
 	s.InvalidateAllCache(ctx)
 
 	logger.Info("SSO config updated", zap.Uint64("updated_by", userID))
+
+	return nil
+}
+
+// ============ 品牌配置 ============
+
+// GetBrandConfig 获取品牌配置
+func (s *configService) GetBrandConfig(ctx context.Context) (*dto.BrandConfig, error) {
+	configs, err := s.configRepo.GetByCategory(ctx, CategoryBrand)
+	if err != nil {
+		return nil, fmt.Errorf("获取品牌配置失败: %w", err)
+	}
+
+	// 默认值
+	config := &dto.BrandConfig{
+		SystemName:        "TicketDesk",
+		SystemDescription: "项目化工单与告警联动系统",
+		CopyrightText:     "© 2026 TicketDesk. All rights reserved.",
+		LoginTitle:        "工单与告警联动系统",
+		LoginDescription:  "一切问题都是工单，一切告警都必须被跟进。\n为运维与技术团队打造的项目化工单管理平台。",
+	}
+
+	for _, c := range configs {
+		switch c.ConfigKey {
+		case KeyBrandSystemName:
+			if c.ConfigValue != "" {
+				config.SystemName = c.ConfigValue
+			}
+		case KeyBrandSystemDescription:
+			config.SystemDescription = c.ConfigValue
+		case KeyBrandCopyrightText:
+			if c.ConfigValue != "" {
+				config.CopyrightText = c.ConfigValue
+			}
+		case KeyBrandLogoURL:
+			config.LogoURL = c.ConfigValue
+		case KeyBrandFaviconURL:
+			config.FaviconURL = c.ConfigValue
+		case KeyBrandLoginTitle:
+			if c.ConfigValue != "" {
+				config.LoginTitle = c.ConfigValue
+			}
+		case KeyBrandLoginDescription:
+			if c.ConfigValue != "" {
+				config.LoginDescription = c.ConfigValue
+			}
+		}
+	}
+
+	return config, nil
+}
+
+// UpdateBrandConfig 更新品牌配置
+func (s *configService) UpdateBrandConfig(ctx context.Context, req *dto.UpdateBrandConfigRequest, userID uint64) error {
+	configs := []*model.SystemConfig{
+		{ConfigKey: KeyBrandSystemName, ConfigValue: req.SystemName, ConfigType: "string", Category: CategoryBrand, Description: "系统名称"},
+		{ConfigKey: KeyBrandSystemDescription, ConfigValue: req.SystemDescription, ConfigType: "string", Category: CategoryBrand, Description: "系统描述"},
+		{ConfigKey: KeyBrandCopyrightText, ConfigValue: req.CopyrightText, ConfigType: "string", Category: CategoryBrand, Description: "版权信息"},
+		{ConfigKey: KeyBrandLoginTitle, ConfigValue: req.LoginTitle, ConfigType: "string", Category: CategoryBrand, Description: "登录页标题"},
+		{ConfigKey: KeyBrandLoginDescription, ConfigValue: req.LoginDescription, ConfigType: "string", Category: CategoryBrand, Description: "登录页描述"},
+	}
+
+	for _, c := range configs {
+		c.UpdatedBy = &userID
+	}
+
+	if err := s.configRepo.BatchUpsert(ctx, configs); err != nil {
+		return fmt.Errorf("更新品牌配置失败: %w", err)
+	}
+
+	// 清除缓存
+	s.InvalidateAllCache(ctx)
+
+	logger.Info("brand config updated", zap.Uint64("updated_by", userID))
 
 	return nil
 }

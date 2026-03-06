@@ -1,6 +1,185 @@
 <template>
   <div class="system-settings">
     <el-tabs v-model="activeTab" class="settings-tabs">
+      <!-- 品牌设置 -->
+      <el-tab-pane label="品牌设置" name="brand">
+        <el-card shadow="never" class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <div class="card-title">
+                <div class="title-icon general-icon">
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="title-text">
+                  <span class="title">品牌设置</span>
+                  <span class="subtitle">自定义系统名称、Logo、版权信息和登录页文案</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <el-row :gutter="40">
+            <el-col :xs="24" :lg="14">
+              <el-form
+                ref="brandFormRef"
+                :model="brandForm"
+                :rules="brandRules"
+                label-position="top"
+                class="settings-form"
+              >
+                <div class="form-section">
+                  <div class="section-title">基本信息</div>
+                  <el-form-item label="系统名称" prop="system_name">
+                    <el-input
+                      v-model="brandForm.system_name"
+                      placeholder="例如: TicketDesk"
+                      maxlength="50"
+                      show-word-limit
+                    />
+                    <template #extra>
+                      <div class="form-item-tip">
+                        显示在侧边栏、浏览器标签页和登录页
+                      </div>
+                    </template>
+                  </el-form-item>
+
+                  <el-form-item label="系统描述" prop="system_description">
+                    <el-input
+                      v-model="brandForm.system_description"
+                      placeholder="例如: 项目化工单与告警联动系统"
+                      maxlength="200"
+                      show-word-limit
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="版权信息" prop="copyright_text">
+                    <el-input
+                      v-model="brandForm.copyright_text"
+                      placeholder="例如: © 2026 TicketDesk. All rights reserved."
+                      maxlength="200"
+                      show-word-limit
+                    />
+                  </el-form-item>
+                </div>
+
+                <div class="form-section">
+                  <div class="section-title">登录页文案</div>
+                  <el-form-item label="登录页标题" prop="login_title">
+                    <el-input
+                      v-model="brandForm.login_title"
+                      placeholder="例如: 工单与告警联动系统"
+                      maxlength="100"
+                      show-word-limit
+                    />
+                  </el-form-item>
+
+                  <el-form-item label="登录页描述" prop="login_description">
+                    <el-input
+                      v-model="brandForm.login_description"
+                      type="textarea"
+                      :rows="3"
+                      placeholder="登录页左侧的描述文案，支持换行"
+                      maxlength="500"
+                      show-word-limit
+                    />
+                  </el-form-item>
+                </div>
+
+                <div class="form-section">
+                  <div class="section-title">品牌资源</div>
+                  <el-form-item label="Logo">
+                    <div class="upload-area">
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="beforeBrandUpload"
+                        :http-request="(opts: any) => handleBrandUpload(opts, 'logo')"
+                        accept=".svg,.png,.ico,.jpg,.jpeg,.webp"
+                      >
+                        <el-button :loading="logoUploading">
+                          {{ brandForm.logo_url ? '更换 Logo' : '上传 Logo' }}
+                        </el-button>
+                      </el-upload>
+                      <div v-if="brandForm.logo_url" class="upload-preview">
+                        <img :src="brandForm.logo_url" alt="Logo" class="preview-image" />
+                        <el-button text type="danger" size="small" @click="removeBrandAsset('logo')">移除</el-button>
+                      </div>
+                    </div>
+                    <template #extra>
+                      <div class="form-item-tip">
+                        建议尺寸 48x48，支持 SVG、PNG、ICO、JPG、WEBP，最大 2MB。留空使用默认 Logo。
+                      </div>
+                    </template>
+                  </el-form-item>
+
+                  <el-form-item label="Favicon">
+                    <div class="upload-area">
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="beforeBrandUpload"
+                        :http-request="(opts: any) => handleBrandUpload(opts, 'favicon')"
+                        accept=".svg,.png,.ico"
+                      >
+                        <el-button :loading="faviconUploading">
+                          {{ brandForm.favicon_url ? '更换 Favicon' : '上传 Favicon' }}
+                        </el-button>
+                      </el-upload>
+                      <div v-if="brandForm.favicon_url" class="upload-preview">
+                        <img :src="brandForm.favicon_url" alt="Favicon" class="preview-image preview-favicon" />
+                        <el-button text type="danger" size="small" @click="removeBrandAsset('favicon')">移除</el-button>
+                      </div>
+                    </div>
+                    <template #extra>
+                      <div class="form-item-tip">
+                        浏览器标签页图标，建议尺寸 32x32，支持 SVG、PNG、ICO，最大 2MB。
+                      </div>
+                    </template>
+                  </el-form-item>
+                </div>
+
+                <el-form-item>
+                  <el-button
+                    type="primary"
+                    :loading="brandLoading"
+                    @click="handleSaveBrandConfig"
+                  >
+                    <el-icon><Check /></el-icon>
+                    保存品牌设置
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </el-col>
+
+            <el-col :xs="24" :lg="10">
+              <div class="brand-preview-section">
+                <div class="section-title">预览</div>
+                <div class="brand-preview-card">
+                  <div class="preview-sidebar">
+                    <div class="preview-logo-area">
+                      <img
+                        v-if="brandForm.logo_url"
+                        :src="brandForm.logo_url"
+                        alt="Logo"
+                        class="preview-logo-img"
+                      />
+                      <img v-else src="@/assets/logo.svg" alt="Logo" class="preview-logo-img" />
+                      <span class="preview-logo-text">{{ brandForm.system_name || 'TicketDesk' }}</span>
+                    </div>
+                    <div class="preview-menu-item active">首页</div>
+                    <div class="preview-menu-item">工单管理</div>
+                    <div class="preview-menu-item">项目管理</div>
+                    <div class="preview-copyright">{{ brandForm.copyright_text || '© 2026 TicketDesk' }}</div>
+                  </div>
+                </div>
+                <el-alert type="info" :closable="false" class="brand-tips">
+                  <p>修改品牌设置后，所有用户刷新页面即可看到更新。</p>
+                  <p>Logo 和 Favicon 需要先上传再保存。</p>
+                </el-alert>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-tab-pane>
+
       <!-- 通用配置 -->
       <el-tab-pane label="通用配置" name="general">
         <el-card shadow="never" class="settings-card">
@@ -749,7 +928,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
   Message, Lock, Check, Promotion, InfoFilled,
   Key, Timer, Monitor, User, Setting, Link,
-  Connection, UserFilled, DataLine, Clock, Delete
+  Connection, UserFilled, DataLine, Clock, Delete, Picture,
 } from '@element-plus/icons-vue'
 import {
   getEmailConfig,
@@ -762,7 +941,11 @@ import {
   updateConfig,
   getSSOAdminConfig,
   updateSSOConfig,
+  getBrandConfig,
+  updateBrandConfig,
+  uploadBrandAsset,
 } from '@/api/system'
+import { useBrandStore } from '@/stores/brand'
 
 const route = useRoute()
 const router = useRouter()
@@ -776,6 +959,118 @@ watch(activeTab, (newTab) => {
     query: { ...route.query, tab: newTab },
   })
 })
+
+const brandStore = useBrandStore()
+
+// ============ 品牌配置 ============
+const brandFormRef = ref<FormInstance>()
+const brandLoading = ref(false)
+const logoUploading = ref(false)
+const faviconUploading = ref(false)
+const brandForm = reactive({
+  system_name: '',
+  system_description: '',
+  copyright_text: '',
+  login_title: '',
+  login_description: '',
+  logo_url: '',
+  favicon_url: '',
+})
+
+const brandRules: FormRules = {
+  system_name: [
+    { required: true, message: '请输入系统名称', trigger: 'blur' },
+    { max: 50, message: '系统名称最长 50 个字符', trigger: 'blur' },
+  ],
+}
+
+const loadBrandConfig = async () => {
+  try {
+    const res = await getBrandConfig()
+    const config = res.data.data
+    brandForm.system_name = config.system_name
+    brandForm.system_description = config.system_description
+    brandForm.copyright_text = config.copyright_text
+    brandForm.login_title = config.login_title
+    brandForm.login_description = config.login_description
+    brandForm.logo_url = config.logo_url
+    brandForm.favicon_url = config.favicon_url
+  } catch {
+    // 使用默认值
+  }
+}
+
+const beforeBrandUpload = (file: File) => {
+  const maxSize = 2 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 2MB')
+    return false
+  }
+  return true
+}
+
+const handleBrandUpload = async (options: { file: File }, type: 'logo' | 'favicon') => {
+  const loadingRef = type === 'logo' ? logoUploading : faviconUploading
+  loadingRef.value = true
+  try {
+    const res = await uploadBrandAsset(options.file, type)
+    const url = res.data.data.url
+    if (type === 'logo') {
+      brandForm.logo_url = url
+    } else {
+      brandForm.favicon_url = url
+    }
+    ElMessage.success(`${type === 'logo' ? 'Logo' : 'Favicon'} 上传成功`)
+  } catch {
+    ElMessage.error('上传失败')
+  } finally {
+    loadingRef.value = false
+  }
+}
+
+const removeBrandAsset = (type: 'logo' | 'favicon') => {
+  if (type === 'logo') {
+    brandForm.logo_url = ''
+  } else {
+    brandForm.favicon_url = ''
+  }
+}
+
+const handleSaveBrandConfig = async () => {
+  if (!brandFormRef.value) return
+
+  await brandFormRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    brandLoading.value = true
+    try {
+      await updateBrandConfig({
+        system_name: brandForm.system_name,
+        system_description: brandForm.system_description,
+        copyright_text: brandForm.copyright_text,
+        login_title: brandForm.login_title,
+        login_description: brandForm.login_description,
+      })
+
+      // 如果 logo_url 或 favicon_url 被清除，也需要更新配置
+      if (!brandForm.logo_url) {
+        await updateConfig('brand.logo_url', '')
+      }
+      if (!brandForm.favicon_url) {
+        await updateConfig('brand.favicon_url', '')
+      }
+
+      // 刷新 brand store
+      await brandStore.loadBrandConfig()
+
+      ElMessage.success('品牌设置保存成功')
+    } catch {
+      ElMessage.error('保存失败')
+    } finally {
+      brandLoading.value = false
+    }
+  })
+}
 
 // ============ 通用配置 ============
 const generalFormRef = ref<FormInstance>()
@@ -1081,6 +1376,7 @@ const saveSSOConfig = async () => {
 
 // ============ 初始化 ============
 onMounted(() => {
+  loadBrandConfig()
   loadGeneralConfig()
   loadEmailConfig()
   loadSecurityConfig()
@@ -1442,6 +1738,110 @@ onMounted(() => {
       color: var(--td-text-secondary);
       margin-top: 4px;
       font-style: italic;
+    }
+  }
+}
+
+// 品牌设置
+.upload-area {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: contain;
+  border: 1px solid var(--td-border-color);
+  padding: 2px;
+}
+
+.preview-favicon {
+  width: 24px;
+  height: 24px;
+}
+
+.brand-preview-section {
+  padding: 0 8px;
+}
+
+.brand-preview-card {
+  border: 1px solid var(--td-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.preview-sidebar {
+  background: #1e1e2d;
+  padding: 16px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 12px;
+}
+
+.preview-logo-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.preview-logo-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.preview-menu-item {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 4px;
+
+  &.active {
+    background: rgba(59, 130, 246, 0.2);
+    color: #fff;
+    border-left: 2px solid #3b82f6;
+  }
+}
+
+.preview-copyright {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  word-break: break-all;
+}
+
+.brand-tips {
+  margin-top: 12px;
+
+  p {
+    margin: 0 0 4px;
+    font-size: 13px;
+
+    &:last-child {
+      margin-bottom: 0;
     }
   }
 }

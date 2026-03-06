@@ -4,8 +4,9 @@
     <div class="brand-section">
       <div class="brand-content">
         <div class="brand-logo">
-          <span class="logo-icon">T</span>
-          <span class="logo-text">TicketDesk</span>
+          <img v-if="brandStore.logoUrl" :src="brandStore.logoUrl" :alt="brandStore.systemName" class="logo-custom" />
+          <img v-else src="@/assets/logo.svg" alt="TicketDesk" class="logo-default" />
+          <span class="logo-text">{{ brandStore.systemName }}</span>
         </div>
         <h1 class="brand-title">忘记密码</h1>
         <p class="brand-description">
@@ -13,7 +14,7 @@
         </p>
       </div>
       <div class="brand-footer">
-        <span>&copy; 2026 TicketDesk. All rights reserved.</span>
+        <span>{{ brandStore.copyrightText }}</span>
       </div>
     </div>
 
@@ -77,8 +78,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Message, ArrowLeft } from '@element-plus/icons-vue'
 import { forgotPassword } from '@/api/auth'
+import { useBrandStore } from '@/stores/brand'
 
 const router = useRouter()
+const brandStore = useBrandStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 
@@ -145,16 +148,12 @@ const handleSubmit = async () => {
   margin-bottom: 48px;
 }
 
-.logo-icon {
+.logo-default,
+.logo-custom {
   width: 48px;
   height: 48px;
-  background: var(--td-color-primary);
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
+  object-fit: contain;
 }
 
 .logo-text {

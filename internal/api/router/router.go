@@ -162,6 +162,9 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	)
 	attachmentHdl := issueHandler.NewAttachmentHandler(attachmentSvc)
 
+	// 注入 LocalStorage 到 ConfigHandler（品牌资源上传）
+	configHdl.SetLocalStorage(localStorage)
+
 	// ============ 初始化 Workflow 模块 ============
 	workflowRepository := workflowRepo.NewWorkflowRepository(db)
 	nodeRepository := workflowRepo.NewNodeRepository(db)
@@ -537,6 +540,12 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 		auth.POST("/sso/callback", r.ssoHandler.HandleSSOCallback)
 	}
 
+	// 品牌配置（公开接口，登录页需要）
+	rg.GET("/brand", r.configHandler.HandleGetBrandConfig)
+
+	// 品牌资源静态文件服务
+	rg.Static("/brand/assets", "./uploads")
+
 	// 告警 Webhook（无需认证）
 	alerts := rg.Group("/alerts")
 	alerts.Use(middleware.RateLimitMiddleware(middleware.RateLimitConfig{
@@ -889,6 +898,14 @@ func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
 	{
 		sso.GET("", r.configHandler.HandleGetSSOConfig)
 		sso.PUT("", r.configHandler.HandleUpdateSSOConfig)
+	}
+
+	// 品牌配置管理（需要管理员权限）
+	brand := rg.Group("/system/brand")
+	brand.Use(r.rbac.RequireAdmin())
+	{
+		brand.PUT("", r.configHandler.HandleUpdateBrandConfig)
+		brand.POST("/upload", r.configHandler.HandleUploadBrandAsset)
 	}
 
 	// Webhook 管理（需要管理员权限）

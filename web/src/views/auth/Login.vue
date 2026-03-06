@@ -4,14 +4,12 @@
     <div class="brand-section">
       <div class="brand-content">
         <div class="brand-logo">
-          <span class="logo-icon">T</span>
-          <span class="logo-text">TicketDesk</span>
+          <img v-if="brandStore.logoUrl" :src="brandStore.logoUrl" :alt="brandStore.systemName" class="logo-custom" />
+          <img v-else src="@/assets/logo.svg" alt="TicketDesk" class="logo-default" />
+          <span class="logo-text">{{ brandStore.systemName }}</span>
         </div>
-        <h1 class="brand-title">工单与告警联动系统</h1>
-        <p class="brand-description">
-          一切问题都是工单，一切告警都必须被跟进。<br />
-          为运维与技术团队打造的项目化工单管理平台。
-        </p>
+        <h1 class="brand-title">{{ brandStore.loginTitle }}</h1>
+        <p class="brand-description" v-html="brandDescriptionHtml"></p>
         <div class="feature-list">
           <div class="feature-item stagger" style="--i: 0">
             <el-icon class="feature-icon"><Tickets /></el-icon>
@@ -28,7 +26,7 @@
         </div>
       </div>
       <div class="brand-footer">
-        <span>&copy; 2026 TicketDesk. All rights reserved.</span>
+        <span>{{ brandStore.copyrightText }}</span>
       </div>
     </div>
 
@@ -119,21 +117,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Tickets, Bell, Connection } from '@element-plus/icons-vue'
 import { login, getSSOConfig, getSSOAuthorizeURL, type SSOConfigResponse } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
+import { useBrandStore } from '@/stores/brand'
 
 const router = useRouter()
 const userStore = useUserStore()
+const brandStore = useBrandStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const rememberMe = ref(false)
 const ssoConfig = ref<SSOConfigResponse | null>(null)
 const ssoLoading = ref(false)
 const shaking = ref(false)
+
+const brandDescriptionHtml = computed(() => {
+  return brandStore.loginDescription.replace(/\n/g, '<br />')
+})
 
 const form = reactive({
   username: '',
@@ -234,16 +238,12 @@ onMounted(async () => {
   margin-bottom: 48px;
 }
 
-.logo-icon {
+.logo-default,
+.logo-custom {
   width: 48px;
   height: 48px;
-  background: var(--td-color-primary);
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
+  object-fit: contain;
 }
 
 .logo-text {

@@ -7,8 +7,9 @@
     <el-container v-else class="main-layout">
       <el-aside width="220px" class="sidebar">
         <div class="logo">
-          <span class="logo-icon">T</span>
-          <span class="logo-text">TicketDesk</span>
+          <img v-if="brandStore.logoUrl" :src="brandStore.logoUrl" :alt="brandStore.systemName" class="logo-custom" />
+          <img v-else src="@/assets/logo.svg" alt="TicketDesk" class="logo-default" />
+          <span class="logo-text">{{ brandStore.systemName }}</span>
         </div>
         <el-menu
           :default-active="activeMenu"
@@ -120,6 +121,9 @@
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
+        <div class="sidebar-footer">
+          <span class="copyright-text">{{ brandStore.copyrightText }}</span>
+        </div>
       </el-aside>
       <el-container class="main-container">
         <el-header class="header">
@@ -174,6 +178,7 @@ import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, Switch
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import { useThemeStore } from '@/stores/theme'
+import { useBrandStore } from '@/stores/brand'
 import NotificationBell from '@/components/NotificationBell.vue'
 
 const route = useRoute()
@@ -181,6 +186,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const notificationStore = useNotificationStore()
 const themeStore = useThemeStore()
+const brandStore = useBrandStore()
 
 // 登录后连接 WebSocket
 onMounted(() => {
@@ -263,6 +269,8 @@ const handleMenuSelect = (index: string) => {
   border-right: 1px solid var(--td-sidebar-border);
   z-index: 100;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .logo {
@@ -274,17 +282,12 @@ const handleMenuSelect = (index: string) => {
   border-bottom: 1px solid var(--td-sidebar-border);
 }
 
-.logo-icon {
+.logo-default,
+.logo-custom {
   width: 36px;
   height: 36px;
-  background: var(--td-color-primary);
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--td-text-white);
+  object-fit: contain;
 }
 
 .logo-text {
@@ -296,6 +299,8 @@ const handleMenuSelect = (index: string) => {
 .sidebar-menu {
   border-right: none;
   padding: 12px 8px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .sidebar-menu .el-menu-item {
@@ -358,6 +363,19 @@ const handleMenuSelect = (index: string) => {
   line-height: 40px;
   padding-left: 52px !important;
   min-width: auto;
+}
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--td-sidebar-border);
+  margin-top: auto;
+}
+
+.copyright-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 .main-container {

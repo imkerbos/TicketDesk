@@ -3,7 +3,10 @@ package handler
 
 import (
 	"errors"
+	"fmt"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,6 +15,7 @@ import (
 	"github.com/kerbos/ticketdesk/internal/notification/telegram"
 	"github.com/kerbos/ticketdesk/internal/system-config/dto"
 	"github.com/kerbos/ticketdesk/internal/system-config/service"
+	"github.com/kerbos/ticketdesk/pkg/storage"
 )
 
 // ConfigHandler 系统配置处理器
@@ -19,6 +23,7 @@ type ConfigHandler struct {
 	configService   service.ConfigService
 	larkService     lark.LarkService
 	telegramService telegram.TelegramService
+	localStorage    *storage.LocalStorage
 }
 
 // NewConfigHandler 创建系统配置处理器
@@ -34,6 +39,11 @@ func (h *ConfigHandler) SetLarkService(larkService lark.LarkService) {
 // SetTelegramService 设置 Telegram 服务（用于测试发送）
 func (h *ConfigHandler) SetTelegramService(telegramService telegram.TelegramService) {
 	h.telegramService = telegramService
+}
+
+// SetLocalStorage 设置本地存储（用于品牌资源上传）
+func (h *ConfigHandler) SetLocalStorage(ls *storage.LocalStorage) {
+	h.localStorage = ls
 }
 
 // publicConfigWhitelist 允许普通用户读取的配置 key 白名单
@@ -493,4 +503,109 @@ func (h *ConfigHandler) HandleUpdateSSOConfig(c *gin.Context) {
 	}
 
 	response.Success(c, nil)
+}
+
+// ============ 品牌配置 ============
+
+// HandleGetBrandConfig 获取品牌配置（公开接口）
+func (h *ConfigHandler) HandleGetBrandConfig(c *gin.Context) {
+	config, err := h.configService.GetBrandConfig(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, config)
+}
+
+// HandleUpdateBrandConfig 更新品牌配置
+func (h *ConfigHandler) HandleUpdateBrandConfig(c *gin.Context) {
+	var req dto.UpdateBrandConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	userID := c.GetUint64("user_id")
+	if err := h.configService.UpdateBrandConfig(c.Request.Context(), &req, userID); err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// brandAssetAllowedExts 品牌资源允许的文件扩展名
+var brandAssetAllowedExts = map[string]bool{
+	".svg":  true,
+	".png":  true,
+	".ico":  true,
+	".jpg":  true,
+	".jpeg": true,
+	".webp": true,
+}
+
+// HandleUploadBrandAsset 上传品牌资源（Logo/Favicon）
+func (h *ConfigHandler) HandleUploadBrandAsset(c *gin.Context) {
+	if h.localStorage == nil {
+		response.InternalError(c, "文件存储服务未初始化")
+		return
+	}
+
+	assetType := c.PostForm("type")
+	if assetType != "logo" && assetType != "favicon" {
+		response.BadRequest(c, "类型参数错误，仅支持 logo 或 favicon")
+		return
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "请选择文件上传")
+		return
+	}
+
+	// 检查文件大小（2MB）
+	if file.Size > 2*1024*1024 {
+		response.BadRequest(c, "文件大小不能超过 2MB")
+		return
+	}
+
+	// 检查文件扩展名
+	ext := filepath.Ext(file.Filename)
+	if !brandAssetAllowedExts[ext] {
+		response.BadRequest(c, "不支持的文件格式，仅支持 SVG、PNG、ICO、JPG、WEBP")
+		return
+	}
+
+	// 生成唯一文件名
+	filename := fmt.Sprintf("brand/%s_%d%s", assetType, time.Now().UnixMilli(), ext)
+
+	src, err := file.Open()
+	if err != nil {
+		response.InternalError(c, "打开文件失败")
+		return
+	}
+	defer src.Close()
+
+	relPath, err := h.localStorage.SaveTo(src, filename)
+	if err != nil {
+		response.InternalError(c, "保存文件失败: "+err.Error())
+		return
+	}
+
+	// 构建访问 URL
+	assetURL := "/api/v1/brand/assets/" + relPath
+
+	// 更新对应的配置键
+	userID := c.GetUint64("user_id")
+	configKey := service.KeyBrandLogoURL
+	if assetType == "favicon" {
+		configKey = service.KeyBrandFaviconURL
+	}
+	if err := h.configService.UpdateConfig(c.Request.Context(), configKey, assetURL, userID); err != nil {
+		response.InternalError(c, "更新配置失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"url": assetURL})
 }

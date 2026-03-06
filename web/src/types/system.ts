@@ -174,3 +174,25 @@ export interface UpdateSSOConfigRequest {
   default_role: string
   claim_mappings: SSOClaimMapping[]
 }
+
+// ============ 品牌配置 ============
+
+// 品牌配置
+export interface BrandConfig {
+  system_name: string
+  system_description: string
+  copyright_text: string
+  logo_url: string
+  favicon_url: string
+  login_title: string
+  login_description: string
+}
+
+// 更新品牌配置请求
+export interface UpdateBrandConfigRequest {
+  system_name: string
+  system_description: string
+  copyright_text: string
+  login_title: string
+  login_description: string
+}

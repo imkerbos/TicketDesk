@@ -269,3 +269,25 @@ type UpdateSSOConfigRequest struct {
 	DefaultRole    string            `json:"default_role"`
 	ClaimMappings  []SSOClaimMapping `json:"claim_mappings"`
 }
+
+// ============ 品牌配置 DTO ============
+
+// BrandConfig 品牌配置
+type BrandConfig struct {
+	SystemName        string `json:"system_name"`
+	SystemDescription string `json:"system_description"`
+	CopyrightText     string `json:"copyright_text"`
+	LogoURL           string `json:"logo_url"`
+	FaviconURL        string `json:"favicon_url"`
+	LoginTitle        string `json:"login_title"`
+	LoginDescription  string `json:"login_description"`
+}
+
+// UpdateBrandConfigRequest 更新品牌配置请求
+type UpdateBrandConfigRequest struct {
+	SystemName        string `json:"system_name" binding:"required,max=50"`
+	SystemDescription string `json:"system_description" binding:"max=200"`
+	CopyrightText     string `json:"copyright_text" binding:"max=200"`
+	LoginTitle        string `json:"login_title" binding:"max=100"`
+	LoginDescription  string `json:"login_description" binding:"max=500"`
+}
