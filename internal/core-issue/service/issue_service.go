@@ -420,7 +420,7 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 	}
 	_ = s.watcherRepo.Create(ctx, watcher)
 
-	// 记录活动日志
+	// 获取报告人信息（用于通知）
 	reporter, _ := s.userRepo.GetByID(ctx, reporterID)
 	reporterName := ""
 	if reporter != nil {
@@ -428,7 +428,6 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		if reporterName == "" {
 			reporterName = reporter.Username
 		}
-		s.logActivity(ctx, reporterID, reporter.Username, "创建了工单", issue.IssueKey, "", issue.ID)
 	}
 
 	// 通知：工单被指派

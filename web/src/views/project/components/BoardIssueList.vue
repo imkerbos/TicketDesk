@@ -2,17 +2,24 @@
   <div class="board-issue-list">
     <!-- 列表头部 -->
     <div class="list-header">
-      <span class="list-title">工单列表 <span class="list-count">({{ total }})</span></span>
-      <el-button type="primary" size="small" :icon="Plus" @click="$emit('create')">创建</el-button>
+      <div class="header-left">
+        <span class="list-title">工单</span>
+        <span class="list-count">{{ total }}</span>
+      </div>
+      <el-button type="primary" size="small" @click="$emit('create')" class="create-btn">
+        <el-icon><Plus /></el-icon>
+        创建
+      </el-button>
     </div>
 
     <!-- 筛选区 -->
     <div class="list-filters">
       <el-input
         v-model="keyword"
-        placeholder="搜索工单标题"
+        placeholder="搜索标题或编号..."
         clearable
         size="small"
+        class="search-input"
         @clear="handleSearch"
         @keyup.enter="handleSearch"
       >
@@ -27,7 +34,9 @@
           size="small"
           multiple
           collapse-tags
+          collapse-tags-tooltip
           clearable
+          class="filter-select"
           @change="handleSearch"
         >
           <el-option label="待处理" value="open" />
@@ -43,12 +52,13 @@
           placeholder="优先级"
           size="small"
           clearable
+          class="filter-select"
           @change="handleSearch"
         >
-          <el-option label="P0" value="P0" />
-          <el-option label="P1" value="P1" />
-          <el-option label="P2" value="P2" />
-          <el-option label="P3" value="P3" />
+          <el-option label="P0 - 紧急" value="P0" />
+          <el-option label="P1 - 高" value="P1" />
+          <el-option label="P2 - 中" value="P2" />
+          <el-option label="P3 - 低" value="P3" />
         </el-select>
       </div>
     </div>
@@ -56,7 +66,7 @@
     <!-- 工单卡片列表 -->
     <div v-loading="loading" class="issue-cards">
       <div v-if="issueList.length === 0 && !loading" class="empty-state">
-        <el-empty description="暂无工单" :image-size="60" />
+        <el-empty description="暂无匹配的工单" :image-size="60" />
       </div>
       <div
         v-for="item in issueList"
@@ -66,31 +76,34 @@
         @click="$emit('select', item.issue_key)"
       >
         <div class="card-top">
-          <span class="issue-key">{{ item.issue_key }}</span>
-          <el-tag :type="getPriorityType(item.priority)" size="small" effect="dark">{{ item.priority }}</el-tag>
-        </div>
-        <div class="card-title">{{ item.title }}</div>
-        <div class="card-bottom">
-          <div class="assignee-info">
-            <div v-if="item.assignee" class="mini-avatar">{{ item.assignee.display_name?.charAt(0) || '?' }}</div>
-            <div v-else class="mini-avatar unassigned">?</div>
-            <span class="assignee-name">{{ item.assignee?.display_name || '未分配' }}</span>
+          <div class="key-group">
+            <span class="priority-bar" :class="item.priority"></span>
+            <a class="issue-key-link" @click.prevent.stop="router.push(`/issues/${item.issue_key}`)">{{ item.issue_key }}</a>
           </div>
           <div class="status-badge" :class="item.status">
             <span class="status-dot"></span>
             <span>{{ getStatusText(item.status) }}</span>
           </div>
         </div>
+        <a class="card-title-link" @click.prevent.stop="router.push(`/issues/${item.issue_key}`)">{{ item.title }}</a>
+        <div class="card-bottom">
+          <div class="assignee-info">
+            <div v-if="item.assignee" class="mini-avatar">{{ item.assignee.display_name?.charAt(0) || '?' }}</div>
+            <div v-else class="mini-avatar unassigned">?</div>
+            <span class="assignee-name">{{ item.assignee?.display_name || '未分配' }}</span>
+          </div>
+          <span class="issue-type" v-if="item.issue_type">{{ item.issue_type.display_name }}</span>
+        </div>
       </div>
     </div>
 
     <!-- 简洁分页 -->
     <div v-if="totalPages > 1" class="list-pagination">
-      <el-button size="small" :disabled="page <= 1" @click="changePage(page - 1)">
+      <el-button text size="small" :disabled="page <= 1" @click="changePage(page - 1)">
         <el-icon><ArrowLeft /></el-icon>
       </el-button>
       <span class="page-info">{{ page }} / {{ totalPages }}</span>
-      <el-button size="small" :disabled="page >= totalPages" @click="changePage(page + 1)">
+      <el-button text size="small" :disabled="page >= totalPages" @click="changePage(page + 1)">
         <el-icon><ArrowRight /></el-icon>
       </el-button>
     </div>
@@ -99,9 +112,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Plus, Search, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getIssueList } from '@/api/issue'
 import type { Issue } from '@/types/issue'
+
+const router = useRouter()
 
 const props = defineProps<{
   projectKey: string
@@ -166,12 +182,6 @@ const changePage = (p: number) => {
   loadIssues()
 }
 
-type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
-const getPriorityType = (priority: string): TagType => {
-  const map: Record<string, TagType> = { P0: 'danger', P1: 'warning', P2: 'info', P3: 'success' }
-  return map[priority] || 'info'
-}
-
 const getStatusText = (status: string) => {
   const map: Record<string, string> = {
     open: '待处理', in_progress: '进行中', pending_review: '待确认',
@@ -198,89 +208,174 @@ onMounted(() => {
   background: #fff;
 }
 
+// ---- 头部 ----
 .list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 14px 16px;
+  flex-shrink: 0;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
   .list-title {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: #1f2937;
   }
 
   .list-count {
-    font-weight: 400;
-    color: #9ca3af;
-    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #f0f0f0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+  }
+
+  .create-btn {
+    border-radius: 6px;
   }
 }
 
+// ---- 筛选区 ----
 .list-filters {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 0 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
+
+  .search-input {
+    :deep(.el-input__wrapper) {
+      border-radius: 8px;
+      box-shadow: 0 0 0 1px #e5e7eb;
+
+      &:focus-within {
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+      }
+    }
+  }
 
   .filter-row {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 
-    .el-select {
+    .filter-select {
       flex: 1;
     }
   }
 }
 
+// ---- 工单卡片列表 ----
 .issue-cards {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 4px 8px;
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+
+    &:hover {
+      background: #9ca3af;
+    }
+  }
 }
 
 .issue-card {
-  padding: 12px;
-  margin-bottom: 4px;
+  padding: 10px 12px;
+  margin-bottom: 2px;
   border-radius: 8px;
-  border: 1px solid transparent;
   cursor: pointer;
+  border: 1px solid transparent;
   transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  position: relative;
 
   &:hover {
     background: #f9fafb;
+    border-color: #e5e7eb;
   }
 
   &.selected {
     background: #eff6ff;
-    border-left: 3px solid #3b82f6;
-    padding-left: 9px;
+    border-color: #bfdbfe;
+    box-shadow: inset 3px 0 0 #3b82f6;
   }
 
   .card-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
-  .issue-key {
+  .key-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .priority-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+
+    &.P0 { background: #ef4444; }
+    &.P1 { background: #f59e0b; }
+    &.P2 { background: #3b82f6; }
+    &.P3 { background: #10b981; }
+  }
+
+  .issue-key-link {
     font-size: 12px;
     font-weight: 600;
     color: #6b7280;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    transition: color 150ms ease-out;
+
+    &:hover {
+      color: #3b82f6;
+      text-decoration: underline;
+    }
   }
 
-  .card-title {
-    font-size: 14px;
-    color: #1f2937;
-    line-height: 1.5;
-    margin-bottom: 8px;
+  .card-title-link {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    word-break: break-all;
+    font-size: 13px;
+    color: #1f2937;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    text-decoration: none;
+    transition: color 150ms ease-out;
+
+    &:hover {
+      color: #3b82f6;
+    }
   }
 
   .card-bottom {
@@ -296,9 +391,9 @@ onMounted(() => {
   }
 
   .mini-avatar {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
     background: #3b82f6;
     color: #fff;
     display: flex;
@@ -310,27 +405,42 @@ onMounted(() => {
 
     &.unassigned {
       background: #d1d5db;
+      color: #fff;
     }
   }
 
   .assignee-name {
     font-size: 12px;
-    color: #6b7280;
+    color: #9ca3af;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .issue-type {
+    font-size: 11px;
+    color: #9ca3af;
+    background: #f3f4f6;
+    padding: 1px 6px;
+    border-radius: 4px;
   }
 }
 
+// ---- 状态徽章 ----
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 1px 7px;
   border-radius: 10px;
   font-weight: 500;
+  white-space: nowrap;
 
   .status-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
   }
 
@@ -343,21 +453,25 @@ onMounted(() => {
   &.merged { background: #ede9fe; color: #5b21b6; .status-dot { background: #8b5cf6; } }
 }
 
+// ---- 空状态 & 分页 ----
 .empty-state {
-  padding: 40px 0;
+  padding: 48px 0;
 }
 
 .list-pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-top: 1px solid #e5e7eb;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid #f0f0f0;
+  flex-shrink: 0;
 
   .page-info {
-    font-size: 13px;
-    color: #6b7280;
+    font-size: 12px;
+    color: #9ca3af;
+    min-width: 48px;
+    text-align: center;
   }
 }
 

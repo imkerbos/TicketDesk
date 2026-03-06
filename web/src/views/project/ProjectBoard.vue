@@ -3,35 +3,36 @@
     <!-- 页面头部 -->
     <div class="board-header">
       <div class="header-left">
-        <el-breadcrumb separator="/">
-          <el-breadcrumb-item :to="{ path: '/projects' }">项目列表</el-breadcrumb-item>
-          <el-breadcrumb-item :to="{ path: `/projects/${projectKey}` }">{{ project?.name || projectKey }}</el-breadcrumb-item>
-          <el-breadcrumb-item>工单看板</el-breadcrumb-item>
-        </el-breadcrumb>
+        <div class="project-identity">
+          <div class="project-icon" :style="{ background: getProjectColor(projectKey) }">
+            {{ projectKey.substring(0, 2).toUpperCase() }}
+          </div>
+          <div class="project-info">
+            <el-breadcrumb separator="/" class="header-breadcrumb">
+              <el-breadcrumb-item :to="{ path: '/projects' }">项目</el-breadcrumb-item>
+              <el-breadcrumb-item>{{ project?.name || projectKey }}</el-breadcrumb-item>
+            </el-breadcrumb>
+            <h2 class="project-title">工单看板</h2>
+          </div>
+        </div>
       </div>
       <div class="project-nav">
-        <router-link
-          :to="`/projects/${projectKey}`"
-          class="nav-item"
-        >
+        <router-link :to="`/projects/${projectKey}`" class="nav-item">
+          <el-icon><DataAnalysis /></el-icon>
           概览
         </router-link>
-        <router-link
-          :to="`/projects/${projectKey}/board`"
-          class="nav-item active"
-        >
+        <router-link :to="`/projects/${projectKey}/board`" class="nav-item active">
+          <el-icon><Grid /></el-icon>
           看板
         </router-link>
-        <router-link
-          :to="`/projects/${projectKey}/settings`"
-          class="nav-item"
-        >
+        <router-link :to="`/projects/${projectKey}/settings`" class="nav-item">
+          <el-icon><Setting /></el-icon>
           设置
         </router-link>
       </div>
     </div>
 
-    <!-- 分屏主体 -->
+    <!-- 分���主体 -->
     <div class="board-body">
       <!-- 左侧工单列表 -->
       <div class="board-left">
@@ -54,7 +55,13 @@
           :on-deleted="handleDeleted"
         />
         <div v-else class="empty-detail">
-          <el-empty description="请从左侧选择工单" :image-size="120" />
+          <div class="empty-inner">
+            <div class="empty-icon">
+              <el-icon :size="48"><Tickets /></el-icon>
+            </div>
+            <p class="empty-text">从左侧列表选择一个工单</p>
+            <p class="empty-hint">或者创建一个新工单开始工作</p>
+          </div>
         </div>
       </div>
     </div>
@@ -117,7 +124,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Check } from '@element-plus/icons-vue'
+import { Check, DataAnalysis, Grid, Setting, Tickets } from '@element-plus/icons-vue'
 import BoardIssueList from './components/BoardIssueList.vue'
 import IssueDetail from '@/views/issue/IssueDetail.vue'
 import { getProjectDetail, getProjectIssueTypes } from '@/api/project'
@@ -243,6 +250,13 @@ const submitCreate = async () => {
   })
 }
 
+const projectColors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+const getProjectColor = (key: string) => {
+  let hash = 0
+  for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash)
+  return projectColors[Math.abs(hash) % projectColors.length]
+}
+
 // 浏览器前进/后退
 watch(
   () => route.params.issueKey,
@@ -269,27 +283,83 @@ onMounted(() => {
   background: #f5f7fa;
 }
 
+// ---- 头部 ----
 .board-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 0 24px;
+  height: 56px;
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
 }
 
+.project-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.project-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.header-breadcrumb {
+  :deep(.el-breadcrumb__inner) {
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  :deep(.el-breadcrumb__separator) {
+    font-size: 12px;
+    color: #d1d5db;
+  }
+}
+
+.project-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.2;
+}
+
 .project-nav {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
 
   .nav-item {
-    padding: 6px 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 13px;
     color: #6b7280;
     text-decoration: none;
     transition: background-color 150ms ease-out, color 150ms ease-out;
+
+    .el-icon {
+      font-size: 14px;
+    }
 
     &:hover {
       background: #f3f4f6;
@@ -305,6 +375,7 @@ onMounted(() => {
   }
 }
 
+// ---- 分屏主体 ----
 .board-body {
   display: flex;
   flex: 1;
@@ -312,24 +383,56 @@ onMounted(() => {
 }
 
 .board-left {
-  width: 380px;
-  min-width: 380px;
+  width: 360px;
+  min-width: 360px;
   border-right: 1px solid #e5e7eb;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .board-right {
   flex: 1;
   overflow-y: auto;
-  background: #f5f7fa;
+  background: #fafbfc;
 }
 
+// ---- 空状态 ----
 .empty-detail {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100%;
-  background: #fff;
+  background: #fafbfc;
+}
+
+.empty-inner {
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: #f0f5ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #93b5f6;
+}
+
+.empty-text {
+  font-size: 15px;
+  color: #374151;
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

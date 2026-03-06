@@ -1,29 +1,39 @@
 <template>
   <div class="project-overview-container">
-    <!-- 页面头部 -->
-    <div class="overview-header">
-      <div class="header-info">
-        <div class="project-icon" :style="{ background: getProjectColor(projectKey) }">
-          {{ projectKey.substring(0, 2).toUpperCase() }}
-        </div>
-        <div class="header-text">
-          <h1 class="project-name">{{ project?.name || projectKey }}</h1>
-          <div class="project-meta">
-            <span class="project-key">{{ projectKey }}</span>
-            <span v-if="project?.description" class="project-desc">{{ project.description }}</span>
+    <!-- 页面头部（头部+导航一体化） -->
+    <div class="overview-hero">
+      <div class="hero-top">
+        <div class="header-info">
+          <div class="project-icon" :style="{ background: getProjectColor(projectKey) }">
+            {{ projectKey.substring(0, 2).toUpperCase() }}
+          </div>
+          <div class="header-text">
+            <div class="project-name-row">
+              <h1 class="project-name">{{ project?.name || projectKey }}</h1>
+              <span class="project-key-badge">{{ projectKey }}</span>
+            </div>
+            <p v-if="project?.description" class="project-desc">{{ project.description }}</p>
+            <p v-else class="project-desc muted">暂无描述</p>
           </div>
         </div>
+        <router-link :to="`/projects/${projectKey}/settings`" class="settings-link">
+          <el-button :icon="Setting" size="small" class="settings-btn">设置</el-button>
+        </router-link>
       </div>
-      <router-link :to="`/projects/${projectKey}/settings`" class="settings-link">
-        <el-button :icon="Setting" size="small">设置</el-button>
-      </router-link>
-    </div>
-
-    <!-- 导航 Tab -->
-    <div class="overview-nav">
-      <router-link :to="`/projects/${projectKey}`" class="nav-item active">概览</router-link>
-      <router-link :to="`/projects/${projectKey}/board`" class="nav-item">看板</router-link>
-      <router-link :to="`/projects/${projectKey}/settings`" class="nav-item">设置</router-link>
+      <div class="hero-nav">
+        <router-link :to="`/projects/${projectKey}`" class="nav-item active">
+          <el-icon><DataAnalysis /></el-icon>
+          概览
+        </router-link>
+        <router-link :to="`/projects/${projectKey}/board`" class="nav-item">
+          <el-icon><Grid /></el-icon>
+          看板
+        </router-link>
+        <router-link :to="`/projects/${projectKey}/settings`" class="nav-item">
+          <el-icon><Setting /></el-icon>
+          设置
+        </router-link>
+      </div>
     </div>
 
     <div v-loading="loading" class="overview-content">
@@ -156,7 +166,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Tickets, User, Setting, ArrowRight, View, CircleCheck, Loading } from '@element-plus/icons-vue'
+import { Tickets, User, Setting, ArrowRight, View, CircleCheck, Loading, DataAnalysis, Grid } from '@element-plus/icons-vue'
 import { getProjectDetail, getProjectMembers } from '@/api/project'
 import { getIssueList } from '@/api/issue'
 import type { Project, ProjectMember } from '@/types/project'
@@ -249,80 +259,108 @@ onMounted(() => {
   width: 100%;
 }
 
-.overview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
+// ---- 一体化头部 ----
+.overview-hero {
   background: #fff;
   border-radius: 12px;
-  margin-bottom: 0;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
 
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
+.hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px 28px 16px;
+}
 
-  .project-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 700;
-    font-size: 18px;
-    flex-shrink: 0;
-  }
+.header-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
 
-  .project-name {
-    font-size: 22px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 4px 0;
-  }
+.project-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
 
-  .project-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 13px;
-    color: #6b7280;
-  }
+.project-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
 
-  .project-key {
-    font-weight: 500;
-    color: #3b82f6;
-    background: #eff6ff;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
+.project-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.project-key-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #eff6ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+
+.project-desc {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+
+  &.muted {
+    color: #d1d5db;
+    font-style: italic;
   }
 }
 
 .settings-link {
   text-decoration: none;
+  flex-shrink: 0;
 }
 
-.overview-nav {
+.settings-btn {
+  border-radius: 6px;
+}
+
+.hero-nav {
   display: flex;
-  gap: 4px;
-  padding: 12px 32px;
-  background: #fff;
-  border-radius: 0 0 12px 12px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  gap: 2px;
+  padding: 0 28px 12px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
 
   .nav-item {
-    padding: 6px 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 13px;
     color: #6b7280;
     text-decoration: none;
     transition: background-color 150ms ease-out, color 150ms ease-out;
+
+    .el-icon {
+      font-size: 14px;
+    }
 
     &:hover {
       background: #f3f4f6;

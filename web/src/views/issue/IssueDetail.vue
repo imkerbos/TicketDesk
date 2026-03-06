@@ -11,6 +11,12 @@
               <el-breadcrumb-item>{{ issue.issue_key }}</el-breadcrumb-item>
             </el-breadcrumb>
           </div>
+          <div v-if="embedded" class="embedded-key-row">
+            <a class="embedded-key-link" @click.prevent="router.push(`/issues/${issue.issue_key}`)">
+              {{ issue.issue_key }}
+              <el-icon class="open-icon"><TopRight /></el-icon>
+            </a>
+          </div>
           <h1 class="issue-title">{{ issue.title }}</h1>
           <div class="issue-meta">
             <div v-if="issue.issue_type" class="type-badge">
@@ -1111,7 +1117,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   User, Clock, Edit, ArrowDown, ArrowUp, ArrowRight, Plus, Document, Bell,
-  ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion, QuestionFilled, Timer
+  ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion, QuestionFilled, Timer, TopRight
 } from '@element-plus/icons-vue'
 import {
   getIssueDetail, updateIssue, deleteIssue, createIssue,
@@ -2564,19 +2570,66 @@ const showWorkflowDiagram = async () => {
   width: 100%;
 
   &.is-embedded {
-    padding: 0;
+    padding: 16px 20px;
+    background: #fafbfc;
 
     .issue-header {
       margin-bottom: 16px;
       padding: 20px 24px;
-      border-radius: 0;
+      border-radius: 10px;
       box-shadow: none;
-      border-bottom: 1px solid #e5e7eb;
+      border: 1px solid #e5e7eb;
+    }
+
+    .embedded-key-row {
+      margin-bottom: 6px;
+    }
+
+    .embedded-key-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #3b82f6;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 150ms ease-out;
+
+      .open-icon {
+        font-size: 12px;
+      }
+
+      &:hover {
+        color: #2563eb;
+        text-decoration: underline;
+      }
     }
 
     .issue-title {
-      font-size: 20px;
-      margin-bottom: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .header-actions {
+      flex-shrink: 0;
+    }
+
+    .content-card,
+    .info-card {
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      box-shadow: none;
+    }
+
+    :deep(.el-row) {
+      .el-col {
+        .content-card,
+        .info-card {
+          border-radius: 10px;
+        }
+      }
     }
   }
 }
