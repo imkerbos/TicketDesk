@@ -71,6 +71,8 @@ tmp/
 
 # Lint
 .golangci.yml
+.gocache/
+.golangci-cache/
 
 # Plan
 .plan.md
@@ -79,3 +81,4 @@ plan.md
 # AI 开发规范文档
 Claude.md
 CLAUDE.md
+TEAM_CONVENTIONS.md
