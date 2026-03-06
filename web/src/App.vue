@@ -203,8 +203,8 @@ const activeMenu = computed(() => {
   if (path.startsWith('/alerts/') && path !== '/alerts') {
     return '/alerts'
   }
-  // 项目角色页面高亮项目列表
-  if (path.startsWith('/projects/') && path.includes('/roles')) {
+  // 项目子页面（概览、看板、设置、角色）高亮项目列表
+  if (path.startsWith('/projects/')) {
     return '/projects'
   }
   // 工作流设计器页面高亮工作流管理

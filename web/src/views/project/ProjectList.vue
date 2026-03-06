@@ -285,7 +285,7 @@ const loadUsers = async () => {
 const handleSearch = () => { page.value = 1; loadProjects() }
 
 const handleViewProject = (project: Project) => {
-  router.push(`/issues?project_key=${project.project_key}`)
+  router.push(`/projects/${project.project_key}`)
 }
 
 const handleCreate = () => {

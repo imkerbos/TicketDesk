@@ -66,6 +66,24 @@ const router = createRouter({
       meta: { title: '项目管理' },
     },
     {
+      path: '/projects/:key',
+      name: 'ProjectOverview',
+      component: () => import('@/views/project/ProjectOverview.vue'),
+      meta: { title: '项目概览' },
+    },
+    {
+      path: '/projects/:key/board',
+      name: 'ProjectBoard',
+      component: () => import('@/views/project/ProjectBoard.vue'),
+      meta: { title: '项目看板' },
+    },
+    {
+      path: '/projects/:key/board/:issueKey',
+      name: 'ProjectBoardIssue',
+      component: () => import('@/views/project/ProjectBoard.vue'),
+      meta: { title: '项目看板' },
+    },
+    {
       path: '/projects/:key/settings',
       name: 'ProjectSettings',
       component: () => import('@/views/project/ProjectSettings.vue'),

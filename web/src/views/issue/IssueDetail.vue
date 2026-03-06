@@ -1,10 +1,10 @@
 <template>
-  <div v-loading="loading" class="issue-detail-container">
+  <div v-loading="loading" class="issue-detail-container" :class="{ 'is-embedded': embedded }">
     <template v-if="issue">
       <!-- 头部信息 -->
       <div class="issue-header">
         <div class="header-left">
-          <div class="issue-breadcrumb">
+          <div v-if="!embedded" class="issue-breadcrumb">
             <el-breadcrumb separator="/">
               <el-breadcrumb-item :to="{ path: '/issues' }">工单列表</el-breadcrumb-item>
               <el-breadcrumb-item :to="{ path: '/issues?project_key=' + issue.project_key }">{{ issue.project_key }}</el-breadcrumb-item>
@@ -646,20 +646,20 @@
             <div class="info-list">
               <div v-if="issue.parent_key" class="info-item">
                 <span class="info-label">父工单</span>
-                <el-link type="primary" @click="$router.push(`/issues/${issue.parent_key}`)">
+                <el-link type="primary" @click="navigateToIssue(issue.parent_key!)">
                   {{ issue.parent_key }}
                 </el-link>
               </div>
               <div v-if="issue.epic_key" class="info-item">
                 <span class="info-label">Epic</span>
-                <el-link type="primary" @click="$router.push(`/issues/${issue.epic_key}`)">
+                <el-link type="primary" @click="navigateToIssue(issue.epic_key!)">
                   <el-icon><Link /></el-icon>
                   {{ issue.epic_key }}{{ issue.epic_title ? ' - ' + issue.epic_title : '' }}
                 </el-link>
               </div>
               <div v-if="issue.merged_into_issue_key" class="info-item">
                 <span class="info-label">已合并到</span>
-                <el-link type="primary" @click="$router.push(`/issues/${issue.merged_into_issue_key}`)">
+                <el-link type="primary" @click="navigateToIssue(issue.merged_into_issue_key!)">
                   <el-icon><Link /></el-icon>
                   {{ issue.merged_into_issue_key }}
                 </el-link>
@@ -668,13 +668,13 @@
                 <span class="info-label">合并来源</span>
                 <div class="merged-from-links">
                   <el-link
-                    v-for="key in issue.merged_from_issue_keys"
-                    :key="key"
+                    v-for="mKey in issue.merged_from_issue_keys"
+                    :key="mKey"
                     type="primary"
-                    @click="$router.push(`/issues/${key}`)"
+                    @click="navigateToIssue(mKey)"
                     style="margin-right: 8px;"
                   >
-                    {{ key }}
+                    {{ mKey }}
                   </el-link>
                 </div>
               </div>
@@ -704,7 +704,7 @@
               </div>
               <div class="info-item">
                 <span class="info-label">项目</span>
-                <el-link type="primary" @click="$router.push(`/issues?project_key=${issue.project_key}`)">
+                <el-link type="primary" @click="embedded ? router.push(`/projects/${issue.project_key}`) : router.push(`/issues?project_key=${issue.project_key}`)">
                   {{ issue.project_key }}
                 </el-link>
               </div>
@@ -790,6 +790,41 @@
               <div v-if="issue.actual_end_date" class="info-item">
                 <span class="info-label">实际完成</span>
                 <span>{{ formatTime(issue.actual_end_date) }}</span>
+              </div>
+            </div>
+          </el-card>
+
+          <!-- 时间跟踪 -->
+          <el-card v-if="showTimeTracking" shadow="never" class="info-card">
+            <template #header>
+              <div class="card-header-group">
+                <div class="card-icon time">
+                  <el-icon><Timer /></el-icon>
+                </div>
+                <span class="card-title">时间跟踪</span>
+              </div>
+            </template>
+            <div class="info-list">
+              <div v-if="estimatedTimeSec > 0" class="time-progress-wrap">
+                <el-progress
+                  :percentage="timeProgress"
+                  :color="remainingTimeSec < 0 ? '#ef4444' : '#3b82f6'"
+                  :stroke-width="10"
+                />
+              </div>
+              <div v-if="estimatedTimeSec > 0" class="info-item">
+                <span class="info-label">预估时间</span>
+                <span>{{ formatTimeSpent(estimatedTimeSec) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">已用时间</span>
+                <span>{{ formatTimeSpent(totalTimeSpent) }}</span>
+              </div>
+              <div v-if="estimatedTimeSec > 0" class="info-item">
+                <span class="info-label">剩余时间</span>
+                <span :style="{ color: remainingTimeSec < 0 ? '#ef4444' : undefined }">
+                  {{ remainingTimeSec < 0 ? '已超出 ' + formatTimeSpent(Math.abs(remainingTimeSec)) : formatTimeSpent(remainingTimeSec) }}
+                </span>
               </div>
             </div>
           </el-card>
@@ -1076,7 +1111,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   User, Clock, Edit, ArrowDown, ArrowUp, ArrowRight, Plus, Document, Bell,
-  ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion, QuestionFilled
+  ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion, QuestionFilled, Timer
 } from '@element-plus/icons-vue'
 import {
   getIssueDetail, updateIssue, deleteIssue, createIssue,
@@ -1105,6 +1140,17 @@ import FieldRenderer from '@/components/field/FieldRenderer.vue'
 import { isBuiltinField } from '@/types/field'
 import { extractBuiltinFields, backfillBuiltinFields } from '@/utils/builtin-fields'
 import dayjs from 'dayjs'
+
+interface Props {
+  embedded?: boolean
+  issueKey?: string
+  onNavigateIssue?: (key: string) => void
+  onDeleted?: () => void
+}
+const props = withDefaults(defineProps<Props>(), {
+  embedded: false,
+  issueKey: '',
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -1179,7 +1225,7 @@ const editFieldScheme = ref<FieldSchemeItem[]>([])
 const editFieldValues = ref<Record<number, any>>({})
 
 const loadIssue = async () => {
-  const key = route.params.key as string
+  const key = props.embedded ? props.issueKey : (route.params.key as string)
   if (!key) return
   loading.value = true
   try {
@@ -1204,6 +1250,15 @@ const loadIssue = async () => {
     ElMessage.error('加载工单失败')
   } finally {
     loading.value = false
+  }
+}
+
+// embedded 模式下的工单内部导航
+const navigateToIssue = (key: string) => {
+  if (props.embedded && props.onNavigateIssue) {
+    props.onNavigateIssue(key)
+  } else {
+    router.push(`/issues/${key}`)
   }
 }
 
@@ -1733,7 +1788,11 @@ const handleDelete = async () => {
     )
     await deleteIssue(issue.value.issue_key)
     ElMessage.success('工单已删除')
-    router.push('/issues')
+    if (props.embedded && props.onDeleted) {
+      props.onDeleted()
+    } else {
+      router.push('/issues')
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to delete issue:', error)
@@ -2092,6 +2151,27 @@ const totalTimeSpent = computed(() => {
   return worklogs.value.reduce((sum, w) => sum + w.time_spent_sec, 0)
 })
 
+// 时间跟踪
+const estimatedTimeSec = computed(() => {
+  const field = customFields.value.find(f => f.field_type === 'time_estimate')
+  if (!field || !field.value) return 0
+  return Number(field.value) || 0
+})
+
+const remainingTimeSec = computed(() => {
+  if (estimatedTimeSec.value <= 0) return 0
+  return estimatedTimeSec.value - totalTimeSpent.value
+})
+
+const timeProgress = computed(() => {
+  if (estimatedTimeSec.value <= 0) return 0
+  return Math.min(Math.round((totalTimeSpent.value / estimatedTimeSec.value) * 100), 100)
+})
+
+const showTimeTracking = computed(() => {
+  return totalTimeSpent.value > 0
+})
+
 const canEditWorklog = (worklog: Worklog) => {
   return worklog.user_id === userStore.user?.id
 }
@@ -2265,12 +2345,15 @@ onMounted(() => {
   loadWorkTypeOptions()
 })
 
-// 监听路由参数变化，当切换到不同的 Issue 时重新加载数据
-watch(() => route.params.key, (newKey, oldKey) => {
-  if (newKey && newKey !== oldKey) {
-    loadIssue()
+// 监听路由参数或 props 变化，当切换到不同的 Issue 时重新加载数据
+watch(
+  () => props.embedded ? props.issueKey : route.params.key,
+  (newKey, oldKey) => {
+    if (newKey && newKey !== oldKey) {
+      loadIssue()
+    }
   }
-})
+)
 
 // ============ 工作流流程图 ============
 
@@ -2479,6 +2562,23 @@ const showWorkflowDiagram = async () => {
 <style scoped lang="scss">
 .issue-detail-container {
   width: 100%;
+
+  &.is-embedded {
+    padding: 0;
+
+    .issue-header {
+      margin-bottom: 16px;
+      padding: 20px 24px;
+      border-radius: 0;
+      box-shadow: none;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .issue-title {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+  }
 }
 
 // 头部
@@ -2623,6 +2723,7 @@ const showWorkflowDiagram = async () => {
   &.attachment { background: #f59e0b; }
   &.workflow { background: #8b5cf6; }
   &.alert { background: #ef4444; }
+  &.time { background: #3b82f6; }
 }
 
 .card-title { font-size: 15px; font-weight: 600; color: #1f2937; }
@@ -2792,6 +2893,11 @@ const showWorkflowDiagram = async () => {
     .activity-old-value { text-decoration: line-through; color: #f56c6c; margin: 0 4px; }
     .activity-new-value { color: #67c23a; margin: 0 4px; }
   }
+}
+
+// 时间跟踪进度条
+.time-progress-wrap {
+  padding: 12px 20px 4px;
 }
 
 // 右侧信息
