@@ -1066,6 +1066,12 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 	_ = e.db.WithContext(ctx).Select("id, issue_key, title, project_id, priority, status, assignee_id, due_date").
 		Where("id = ?", issueID).First(&oldIssue).Error
 	oldStatus := oldIssue.Status
+
+	// 状态未变化时无需更新、通知和记录日志
+	if oldStatus == targetStatus {
+		return
+	}
+
 	oldStatusName := statusNames[oldStatus]
 	if oldStatusName == "" {
 		oldStatusName = oldStatus
