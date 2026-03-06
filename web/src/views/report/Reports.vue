@@ -121,7 +121,7 @@
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
-                    <span class="card-dot" style="background: #667eea"></span>
+                    <span class="card-dot" style="background: #3b82f6"></span>
                     <span class="card-title">工单类型分布</span>
                   </div>
                 </template>
@@ -533,7 +533,7 @@ const route = useRoute()
 const router = useRouter()
 
 // 多色调色板
-const typeColors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a']
+const typeColors = ['#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f43f5e']
 const assigneeColors = ['#8b5cf6', '#6366f1', '#a78bfa', '#7c3aed', '#c084fc', '#818cf8']
 const epicColors = ['#f59e0b', '#f97316', '#fbbf24', '#fb923c', '#d97706', '#ea580c']
 

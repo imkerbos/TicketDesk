@@ -337,7 +337,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   border-radius: 12px;
   color: #fff;
 
@@ -431,19 +431,19 @@ onMounted(() => {
   justify-content: center;
   font-size: 24px;
   color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
 
   &.admin {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
   }
   &.dev {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #3b82f6;
   }
   &.test {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
   }
   &.view {
-    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    background: #6b7280;
   }
 }
 
@@ -519,7 +519,7 @@ onMounted(() => {
     width: 36px;
     height: 36px;
     border-radius: 8px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #3b82f6;
     color: #fff;
     display: flex;
     align-items: center;

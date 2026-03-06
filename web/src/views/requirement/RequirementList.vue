@@ -1033,7 +1033,7 @@ onMounted(async () => {
 <style scoped lang="scss">
 .requirement-list {
   padding: 24px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+  background: #f5f7fa;
   min-height: 100vh;
 
   .page-header {
@@ -1042,9 +1042,9 @@ onMounted(async () => {
     align-items: center;
     margin-bottom: 24px;
     padding: 20px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #3b82f6;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 
     h1 {
       margin: 0;
@@ -1073,12 +1073,12 @@ onMounted(async () => {
 
         &.el-button--primary {
           background: rgba(255, 255, 255, 0.95);
-          color: #667eea;
+          color: #3b82f6;
           font-weight: 500;
 
           &:hover {
             background: #fff;
-            color: #764ba2;
+            color: #2563eb;
           }
         }
       }
@@ -1105,13 +1105,13 @@ onMounted(async () => {
     }
 
     :deep(.el-button--primary) {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       border: none;
       transition: all 0.3s ease;
 
       &:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
       }
     }
   }
@@ -1130,7 +1130,7 @@ onMounted(async () => {
       border-radius: 12px;
 
       th {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: #f8f9fa;
         color: #495057;
         font-weight: 600;
         font-size: 14px;
@@ -1147,20 +1147,20 @@ onMounted(async () => {
         &:hover {
           background: #f8f9ff !important;
           transform: scale(1.005);
-          box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
         }
       }
     }
 
     .link {
-      color: #667eea;
+      color: #3b82f6;
       text-decoration: none;
       font-weight: 500;
       font-size: 15px;
       transition: all 0.3s ease;
 
       &:hover {
-        color: #764ba2;
+        color: #2563eb;
         text-decoration: underline;
       }
     }
@@ -1175,7 +1175,7 @@ onMounted(async () => {
         border-radius: 6px;
         padding: 2px 10px;
         font-size: 12px;
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        background: #dbeafe;
         color: #1976d2;
         border: none;
         font-weight: 500;
@@ -1190,10 +1190,10 @@ onMounted(async () => {
     }
 
     :deep(.el-button--primary) {
-      color: #667eea;
+      color: #3b82f6;
 
       &:hover {
-        color: #764ba2;
+        color: #2563eb;
         background: #f0f3ff;
       }
     }
@@ -1232,7 +1232,7 @@ onMounted(async () => {
 
     .el-dialog__header {
       padding: 20px 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       border-radius: 12px 12px 0 0;
 
       .el-dialog__title {
@@ -1260,14 +1260,14 @@ onMounted(async () => {
       border-top: 1px solid #e9ecef;
 
       .el-button--primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3b82f6;
         border: none;
         padding: 10px 24px;
         transition: all 0.3s ease;
 
         &:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
       }
     }

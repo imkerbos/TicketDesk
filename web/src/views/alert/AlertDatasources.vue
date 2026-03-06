@@ -455,7 +455,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 28px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   border-radius: 16px;
   color: #fff;
 }
@@ -546,11 +546,11 @@ onMounted(() => {
 }
 
 .bar-prometheus {
-  background: linear-gradient(90deg, #e74c3c 0%, #f39c12 100%);
+  background: #ef4444;
 }
 
 .bar-nightingale {
-  background: linear-gradient(90deg, #f59e0b 0%, #10b981 100%);
+  background: #10b981;
 }
 
 .card-body {

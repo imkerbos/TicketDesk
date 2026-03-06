@@ -201,7 +201,7 @@ onMounted(() => {
   flex-direction: column;
   justify-content: space-between;
   padding: 48px;
-  background: linear-gradient(135deg, #1e1e2d 0%, #2d2d44 100%);
+  background: #1e1e2d;
   color: #fff;
 }
 
@@ -219,7 +219,7 @@ onMounted(() => {
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #3b82f6;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -344,7 +344,7 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   border-radius: 8px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #3b82f6;
   border: none;
   transition: all 0.3s;
 }

@@ -676,7 +676,7 @@ onMounted(async () => {
   font-size: 20px;
   color: #fff;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
 
   &.small {
     width: 32px;
@@ -685,15 +685,15 @@ onMounted(async () => {
     border-radius: 8px;
   }
 
-  &.text, &.textarea { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-  &.number { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-  &.date { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-  &.select, &.multiselect { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
-  &.user { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
-  &.version, &.label { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
-  &.component { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
-  &.epic { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
-  &.time { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
+  &.text, &.textarea { background: #3b82f6; }
+  &.number { background: #10b981; }
+  &.date { background: #f59e0b; }
+  &.select, &.multiselect { background: #8b5cf6; }
+  &.user { background: #ec4899; }
+  &.version, &.label { background: #06b6d4; }
+  &.component { background: #6b7280; }
+  &.epic { background: #f97316; }
+  &.time { background: #14b8a6; }
 }
 
 .field-info {

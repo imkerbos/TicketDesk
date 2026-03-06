@@ -378,7 +378,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .requirement-pool-list {
   padding: 24px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+  background: #f5f7fa;
   min-height: 100vh;
 
   .page-header {
@@ -387,9 +387,9 @@ onMounted(() => {
     align-items: center;
     margin-bottom: 24px;
     padding: 20px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #3b82f6;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 
     h1 {
       margin: 0;
@@ -434,13 +434,13 @@ onMounted(() => {
     }
 
     :deep(.el-button--primary) {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       border: none;
       transition: all 0.3s ease;
 
       &:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
       }
     }
   }
@@ -459,7 +459,7 @@ onMounted(() => {
       border-radius: 12px;
 
       th {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: #f8f9fa;
         color: #495057;
         font-weight: 600;
         font-size: 14px;
@@ -476,19 +476,19 @@ onMounted(() => {
         &:hover {
           background: #f8f9ff !important;
           transform: scale(1.01);
-          box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
         }
       }
     }
 
     .link {
-      color: #667eea;
+      color: #3b82f6;
       text-decoration: none;
       font-weight: 500;
       transition: all 0.3s ease;
 
       &:hover {
-        color: #764ba2;
+        color: #2563eb;
         text-decoration: underline;
       }
     }
@@ -501,10 +501,10 @@ onMounted(() => {
     }
 
     :deep(.el-button--primary) {
-      color: #667eea;
+      color: #3b82f6;
 
       &:hover {
-        color: #764ba2;
+        color: #2563eb;
         background: #f0f3ff;
       }
     }
@@ -534,7 +534,7 @@ onMounted(() => {
 
     .el-dialog__header {
       padding: 20px 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       border-radius: 12px 12px 0 0;
 
       .el-dialog__title {
@@ -562,14 +562,14 @@ onMounted(() => {
       border-top: 1px solid #e9ecef;
 
       .el-button--primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3b82f6;
         border: none;
         padding: 10px 24px;
         transition: all 0.3s ease;
 
         &:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
       }
     }

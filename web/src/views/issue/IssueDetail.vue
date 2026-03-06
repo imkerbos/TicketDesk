@@ -2845,13 +2845,13 @@ const showWorkflowDiagram = async () => {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          color: #667eea;
+          color: #3b82f6;
           text-decoration: none;
           font-weight: 500;
           transition: all 0.2s;
 
           &:hover {
-            color: #764ba2;
+            color: #2563eb;
             text-decoration: underline;
           }
 
@@ -3389,8 +3389,8 @@ const showWorkflowDiagram = async () => {
 
       &:hover {
         background: #f9fafb;
-        border-color: #667eea;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        border-color: #3b82f6;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
         transform: translateY(-1px);
       }
 
@@ -3438,11 +3438,11 @@ const showWorkflowDiagram = async () => {
           .issue-key {
             font-size: 13px;
             font-weight: 600;
-            color: #667eea;
+            color: #3b82f6;
             transition: all 0.2s;
 
             &:hover {
-              color: #5568d3;
+              color: #2563eb;
               text-decoration: underline;
             }
           }

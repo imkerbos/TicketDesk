@@ -261,13 +261,13 @@ const getIconName = (type: string): string => {
 
 const getIconBg = (type: string): string => {
   const map: Record<string, string> = {
-    issue_assigned: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-    issue_status_changed: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-    issue_commented: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    mention: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-    issue_updated: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+    issue_assigned: '#3b82f6',
+    issue_status_changed: '#f59e0b',
+    issue_commented: '#10b981',
+    mention: '#8b5cf6',
+    issue_updated: '#6366f1',
   }
-  return map[type] || 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
+  return map[type] || '#9ca3af'
 }
 
 const formatTime = (dateStr: string): string => {
@@ -309,7 +309,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   border-radius: 12px;
   color: #fff;
 

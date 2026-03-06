@@ -1012,7 +1012,7 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 24px;
   padding: 28px 32px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #3b82f6;
   border-radius: 16px;
   color: #fff;
 
@@ -1289,18 +1289,18 @@ onMounted(async () => {
     border-radius: 8px;
   }
 
-  &.type-text      { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-  &.type-textarea   { background: linear-gradient(135deg, #6366f1, #4f46e5); }
-  &.type-number     { background: linear-gradient(135deg, #f59e0b, #d97706); }
-  &.type-date       { background: linear-gradient(135deg, #10b981, #059669); }
-  &.type-select     { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
-  &.type-multiselect { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
-  &.type-user       { background: linear-gradient(135deg, #ec4899, #db2777); }
-  &.type-version    { background: linear-gradient(135deg, #06b6d4, #0891b2); }
-  &.type-component  { background: linear-gradient(135deg, #14b8a6, #0d9488); }
-  &.type-label      { background: linear-gradient(135deg, #f97316, #ea580c); }
-  &.type-epic       { background: linear-gradient(135deg, #6366f1, #4f46e5); }
-  &.type-time       { background: linear-gradient(135deg, #64748b, #475569); }
+  &.type-text      { background: #3b82f6; }
+  &.type-textarea   { background: #6366f1; }
+  &.type-number     { background: #f59e0b; }
+  &.type-date       { background: #10b981; }
+  &.type-select     { background: #8b5cf6; }
+  &.type-multiselect { background: #a78bfa; }
+  &.type-user       { background: #ec4899; }
+  &.type-version    { background: #06b6d4; }
+  &.type-component  { background: #14b8a6; }
+  &.type-label      { background: #f97316; }
+  &.type-epic       { background: #6366f1; }
+  &.type-time       { background: #64748b; }
 }
 
 // ============ 字段类型标签 ============
@@ -1416,7 +1416,7 @@ onMounted(async () => {
 .template-icon {
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, #ede9fe, #e0e7ff);
+  background: #eef2ff;
   color: #6d28d9;
   border-radius: 12px;
   display: flex;

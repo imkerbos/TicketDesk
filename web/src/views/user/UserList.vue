@@ -680,7 +680,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   border-radius: 12px;
   color: #fff;
 
@@ -772,41 +772,41 @@ onMounted(() => {
 
   &.total {
     .stat-icon {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       color: #fff;
     }
     .stat-value {
-      color: #667eea;
+      color: #3b82f6;
     }
   }
 
   &.active {
     .stat-icon {
-      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      background: #10b981;
       color: #fff;
     }
     .stat-value {
-      color: #11998e;
+      color: #10b981;
     }
   }
 
   &.admin {
     .stat-icon {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      background: #ef4444;
       color: #fff;
     }
     .stat-value {
-      color: #f5576c;
+      color: #ef4444;
     }
   }
 
   &.disabled {
     .stat-icon {
-      background: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 100%);
+      background: #6b7280;
       color: #fff;
     }
     .stat-value {
-      color: #95a5a6;
+      color: #6b7280;
     }
   }
 }
@@ -853,11 +853,11 @@ onMounted(() => {
     font-size: 16px;
 
     &.admin {
-      color: #f5576c;
+      color: #ef4444;
     }
 
     &.user {
-      color: #667eea;
+      color: #3b82f6;
     }
   }
 }
@@ -923,11 +923,11 @@ onMounted(() => {
     flex-shrink: 0;
 
     &.admin {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      background: #ef4444;
     }
 
     &.user {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
     }
   }
 
@@ -1086,7 +1086,7 @@ onMounted(() => {
     }
 
     &.is-checked {
-      border-color: #667eea;
+      border-color: #3b82f6;
       background: #f8f7ff;
     }
 
@@ -1116,12 +1116,12 @@ onMounted(() => {
     font-size: 20px;
 
     &.user {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       color: #fff;
     }
 
     &.admin {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      background: #ef4444;
       color: #fff;
     }
   }
@@ -1154,7 +1154,7 @@ onMounted(() => {
       width: 64px;
       height: 64px;
       margin: 0 auto 16px;
-      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      background: #f59e0b;
       border-radius: 16px;
       display: flex;
       align-items: center;

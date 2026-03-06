@@ -664,8 +664,8 @@ const loadLabelKeys = async () => {
 
   &.total {
     .stat-icon-wrapper { background: #3b82f6; }
-    .stat-value { color: #667eea; }
-    &.active { border-color: #667eea; }
+    .stat-value { color: #3b82f6; }
+    &.active { border-color: #3b82f6; }
   }
   &.firing {
     .stat-icon-wrapper { background: #ef4444; }
@@ -850,7 +850,7 @@ const loadLabelKeys = async () => {
   .group-total {
     font-size: 36px;
     font-weight: 700;
-    color: #667eea;
+    color: #3b82f6;
     margin-bottom: 12px;
   }
 

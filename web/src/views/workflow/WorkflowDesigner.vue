@@ -709,7 +709,7 @@ onMounted(() => {
 
     .title-icon {
       font-size: 20px;
-      color: #667eea;
+      color: #3b82f6;
     }
 
     .title-text {

@@ -1982,7 +1982,7 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   border-radius: 12px;
   color: #fff;
 
@@ -2062,13 +2062,13 @@ onMounted(async () => {
     font-size: 14px;
 
     &.is-active {
-      color: #667eea;
+      color: #3b82f6;
       font-weight: 600;
     }
   }
 
   :deep(.el-tabs__active-bar) {
-    background-color: #667eea;
+    background-color: #3b82f6;
     height: 3px;
   }
 
@@ -2228,7 +2228,7 @@ onMounted(async () => {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: #fff;
   display: flex;
   align-items: center;
@@ -2238,13 +2238,13 @@ onMounted(async () => {
   flex-shrink: 0;
 
   &.owner {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
   }
   &.admin {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #3b82f6;
   }
   &.member {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
   }
 }
 
@@ -2273,7 +2273,7 @@ onMounted(async () => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: #fff;
   display: flex;
   align-items: center;
@@ -2326,20 +2326,20 @@ onMounted(async () => {
     bottom: 16px;
     width: 3px;
     border-radius: 0 3px 3px 0;
-    background: #667eea;
+    background: #3b82f6;
   }
 
   &.admin::before {
-    background: linear-gradient(180deg, #f59e0b, #d97706);
+    background: #f59e0b;
   }
   &.dev::before {
-    background: linear-gradient(180deg, #3b82f6, #2563eb);
+    background: #3b82f6;
   }
   &.test::before {
-    background: linear-gradient(180deg, #10b981, #059669);
+    background: #10b981;
   }
   &.view::before {
-    background: linear-gradient(180deg, #6b7280, #4b5563);
+    background: #6b7280;
   }
 }
 
@@ -2358,20 +2358,20 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   flex-shrink: 0;
 
   &.admin {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
   }
   &.dev {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #3b82f6;
   }
   &.test {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
   }
   &.view {
-    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    background: #6b7280;
   }
 }
 
@@ -2549,7 +2549,7 @@ onMounted(async () => {
     width: 36px;
     height: 36px;
     border-radius: 8px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #3b82f6;
     color: #fff;
     display: flex;
     align-items: center;
@@ -2643,7 +2643,7 @@ onMounted(async () => {
   height: 36px;
   min-width: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: #fff;
   display: flex;
   align-items: center;
@@ -2708,14 +2708,14 @@ onMounted(async () => {
   transition: all 0.2s;
 
   &:hover {
-    border-color: #667eea;
+    border-color: #3b82f6;
     background: #f5f7ff;
   }
 
   &.active {
-    border-color: #667eea;
+    border-color: #3b82f6;
     background: #f5f7ff;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
   .icon-label {
@@ -2777,7 +2777,7 @@ onMounted(async () => {
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 12px;
   margin-bottom: 24px;
@@ -2786,7 +2786,7 @@ onMounted(async () => {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
     color: #fff;
     display: flex;
     align-items: center;
@@ -2888,11 +2888,11 @@ onMounted(async () => {
   font-weight: 700;
 
   &.lark {
-    background: linear-gradient(135deg, #3370ff 0%, #2b5fd9 100%);
+    background: #3370ff;
   }
 
   &.telegram {
-    background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+    background: #2aabee;
   }
 }
 
@@ -2991,11 +2991,11 @@ onMounted(async () => {
     width: 96px;
     height: 96px;
     border-radius: 24px;
-    background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);
+    background: #eef2ff;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #667eea;
+    color: #3b82f6;
   }
 
   .empty-decorations {
@@ -3095,9 +3095,9 @@ onMounted(async () => {
   }
 
   &.active {
-    border-color: #667eea;
+    border-color: #3b82f6;
     background: #f5f7ff;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
   }
 
   &.disabled {
@@ -3118,11 +3118,11 @@ onMounted(async () => {
     flex-shrink: 0;
 
     &.lark {
-      background: linear-gradient(135deg, #3370ff 0%, #2b5fd9 100%);
+      background: #3370ff;
     }
 
     &.telegram {
-      background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+      background: #2aabee;
     }
   }
 
@@ -3148,7 +3148,7 @@ onMounted(async () => {
     position: absolute;
     top: 8px;
     right: 8px;
-    color: #667eea;
+    color: #3b82f6;
     font-size: 18px;
   }
 }
@@ -3180,11 +3180,11 @@ onMounted(async () => {
     font-weight: 700;
 
     &.lark {
-      background: linear-gradient(135deg, #3370ff 0%, #2b5fd9 100%);
+      background: #3370ff;
     }
 
     &.telegram {
-      background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+      background: #2aabee;
     }
   }
 }
@@ -3303,7 +3303,7 @@ onMounted(async () => {
   .scheme-workflow-name {
     font-size: 14px;
     font-weight: 500;
-    color: #667eea;
+    color: #3b82f6;
   }
 }
 
@@ -3338,7 +3338,7 @@ onMounted(async () => {
   flex-shrink: 0;
 
   &.workflow {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    background: #8b5cf6;
   }
 }
 

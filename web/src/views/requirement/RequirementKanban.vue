@@ -595,7 +595,7 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+  background: #f5f7fa;
   min-height: 100vh;
 
   .page-header {
@@ -604,9 +604,9 @@ onMounted(() => {
     align-items: center;
     margin-bottom: 24px;
     padding: 20px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #3b82f6;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 
     h1 {
       margin: 0;
@@ -635,12 +635,12 @@ onMounted(() => {
 
         &.el-button--primary {
           background: rgba(255, 255, 255, 0.95);
-          color: #667eea;
+          color: #3b82f6;
           font-weight: 500;
 
           &:hover {
             background: #fff;
-            color: #764ba2;
+            color: #2563eb;
           }
         }
       }
@@ -694,13 +694,13 @@ onMounted(() => {
         }
 
         &.completed-column {
-          background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+          background: #ecfdf5;
           border: 2px solid #6ee7b7;
         }
 
         .column-header {
           padding: 18px 20px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: #3b82f6;
           color: white;
           border-radius: 12px 12px 0 0;
           display: flex;
@@ -708,14 +708,14 @@ onMounted(() => {
           align-items: center;
           font-weight: 600;
           font-size: 15px;
-          box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 
           &.completed-header {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: #10b981;
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 
             :deep(.el-badge__content) {
-              background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+              background: #10b981;
             }
           }
 
@@ -725,7 +725,7 @@ onMounted(() => {
           }
 
           :deep(.el-badge__content) {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #3b82f6;
             border: none;
             font-weight: 600;
           }
@@ -738,7 +738,7 @@ onMounted(() => {
           background: #fafbfc;
 
           &.completed-content {
-            background: linear-gradient(180deg, #ecfdf5 0%, #f0fdf4 100%);
+            background: #ecfdf5;
           }
 
           .kanban-card {
@@ -752,9 +752,9 @@ onMounted(() => {
             transition: all 0.3s ease;
 
             &:hover {
-              box-shadow: 0 6px 20px rgba(102, 126, 234, 0.2);
+              box-shadow: 0 6px 20px rgba(59, 130, 246, 0.2);
               transform: translateY(-4px);
-              border-color: #667eea;
+              border-color: #3b82f6;
             }
 
             .card-header {
@@ -798,7 +798,7 @@ onMounted(() => {
 
                 .el-icon {
                   font-size: 14px;
-                  color: #667eea;
+                  color: #3b82f6;
                 }
               }
             }
@@ -810,18 +810,18 @@ onMounted(() => {
               font-size: 12px;
               color: #495057;
               padding: 8px;
-              background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+              background: #eef2ff;
               border-radius: 6px;
               margin-bottom: 8px;
 
               .el-icon {
                 font-size: 14px;
-                color: #667eea;
+                color: #3b82f6;
               }
 
               .issue-key {
                 font-weight: 600;
-                color: #667eea;
+                color: #3b82f6;
               }
 
               .el-tag {
@@ -844,7 +844,7 @@ onMounted(() => {
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 font-weight: 500;
-                color: #667eea;
+                color: #3b82f6;
               }
 
               .comment-count {
@@ -889,7 +889,7 @@ onMounted(() => {
 
   .description-content {
     padding: 16px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    background: #f8f9fa;
     border-radius: 8px;
     white-space: pre-wrap;
     line-height: 1.8;
@@ -906,7 +906,7 @@ onMounted(() => {
       border-radius: 6px;
       padding: 6px 14px;
       font-weight: 500;
-      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      background: #dbeafe;
       color: #1976d2;
       border: none;
     }
@@ -919,7 +919,7 @@ onMounted(() => {
       padding: 24px;
       margin-bottom: 0;
       border-bottom: 2px solid #e9ecef;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      background: #f8f9fa;
 
       .el-drawer__title {
         font-size: 18px;
@@ -965,7 +965,7 @@ onMounted(() => {
 
     .el-dialog__header {
       padding: 20px 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       border-radius: 12px 12px 0 0;
 
       .el-dialog__title {
@@ -993,14 +993,14 @@ onMounted(() => {
       border-top: 1px solid #e9ecef;
 
       .el-button--primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3b82f6;
         border: none;
         padding: 10px 24px;
         transition: all 0.3s ease;
 
         &:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
       }
     }

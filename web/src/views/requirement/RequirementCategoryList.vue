@@ -270,7 +270,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   border-radius: 12px;
   color: #fff;
 
@@ -338,8 +338,8 @@ onMounted(() => {
 .name-code {
   font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
   font-size: 13px;
-  color: #667eea;
-  background: #f0f3ff;
+  color: #3b82f6;
+  background: #eff6ff;
   padding: 2px 8px;
   border-radius: 4px;
 }

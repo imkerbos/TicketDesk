@@ -1136,22 +1136,22 @@ onMounted(() => {
     font-size: 24px;
 
     &.email-icon {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #3b82f6;
       color: #fff;
     }
 
     &.general-icon {
-      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      background: #10b981;
       color: #fff;
     }
 
     &.sso-icon {
-      background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+      background: #f59e0b;
       color: #fff;
     }
 
     &.worklog-icon {
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      background: #3b82f6;
       color: #fff;
     }
   }
@@ -1231,7 +1231,7 @@ onMounted(() => {
 }
 
 .info-card {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: #f0f9ff;
   border-radius: 12px;
   padding: 20px;
   border: 1px solid #bae6fd;
@@ -1284,32 +1284,32 @@ onMounted(() => {
       font-size: 22px;
 
       &.mfa-icon {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3b82f6;
         color: #fff;
       }
 
       &.password-icon {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: #ec4899;
         color: #fff;
       }
 
       &.session-icon {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: #3b82f6;
         color: #fff;
       }
 
       &.webhook-rl-icon {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: #ec4899;
         color: #fff;
       }
 
       &.auth-rl-icon {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3b82f6;
         color: #fff;
       }
 
       &.api-rl-icon {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        background: #10b981;
         color: #fff;
       }
     }
@@ -1393,7 +1393,7 @@ onMounted(() => {
 
 // 配置说明面板
 .config-tips {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: #f0f9ff;
   border-radius: 12px;
   padding: 20px;
   border: 1px solid #bae6fd;

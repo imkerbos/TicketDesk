@@ -542,7 +542,7 @@ onMounted(() => {
       cursor: pointer;
 
       .user-avatar {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3b82f6;
         font-size: 36px;
         font-weight: 600;
       }

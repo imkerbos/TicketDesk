@@ -83,7 +83,7 @@ const handleChange = (value: number | undefined) => {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: #fff;
   display: flex;
   align-items: center;
