@@ -7,29 +7,31 @@ import (
 	"fmt"
 	"strings"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/core-project/dto"
 	"github.com/kerbos/ticketdesk/internal/core-project/repository"
 	userRepo "github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
+	"github.com/kerbos/ticketdesk/pkg/sequence"
 )
 
 // 业务错误定义
 var (
-	ErrProjectNotFound       = errors.New("项目不存在")
-	ErrProjectKeyExists      = errors.New("项目 Key 已存在")
-	ErrMemberNotFound        = errors.New("成员不存在")
-	ErrMemberAlreadyExists   = errors.New("成员已存在")
-	ErrCannotRemoveOwner     = errors.New("不能移除项目所有者")
-	ErrIssueTypeNotFound     = errors.New("工单类型不存在")
-	ErrNoPermission          = errors.New("没有操作权限")
-	ErrRoleNotFound          = errors.New("角色不存在")
-	ErrRoleKeyExists         = errors.New("角色 Key 已存在")
+	ErrProjectNotFound        = errors.New("项目不存在")
+	ErrProjectKeyExists       = errors.New("项目 Key 已存在")
+	ErrMemberNotFound         = errors.New("成员不存在")
+	ErrMemberAlreadyExists    = errors.New("成员已存在")
+	ErrCannotRemoveOwner      = errors.New("不能移除项目所有者")
+	ErrIssueTypeNotFound      = errors.New("工单类型不存在")
+	ErrNoPermission           = errors.New("没有操作权限")
+	ErrRoleNotFound           = errors.New("角色不存在")
+	ErrRoleKeyExists          = errors.New("角色 Key 已存在")
 	ErrCannotDeleteSystemRole = errors.New("不能删除系统预置角色")
-	ErrRoleMemberExists      = errors.New("用户已在该角色中")
-	ErrRoleMemberNotFound    = errors.New("角色成员不存在")
+	ErrRoleMemberExists       = errors.New("用户已在该角色中")
+	ErrRoleMemberNotFound     = errors.New("角色成员不存在")
 )
 
 // ProjectService 项目服务接口
@@ -177,8 +179,8 @@ func (s *projectService) CreateProject(ctx context.Context, req *dto.CreateProje
 				RoleID:    adminRole.ID,
 				UserID:    creatorID,
 			}
-			if err := s.roleMemberRepo.Create(ctx, adminMember); err != nil {
-				logger.Warn("failed to add creator to administrators role", zap.Error(err))
+			if createErr := s.roleMemberRepo.Create(ctx, adminMember); createErr != nil {
+				logger.Warn("failed to add creator to administrators role", zap.Error(createErr))
 			}
 		}
 
@@ -285,9 +287,10 @@ func (s *projectService) UpdateProject(ctx context.Context, key string, req *dto
 	return s.toProjectResponse(ctx, project), nil
 }
 
-// DeleteProject 删除项目
+// DeleteProject 硬删除项目及所有关联数据
 func (s *projectService) DeleteProject(ctx context.Context, key string) error {
-	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(key))
+	projectKey := strings.ToUpper(key)
+	project, err := s.projectRepo.GetByKey(ctx, projectKey)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrProjectNotFound
@@ -295,12 +298,148 @@ func (s *projectService) DeleteProject(ctx context.Context, key string) error {
 		return fmt.Errorf("查询项目失败: %w", err)
 	}
 
-	if err := s.projectRepo.Delete(ctx, project.ID); err != nil {
-		logger.Error("failed to delete project", zap.String("key", key), zap.Error(err))
+	projectID := project.ID
+
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. 获取项目下所有工单 ID
+		var issueIDs []uint64
+		if err := tx.Model(&model.Issue{}).Where("project_id = ?", projectID).Pluck("id", &issueIDs).Error; err != nil {
+			return fmt.Errorf("查询工单 ID 失败: %w", err)
+		}
+
+		if len(issueIDs) > 0 {
+			// 2. 删除工单关联数据
+			for _, m := range []struct {
+				model interface{}
+				desc  string
+			}{
+				{&model.IssueComment{}, "评论"},
+				{&model.IssueAttachment{}, "附件"},
+				{&model.IssueWatcher{}, "关注人"},
+				{&model.IssueFieldValue{}, "字段值"},
+				{&model.IssueWorklog{}, "工作日志"},
+			} {
+				if err := tx.Unscoped().Where("issue_id IN ?", issueIDs).Delete(m.model).Error; err != nil {
+					return fmt.Errorf("删除工单%s失败: %w", m.desc, err)
+				}
+			}
+
+			// 3. 删除工作流实例及关联
+			var instanceIDs []uint64
+			if err := tx.Model(&model.WorkflowInstance{}).Where("issue_id IN ?", issueIDs).Pluck("id", &instanceIDs).Error; err != nil {
+				return fmt.Errorf("查询工作流实例失败: %w", err)
+			}
+			if len(instanceIDs) > 0 {
+				if err := tx.Unscoped().Where("instance_id IN ?", instanceIDs).Delete(&model.WorkflowHistory{}).Error; err != nil {
+					return fmt.Errorf("删除工作流历史失败: %w", err)
+				}
+				if err := tx.Unscoped().Where("instance_id IN ?", instanceIDs).Delete(&model.ApprovalRecord{}).Error; err != nil {
+					return fmt.Errorf("删除审批记录失败: %w", err)
+				}
+				if err := tx.Unscoped().Where("id IN ?", instanceIDs).Delete(&model.WorkflowInstance{}).Error; err != nil {
+					return fmt.Errorf("删除工作流实例失败: %w", err)
+				}
+			}
+
+			// 4. 删除关联告警
+			if err := tx.Unscoped().Where("issue_id IN ?", issueIDs).Delete(&model.Alert{}).Error; err != nil {
+				return fmt.Errorf("删除关联告警失败: %w", err)
+			}
+
+			// 5. 删除通知和活动日志
+			if err := tx.Unscoped().Where("entity_type = ? AND entity_id IN ?", "issue", issueIDs).Delete(&model.Notification{}).Error; err != nil {
+				return fmt.Errorf("删除通知失败: %w", err)
+			}
+			if err := tx.Unscoped().Where("entity_type = ? AND entity_id IN ?", "issue", issueIDs).Delete(&model.ActivityLog{}).Error; err != nil {
+				return fmt.Errorf("删除活动日志失败: %w", err)
+			}
+
+			// 6. 删除工单
+			if err := tx.Unscoped().Where("id IN ?", issueIDs).Delete(&model.Issue{}).Error; err != nil {
+				return fmt.Errorf("删除工单失败: %w", err)
+			}
+		}
+
+		// 7. 删除项目级数据：工单类型、字段方案、字段定义
+		if err := tx.Unscoped().Where("project_id = ?", projectID).Delete(&model.IssueTypeFieldScheme{}).Error; err != nil {
+			return fmt.Errorf("删除字段方案失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("project_id = ?", projectID).Delete(&model.FieldDefinition{}).Error; err != nil {
+			return fmt.Errorf("删除字段定义失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("project_id = ?", projectID).Delete(&model.IssueType{}).Error; err != nil {
+			return fmt.Errorf("删除工单类型失败: %w", err)
+		}
+
+		// 8. 删除工作流及关联
+		var workflowIDs []uint64
+		if err := tx.Model(&model.Workflow{}).Where("project_id = ?", projectID).Pluck("id", &workflowIDs).Error; err != nil {
+			return fmt.Errorf("查询工作流失败: %w", err)
+		}
+		if len(workflowIDs) > 0 {
+			if err := tx.Unscoped().Where("workflow_id IN ?", workflowIDs).Delete(&model.WorkflowNode{}).Error; err != nil {
+				return fmt.Errorf("删除工作流节点失败: %w", err)
+			}
+			if err := tx.Unscoped().Where("workflow_id IN ?", workflowIDs).Delete(&model.WorkflowEdge{}).Error; err != nil {
+				return fmt.Errorf("删除工作流边失败: %w", err)
+			}
+			if err := tx.Unscoped().Where("id IN ?", workflowIDs).Delete(&model.Workflow{}).Error; err != nil {
+				return fmt.Errorf("删除工作流失败: %w", err)
+			}
+		}
+		if err := tx.Unscoped().Where("project_id = ?", projectID).Delete(&model.WorkflowScheme{}).Error; err != nil {
+			return fmt.Errorf("删除工作流方案失败: %w", err)
+		}
+
+		// 9. 删除角色及关联
+		var roleIDs []uint64
+		if err := tx.Model(&model.ProjectRole{}).Where("project_id = ?", projectID).Pluck("id", &roleIDs).Error; err != nil {
+			return fmt.Errorf("查询角色失败: %w", err)
+		}
+		if len(roleIDs) > 0 {
+			if err := tx.Unscoped().Where("role_id IN ?", roleIDs).Delete(&model.ProjectRoleMember{}).Error; err != nil {
+				return fmt.Errorf("删除角色成员失败: %w", err)
+			}
+			if err := tx.Unscoped().Where("role_id IN ?", roleIDs).Delete(&model.ProjectRolePermission{}).Error; err != nil {
+				return fmt.Errorf("删除角色权限失败: %w", err)
+			}
+			if err := tx.Unscoped().Where("id IN ?", roleIDs).Delete(&model.ProjectRole{}).Error; err != nil {
+				return fmt.Errorf("删除角色失败: %w", err)
+			}
+		}
+
+		// 10. 删除其他项目级数据
+		for _, m := range []struct {
+			model interface{}
+			desc  string
+		}{
+			{&model.ProjectMember{}, "项目成员"},
+			{&model.ProjectVersion{}, "项目版本"},
+			{&model.ProjectComponent{}, "项目组件"},
+			{&model.IssueLabel{}, "工单标签"},
+			{&model.ProjectNotificationChannel{}, "通知渠道"},
+			{&model.AlertRule{}, "告警规则"},
+		} {
+			if err := tx.Unscoped().Where("project_id = ?", projectID).Delete(m.model).Error; err != nil {
+				return fmt.Errorf("删除%s失败: %w", m.desc, err)
+			}
+		}
+
+		// 11. 删除项目本身
+		if err := tx.Unscoped().Delete(&model.Project{}, projectID).Error; err != nil {
+			return fmt.Errorf("删除项目失败: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		logger.Error("failed to cascade delete project", zap.String("key", key), zap.Error(err))
 		return fmt.Errorf("删除项目失败: %w", err)
 	}
 
-	logger.Info("project deleted successfully", zap.String("project_key", key))
+	// 清除 Redis 序号缓存
+	sequence.Reset(ctx, projectKey)
+
+	logger.Info("project cascade deleted successfully", zap.String("project_key", key))
 
 	return nil
 }
@@ -470,7 +609,12 @@ func (s *projectService) UpdateMember(ctx context.Context, projectKey string, us
 		// 删除旧角色关联
 		if oldRole != "owner" {
 			if oldRoleObj, err := s.roleRepo.GetByProjectAndKey(ctx, project.ID, oldRole); err == nil {
-				_ = s.roleMemberRepo.DeleteByRoleAndUser(ctx, oldRoleObj.ID, userID)
+				if deleteErr := s.roleMemberRepo.DeleteByRoleAndUser(ctx, oldRoleObj.ID, userID); deleteErr != nil {
+					logger.Error("failed to delete old role member binding",
+						zap.Uint64("user_id", userID),
+						zap.String("old_role", oldRole),
+						zap.Error(deleteErr))
+				}
 			}
 		}
 		// 创建新角色关联
@@ -491,7 +635,13 @@ func (s *projectService) UpdateMember(ctx context.Context, projectKey string, us
 		}
 	}
 
-	user, _ := s.userRepo.GetByID(ctx, userID)
+	user, userErr := s.userRepo.GetByID(ctx, userID)
+	if userErr != nil {
+		logger.Warn("failed to query user while updating member",
+			zap.Uint64("user_id", userID),
+			zap.Error(userErr))
+		user = nil
+	}
 
 	resp := s.toMemberResponse(member, user)
 	resp.RoleName = roleName
@@ -560,7 +710,13 @@ func (s *projectService) ListMembers(ctx context.Context, projectKey string) ([]
 
 	responses := make([]*dto.ProjectMemberResponse, len(members))
 	for i, member := range members {
-		user, _ := s.userRepo.GetByID(ctx, member.UserID)
+		user, userErr := s.userRepo.GetByID(ctx, member.UserID)
+		if userErr != nil {
+			logger.Warn("failed to query user while listing members",
+				zap.Uint64("user_id", member.UserID),
+				zap.Error(userErr))
+			user = nil
+		}
 		resp := s.toMemberResponse(member, user)
 		if name, ok := roleNameMap[member.Role]; ok {
 			resp.RoleName = name
@@ -1052,7 +1208,13 @@ func (s *projectService) ListRoleMembers(ctx context.Context, projectKey string,
 
 	responses := make([]*dto.ProjectRoleMemberResponse, len(members))
 	for i, member := range members {
-		user, _ := s.userRepo.GetByID(ctx, member.UserID)
+		user, userErr := s.userRepo.GetByID(ctx, member.UserID)
+		if userErr != nil {
+			logger.Warn("failed to query user while listing role members",
+				zap.Uint64("user_id", member.UserID),
+				zap.Error(userErr))
+			user = nil
+		}
 		responses[i] = s.toRoleMemberResponse(member, user)
 	}
 

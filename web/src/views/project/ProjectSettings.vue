@@ -489,6 +489,36 @@
             </el-empty>
           </div>
         </el-tab-pane>
+
+        <!-- 危险操作 -->
+        <el-tab-pane name="danger">
+          <template #label>
+            <span class="tab-label danger-tab-label">
+              <el-icon><Warning /></el-icon>
+              危险操作
+            </span>
+          </template>
+          <div class="tab-content danger-content">
+            <div class="danger-card">
+              <div class="danger-card-title">
+                <el-icon><Warning /></el-icon>
+                <span>删除项目</span>
+              </div>
+              <p class="danger-card-desc">
+                删除后将永久清理项目、工单及关联数据，此操作不可恢复。请务必确认当前项目不再使用。
+              </p>
+              <ul class="danger-card-list">
+                <li>项目 Key：{{ basicForm.project_key || projectKey }}</li>
+                <li>相关工单、工作流、角色、成员、通知将一并删除</li>
+                <li>关联的告警记录将一并删除</li>
+              </ul>
+              <el-button type="danger" :loading="dangerDeleting" @click="handleDeleteProject">
+                <el-icon><Delete /></el-icon>
+                删除此项目
+              </el-button>
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -971,6 +1001,7 @@ import {
 import FieldConfigTab from './components/FieldConfigTab.vue'
 import {
   getProjectDetail,
+  deleteProject,
   updateProject,
   getProjectMembers,
   addProjectMember,
@@ -1018,6 +1049,7 @@ const projectKey = computed(() => route.params.key as string)
 const activeTab = ref((route.query.tab as string) || 'basic')
 const loading = ref(false)
 const saveLoading = ref(false)
+const dangerDeleting = ref(false)
 const users = ref<UserOption[]>([])
 
 // 监听 tab 变化，更新 URL
@@ -1571,6 +1603,38 @@ const saveBasicInfo = async () => {
   })
 }
 
+const handleDeleteProject = async () => {
+  const expectedKey = String(basicForm.project_key || projectKey.value || '').trim().toUpperCase()
+  try {
+    const promptResult = await ElMessageBox.prompt(
+      `项目删除后不可恢复。请输入项目 Key "${expectedKey}" 以确认删除。`,
+      '删除项目',
+      {
+        type: 'error',
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        inputPlaceholder: expectedKey,
+        inputValidator: (input) => input.trim().toUpperCase() === expectedKey,
+        inputErrorMessage: `请输入正确的项目 Key：${expectedKey}`,
+      },
+    )
+    const inputValue = typeof promptResult === 'string' ? '' : promptResult.value
+    if (inputValue.trim().toUpperCase() !== expectedKey) return
+
+    dangerDeleting.value = true
+    await deleteProject(projectKey.value)
+    ElMessage.success('项目删除成功')
+    router.push('/projects')
+  } catch (error: any) {
+    if (error !== 'cancel' && error !== 'close') {
+      console.error('Failed to delete project:', error)
+      ElMessage.error(error?.response?.data?.message || '删除项目失败')
+    }
+  } finally {
+    dangerDeleting.value = false
+  }
+}
+
 const submitAddMember = async () => {
   if (selectedUserIds.value.length === 0) return
   addMemberLoading.value = true
@@ -2019,10 +2083,51 @@ onMounted(async () => {
   gap: 6px;
 }
 
+.danger-tab-label {
+  color: #dc2626;
+}
+
 .tab-content {
   padding: 24px;
   min-height: 400px;
   background: #f9fafb;
+}
+
+.danger-content {
+  display: flex;
+  align-items: flex-start;
+}
+
+.danger-card {
+  width: 100%;
+  max-width: 760px;
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 24px;
+
+  .danger-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #b91c1c;
+    margin-bottom: 12px;
+  }
+
+  .danger-card-desc {
+    margin: 0 0 14px 0;
+    color: #7f1d1d;
+    line-height: 1.7;
+  }
+
+  .danger-card-list {
+    margin: 0 0 20px 0;
+    padding-left: 18px;
+    color: #991b1b;
+    line-height: 1.8;
+  }
 }
 
 .basic-form {
