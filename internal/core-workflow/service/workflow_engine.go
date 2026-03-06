@@ -465,7 +465,7 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 		}
 
 		// 联动更新工单状态
-		e.syncIssueStatus(ctx, instance.IssueID, nextNode)
+		e.syncIssueStatus(ctx, instance.IssueID, currentNode, nextNode)
 
 		// 如果目标是结束节点，标记实例完成
 		if nextNode.NodeType == "end" {
@@ -641,7 +641,7 @@ func (e *workflowEngine) moveToNextNode(ctx context.Context, instance *model.Wor
 			if updateErr := e.instanceRepo.Update(ctx, instance); updateErr != nil {
 				return updateErr
 			}
-			e.syncIssueStatus(ctx, instance.IssueID, currentNode)
+			e.syncIssueStatus(ctx, instance.IssueID, nil, currentNode)
 			return nil
 		}
 		return fmt.Errorf("当前节点没有出边")
@@ -713,7 +713,7 @@ func (e *workflowEngine) moveToNextNode(ctx context.Context, instance *model.Wor
 	}
 
 	// 联动更新工单状态
-	e.syncIssueStatus(ctx, instance.IssueID, nextNode)
+	e.syncIssueStatus(ctx, instance.IssueID, currentNode, nextNode)
 
 	// 如果是审批节点，创建审批记录
 	if nextNode.NodeType == "approval" {
@@ -765,6 +765,7 @@ func (e *workflowEngine) moveToNextNodeByCondition(ctx context.Context, instance
 
 	// 更新实例的当前节点
 	fromNodeID := instance.CurrentNodeID
+	fromNode, _ := e.nodeRepo.GetByID(ctx, fromNodeID)
 	instance.CurrentNodeID = nextNode.ID
 
 	if err := e.instanceRepo.Update(ctx, instance); err != nil {
@@ -795,7 +796,7 @@ func (e *workflowEngine) moveToNextNodeByCondition(ctx context.Context, instance
 	}
 
 	// 联动更新工单状态
-	e.syncIssueStatus(ctx, instance.IssueID, nextNode)
+	e.syncIssueStatus(ctx, instance.IssueID, fromNode, nextNode)
 
 	// 如果是审批节点，创建审批记录
 	if nextNode.NodeType == "approval" {
@@ -1031,19 +1032,20 @@ func (e *workflowEngine) toNodeResponse(node *model.WorkflowNode) *dto.NodeRespo
 }
 
 // syncIssueStatus 根据工作流节点联动更新工单状态
-func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, node *model.WorkflowNode) {
+// fromNode 为流转前的节点（可为 nil），toNode 为目标节点
+func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, fromNode, toNode *model.WorkflowNode) {
 	// 优先使用节点配置中的 target_status
 	targetStatus := ""
-	if node.Config != "" && node.Config != "{}" {
+	if toNode.Config != "" && toNode.Config != "{}" {
 		var config dto.NodeConfig
-		if err := json.Unmarshal([]byte(node.Config), &config); err == nil && config.TargetStatus != "" {
+		if err := json.Unmarshal([]byte(toNode.Config), &config); err == nil && config.TargetStatus != "" {
 			targetStatus = config.TargetStatus
 		}
 	}
 
 	// 如果节点没有配置 target_status，使用默认映射
 	if targetStatus == "" {
-		switch node.NodeType {
+		switch toNode.NodeType {
 		case "approval":
 			targetStatus = "open" // 审批中工单保持 open，审批通过后才流转
 		case "work":
@@ -1067,141 +1069,160 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, no
 		Where("id = ?", issueID).First(&oldIssue).Error
 	oldStatus := oldIssue.Status
 
-	// 状态未变化时无需更新、通知和记录日志
-	if oldStatus == targetStatus {
-		return
+	statusChanged := oldStatus != targetStatus
+
+	// 仅在状态实际变化时更新数据库
+	if statusChanged {
+		now := time.Now()
+		updates := map[string]any{
+			"status":     targetStatus,
+			"updated_at": now,
+		}
+
+		// 根据目标状态更新相关时间字段
+		switch targetStatus {
+		case "in_progress":
+			updates["actual_start_date"] = now
+		case "resolved":
+			updates["resolved_at"] = now
+			updates["actual_end_date"] = now
+			updates["resolution"] = "done"
+		case "closed":
+			updates["closed_at"] = now
+			updates["actual_end_date"] = now
+		}
+
+		if err := e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", issueID).Updates(updates).Error; err != nil {
+			logger.Warn("failed to sync issue status from workflow",
+				zap.Uint64("issue_id", issueID),
+				zap.String("target_status", targetStatus),
+				zap.Error(err),
+			)
+			return
+		}
+		logger.Info("issue status synced from workflow",
+			zap.Uint64("issue_id", issueID),
+			zap.String("target_status", targetStatus),
+			zap.String("node_type", toNode.NodeType),
+		)
 	}
 
+	// 无论状态是否变化，只要节点发生了流转，都记录日志和发送通知
 	oldStatusName := statusNames[oldStatus]
 	if oldStatusName == "" {
 		oldStatusName = oldStatus
 	}
-
-	now := time.Now()
-	updates := map[string]any{
-		"status":     targetStatus,
-		"updated_at": now,
+	statusName := statusNames[targetStatus]
+	if statusName == "" {
+		statusName = targetStatus
 	}
 
-	// 根据目标状态更新相关时间字段
-	switch targetStatus {
-	case "in_progress":
-		updates["actual_start_date"] = now
-	case "resolved":
-		updates["resolved_at"] = now
-		updates["actual_end_date"] = now
-		updates["resolution"] = "done"
-	case "closed":
-		updates["closed_at"] = now
-		updates["actual_end_date"] = now
+	// 获取来源节点名称
+	fromNodeName := ""
+	if fromNode != nil {
+		fromNodeName = fromNode.Name
 	}
 
-	if err := e.db.WithContext(ctx).Model(&model.Issue{}).Where("id = ?", issueID).Updates(updates).Error; err != nil {
-		logger.Warn("failed to sync issue status from workflow",
-			zap.Uint64("issue_id", issueID),
-			zap.String("target_status", targetStatus),
-			zap.Error(err),
-		)
+	// 记录活动日志
+	if statusChanged {
+		e.logIssueActivity(ctx, 0, "状态变更", issueID, fmt.Sprintf("工作流流转至节点: %s，状态变更为: %s", toNode.Name, statusName))
 	} else {
-		logger.Info("issue status synced from workflow",
-			zap.Uint64("issue_id", issueID),
-			zap.String("target_status", targetStatus),
-			zap.String("node_type", node.NodeType),
-		)
+		e.logIssueActivity(ctx, 0, "节点流转", issueID, fmt.Sprintf("工作流流转至节点: %s", toNode.Name))
+	}
 
-		// 记录状态变更活动日志
-		statusName := statusNames[targetStatus]
-		if statusName == "" {
-			statusName = targetStatus
+	// 项目外部通知：工单流转（始终发送，即使状态未变化）
+	if e.projectNotifier != nil {
+		// 查询项目名称
+		var projectName string
+		if oldIssue.ProjectID > 0 {
+			var proj model.Project
+			if err := e.db.WithContext(ctx).Select("id, name").Where("id = ?", oldIssue.ProjectID).First(&proj).Error; err == nil {
+				projectName = proj.Name
+			}
 		}
-		e.logIssueActivity(ctx, 0, "状态变更", issueID, fmt.Sprintf("工作流流转，状态变更为: %s", statusName))
-
-		// 项目外部通知：工单状态变更
-		if e.projectNotifier != nil {
-			// 查询项目名称
-			var projectName string
-			if oldIssue.ProjectID > 0 {
-				var proj model.Project
-				if err := e.db.WithContext(ctx).Select("id, name").Where("id = ?", oldIssue.ProjectID).First(&proj).Error; err == nil {
-					projectName = proj.Name
+		// 查询指派人名称
+		var assigneeName string
+		if oldIssue.AssigneeID != nil {
+			var user model.User
+			if err := e.db.WithContext(ctx).Select("id, display_name, username").Where("id = ?", *oldIssue.AssigneeID).First(&user).Error; err == nil {
+				assigneeName = user.DisplayName
+				if assigneeName == "" {
+					assigneeName = user.Username
 				}
 			}
-			// 查询指派人名称
-			var assigneeName string
-			if oldIssue.AssigneeID != nil {
-				var user model.User
-				if err := e.db.WithContext(ctx).Select("id, display_name, username").Where("id = ?", *oldIssue.AssigneeID).First(&user).Error; err == nil {
-					assigneeName = user.DisplayName
-					if assigneeName == "" {
-						assigneeName = user.Username
-					}
-				}
-			}
-
-			go func() {
-				notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-				notifData := map[string]any{
-					"issue_key":       oldIssue.IssueKey,
-					"issue_title":     oldIssue.Title,
-					"status":          targetStatus,
-					"status_name":     statusName,
-					"old_status":      oldStatus,
-					"old_status_name": oldStatusName,
-					"project_name":    projectName,
-					"priority":        oldIssue.Priority,
-					"assignee":        assigneeName,
-				}
-				if oldIssue.DueDate != nil {
-					notifData["due_date"] = oldIssue.DueDate.Format("2006-01-02 15:04")
-				}
-				_ = e.projectNotifier.NotifyProject(notifCtx, oldIssue.ProjectID, "issue.transitioned", notifData)
-			}()
 		}
 
-		// 需求联动：工单终态时同步关联需求状态为已完成
-		if targetStatus == "resolved" || targetStatus == "closed" {
-			result := e.db.WithContext(ctx).
-				Model(&model.Requirement{}).
-				Where("converted_issue_id = ? AND status NOT IN ?", issueID, []string{"completed", "rejected"}).
-				Updates(map[string]any{
-					"status":     "completed",
-					"updated_at": now,
-				})
-			if result.Error != nil {
-				logger.Warn("failed to sync requirement status from issue",
-					zap.Uint64("issue_id", issueID),
-					zap.Error(result.Error),
+		go func() {
+			notifCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			notifData := map[string]any{
+				"issue_key":       oldIssue.IssueKey,
+				"issue_title":     oldIssue.Title,
+				"status":          targetStatus,
+				"status_name":     statusName,
+				"old_status":      oldStatus,
+				"old_status_name": oldStatusName,
+				"project_name":    projectName,
+				"priority":        oldIssue.Priority,
+				"assignee":        assigneeName,
+				"node_name":       toNode.Name,
+				"old_node_name":   fromNodeName,
+			}
+			if oldIssue.DueDate != nil {
+				notifData["due_date"] = oldIssue.DueDate.Format("2006-01-02 15:04")
+			}
+			_ = e.projectNotifier.NotifyProject(notifCtx, oldIssue.ProjectID, "issue.transitioned", notifData)
+		}()
+	}
+
+	// 以下联动仅在状态实际变化时执行
+	if !statusChanged {
+		return
+	}
+
+	// 需求联动：工单终态时同步关联需求状态为已完成
+	if targetStatus == "resolved" || targetStatus == "closed" {
+		now := time.Now()
+		result := e.db.WithContext(ctx).
+			Model(&model.Requirement{}).
+			Where("converted_issue_id = ? AND status NOT IN ?", issueID, []string{"completed", "rejected"}).
+			Updates(map[string]any{
+				"status":     "completed",
+				"updated_at": now,
+			})
+		if result.Error != nil {
+			logger.Warn("failed to sync requirement status from issue",
+				zap.Uint64("issue_id", issueID),
+				zap.Error(result.Error),
+			)
+		} else if result.RowsAffected > 0 {
+			logger.Info("requirement status synced to completed",
+				zap.Uint64("issue_id", issueID),
+				zap.Int64("affected", result.RowsAffected),
+			)
+		}
+	}
+
+	// 告警联动：同步工单状态到告警 + 级联更新被合并的旧工单
+	if e.issueStatusSyncer != nil {
+		syncIssueID := issueID
+		syncStatus := targetStatus
+		go func() {
+			syncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := e.issueStatusSyncer.SyncIssueStatus(syncCtx, syncIssueID, syncStatus); err != nil {
+				logger.Warn("failed to sync issue status to alerts",
+					zap.Uint64("issue_id", syncIssueID),
+					zap.Error(err),
 				)
-			} else if result.RowsAffected > 0 {
-				logger.Info("requirement status synced to completed",
-					zap.Uint64("issue_id", issueID),
-					zap.Int64("affected", result.RowsAffected),
+			}
+			if err := e.issueStatusSyncer.SyncMergedIssueStatus(syncCtx, syncIssueID, syncStatus); err != nil {
+				logger.Warn("failed to cascade status to merged issues",
+					zap.Uint64("issue_id", syncIssueID),
+					zap.Error(err),
 				)
 			}
-		}
-
-		// 告警联动：同步工单状态到告警 + 级联更新被合并的旧工单
-		if e.issueStatusSyncer != nil {
-			syncIssueID := issueID
-			syncStatus := targetStatus
-			go func() {
-				syncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-				if err := e.issueStatusSyncer.SyncIssueStatus(syncCtx, syncIssueID, syncStatus); err != nil {
-					logger.Warn("failed to sync issue status to alerts",
-						zap.Uint64("issue_id", syncIssueID),
-						zap.Error(err),
-					)
-				}
-				if err := e.issueStatusSyncer.SyncMergedIssueStatus(syncCtx, syncIssueID, syncStatus); err != nil {
-					logger.Warn("failed to cascade status to merged issues",
-						zap.Uint64("issue_id", syncIssueID),
-						zap.Error(err),
-					)
-				}
-			}()
-		}
+		}()
 	}
 }
 

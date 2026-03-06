@@ -248,7 +248,7 @@ func (s *larkService) getEventMeta(event string) (title, template string) {
 	case "issue.updated":
 		return "✏️ 工单更新", "wathet"
 	case "issue.transitioned":
-		return "🔄 工单状态变更", "turquoise"
+		return "🔄 工单流转", "turquoise"
 	case "issue.assigned":
 		return "👤 工单指派", "indigo"
 	case "issue.commented":
@@ -294,11 +294,23 @@ func sharedBuildContentLines(event string, data map[string]interface{}) string {
 		statusName := getStatusDisplayName(data, "status", "status_name")
 		oldStatusName := getStatusDisplayName(data, "old_status", "old_status_name")
 
+		// 优先使用工作流节点名称，fallback 到状态名
+		nodeName, _ := data["node_name"].(string)
+		oldNodeName, _ := data["old_node_name"].(string)
+		displayNew := nodeName
+		displayOld := oldNodeName
+		if displayNew == "" {
+			displayNew = statusName
+		}
+		if displayOld == "" {
+			displayOld = oldStatusName
+		}
+
 		content = fmt.Sprintf("**%s** %s\n\n", issueKey, issueTitle)
-		if oldStatusName != "" && statusName != "" {
-			content += fmt.Sprintf("📊 %s → **%s**\n", oldStatusName, statusName)
-		} else if statusName != "" {
-			content += fmt.Sprintf("📊 状态：**%s**\n", statusName)
+		if displayOld != "" && displayNew != "" {
+			content += fmt.Sprintf("📊 %s → **%s**\n", displayOld, displayNew)
+		} else if displayNew != "" {
+			content += fmt.Sprintf("📊 状态：**%s**\n", displayNew)
 		}
 		if projectName != "" {
 			content += fmt.Sprintf("📁 项目：%s\n", projectName)
@@ -703,7 +715,7 @@ func directGetEventMeta(event string) (title, template string) {
 	case "issue.updated":
 		return "✏️ 工单更新", "wathet"
 	case "issue.transitioned":
-		return "🔄 工单状态变更", "turquoise"
+		return "🔄 工单流转", "turquoise"
 	case "issue.assigned":
 		return "👤 工单指派", "indigo"
 	case "issue.commented":

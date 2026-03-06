@@ -148,7 +148,7 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 	case event == "issue.created" && dataMap["source"] == "alert":
 		text, replyMarkup = buildAlertIssueTelegram(title, dataMap, siteURL)
 
-	// 工单状态变更：专用模板，显示新旧状态对比
+	// 工单流转：专用模板，显示新旧节点对比
 	case event == "issue.transitioned":
 		issueKey, _ := dataMap["issue_key"].(string)
 		issueTitle, _ := dataMap["issue_title"].(string)
@@ -159,12 +159,24 @@ func (s *telegramService) buildMessage(event string, data interface{}) (string, 
 		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
 		oldStatusName := tgGetStatusDisplayName(dataMap, "old_status", "old_status_name")
 
+		// 优先使用工作流节点名称，fallback 到状态名
+		nodeName, _ := dataMap["node_name"].(string)
+		oldNodeName, _ := dataMap["old_node_name"].(string)
+		displayNew := nodeName
+		displayOld := oldNodeName
+		if displayNew == "" {
+			displayNew = statusName
+		}
+		if displayOld == "" {
+			displayOld = oldStatusName
+		}
+
 		text = fmt.Sprintf("%s\n\n", title)
 		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
-		if oldStatusName != "" && statusName != "" {
-			text += fmt.Sprintf("📊 %s → <b>%s</b>\n", html.EscapeString(oldStatusName), html.EscapeString(statusName))
-		} else if statusName != "" {
-			text += fmt.Sprintf("📊 状态：<b>%s</b>\n", html.EscapeString(statusName))
+		if displayOld != "" && displayNew != "" {
+			text += fmt.Sprintf("📊 %s → <b>%s</b>\n", html.EscapeString(displayOld), html.EscapeString(displayNew))
+		} else if displayNew != "" {
+			text += fmt.Sprintf("📊 状态：<b>%s</b>\n", html.EscapeString(displayNew))
 		}
 		if projectName != "" {
 			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
@@ -373,7 +385,7 @@ func (s *telegramService) getEventTitle(event string) string {
 	case "issue.updated":
 		return "✏️ <b>工单更新</b>"
 	case "issue.transitioned":
-		return "🔄 <b>工单状态变更</b>"
+		return "🔄 <b>工单流转</b>"
 	case "issue.assigned":
 		return "👤 <b>工单指派</b>"
 	case "issue.commented":
@@ -514,7 +526,7 @@ func (d *DirectTelegramSender) buildMessage(event string, data interface{}) (str
 	case event == "issue.created" && dataMap["source"] == "alert":
 		text, replyMarkup = buildAlertIssueTelegram(title, dataMap, siteURL)
 
-	// 工单状态变更：专用模板，显示新旧状态对比
+	// 工单流转：专用模板，显示新旧节点对比
 	case event == "issue.transitioned":
 		issueKey, _ := dataMap["issue_key"].(string)
 		issueTitle, _ := dataMap["issue_title"].(string)
@@ -525,12 +537,24 @@ func (d *DirectTelegramSender) buildMessage(event string, data interface{}) (str
 		statusName := tgGetStatusDisplayName(dataMap, "status", "status_name")
 		oldStatusName := tgGetStatusDisplayName(dataMap, "old_status", "old_status_name")
 
+		// 优先使用工作流节点名称，fallback 到状态名
+		nodeName, _ := dataMap["node_name"].(string)
+		oldNodeName, _ := dataMap["old_node_name"].(string)
+		displayNew := nodeName
+		displayOld := oldNodeName
+		if displayNew == "" {
+			displayNew = statusName
+		}
+		if displayOld == "" {
+			displayOld = oldStatusName
+		}
+
 		text = fmt.Sprintf("%s\n\n", title)
 		text += fmt.Sprintf("<b>%s</b> %s\n\n", html.EscapeString(issueKey), html.EscapeString(issueTitle))
-		if oldStatusName != "" && statusName != "" {
-			text += fmt.Sprintf("📊 %s → <b>%s</b>\n", html.EscapeString(oldStatusName), html.EscapeString(statusName))
-		} else if statusName != "" {
-			text += fmt.Sprintf("📊 状态：<b>%s</b>\n", html.EscapeString(statusName))
+		if displayOld != "" && displayNew != "" {
+			text += fmt.Sprintf("📊 %s → <b>%s</b>\n", html.EscapeString(displayOld), html.EscapeString(displayNew))
+		} else if displayNew != "" {
+			text += fmt.Sprintf("📊 状态：<b>%s</b>\n", html.EscapeString(displayNew))
 		}
 		if projectName != "" {
 			text += fmt.Sprintf("📁 项目：%s\n", html.EscapeString(projectName))
@@ -726,7 +750,7 @@ func directGetEventTitle(event string) string {
 	case "issue.updated":
 		return "✏️ <b>工单更新</b>"
 	case "issue.transitioned":
-		return "🔄 <b>工单状态变更</b>"
+		return "🔄 <b>工单流转</b>"
 	case "issue.assigned":
 		return "👤 <b>工单指派</b>"
 	case "issue.commented":
