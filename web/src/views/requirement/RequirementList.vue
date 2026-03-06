@@ -7,7 +7,7 @@
           <el-icon><Grid /></el-icon>
           看板视图
         </el-button>
-        <el-button type="primary" @click="showCreateDialog = true">
+        <el-button type="primary" @click="handleCreate">
           <el-icon><Plus /></el-icon>
           创建需求
         </el-button>
@@ -197,6 +197,7 @@
       v-model="showCreateDialog"
       :title="editingRequirement ? '编辑需求' : '创建需求'"
       width="700px"
+      @closed="resetForm"
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="需求池" prop="pool_id">
@@ -333,7 +334,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
+        <el-button @click="handleCancel">取消</el-button>
         <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
@@ -973,6 +974,17 @@ const handleConvertSubmit = async () => {
       converting.value = false
     }
   })
+}
+
+// 创建需求
+const handleCreate = () => {
+  resetForm()
+  showCreateDialog.value = true
+}
+
+// 取消对话框
+const handleCancel = () => {
+  showCreateDialog.value = false
 }
 
 // 重置表单
