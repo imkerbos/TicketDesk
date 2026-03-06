@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/core-issue/dto"
 	"github.com/kerbos/ticketdesk/internal/core-issue/repository"
 	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
@@ -16,23 +19,25 @@ import (
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/sequence"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // 业务错误定义
 var (
-	ErrIssueNotFound      = errors.New("工单不存在")
-	ErrProjectNotFound    = errors.New("项目不存在")
-	ErrIssueTypeNotFound  = errors.New("工单类型不存在")
-	ErrUserNotFound       = errors.New("用户不存在")
-	ErrCommentNotFound    = errors.New("评论不存在")
-	ErrAlreadyWatching    = errors.New("已经关注该工单")
-	ErrNotWatching        = errors.New("未关注该工单")
-	ErrWorklogNotFound    = errors.New("工作日志不存在")
-	ErrUnauthorized       = errors.New("无权限操作")
-	ErrInvalidTimeFormat  = errors.New("时间格式错误")
+	ErrIssueNotFound     = errors.New("工单不存在")
+	ErrProjectNotFound   = errors.New("项目不存在")
+	ErrIssueTypeNotFound = errors.New("工单类型不存在")
+	ErrUserNotFound      = errors.New("用户不存在")
+	ErrCommentNotFound   = errors.New("评论不存在")
+	ErrAlreadyWatching   = errors.New("已经关注该工单")
+	ErrNotWatching       = errors.New("未关注该工单")
+	ErrWorklogNotFound   = errors.New("工作日志不存在")
+	ErrUnauthorized      = errors.New("无权限操作")
+	ErrInvalidTimeFormat = errors.New("时间格式错误")
 )
+
+type ctxKey string
+
+const ContextUserIDKey ctxKey = "user_id"
 
 // IssueService 工单服务接口
 type IssueService interface {
@@ -56,7 +61,7 @@ type IssueService interface {
 	// 评论
 	AddComment(ctx context.Context, issueKey string, req *dto.CreateCommentRequest, userID uint64) (*dto.CommentResponse, error)
 	ListComments(ctx context.Context, issueKey string) ([]*dto.CommentResponse, error)
-	DeleteComment(ctx context.Context, commentID uint64, userID uint64) error
+	DeleteComment(ctx context.Context, commentID, userID uint64) error
 
 	// 关注
 	AddWatcher(ctx context.Context, issueKey string, userID uint64) error
@@ -66,7 +71,7 @@ type IssueService interface {
 	// 工作日志
 	AddWorklog(ctx context.Context, issueKey string, req *dto.CreateWorklogRequest, userID uint64) (*dto.WorklogResponse, error)
 	UpdateWorklog(ctx context.Context, worklogID uint64, req *dto.UpdateWorklogRequest, userID uint64) (*dto.WorklogResponse, error)
-	DeleteWorklog(ctx context.Context, worklogID uint64, userID uint64) error
+	DeleteWorklog(ctx context.Context, worklogID, userID uint64) error
 	ListWorklogs(ctx context.Context, issueKey string) ([]*dto.WorklogResponse, error)
 }
 
@@ -79,6 +84,7 @@ type issueService struct {
 	projectRepo     projectRepo.ProjectRepository
 	issueTypeRepo   projectRepo.IssueTypeRepository
 	userRepo        userRepo.UserRepository
+	db              *gorm.DB           // 用于级联删除事务
 	alertSyncSvc    AlertSyncService   // 告警同步服务（可选）
 	activityLogger  ActivityLogger     // 活动日志记录器（可选）
 	notifSender     NotificationSender // 通知发送服务（可选）
@@ -148,6 +154,7 @@ func NewIssueService(
 	projectRepo projectRepo.ProjectRepository,
 	issueTypeRepo projectRepo.IssueTypeRepository,
 	userRepo userRepo.UserRepository,
+	db *gorm.DB,
 ) IssueService {
 	return &issueService{
 		issueRepo:      issueRepo,
@@ -157,6 +164,7 @@ func NewIssueService(
 		projectRepo:    projectRepo,
 		issueTypeRepo:  issueTypeRepo,
 		userRepo:       userRepo,
+		db:             db,
 		alertSyncSvc:   nil, // 默认为 nil，可通过 SetAlertSyncService 设置
 		activityLogger: nil, // 默认为 nil，可通过 SetActivityLogger 设置
 	}
@@ -228,7 +236,7 @@ func (s *issueService) sendNotification(actorID uint64, actorName string, req *N
 }
 
 // notifyWatchers 通知所有关注者（排除指定用户）
-func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID uint64, actorID uint64, actorName, notifType, title, content string) {
+func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID, actorID uint64, actorName, notifType, title, content string) {
 	if s.notifSender == nil {
 		return
 	}
@@ -255,7 +263,7 @@ func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID uint64, 
 
 // getUserFromCtx 从 context 中获取当前用户信息
 func (s *issueService) getUserFromCtx(ctx context.Context) (uint64, string) {
-	userID, _ := ctx.Value("user_id").(uint64)
+	userID, _ := ctx.Value(ContextUserIDKey).(uint64)
 	if userID == 0 {
 		return 0, "系统"
 	}
@@ -271,7 +279,7 @@ func (s *issueService) getUserFromCtx(ctx context.Context) (uint64, string) {
 }
 
 // logActivity 记录活动日志（内部辅助方法）
-func (s *issueService) logActivity(ctx context.Context, userID uint64, userName, action, entityKey, details string, entityID uint64) {
+func (s *issueService) logActivity(_ context.Context, userID uint64, userName, action, entityKey, details string, entityID uint64) {
 	if s.activityLogger == nil {
 		return
 	}
@@ -305,12 +313,12 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 
 	// 验证指派人
 	if req.AssigneeID != nil {
-		_, err := s.userRepo.GetByID(ctx, *req.AssigneeID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+		_, assigneeErr := s.userRepo.GetByID(ctx, *req.AssigneeID)
+		if assigneeErr != nil {
+			if errors.Is(assigneeErr, gorm.ErrRecordNotFound) {
 				return nil, fmt.Errorf("指派人不存在")
 			}
-			return nil, fmt.Errorf("查询指派人失败: %w", err)
+			return nil, fmt.Errorf("查询指派人失败: %w", assigneeErr)
 		}
 	}
 
@@ -568,7 +576,7 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 			}
 			// 验证是否为 Epic 类型
 			epicType, _ := s.issueTypeRepo.GetByID(ctx, epicIssue.IssueTypeID)
-			if epicType == nil || strings.ToLower(epicType.Name) != "epic" {
+			if epicType == nil || !strings.EqualFold(epicType.Name, "epic") {
 				return nil, fmt.Errorf("指定的工单不是 Epic 类型")
 			}
 			issue.EpicID = req.EpicID
@@ -728,7 +736,7 @@ func (s *issueService) UpdateIssue(ctx context.Context, key string, req *dto.Upd
 	return s.toIssueResponse(ctx, issue, projectKey), nil
 }
 
-// DeleteIssue 删除工单
+// DeleteIssue 硬删除工单及所有关联数据
 func (s *issueService) DeleteIssue(ctx context.Context, key string) error {
 	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(key))
 	if err != nil {
@@ -738,16 +746,78 @@ func (s *issueService) DeleteIssue(ctx context.Context, key string) error {
 		return fmt.Errorf("查询工单失败: %w", err)
 	}
 
-	if err := s.issueRepo.Delete(ctx, issue.ID); err != nil {
-		logger.Error("failed to delete issue", zap.String("key", key), zap.Error(err))
+	issueID := issue.ID
+	issueKey := issue.IssueKey
+	issueTitle := issue.Title
+
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. 删除评论、附件、关注人、字段值、工作日志
+		for _, m := range []struct {
+			model interface{}
+			desc  string
+		}{
+			{&model.IssueComment{}, "评论"},
+			{&model.IssueAttachment{}, "附件"},
+			{&model.IssueWatcher{}, "关注人"},
+			{&model.IssueFieldValue{}, "字段值"},
+			{&model.IssueWorklog{}, "工作日志"},
+		} {
+			if err := tx.Unscoped().Where("issue_id = ?", issueID).Delete(m.model).Error; err != nil {
+				return fmt.Errorf("删除工单%s失败: %w", m.desc, err)
+			}
+		}
+
+		// 2. 删除工作流实例及关联
+		var instanceIDs []uint64
+		if err := tx.Model(&model.WorkflowInstance{}).Where("issue_id = ?", issueID).Pluck("id", &instanceIDs).Error; err != nil {
+			return fmt.Errorf("查询工作流实例失败: %w", err)
+		}
+		if len(instanceIDs) > 0 {
+			if err := tx.Unscoped().Where("instance_id IN ?", instanceIDs).Delete(&model.WorkflowHistory{}).Error; err != nil {
+				return fmt.Errorf("删除工作流历史失败: %w", err)
+			}
+			if err := tx.Unscoped().Where("instance_id IN ?", instanceIDs).Delete(&model.ApprovalRecord{}).Error; err != nil {
+				return fmt.Errorf("删除审批记录失败: %w", err)
+			}
+			if err := tx.Unscoped().Where("id IN ?", instanceIDs).Delete(&model.WorkflowInstance{}).Error; err != nil {
+				return fmt.Errorf("删除工作流实例失败: %w", err)
+			}
+		}
+
+		// 3. 解除告警关联
+		if err := tx.Model(&model.Alert{}).Where("issue_id = ?", issueID).Update("issue_id", nil).Error; err != nil {
+			return fmt.Errorf("解除告警关联失败: %w", err)
+		}
+
+		// 4. 删除通知和活动日志
+		if err := tx.Unscoped().Where("entity_type = ? AND entity_id = ?", "issue", issueID).Delete(&model.Notification{}).Error; err != nil {
+			return fmt.Errorf("删除通知失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("entity_type = ? AND entity_id = ?", "issue", issueID).Delete(&model.ActivityLog{}).Error; err != nil {
+			return fmt.Errorf("删除活动日志失败: %w", err)
+		}
+
+		// 5. 处理合并关联：将指向本工单的 merged_into_issue_id 置 nil
+		if err := tx.Model(&model.Issue{}).Where("merged_into_issue_id = ?", issueID).Update("merged_into_issue_id", nil).Error; err != nil {
+			return fmt.Errorf("清除合并关联失败: %w", err)
+		}
+
+		// 6. 删除工单本身
+		if err := tx.Unscoped().Delete(&model.Issue{}, issueID).Error; err != nil {
+			return fmt.Errorf("删除工单失败: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		logger.Error("failed to cascade delete issue", zap.String("key", key), zap.Error(err))
 		return fmt.Errorf("删除工单失败: %w", err)
 	}
 
-	logger.Info("issue deleted successfully", zap.String("issue_key", key))
+	logger.Info("issue cascade deleted successfully", zap.String("issue_key", issueKey))
 
-	// 记录活动日志
+	// 记录活动日志（工单已删，只记录操作）
 	userID, userName := s.getUserFromCtx(ctx)
-	s.logActivity(ctx, userID, userName, "删除工单", issue.IssueKey, fmt.Sprintf("删除了工单: %s", issue.Title), issue.ID)
+	s.logActivity(ctx, userID, userName, "删除工单", issueKey, fmt.Sprintf("删除了工单: %s", issueTitle), issueID)
 
 	return nil
 }
@@ -910,7 +980,7 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 	// 通知：新指派人（如果指派人有变化）
 	if oldAssigneeID == nil || *oldAssigneeID != assigneeID {
 		// 从上下文获取操作人信息
-		actorID, _ := ctx.Value("user_id").(uint64)
+		actorID, _ := ctx.Value(ContextUserIDKey).(uint64)
 		actorName := ""
 		if actor, err := s.userRepo.GetByID(ctx, actorID); err == nil {
 			actorName = actor.DisplayName
@@ -960,7 +1030,7 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 
 	// 查询操作人名称
 	operatorName := "系统"
-	if opID, ok := ctx.Value("user_id").(uint64); ok && opID > 0 {
+	if opID, ok := ctx.Value(ContextUserIDKey).(uint64); ok && opID > 0 {
 		if op, err := s.userRepo.GetByID(ctx, opID); err == nil {
 			operatorName = op.DisplayName
 			if operatorName == "" {
@@ -1120,7 +1190,7 @@ func (s *issueService) ListComments(ctx context.Context, issueKey string) ([]*dt
 }
 
 // DeleteComment 删除评论
-func (s *issueService) DeleteComment(ctx context.Context, commentID uint64, userID uint64) error {
+func (s *issueService) DeleteComment(ctx context.Context, commentID, userID uint64) error {
 	comment, err := s.commentRepo.GetByID(ctx, commentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1741,7 +1811,7 @@ func (s *issueService) UpdateWorklog(ctx context.Context, worklogID uint64, req 
 }
 
 // DeleteWorklog 删除工作日志
-func (s *issueService) DeleteWorklog(ctx context.Context, worklogID uint64, userID uint64) error {
+func (s *issueService) DeleteWorklog(ctx context.Context, worklogID, userID uint64) error {
 	// 获取工作日志
 	worklog, err := s.worklogRepo.GetByID(ctx, worklogID)
 	if err != nil {

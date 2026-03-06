@@ -7,13 +7,14 @@ import (
 	"errors"
 	"fmt"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
 	"github.com/kerbos/ticketdesk/internal/core-workflow/dto"
 	"github.com/kerbos/ticketdesk/internal/core-workflow/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // 业务错误定义
@@ -581,8 +582,8 @@ func (s *workflowService) CreateScheme(ctx context.Context, projectID uint64, re
 	}
 
 	// 清理可能存在的软删除记录，避免唯一索引冲突
-	if err := s.schemeRepo.HardDeleteByProjectAndIssueType(ctx, projectID, req.IssueTypeID); err != nil {
-		logger.Error("failed to hard delete soft-deleted workflow scheme", zap.Error(err))
+	if cleanupErr := s.schemeRepo.HardDeleteByProjectAndIssueType(ctx, projectID, req.IssueTypeID); cleanupErr != nil {
+		logger.Error("failed to hard delete soft-deleted workflow scheme", zap.Error(cleanupErr))
 	}
 
 	// 验证工作流是否存在
@@ -711,4 +712,3 @@ func (s *workflowService) GetWorkflowByIssueType(ctx context.Context, projectID,
 
 	return workflow, nil
 }
-

@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // VersionRepository 项目版本仓储接口
@@ -39,9 +40,9 @@ func (r *versionRepository) Update(ctx context.Context, version *model.ProjectVe
 	return r.db.WithContext(ctx).Save(version).Error
 }
 
-// Delete 删除版本
+// Delete 硬删除版本
 func (r *versionRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.ProjectVersion{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.ProjectVersion{}, id).Error
 }
 
 // GetByID 根据ID获取版本

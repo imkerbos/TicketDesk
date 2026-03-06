@@ -5,10 +5,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/kerbos/ticketdesk/pkg/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/kerbos/ticketdesk/pkg/config"
 )
 
 var globalLogger *zap.Logger
@@ -89,7 +90,12 @@ func getWriteSyncer(cfg *config.LogConfig) zapcore.WriteSyncer {
 // GetLogger 获取全局日志实例
 func GetLogger() *zap.Logger {
 	if globalLogger == nil {
-		globalLogger, _ = zap.NewDevelopment()
+		logger, err := zap.NewDevelopment()
+		if err != nil {
+			globalLogger = zap.NewNop()
+			return globalLogger
+		}
+		globalLogger = logger
 	}
 	return globalLogger
 }

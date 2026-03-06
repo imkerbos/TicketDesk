@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // WorkflowRepository 工作流数据访问接口
@@ -56,9 +57,9 @@ func (r *workflowRepository) Update(ctx context.Context, workflow *model.Workflo
 	return r.db.WithContext(ctx).Save(workflow).Error
 }
 
-// Delete 软删除工作流
+// Delete 硬删除工作流
 func (r *workflowRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.Workflow{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.Workflow{}, id).Error
 }
 
 // List 分页查询工作流列表
@@ -148,9 +149,9 @@ func (r *nodeRepository) Update(ctx context.Context, node *model.WorkflowNode) e
 	return r.db.WithContext(ctx).Save(node).Error
 }
 
-// Delete 删除节点
+// Delete 硬删除节点
 func (r *nodeRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.WorkflowNode{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.WorkflowNode{}, id).Error
 }
 
 // ListByWorkflow 获取工作流的所有节点
@@ -177,9 +178,9 @@ func (r *nodeRepository) GetEndNodes(ctx context.Context, workflowID uint64) ([]
 	return nodes, err
 }
 
-// DeleteByWorkflow 删除工作流的所有节点
+// DeleteByWorkflow 硬删除工作流的所有节点
 func (r *nodeRepository) DeleteByWorkflow(ctx context.Context, workflowID uint64) error {
-	return r.db.WithContext(ctx).Where("workflow_id = ?", workflowID).Delete(&model.WorkflowNode{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("workflow_id = ?", workflowID).Delete(&model.WorkflowNode{}).Error
 }
 
 // EdgeRepository 边数据访问接口
@@ -225,9 +226,9 @@ func (r *edgeRepository) Update(ctx context.Context, edge *model.WorkflowEdge) e
 	return r.db.WithContext(ctx).Save(edge).Error
 }
 
-// Delete 删除边
+// Delete 硬删除边
 func (r *edgeRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.WorkflowEdge{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.WorkflowEdge{}, id).Error
 }
 
 // ListByWorkflow 获取工作流的所有边
@@ -251,14 +252,14 @@ func (r *edgeRepository) GetIncomingEdges(ctx context.Context, nodeID uint64) ([
 	return edges, err
 }
 
-// DeleteByWorkflow 删除工作流的所有边
+// DeleteByWorkflow 硬删除工作流的所有边
 func (r *edgeRepository) DeleteByWorkflow(ctx context.Context, workflowID uint64) error {
-	return r.db.WithContext(ctx).Where("workflow_id = ?", workflowID).Delete(&model.WorkflowEdge{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("workflow_id = ?", workflowID).Delete(&model.WorkflowEdge{}).Error
 }
 
-// DeleteByNode 删除与节点相关的所有边
+// DeleteByNode 硬删除与节点相关的所有边
 func (r *edgeRepository) DeleteByNode(ctx context.Context, nodeID uint64) error {
-	return r.db.WithContext(ctx).Where("source_node_id = ? OR target_node_id = ?", nodeID, nodeID).Delete(&model.WorkflowEdge{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("source_node_id = ? OR target_node_id = ?", nodeID, nodeID).Delete(&model.WorkflowEdge{}).Error
 }
 
 // WorkflowInstanceRepository 工作流实例数据访问接口
@@ -472,19 +473,19 @@ func (r *workflowSchemeRepository) Update(ctx context.Context, scheme *model.Wor
 	return r.db.WithContext(ctx).Save(scheme).Error
 }
 
-// Delete 删除工作流方案
+// Delete 硬删除工作流方案
 func (r *workflowSchemeRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.WorkflowScheme{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.WorkflowScheme{}, id).Error
 }
 
-// DeleteByProjectAndIssueType 根据项目和工单类型删除工作流方案
+// DeleteByProjectAndIssueType 根据项目和工单类型硬删除工作流方案
 func (r *workflowSchemeRepository) DeleteByProjectAndIssueType(ctx context.Context, projectID, issueTypeID uint64) error {
-	return r.db.WithContext(ctx).Where("project_id = ? AND issue_type_id = ?", projectID, issueTypeID).Delete(&model.WorkflowScheme{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("project_id = ? AND issue_type_id = ?", projectID, issueTypeID).Delete(&model.WorkflowScheme{}).Error
 }
 
-// HardDeleteByProjectAndIssueType 根据项目和工单类型硬删除工作流方案（包括软删除的记录）
+// HardDeleteByProjectAndIssueType 根据项目和工单类型硬删除工作流方案（兼容旧调用）
 func (r *workflowSchemeRepository) HardDeleteByProjectAndIssueType(ctx context.Context, projectID, issueTypeID uint64) error {
-	return r.db.WithContext(ctx).Unscoped().Where("project_id = ? AND issue_type_id = ? AND deleted_at IS NOT NULL", projectID, issueTypeID).Delete(&model.WorkflowScheme{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("project_id = ? AND issue_type_id = ?", projectID, issueTypeID).Delete(&model.WorkflowScheme{}).Error
 }
 
 // ListByProject 获取项目的所有工作流方案
@@ -493,4 +494,3 @@ func (r *workflowSchemeRepository) ListByProject(ctx context.Context, projectID 
 	err := r.db.WithContext(ctx).Where("project_id = ?", projectID).Order("id ASC").Find(&schemes).Error
 	return schemes, err
 }
-

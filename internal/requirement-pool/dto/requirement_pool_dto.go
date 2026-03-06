@@ -8,11 +8,11 @@ import (
 
 // CreateRequirementPoolRequest 创建需求池请求
 type CreateRequirementPoolRequest struct {
-	Name        string                      `json:"name" binding:"required,min=1,max=200"`
-	Description string                      `json:"description" binding:"max=5000"`
-	Type        model.RequirementPoolType   `json:"type" binding:"required,oneof=global project"`
-	ProjectID   *uint64                     `json:"project_id"`
-	OwnerID     uint64                      `json:"owner_id" binding:"required"`
+	Name        string                    `json:"name" binding:"required,min=1,max=200"`
+	Description string                    `json:"description" binding:"max=5000"`
+	Type        model.RequirementPoolType `json:"type" binding:"required,oneof=global project"`
+	ProjectID   *uint64                   `json:"project_id"`
+	OwnerID     uint64                    `json:"owner_id" binding:"required"`
 }
 
 // UpdateRequirementPoolRequest 更新需求池请求

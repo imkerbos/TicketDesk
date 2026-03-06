@@ -6,10 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
+
 	ws "github.com/kerbos/ticketdesk/internal/notification-inbox/websocket"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 var upgrader = websocket.Upgrader{

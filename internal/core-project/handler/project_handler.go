@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/api/middleware"
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-project/dto"
@@ -117,7 +118,7 @@ func (h *ProjectHandler) HandleUpdateProject(c *gin.Context) {
 
 // HandleDeleteProject 删除项目
 // @Summary 删除项目
-// @Description 删除项目（软删除）
+// @Description 硬删除项目及所有关联数据
 // @Tags Project
 // @Produce json
 // @Param key path string true "项目 Key"
@@ -233,8 +234,8 @@ func (h *ProjectHandler) HandleUpdateMember(c *gin.Context) {
 	}
 
 	var req dto.UpdateMemberRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -375,8 +376,8 @@ func (h *ProjectHandler) HandleUpdateIssueType(c *gin.Context) {
 	}
 
 	var req dto.UpdateIssueTypeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -541,8 +542,8 @@ func (h *ProjectHandler) HandleUpdateRole(c *gin.Context) {
 	}
 
 	var req dto.UpdateProjectRoleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -649,8 +650,8 @@ func (h *ProjectHandler) HandleAddRoleMember(c *gin.Context) {
 	}
 
 	var req dto.AddRoleMemberRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -820,8 +821,8 @@ func (h *ProjectHandler) HandleSetRolePermissions(c *gin.Context) {
 	}
 
 	var req dto.SetRolePermissionsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 

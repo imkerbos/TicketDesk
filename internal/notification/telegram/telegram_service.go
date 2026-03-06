@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // TelegramService Telegram 通知服务接口

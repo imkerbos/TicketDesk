@@ -49,8 +49,8 @@ type NodeConfig struct {
 	AssigneeRole string   `json:"assignee_role,omitempty"` // 指派角色
 
 	// 系统节点配置
-	Action     string            `json:"action,omitempty"`      // 系统动作
-	Parameters map[string]string `json:"parameters,omitempty"`  // 动作参数
+	Action     string            `json:"action,omitempty"`     // 系统动作
+	Parameters map[string]string `json:"parameters,omitempty"` // 动作参数
 
 	// 通用配置
 	TimeoutHours int    `json:"timeout_hours,omitempty"` // 超时时间（小时）
@@ -225,4 +225,3 @@ type CreateWorkflowSchemeRequest struct {
 	IssueTypeID uint64 `json:"issue_type_id" binding:"required"`
 	WorkflowID  uint64 `json:"workflow_id" binding:"required"`
 }
-

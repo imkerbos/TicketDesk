@@ -5,8 +5,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // NotificationChannelRepository 项目通知渠道数据访问接口
@@ -60,9 +61,9 @@ func (r *notificationChannelRepository) Update(ctx context.Context, channel *mod
 	return nil
 }
 
-// Delete 删除通知渠道
+// Delete 硬删除通知渠道
 func (r *notificationChannelRepository) Delete(ctx context.Context, id uint64) error {
-	if err := r.db.WithContext(ctx).Delete(&model.ProjectNotificationChannel{}, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Unscoped().Delete(&model.ProjectNotificationChannel{}, id).Error; err != nil {
 		return fmt.Errorf("删除通知渠道失败: %w", err)
 	}
 	return nil

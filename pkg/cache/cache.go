@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
 )
 
 // Get 获取字符串值，返回 (值, 是否命中)
@@ -30,7 +31,7 @@ func Get(ctx context.Context, key string) (string, bool) {
 
 // Set 设置字符串值
 // Redis 不可用时静默跳过
-func Set(ctx context.Context, key string, value string, ttl time.Duration) {
+func Set(ctx context.Context, key, value string, ttl time.Duration) {
 	client := redis.GetClient()
 	if client == nil {
 		return

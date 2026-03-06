@@ -8,14 +8,15 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	issueRepo "github.com/kerbos/ticketdesk/internal/core-issue/repository"
 	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
 	"github.com/kerbos/ticketdesk/internal/core-workflow/dto"
 	"github.com/kerbos/ticketdesk/internal/core-workflow/service"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // ActivityLogger 活动日志记录接口
@@ -110,8 +111,8 @@ func (h *WorkflowHandler) HandleUpdateWorkflow(c *gin.Context) {
 	}
 
 	var req dto.UpdateWorkflowRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -177,8 +178,8 @@ func (h *WorkflowHandler) HandleCreateNode(c *gin.Context) {
 	}
 
 	var req dto.CreateNodeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -225,8 +226,8 @@ func (h *WorkflowHandler) HandleUpdateNode(c *gin.Context) {
 	}
 
 	var req dto.UpdateNodeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -296,8 +297,8 @@ func (h *WorkflowHandler) HandleCreateEdge(c *gin.Context) {
 	}
 
 	var req dto.CreateEdgeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -344,8 +345,8 @@ func (h *WorkflowHandler) HandleUpdateEdge(c *gin.Context) {
 	}
 
 	var req dto.UpdateEdgeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -801,8 +802,8 @@ func (h *WorkflowHandler) HandleCreateScheme(c *gin.Context) {
 
 	// 解析请求体
 	var req dto.CreateWorkflowSchemeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -909,4 +910,3 @@ func (h *WorkflowHandler) HandleDeleteScheme(c *gin.Context) {
 
 	response.Success(c, gin.H{"message": "工作流方案删除成功"})
 }
-

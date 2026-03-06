@@ -13,6 +13,11 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/core-user/dto"
 	"github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
@@ -21,10 +26,6 @@ import (
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	pkgRedis "github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
-	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/oauth2"
-	"gorm.io/gorm"
 )
 
 // SSO 相关错误定义
@@ -67,11 +68,11 @@ type ssoService struct {
 	jwtManager   *jwt.Manager
 
 	// OIDC provider 缓存（按 issuerURL 缓存，配置变更时重建）
-	mu             sync.Mutex
-	cachedIssuer   string
-	provider       *gooidc.Provider
-	oauth2Config   *oauth2.Config
-	verifier       *gooidc.IDTokenVerifier
+	mu           sync.Mutex
+	cachedIssuer string
+	provider     *gooidc.Provider
+	oauth2Config *oauth2.Config
+	verifier     *gooidc.IDTokenVerifier
 }
 
 // NewSSOService 创建 SSO 服务实例

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-issue/dto"
 	"github.com/kerbos/ticketdesk/internal/core-issue/service"
@@ -40,7 +41,7 @@ func ctxWithUser(c *gin.Context) context.Context {
 	ctx := c.Request.Context()
 	userID := c.GetUint64("user_id")
 	if userID > 0 {
-		ctx = context.WithValue(ctx, "user_id", userID)
+		ctx = context.WithValue(ctx, service.ContextUserIDKey, userID)
 	}
 	return ctx
 }
@@ -351,8 +352,14 @@ func (h *IssueHandler) HandleListWatchers(c *gin.Context) {
 func (h *IssueHandler) HandleListMyTodoIssues(c *gin.Context) {
 	userID := c.GetUint64("user_id")
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	// 从中间件注入的项目 ID 列表（非管理员用户）
 	var projectIDs []uint64
@@ -375,8 +382,14 @@ func (h *IssueHandler) HandleListMyTodoIssues(c *gin.Context) {
 func (h *IssueHandler) HandleListMyCreatedIssues(c *gin.Context) {
 	userID := c.GetUint64("user_id")
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if err != nil || pageSize <= 0 {
+		pageSize = 10
+	}
 
 	// 从中间件注入的项目 ID 列表（非管理员用户）
 	var projectIDs []uint64
@@ -436,8 +449,8 @@ func (h *IssueHandler) HandleUpdateWorklog(c *gin.Context) {
 	userID := c.GetUint64("user_id")
 
 	var req dto.UpdateWorklogRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 

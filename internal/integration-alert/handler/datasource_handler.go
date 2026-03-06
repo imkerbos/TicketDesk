@@ -6,12 +6,13 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/service"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // DatasourceHandler 数据源处理器
@@ -73,13 +74,12 @@ func (h *DatasourceHandler) HandleCreateDatasource(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Unauthorized(c, "未认证")
+	userID, ok := resolveUserID(c)
+	if !ok {
 		return
 	}
 
-	ds, err := h.datasourceService.Create(c.Request.Context(), &req, userID.(uint64))
+	ds, err := h.datasourceService.Create(c.Request.Context(), &req, userID)
 	if err != nil {
 		logger.Error("failed to create datasource", zap.Error(err))
 		response.InternalError(c, "创建数据源失败: "+err.Error())
@@ -99,8 +99,8 @@ func (h *DatasourceHandler) HandleUpdateDatasource(c *gin.Context) {
 	}
 
 	var req dto.UpdateDatasourceRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "参数错误: "+bindErr.Error())
 		return
 	}
 

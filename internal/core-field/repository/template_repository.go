@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // TemplateRepository 字段方案模板仓储接口
@@ -44,13 +45,13 @@ func (r *templateRepository) Update(ctx context.Context, tpl *model.FieldSchemeT
 	return r.db.WithContext(ctx).Save(tpl).Error
 }
 
-// Delete 删除模板（级联删除模板项）
+// Delete 硬删除模板（级联删除模板项）
 func (r *templateRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Unscoped().Where("template_id = ?", id).Delete(&model.FieldSchemeTemplateItem{}).Error; err != nil {
 			return err
 		}
-		return tx.Delete(&model.FieldSchemeTemplate{}, id).Error
+		return tx.Unscoped().Delete(&model.FieldSchemeTemplate{}, id).Error
 	})
 }
 

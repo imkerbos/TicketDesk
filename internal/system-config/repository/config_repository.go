@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // ConfigRepository 系统配置数据访问接口
@@ -89,9 +90,9 @@ func (r *configRepository) BatchUpsert(ctx context.Context, configs []*model.Sys
 	})
 }
 
-// Delete 删除配置
+// Delete 硬删除配置
 func (r *configRepository) Delete(ctx context.Context, key string) error {
-	return r.db.WithContext(ctx).Where("config_key = ?", key).Delete(&model.SystemConfig{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("config_key = ?", key).Delete(&model.SystemConfig{}).Error
 }
 
 // WebhookRepository Webhook 数据访问接口
@@ -135,9 +136,9 @@ func (r *webhookRepository) Update(ctx context.Context, webhook *model.Webhook) 
 	return r.db.WithContext(ctx).Save(webhook).Error
 }
 
-// Delete 删除 Webhook
+// Delete 硬删除 Webhook
 func (r *webhookRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.Webhook{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.Webhook{}, id).Error
 }
 
 // List 分页查询 Webhook 列表

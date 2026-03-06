@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kerbos/ticketdesk/pkg/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/kerbos/ticketdesk/pkg/config"
 )
 
 // DB 全局数据库实例

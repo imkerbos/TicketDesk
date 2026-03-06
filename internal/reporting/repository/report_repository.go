@@ -134,8 +134,7 @@ func (r *reportRepository) CountIssuesByStatus(ctx context.Context, projectID *u
 
 	var results []Result
 	query := r.db.WithContext(ctx).Table("issues").
-		Select("status, COUNT(*) as count").
-		Where("deleted_at IS NULL")
+		Select("status, COUNT(*) as count")
 
 	if projectID != nil {
 		query = query.Where("project_id = ?", *projectID)
@@ -164,7 +163,6 @@ func (r *reportRepository) CountIssuesByPriority(ctx context.Context, projectID 
 	var results []Result
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("priority, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -195,7 +193,6 @@ func (r *reportRepository) CountIssuesByType(ctx context.Context, projectID *uin
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("issue_types.display_name as type_name, COUNT(*) as count").
 		Joins("LEFT JOIN issue_types ON issues.issue_type_id = issue_types.id").
-		Where("issues.deleted_at IS NULL").
 		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -226,7 +223,6 @@ func (r *reportRepository) CountIssuesByAssignee(ctx context.Context, projectID 
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("COALESCE(users.display_name, users.username, '未指派') as display_name, COUNT(*) as count").
 		Joins("LEFT JOIN users ON issues.assignee_id = users.id").
-		Where("issues.deleted_at IS NULL").
 		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -257,7 +253,6 @@ func (r *reportRepository) CountIssuesByEpic(ctx context.Context, projectID *uin
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("COALESCE(epics.title, '无 Epic') as epic_title, COUNT(*) as count").
 		Joins("LEFT JOIN issues AS epics ON issues.epic_id = epics.id").
-		Where("issues.deleted_at IS NULL").
 		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -282,7 +277,6 @@ func (r *reportRepository) CountIssuesCreatedByDate(ctx context.Context, project
 	var results []DateCount
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("DATE(created_at) as date, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -298,7 +292,6 @@ func (r *reportRepository) CountIssuesInProgressByDate(ctx context.Context, proj
 	var results []DateCount
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("DATE(actual_start_date) as date, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("actual_start_date IS NOT NULL").
 		Where("actual_start_date BETWEEN ? AND ?", startDate, endDate)
 
@@ -315,7 +308,6 @@ func (r *reportRepository) CountIssuesResolvedByDate(ctx context.Context, projec
 	var results []DateCount
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("DATE(resolved_at) as date, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("resolved_at IS NOT NULL").
 		Where("resolved_at BETWEEN ? AND ?", startDate, endDate)
 
@@ -332,7 +324,6 @@ func (r *reportRepository) CountIssuesClosedByDate(ctx context.Context, projectI
 	var results []DateCount
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("DATE(closed_at) as date, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("closed_at IS NOT NULL").
 		Where("closed_at BETWEEN ? AND ?", startDate, endDate)
 
@@ -352,7 +343,6 @@ func (r *reportRepository) GetAverageResolveTime(ctx context.Context, projectID 
 
 	query := r.db.WithContext(ctx).Table("issues").
 		Select("AVG(TIMESTAMPDIFF(HOUR, created_at, resolved_at)) as avg_time").
-		Where("deleted_at IS NULL").
 		Where("resolved_at IS NOT NULL").
 		Where("created_at BETWEEN ? AND ?", startDate, endDate)
 
@@ -382,7 +372,6 @@ func (r *reportRepository) GetSLAStats(ctx context.Context, projectID *uint64, s
 			SUM(CASE WHEN resolved_at IS NOT NULL THEN 1 ELSE 0 END) as resolved_issues,
 			AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at) ELSE NULL END) as avg_mttr
 		`).
-		Where("deleted_at IS NULL").
 		Where("created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -417,7 +406,6 @@ func (r *reportRepository) GetSLAStatsByPriority(ctx context.Context, projectID 
 			SUM(CASE WHEN resolved_at IS NOT NULL THEN 1 ELSE 0 END) as resolved,
 			AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at) ELSE NULL END) as avg_mttr
 		`).
-		Where("deleted_at IS NULL").
 		Where("created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -451,8 +439,7 @@ func (r *reportRepository) CountAlertsByStatus(ctx context.Context, projectID *u
 
 	var results []Result
 	query := r.db.WithContext(ctx).Table("alerts").
-		Select("status, COUNT(*) as count").
-		Where("deleted_at IS NULL")
+		Select("status, COUNT(*) as count")
 
 	err := query.Group("status").Find(&results).Error
 	if err != nil {
@@ -477,7 +464,6 @@ func (r *reportRepository) CountAlertsBySeverity(ctx context.Context, projectID 
 	var results []Result
 	query := r.db.WithContext(ctx).Table("alerts").
 		Select("severity, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("starts_at BETWEEN ? AND ?", startDate, endDate)
 
 	err := query.Group("severity").Find(&results).Error
@@ -498,7 +484,6 @@ func (r *reportRepository) CountAlertsByDate(ctx context.Context, projectID *uin
 	var results []DateCount
 	query := r.db.WithContext(ctx).Table("alerts").
 		Select("DATE(starts_at) as date, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("starts_at BETWEEN ? AND ?", startDate, endDate)
 
 	err := query.Group("DATE(starts_at)").Order("date").Find(&results).Error
@@ -510,7 +495,6 @@ func (r *reportRepository) GetTopAlerts(ctx context.Context, projectID *uint64, 
 	var results []AlertCount
 	query := r.db.WithContext(ctx).Table("alerts").
 		Select("alert_name, COUNT(*) as count").
-		Where("deleted_at IS NULL").
 		Where("starts_at BETWEEN ? AND ?", startDate, endDate)
 
 	err := query.Group("alert_name").Order("count DESC").Limit(limit).Find(&results).Error
@@ -525,7 +509,6 @@ func (r *reportRepository) GetAverageAckTime(ctx context.Context, projectID *uin
 
 	query := r.db.WithContext(ctx).Table("alerts").
 		Select("AVG(TIMESTAMPDIFF(MINUTE, starts_at, acked_at)) as avg_time").
-		Where("deleted_at IS NULL").
 		Where("acked_at IS NOT NULL").
 		Where("starts_at BETWEEN ? AND ?", startDate, endDate)
 
@@ -541,7 +524,6 @@ func (r *reportRepository) GetAverageAckTime(ctx context.Context, projectID *uin
 func (r *reportRepository) CountProjects(ctx context.Context) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Table("projects").
-		Where("deleted_at IS NULL").
 		Count(&count).Error
 	return count, err
 }
@@ -576,7 +558,6 @@ func (r *reportRepository) GetUserPerformance(ctx context.Context, projectID *ui
 			AVG(CASE WHEN issues.resolved_at IS NOT NULL THEN TIMESTAMPDIFF(HOUR, issues.created_at, issues.resolved_at) ELSE NULL END) as avg_resolve_time
 		`).
 		Joins("JOIN users ON issues.assignee_id = users.id").
-		Where("issues.deleted_at IS NULL").
 		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -608,13 +589,11 @@ func (r *reportRepository) GetWorklogDailyStats(ctx context.Context, projectID *
 	var results []WorklogDailyStat
 	query := r.db.WithContext(ctx).Table("issue_worklogs").
 		Select("DATE(worked_at) as date, SUM(time_spent_sec) as total_time_sec, COUNT(*) as entry_count").
-		Where("issue_worklogs.deleted_at IS NULL").
 		Where("worked_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
 		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
-			Where("issues.project_id = ?", *projectID).
-			Where("issues.deleted_at IS NULL")
+			Where("issues.project_id = ?", *projectID)
 	}
 
 	err := query.Group("DATE(worked_at)").Order("date").Find(&results).Error
@@ -627,13 +606,11 @@ func (r *reportRepository) GetWorklogUserStats(ctx context.Context, projectID *u
 	query := r.db.WithContext(ctx).Table("issue_worklogs").
 		Select("issue_worklogs.user_id, COALESCE(users.display_name, users.username, '未知') as display_name, SUM(issue_worklogs.time_spent_sec) as total_time_sec, COUNT(*) as entry_count").
 		Joins("LEFT JOIN users ON issue_worklogs.user_id = users.id").
-		Where("issue_worklogs.deleted_at IS NULL").
 		Where("issue_worklogs.worked_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
 		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
-			Where("issues.project_id = ?", *projectID).
-			Where("issues.deleted_at IS NULL")
+			Where("issues.project_id = ?", *projectID)
 	}
 
 	err := query.Group("issue_worklogs.user_id").Order("total_time_sec DESC").Find(&results).Error
@@ -645,13 +622,11 @@ func (r *reportRepository) GetWorklogTypeStats(ctx context.Context, projectID *u
 	var results []WorklogTypeStat
 	query := r.db.WithContext(ctx).Table("issue_worklogs").
 		Select("COALESCE(NULLIF(work_type, ''), '未分类') as work_type, SUM(time_spent_sec) as total_time_sec, COUNT(*) as entry_count").
-		Where("issue_worklogs.deleted_at IS NULL").
 		Where("worked_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
 		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
-			Where("issues.project_id = ?", *projectID).
-			Where("issues.deleted_at IS NULL")
+			Where("issues.project_id = ?", *projectID)
 	}
 
 	err := query.Group("work_type").Order("total_time_sec DESC").Find(&results).Error
@@ -663,13 +638,11 @@ func (r *reportRepository) GetWorklogSummary(ctx context.Context, projectID *uin
 	var result WorklogSummaryData
 	query := r.db.WithContext(ctx).Table("issue_worklogs").
 		Select("COALESCE(SUM(time_spent_sec), 0) as total_time_sec, COUNT(*) as total_entries, COUNT(DISTINCT user_id) as active_users").
-		Where("issue_worklogs.deleted_at IS NULL").
 		Where("worked_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
 		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
-			Where("issues.project_id = ?", *projectID).
-			Where("issues.deleted_at IS NULL")
+			Where("issues.project_id = ?", *projectID)
 	}
 
 	err := query.Take(&result).Error

@@ -14,7 +14,7 @@ type N9eAlertEvent struct {
 	RuleID       int64             `json:"rule_id"`
 	RuleName     string            `json:"rule_name"`
 	RuleNote     string            `json:"rule_note"`
-	Severity     int               `json:"severity"`       // 1=紧急 2=警告 3=提醒
+	Severity     int               `json:"severity"` // 1=紧急 2=警告 3=提醒
 	TargetIdent  string            `json:"target_ident"`
 	TargetNote   string            `json:"target_note"`
 	TriggerTime  int64             `json:"trigger_time"`
@@ -26,7 +26,7 @@ type N9eAlertEvent struct {
 	RecoverTime  int64             `json:"recover_time"`
 	GroupName    string            `json:"group_name"`
 	PromQl       string            `json:"prom_ql"`
-	RunbookUrl   string            `json:"runbook_url"`
+	RunbookURL   string            `json:"runbook_url"`
 }
 
 // N9eAlertListResponse 夜莺活跃告警列表 API 响应
@@ -108,8 +108,8 @@ func (e *N9eAlertEvent) ToAlertWebhookItem() *AlertWebhookAlertItem {
 	}
 
 	// 设置 runbook_url
-	if e.RunbookUrl != "" {
-		annotations["runbook_url"] = e.RunbookUrl
+	if e.RunbookURL != "" {
+		annotations["runbook_url"] = e.RunbookURL
 	}
 
 	// 状态映射

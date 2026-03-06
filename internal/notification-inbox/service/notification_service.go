@@ -5,12 +5,13 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/notification-inbox/dto"
 	"github.com/kerbos/ticketdesk/internal/notification-inbox/repository"
 	"github.com/kerbos/ticketdesk/internal/notification-inbox/websocket"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // NotificationService 站内通知服务接口
@@ -22,11 +23,11 @@ type NotificationService interface {
 	// GetUnreadCount 获取未读数量
 	GetUnreadCount(ctx context.Context, userID uint64) (int64, error)
 	// MarkAsRead 标记为已读
-	MarkAsRead(ctx context.Context, id uint64, userID uint64) error
+	MarkAsRead(ctx context.Context, id, userID uint64) error
 	// MarkAllAsRead 全部标记为已读
 	MarkAllAsRead(ctx context.Context, userID uint64) error
 	// DeleteNotification 删除通知
-	DeleteNotification(ctx context.Context, id uint64, userID uint64) error
+	DeleteNotification(ctx context.Context, id, userID uint64) error
 }
 
 // notificationService 站内通知服务实现
@@ -114,7 +115,7 @@ func (s *notificationService) GetUnreadCount(ctx context.Context, userID uint64)
 }
 
 // MarkAsRead 标记为已读
-func (s *notificationService) MarkAsRead(ctx context.Context, id uint64, userID uint64) error {
+func (s *notificationService) MarkAsRead(ctx context.Context, id, userID uint64) error {
 	if err := s.repo.MarkAsRead(ctx, id, userID); err != nil {
 		return fmt.Errorf("标记已读失败: %w", err)
 	}
@@ -130,7 +131,7 @@ func (s *notificationService) MarkAllAsRead(ctx context.Context, userID uint64) 
 }
 
 // DeleteNotification 删除通知
-func (s *notificationService) DeleteNotification(ctx context.Context, id uint64, userID uint64) error {
+func (s *notificationService) DeleteNotification(ctx context.Context, id, userID uint64) error {
 	if err := s.repo.Delete(ctx, id, userID); err != nil {
 		return fmt.Errorf("删除通知失败: %w", err)
 	}

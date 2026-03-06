@@ -4,10 +4,11 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/dto"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/service"
-	"go.uber.org/zap"
 )
 
 // RequirementHandler 需求 HTTP 处理器
@@ -253,8 +254,8 @@ func (h *RequirementHandler) ConvertToIssue(c *gin.Context) {
 	}
 
 	var req dto.ConvertToIssueRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -311,8 +312,8 @@ func (h *RequirementHandler) AddComment(c *gin.Context) {
 	}
 
 	var req dto.RequirementCommentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 

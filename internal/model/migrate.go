@@ -4,10 +4,11 @@ package model
 import (
 	"time"
 
-	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/pkg/logger"
 )
 
 // AutoMigrate 自动迁移数据库表结构
@@ -477,9 +478,9 @@ func MigrateBuiltinFieldSchemes(db *gorm.DB) error {
 	}
 	// 再从所有项目×全局工单类型取组合（覆盖之前没有任何字段方案的工单类型）
 	var projectIDs []uint64
-	db.Model(&Project{}).Where("deleted_at IS NULL").Pluck("id", &projectIDs)
+	db.Model(&Project{}).Pluck("id", &projectIDs)
 	var globalTypeIDs []uint64
-	db.Model(&IssueType{}).Where("project_id IS NULL AND deleted_at IS NULL").Pluck("id", &globalTypeIDs)
+	db.Model(&IssueType{}).Where("project_id IS NULL").Pluck("id", &globalTypeIDs)
 
 	comboSet := make(map[[2]uint64]bool)
 	var combos []projectType
@@ -555,7 +556,7 @@ func MigrateAlertPriorityVisibility(db *gorm.DB) error {
 
 	// 查找 Alert 工单类型 ID
 	var alertType IssueType
-	if err := db.Where("name = ? AND project_id IS NULL AND deleted_at IS NULL", "Alert").First(&alertType).Error; err != nil {
+	if err := db.Where("name = ? AND project_id IS NULL", "Alert").First(&alertType).Error; err != nil {
 		return nil // Alert 类型不存在，跳过
 	}
 
@@ -695,7 +696,7 @@ func SeedDefaultFieldSchemeTemplates(db *gorm.DB, createdBy uint64) error {
 		{
 			Name:        "告警(Alert)默认方案",
 			Description: "适用于告警(Alert)工单类型的字段方案模板",
-			Fields: append([]fieldCfg{}, builtinTplFields...),
+			Fields:      append([]fieldCfg{}, builtinTplFields...),
 		},
 	}
 
@@ -998,13 +999,13 @@ func SeedSystemFields(db *gorm.DB) error {
 		},
 		// 内置字段（对应 Issue 表列，通过字段方案控制可见性，不存 EAV）
 		{
-			FieldKey:     "description",
-			FieldName:    "描述",
-			FieldType:    FieldTypeTextarea,
-			Description:  "工单描述",
-			IsSystem:     true,
-			IsActive:     true,
-			SortOrder:    100,
+			FieldKey:    "description",
+			FieldName:   "描述",
+			FieldType:   FieldTypeTextarea,
+			Description: "工单描述",
+			IsSystem:    true,
+			IsActive:    true,
+			SortOrder:   100,
 		},
 		{
 			FieldKey:     "priority",

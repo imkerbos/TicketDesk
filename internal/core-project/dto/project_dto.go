@@ -78,16 +78,16 @@ type UpdateIssueTypeRequest struct {
 
 // ProjectResponse 项目响应
 type ProjectResponse struct {
-	ID          uint64       `json:"id"`
-	ProjectKey  string       `json:"project_key"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	LeadUserID  uint64       `json:"lead_user_id"`
-	LeadUser    *UserBrief   `json:"lead_user,omitempty"`
-	Status      int8         `json:"status"`
-	MemberCount int          `json:"member_count,omitempty"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
+	ID          uint64     `json:"id"`
+	ProjectKey  string     `json:"project_key"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	LeadUserID  uint64     `json:"lead_user_id"`
+	LeadUser    *UserBrief `json:"lead_user,omitempty"`
+	Status      int8       `json:"status"`
+	MemberCount int        `json:"member_count,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // UserBrief 用户简要信息
@@ -171,4 +171,3 @@ type ProjectRoleMemberResponse struct {
 	User      *UserBrief `json:"user,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 }
-

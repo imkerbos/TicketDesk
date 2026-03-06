@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	issueRepo "github.com/kerbos/ticketdesk/internal/core-issue/repository"
 	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
@@ -19,13 +22,11 @@ import (
 	"github.com/kerbos/ticketdesk/pkg/cache"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/sequence"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // 缓存 Key 常量
 const (
-	cacheKeyEnabledRules = "alert:rules:enabled"
+	cacheKeyEnabledRules   = "alert:rules:enabled"
 	cacheKeyFingerprintFmt = "alert:fp:%s"
 
 	cacheTTLRules       = 5 * time.Minute
@@ -120,9 +121,9 @@ type alertService struct {
 	issueTypeRepo    projectRepo.IssueTypeRepository
 	watcherRepo      issueRepo.WatcherRepository
 	db               *gorm.DB
-	workflowCreator  WorkflowCreator  // 可选，用于告警建单时自动创建工作流实例
-	activityLogger   ActivityLogger   // 可选，活动日志
-	projectNotifier  ProjectNotifier  // 可选，项目外部渠道通知
+	workflowCreator  WorkflowCreator    // 可选，用于告警建单时自动创建工作流实例
+	activityLogger   ActivityLogger     // 可选，活动日志
+	projectNotifier  ProjectNotifier    // 可选，项目外部渠道通知
 	notifSender      NotificationSender // 可选，站内通知
 }
 
@@ -1226,7 +1227,6 @@ func (s *alertService) getMatchedRule(ctx context.Context, alert *model.Alert) (
 	return nil, nil
 }
 
-
 // matchRule 匹配告警规则
 func (s *alertService) matchRule(rule *model.AlertRule, labels map[string]string) bool {
 	// 解析规则的标签匹配器
@@ -1637,4 +1637,3 @@ func (s *alertService) toAlertRuleResponse(rule *model.AlertRule) *dto.AlertRule
 
 	return resp
 }
-

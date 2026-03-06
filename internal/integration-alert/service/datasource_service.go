@@ -9,12 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/config"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // DatasourceService 数据源服务接口

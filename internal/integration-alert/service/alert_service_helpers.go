@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/cache"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // 静默规则缓存常量
@@ -178,7 +179,6 @@ func (s *alertService) mergeOldIssues(ctx context.Context, rule *model.AlertRule
 		// 扁平化：查找之前已经合并到这些旧工单的更旧工单，让它们也指向最新工单
 		var deeperMergedIssues []model.Issue
 		if err := tx.Where("merged_into_issue_id IN (?)", oldIssueIDs).
-			Where("deleted_at IS NULL").
 			Find(&deeperMergedIssues).Error; err == nil && len(deeperMergedIssues) > 0 {
 			if err := tx.Model(&model.Issue{}).
 				Where("merged_into_issue_id IN (?)", oldIssueIDs).
@@ -304,7 +304,6 @@ func (s *alertService) SyncMergedIssueStatus(ctx context.Context, issueID uint64
 	var mergedIssues []model.Issue
 	err := s.db.WithContext(ctx).
 		Where("merged_into_issue_id = ?", issueID).
-		Where("deleted_at IS NULL").
 		Find(&mergedIssues).Error
 	if err != nil {
 		return fmt.Errorf("failed to find merged issues: %w", err)

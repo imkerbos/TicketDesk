@@ -10,14 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/core-issue/dto"
 	"github.com/kerbos/ticketdesk/internal/core-issue/repository"
 	userRepo "github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/storage"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // 业务错误定义
@@ -31,7 +32,7 @@ var (
 type AttachmentService interface {
 	UploadAttachment(ctx context.Context, issueKey string, file *multipart.FileHeader, userID uint64) (*dto.AttachmentResponse, error)
 	ListAttachments(ctx context.Context, issueKey string) ([]*dto.AttachmentResponse, error)
-	DeleteAttachment(ctx context.Context, issueKey string, attachmentID uint64, userID uint64) error
+	DeleteAttachment(ctx context.Context, issueKey string, attachmentID, userID uint64) error
 	GetAttachmentPath(ctx context.Context, attachmentID uint64) (string, error)
 	SetActivityLogger(activityLogger ActivityLogger)
 }
@@ -187,7 +188,7 @@ func (s *attachmentService) ListAttachments(ctx context.Context, issueKey string
 }
 
 // DeleteAttachment 删除附件
-func (s *attachmentService) DeleteAttachment(ctx context.Context, issueKey string, attachmentID uint64, userID uint64) error {
+func (s *attachmentService) DeleteAttachment(ctx context.Context, issueKey string, attachmentID, userID uint64) error {
 	// 获取工单
 	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(issueKey))
 	if err != nil {

@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/dto"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/repository"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // RequirementPoolService 需求池业务逻辑接口
@@ -17,16 +18,16 @@ type RequirementPoolService interface {
 	Create(ctx context.Context, req *dto.CreateRequirementPoolRequest, userID uint64) (*dto.RequirementPoolResponse, error)
 	GetByID(ctx context.Context, id uint64) (*dto.RequirementPoolResponse, error)
 	Update(ctx context.Context, id uint64, req *dto.UpdateRequirementPoolRequest, userID uint64) error
-	Delete(ctx context.Context, id uint64, userID uint64) error
+	Delete(ctx context.Context, id, userID uint64) error
 	List(ctx context.Context, req *dto.RequirementPoolListRequest) ([]*dto.RequirementPoolResponse, int64, error)
 	GetByProjectID(ctx context.Context, projectID uint64) ([]*dto.RequirementPoolResponse, error)
 }
 
 // requirementPoolService 需求池业务逻辑实现
 type requirementPoolService struct {
-	repo   repository.RequirementPoolRepository
+	repo    repository.RequirementPoolRepository
 	reqRepo repository.RequirementRepository
-	logger *zap.Logger
+	logger  *zap.Logger
 }
 
 // NewRequirementPoolService 创建需求池业务逻辑实例
@@ -149,7 +150,7 @@ func (s *requirementPoolService) Update(ctx context.Context, id uint64, req *dto
 }
 
 // Delete 删除需求池
-func (s *requirementPoolService) Delete(ctx context.Context, id uint64, userID uint64) error {
+func (s *requirementPoolService) Delete(ctx context.Context, id, userID uint64) error {
 	// 检查需求池是否存在
 	pool, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -224,7 +225,14 @@ func (s *requirementPoolService) List(ctx context.Context, req *dto.RequirementP
 	responses := make([]*dto.RequirementPoolResponse, 0, len(pools))
 	for _, pool := range pools {
 		// 统计需求数量
-		requirements, _ := s.reqRepo.GetByPoolID(ctx, pool.ID)
+		requirements, reqErr := s.reqRepo.GetByPoolID(ctx, pool.ID)
+		if reqErr != nil {
+			s.logger.Warn("failed to count requirements by pool",
+				zap.Uint64("pool_id", pool.ID),
+				zap.Error(reqErr),
+			)
+			requirements = nil
+		}
 		responses = append(responses, s.toPoolResponse(pool, int64(len(requirements))))
 	}
 
@@ -245,7 +253,14 @@ func (s *requirementPoolService) GetByProjectID(ctx context.Context, projectID u
 	responses := make([]*dto.RequirementPoolResponse, 0, len(pools))
 	for _, pool := range pools {
 		// 统计需求数量
-		requirements, _ := s.reqRepo.GetByPoolID(ctx, pool.ID)
+		requirements, reqErr := s.reqRepo.GetByPoolID(ctx, pool.ID)
+		if reqErr != nil {
+			s.logger.Warn("failed to count requirements by pool",
+				zap.Uint64("pool_id", pool.ID),
+				zap.Error(reqErr),
+			)
+			requirements = nil
+		}
 		responses = append(responses, s.toPoolResponse(pool, int64(len(requirements))))
 	}
 

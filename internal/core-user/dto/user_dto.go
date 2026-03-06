@@ -112,8 +112,8 @@ type UserResponse struct {
 	Status      int8       `json:"status"`
 	Roles       []string   `json:"roles,omitempty"`
 	MFAEnabled  bool       `json:"mfa_enabled"`
-	AuthSource  string     `json:"auth_source"`             // "local" 或 "sso"
-	SSOProvider string     `json:"sso_provider,omitempty"`  // SSO 提供方名称（仅 SSO 用户）
+	AuthSource  string     `json:"auth_source"`            // "local" 或 "sso"
+	SSOProvider string     `json:"sso_provider,omitempty"` // SSO 提供方名称（仅 SSO 用户）
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -131,11 +131,11 @@ type RoleResponse struct {
 
 // MFASetupResponse MFA 设置响应
 type MFASetupResponse struct {
-	Secret     string `json:"secret"`        // Base32 编码的密钥
-	OTPAuthURL string `json:"otp_auth_url"`  // 用于生成二维码的 URL
-	QRCodeData string `json:"qr_code_data"`  // Base64 编码的 QR 码图片
-	Issuer     string `json:"issuer"`        // 发行者
-	Account    string `json:"account"`       // 账户名
+	Secret     string `json:"secret"`       // Base32 编码的密钥
+	OTPAuthURL string `json:"otp_auth_url"` // 用于生成二维码的 URL
+	QRCodeData string `json:"qr_code_data"` // Base64 编码的 QR 码图片
+	Issuer     string `json:"issuer"`       // 发行者
+	Account    string `json:"account"`      // 账户名
 }
 
 // MFAStatusResponse MFA 状态响应

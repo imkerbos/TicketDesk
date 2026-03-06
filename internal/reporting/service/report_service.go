@@ -3,13 +3,15 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
+	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
 	"github.com/kerbos/ticketdesk/internal/reporting/dto"
 	"github.com/kerbos/ticketdesk/internal/reporting/repository"
-	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // SLA 目标配置（分钟）
@@ -53,9 +55,9 @@ func (s *reportService) GetDashboardStats(ctx context.Context, req *dto.Dashboar
 
 	var projectID *uint64
 	if req.ProjectKey != "" {
-		project, err := s.projectRepo.GetByKey(ctx, req.ProjectKey)
-		if err != nil {
-			return nil, err
+		project, projectErr := s.projectRepo.GetByKey(ctx, req.ProjectKey)
+		if projectErr != nil {
+			return nil, projectErr
 		}
 		projectID = &project.ID
 	}
@@ -78,17 +80,26 @@ func (s *reportService) GetDashboardStats(ctx context.Context, req *dto.Dashboar
 	weekStart := todayStart.AddDate(0, 0, -int(now.Weekday()))
 	weekEnd := weekStart.AddDate(0, 0, 7)
 
-	todayCreated, _ := s.reportRepo.CountIssuesCreatedByDate(ctx, projectID, todayStart, todayEnd)
+	todayCreated, err := s.reportRepo.CountIssuesCreatedByDate(ctx, projectID, todayStart, todayEnd)
+	if err != nil {
+		logger.Warn("failed to count today created issues", zap.Error(err))
+	}
 	for _, item := range todayCreated {
 		resp.IssueStats.TodayCreated += item.Count
 	}
 
-	weekCreated, _ := s.reportRepo.CountIssuesCreatedByDate(ctx, projectID, weekStart, weekEnd)
+	weekCreated, err := s.reportRepo.CountIssuesCreatedByDate(ctx, projectID, weekStart, weekEnd)
+	if err != nil {
+		logger.Warn("failed to count week created issues", zap.Error(err))
+	}
 	for _, item := range weekCreated {
 		resp.IssueStats.WeekCreated += item.Count
 	}
 
-	weekResolved, _ := s.reportRepo.CountIssuesResolvedByDate(ctx, projectID, weekStart, weekEnd)
+	weekResolved, err := s.reportRepo.CountIssuesResolvedByDate(ctx, projectID, weekStart, weekEnd)
+	if err != nil {
+		logger.Warn("failed to count week resolved issues", zap.Error(err))
+	}
 	for _, item := range weekResolved {
 		resp.IssueStats.WeekResolved += item.Count
 	}
@@ -103,19 +114,31 @@ func (s *reportService) GetDashboardStats(ctx context.Context, req *dto.Dashboar
 		resp.AlertStats.TotalResolved = alertStats["resolved"]
 	}
 
-	todayAlerts, _ := s.reportRepo.CountAlertsByDate(ctx, projectID, todayStart, todayEnd)
+	todayAlerts, err := s.reportRepo.CountAlertsByDate(ctx, projectID, todayStart, todayEnd)
+	if err != nil {
+		logger.Warn("failed to count today alerts", zap.Error(err))
+	}
 	for _, item := range todayAlerts {
 		resp.AlertStats.TodayCreated += item.Count
 	}
 
-	weekAlerts, _ := s.reportRepo.CountAlertsByDate(ctx, projectID, weekStart, weekEnd)
+	weekAlerts, err := s.reportRepo.CountAlertsByDate(ctx, projectID, weekStart, weekEnd)
+	if err != nil {
+		logger.Warn("failed to count week alerts", zap.Error(err))
+	}
 	for _, item := range weekAlerts {
 		resp.AlertStats.WeekCreated += item.Count
 	}
 
 	// 项目统计
-	resp.ProjectStats.TotalProjects, _ = s.reportRepo.CountProjects(ctx)
-	resp.ProjectStats.TotalMembers, _ = s.reportRepo.CountProjectMembers(ctx)
+	resp.ProjectStats.TotalProjects, err = s.reportRepo.CountProjects(ctx)
+	if err != nil {
+		logger.Warn("failed to count projects", zap.Error(err))
+	}
+	resp.ProjectStats.TotalMembers, err = s.reportRepo.CountProjectMembers(ctx)
+	if err != nil {
+		logger.Warn("failed to count project members", zap.Error(err))
+	}
 
 	return resp, nil
 }
@@ -129,9 +152,9 @@ func (s *reportService) GetIssueStats(ctx context.Context, req *dto.IssueStatsRe
 
 	var projectID *uint64
 	if req.ProjectKey != "" {
-		project, err := s.projectRepo.GetByKey(ctx, req.ProjectKey)
-		if err != nil {
-			return nil, err
+		project, projectErr := s.projectRepo.GetByKey(ctx, req.ProjectKey)
+		if projectErr != nil {
+			return nil, projectErr
 		}
 		projectID = &project.ID
 	}
@@ -148,34 +171,61 @@ func (s *reportService) GetIssueStats(ctx context.Context, req *dto.IssueStatsRe
 	resp.Summary.Total = resp.Summary.Open + resp.Summary.InProgress + resp.Summary.Resolved + resp.Summary.Closed
 
 	// 获取平均解决时间
-	resp.Summary.AvgResolveTime, _ = s.reportRepo.GetAverageResolveTime(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	resp.Summary.AvgResolveTime, err = s.reportRepo.GetAverageResolveTime(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get average resolve time", zap.Error(err))
+	}
 
 	// 获取时间线数据
-	createdByDate, _ := s.reportRepo.CountIssuesCreatedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
-	inProgressByDate, _ := s.reportRepo.CountIssuesInProgressByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
-	resolvedByDate, _ := s.reportRepo.CountIssuesResolvedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
-	closedByDate, _ := s.reportRepo.CountIssuesClosedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	createdByDate, err := s.reportRepo.CountIssuesCreatedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get created issue timeline", zap.Error(err))
+	}
+	inProgressByDate, err := s.reportRepo.CountIssuesInProgressByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get in-progress issue timeline", zap.Error(err))
+	}
+	resolvedByDate, err := s.reportRepo.CountIssuesResolvedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get resolved issue timeline", zap.Error(err))
+	}
+	closedByDate, err := s.reportRepo.CountIssuesClosedByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get closed issue timeline", zap.Error(err))
+	}
 
 	// 合并时间线数据
 	resp.Timeline = s.mergeTimelineData(createdByDate, inProgressByDate, resolvedByDate, closedByDate)
 
 	// 获取优先级分布
-	priorityMap, _ := s.reportRepo.CountIssuesByPriority(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	priorityMap, err := s.reportRepo.CountIssuesByPriority(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to count issues by priority", zap.Error(err))
+	}
 	resp.PriorityDistribution = s.mapToDistribution(priorityMap)
 
 	// 获取类型分布
-	typeMap, _ := s.reportRepo.CountIssuesByType(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	typeMap, err := s.reportRepo.CountIssuesByType(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to count issues by type", zap.Error(err))
+	}
 	resp.TypeDistribution = s.mapToDistribution(typeMap)
 
 	// 获取状态分布
 	resp.StatusDistribution = s.mapToDistribution(statusMap)
 
 	// 获取指派人分布
-	assigneeMap, _ := s.reportRepo.CountIssuesByAssignee(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	assigneeMap, err := s.reportRepo.CountIssuesByAssignee(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to count issues by assignee", zap.Error(err))
+	}
 	resp.AssigneeDistribution = s.mapToDistribution(assigneeMap)
 
 	// 获取 Epic 分布
-	epicMap, _ := s.reportRepo.CountIssuesByEpic(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	epicMap, err := s.reportRepo.CountIssuesByEpic(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to count issues by epic", zap.Error(err))
+	}
 	resp.EpicDistribution = s.mapToDistribution(epicMap)
 
 	return resp, nil
@@ -186,15 +236,21 @@ func (s *reportService) GetSLAReport(ctx context.Context, req *dto.SLAReportRequ
 	resp := &dto.SLAReportResponse{}
 
 	// 解析日期
-	startDate, _ := time.Parse("2006-01-02", req.StartDate)
-	endDate, _ := time.Parse("2006-01-02", req.EndDate)
+	startDate, err := time.Parse("2006-01-02", req.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("开始日期格式错误，应为 YYYY-MM-DD: %w", err)
+	}
+	endDate, err := time.Parse("2006-01-02", req.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("结束日期格式错误，应为 YYYY-MM-DD: %w", err)
+	}
 	endDate = endDate.Add(24*time.Hour - time.Second) // 包含结束日期当天
 
 	var projectID *uint64
 	if req.ProjectKey != "" {
-		project, err := s.projectRepo.GetByKey(ctx, req.ProjectKey)
-		if err != nil {
-			return nil, err
+		project, projectErr := s.projectRepo.GetByKey(ctx, req.ProjectKey)
+		if projectErr != nil {
+			return nil, projectErr
 		}
 		projectID = &project.ID
 	}
@@ -210,7 +266,10 @@ func (s *reportService) GetSLAReport(ctx context.Context, req *dto.SLAReportRequ
 	resp.Summary.MTTR = slaStats.TotalMTTR
 
 	// 按优先级统计
-	priorityStats, _ := s.reportRepo.GetSLAStatsByPriority(ctx, projectID, startDate, endDate)
+	priorityStats, err := s.reportRepo.GetSLAStatsByPriority(ctx, projectID, startDate, endDate)
+	if err != nil {
+		logger.Warn("failed to get sla stats by priority", zap.Error(err))
+	}
 	resp.ByPriority = make([]dto.SLAPriorityStats, len(priorityStats))
 	for i, ps := range priorityStats {
 		slaTarget := slaTargets[ps.Priority]
@@ -252,9 +311,9 @@ func (s *reportService) GetAlertStats(ctx context.Context, req *dto.AlertStatsRe
 
 	var projectID *uint64
 	if req.ProjectKey != "" {
-		project, err := s.projectRepo.GetByKey(ctx, req.ProjectKey)
-		if err != nil {
-			return nil, err
+		project, projectErr := s.projectRepo.GetByKey(ctx, req.ProjectKey)
+		if projectErr != nil {
+			return nil, projectErr
 		}
 		projectID = &project.ID
 	}
@@ -270,10 +329,16 @@ func (s *reportService) GetAlertStats(ctx context.Context, req *dto.AlertStatsRe
 	resp.Summary.Total = resp.Summary.Firing + resp.Summary.Acked + resp.Summary.Resolved
 
 	// 获取平均确认时间
-	resp.Summary.AvgAckTime, _ = s.reportRepo.GetAverageAckTime(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	resp.Summary.AvgAckTime, err = s.reportRepo.GetAverageAckTime(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get average ack time", zap.Error(err))
+	}
 
 	// 获取时间线数据
-	alertsByDate, _ := s.reportRepo.CountAlertsByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	alertsByDate, err := s.reportRepo.CountAlertsByDate(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to count alerts by date", zap.Error(err))
+	}
 	resp.Timeline = make([]dto.AlertTimelineItem, len(alertsByDate))
 	for i, item := range alertsByDate {
 		resp.Timeline[i] = dto.AlertTimelineItem{
@@ -283,11 +348,17 @@ func (s *reportService) GetAlertStats(ctx context.Context, req *dto.AlertStatsRe
 	}
 
 	// 获取严重程度分布
-	severityMap, _ := s.reportRepo.CountAlertsBySeverity(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	severityMap, err := s.reportRepo.CountAlertsBySeverity(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to count alerts by severity", zap.Error(err))
+	}
 	resp.SeverityDistribution = s.mapToDistribution(severityMap)
 
 	// 获取 Top 告警
-	topAlerts, _ := s.reportRepo.GetTopAlerts(ctx, projectID, dateRange.StartDate, dateRange.EndDate, 10)
+	topAlerts, err := s.reportRepo.GetTopAlerts(ctx, projectID, dateRange.StartDate, dateRange.EndDate, 10)
+	if err != nil {
+		logger.Warn("failed to get top alerts", zap.Error(err))
+	}
 	resp.TopAlerts = make([]dto.TopAlertItem, len(topAlerts))
 	for i, item := range topAlerts {
 		resp.TopAlerts[i] = dto.TopAlertItem{
@@ -305,9 +376,9 @@ func (s *reportService) GetUserPerformance(ctx context.Context, req *dto.IssueSt
 
 	var projectID *uint64
 	if req.ProjectKey != "" {
-		project, err := s.projectRepo.GetByKey(ctx, req.ProjectKey)
-		if err != nil {
-			return nil, err
+		project, projectErr := s.projectRepo.GetByKey(ctx, req.ProjectKey)
+		if projectErr != nil {
+			return nil, projectErr
 		}
 		projectID = &project.ID
 	}
@@ -406,9 +477,9 @@ func (s *reportService) GetWorklogStats(ctx context.Context, req *dto.WorklogSta
 
 	var projectID *uint64
 	if req.ProjectKey != "" {
-		project, err := s.projectRepo.GetByKey(ctx, req.ProjectKey)
-		if err != nil {
-			return nil, err
+		project, projectErr := s.projectRepo.GetByKey(ctx, req.ProjectKey)
+		if projectErr != nil {
+			return nil, projectErr
 		}
 		projectID = &project.ID
 	}

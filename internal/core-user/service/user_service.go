@@ -9,6 +9,10 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/core-user/dto"
 	"github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
@@ -16,22 +20,19 @@ import (
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // 业务错误定义
 var (
-	ErrUserNotFound         = errors.New("用户不存在")
-	ErrUserDisabled         = errors.New("用户已被禁用")
-	ErrUsernameExists       = errors.New("用户名已存在")
-	ErrEmailExists          = errors.New("邮箱已存在")
-	ErrInvalidCredentials   = errors.New("用户名或密码错误")
-	ErrInvalidOldPassword   = errors.New("原密码错误")
-	ErrInvalidResetToken    = errors.New("重置密码令牌无效或已过期")
-	ErrResetTokenExpired      = errors.New("重置密码令牌已过期")
-	ErrSSOPasswordNotAllowed  = errors.New("SSO 用户不支持修改密码，请通过 SSO 提供方管理密码")
+	ErrUserNotFound          = errors.New("用户不存在")
+	ErrUserDisabled          = errors.New("用户已被禁用")
+	ErrUsernameExists        = errors.New("用户名已存在")
+	ErrEmailExists           = errors.New("邮箱已存在")
+	ErrInvalidCredentials    = errors.New("用户名或密码错误")
+	ErrInvalidOldPassword    = errors.New("原密码错误")
+	ErrInvalidResetToken     = errors.New("重置密码令牌无效或已过期")
+	ErrResetTokenExpired     = errors.New("重置密码令牌已过期")
+	ErrSSOPasswordNotAllowed = errors.New("SSO 用户不支持修改密码，请通过 SSO 提供方管理密码")
 )
 
 // UserService 用户服务接口
@@ -62,6 +63,7 @@ type userService struct {
 	jwtManager    *jwt.Manager
 	emailService  email.EmailService
 	configService configService.ConfigService
+	db            *gorm.DB // 用于级联删除事务
 }
 
 // NewUserService 创建用户服务实例
@@ -71,6 +73,7 @@ func NewUserService(
 	jwtManager *jwt.Manager,
 	emailService email.EmailService,
 	configService configService.ConfigService,
+	db *gorm.DB,
 ) UserService {
 	return &userService{
 		userRepo:      userRepo,
@@ -78,6 +81,7 @@ func NewUserService(
 		jwtManager:    jwtManager,
 		emailService:  emailService,
 		configService: configService,
+		db:            db,
 	}
 }
 
@@ -487,7 +491,7 @@ func (s *userService) DisableUser(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// DeleteUser 删除用户
+// DeleteUser 硬删除用户及关联数据（不删除用户创建的工单/评论，保留为孤立记录）
 func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 	// 检查用户是否存在
 	_, err := s.userRepo.GetByID(ctx, id)
@@ -498,12 +502,39 @@ func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 		return fmt.Errorf("查询用户失败: %w", err)
 	}
 
-	if err := s.userRepo.Delete(ctx, id); err != nil {
-		logger.Error("failed to delete user", zap.Uint64("id", id), zap.Error(err))
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. 删除用户角色关联
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.UserRole{}).Error; err != nil {
+			return fmt.Errorf("删除用户角色失败: %w", err)
+		}
+
+		// 2. 删除项目成员关系
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.ProjectMember{}).Error; err != nil {
+			return fmt.Errorf("删除项目成员失败: %w", err)
+		}
+
+		// 3. 删除项目角色成员关系
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.ProjectRoleMember{}).Error; err != nil {
+			return fmt.Errorf("删除项目角色成员失败: %w", err)
+		}
+
+		// 4. 删除站内通知
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.Notification{}).Error; err != nil {
+			return fmt.Errorf("删除通知失败: %w", err)
+		}
+
+		// 5. 删除用户本身
+		if err := tx.Unscoped().Delete(&model.User{}, id).Error; err != nil {
+			return fmt.Errorf("删除用户失败: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		logger.Error("failed to cascade delete user", zap.Uint64("id", id), zap.Error(err))
 		return fmt.Errorf("删除用户失败: %w", err)
 	}
 
-	logger.Info("user deleted successfully", zap.Uint64("user_id", id))
+	logger.Info("user cascade deleted successfully", zap.Uint64("user_id", id))
 
 	return nil
 }
@@ -737,4 +768,3 @@ func (s *userService) sendResetPasswordEmail(ctx context.Context, user *model.Us
 
 	return s.emailService.SendHTMLEmail(ctx, []string{user.Email}, subject, htmlBody)
 }
-

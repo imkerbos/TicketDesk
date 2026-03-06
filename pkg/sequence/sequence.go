@@ -6,10 +6,11 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/pkg/cache"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	pkgRedis "github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
 )
 
 // key 格式: issue:seq:{project_key}
@@ -65,6 +66,11 @@ if current == 1 then
 end
 return current
 `
+
+// Reset 清除项目的序号缓存（删除项目时调用，以便重建同 Key 项目时序号重新生成）
+func Reset(ctx context.Context, projectKey string) {
+	cache.Del(ctx, seqKey(projectKey))
+}
 
 func initFromDB(ctx context.Context, key, projectKey string, dbFallback DBSeedFunc) (int64, error) {
 	client := pkgRedis.GetClient()

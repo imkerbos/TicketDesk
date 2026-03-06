@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-user/dto"
 	"github.com/kerbos/ticketdesk/internal/core-user/service"
@@ -240,8 +241,8 @@ func (h *UserHandler) HandleUpdateUser(c *gin.Context) {
 	}
 
 	var req dto.UpdateUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -322,8 +323,8 @@ func (h *UserHandler) HandleResetPassword(c *gin.Context) {
 	}
 
 	var req dto.ResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -471,7 +472,7 @@ func (h *UserHandler) HandleListAllUsers(c *gin.Context) {
 	statusEnabled := int8(1)
 	req := &dto.ListUsersRequest{
 		Page:     1,
-		PageSize: 1000, // 获取足够多的用户
+		PageSize: 1000,           // 获取足够多的用户
 		Status:   &statusEnabled, // 只获取启用的用户
 	}
 
@@ -770,4 +771,3 @@ func (h *UserHandler) HandleResetPasswordWithToken(c *gin.Context) {
 
 	response.Success(c, gin.H{"message": "密码重置成功"})
 }
-

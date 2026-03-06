@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // RequirementPoolRepository 需求池数据访问接口
@@ -60,9 +61,9 @@ func (r *requirementPoolRepository) Update(ctx context.Context, pool *model.Requ
 	return r.db.WithContext(ctx).Save(pool).Error
 }
 
-// Delete 删除需求池（软删除）
+// Delete 删除需求池（硬删除）
 func (r *requirementPoolRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.RequirementPool{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.RequirementPool{}, id).Error
 }
 
 // List 获取需求池列表

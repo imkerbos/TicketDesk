@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	pkgRedis "github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
 )
 
 // ConfigValueGetter 配置值获取接口（避免依赖整个 ConfigService）
@@ -21,10 +22,10 @@ type ConfigValueGetter interface {
 
 // RateLimitConfig 限流配置
 type RateLimitConfig struct {
-	KeyPrefix string        // Redis key 前缀，如 "rl:webhook"
-	Limit     int           // 窗口内最大请求数（硬编码默认值，降级用）
-	Window    time.Duration // 时间窗口
-	ConfigKey string        // system_config key，如 "ratelimit.webhook_limit"
+	KeyPrefix string            // Redis key 前缀，如 "rl:webhook"
+	Limit     int               // 窗口内最大请求数（硬编码默认值，降级用）
+	Window    time.Duration     // 时间窗口
+	ConfigKey string            // system_config key，如 "ratelimit.webhook_limit"
 	ConfigSvc ConfigValueGetter // 动态配置获取服务
 }
 

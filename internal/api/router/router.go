@@ -7,20 +7,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	activityHandler "github.com/kerbos/ticketdesk/internal/activity/handler"
 	activityRepo "github.com/kerbos/ticketdesk/internal/activity/repository"
 	activityService "github.com/kerbos/ticketdesk/internal/activity/service"
-	alertHandler "github.com/kerbos/ticketdesk/internal/integration-alert/handler"
-	notifDto "github.com/kerbos/ticketdesk/internal/notification-inbox/dto"
-	notifHandler "github.com/kerbos/ticketdesk/internal/notification-inbox/handler"
-	notifRepo "github.com/kerbos/ticketdesk/internal/notification-inbox/repository"
-	notifService "github.com/kerbos/ticketdesk/internal/notification-inbox/service"
-	ws "github.com/kerbos/ticketdesk/internal/notification-inbox/websocket"
-	emailService "github.com/kerbos/ticketdesk/internal/notification/email"
-	alertRepo "github.com/kerbos/ticketdesk/internal/integration-alert/repository"
-	alertService "github.com/kerbos/ticketdesk/internal/integration-alert/service"
 	"github.com/kerbos/ticketdesk/internal/api/middleware"
 	"github.com/kerbos/ticketdesk/internal/api/response"
+	fieldHandler "github.com/kerbos/ticketdesk/internal/core-field/handler"
+	fieldRepo "github.com/kerbos/ticketdesk/internal/core-field/repository"
+	fieldService "github.com/kerbos/ticketdesk/internal/core-field/service"
 	issueHandler "github.com/kerbos/ticketdesk/internal/core-issue/handler"
 	issueRepo "github.com/kerbos/ticketdesk/internal/core-issue/repository"
 	issueService "github.com/kerbos/ticketdesk/internal/core-issue/service"
@@ -33,23 +30,27 @@ import (
 	workflowHandler "github.com/kerbos/ticketdesk/internal/core-workflow/handler"
 	workflowRepo "github.com/kerbos/ticketdesk/internal/core-workflow/repository"
 	workflowService "github.com/kerbos/ticketdesk/internal/core-workflow/service"
+	alertHandler "github.com/kerbos/ticketdesk/internal/integration-alert/handler"
+	alertRepo "github.com/kerbos/ticketdesk/internal/integration-alert/repository"
+	alertService "github.com/kerbos/ticketdesk/internal/integration-alert/service"
+	notifDto "github.com/kerbos/ticketdesk/internal/notification-inbox/dto"
+	notifHandler "github.com/kerbos/ticketdesk/internal/notification-inbox/handler"
+	notifRepo "github.com/kerbos/ticketdesk/internal/notification-inbox/repository"
+	notifService "github.com/kerbos/ticketdesk/internal/notification-inbox/service"
+	ws "github.com/kerbos/ticketdesk/internal/notification-inbox/websocket"
+	emailService "github.com/kerbos/ticketdesk/internal/notification/email"
 	reportHandler "github.com/kerbos/ticketdesk/internal/reporting/handler"
 	reportRepo "github.com/kerbos/ticketdesk/internal/reporting/repository"
 	reportService "github.com/kerbos/ticketdesk/internal/reporting/service"
 	reqPoolHandler "github.com/kerbos/ticketdesk/internal/requirement-pool/handler"
 	reqPoolRepo "github.com/kerbos/ticketdesk/internal/requirement-pool/repository"
 	reqPoolService "github.com/kerbos/ticketdesk/internal/requirement-pool/service"
-	fieldHandler "github.com/kerbos/ticketdesk/internal/core-field/handler"
-	fieldRepo "github.com/kerbos/ticketdesk/internal/core-field/repository"
-	fieldService "github.com/kerbos/ticketdesk/internal/core-field/service"
 	configHandler "github.com/kerbos/ticketdesk/internal/system-config/handler"
 	configRepo "github.com/kerbos/ticketdesk/internal/system-config/repository"
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/config"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"github.com/kerbos/ticketdesk/pkg/storage"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // Router 路由管理器
@@ -101,7 +102,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	// ============ 初始化 User 模块 ============
 	userRepository := userRepo.NewUserRepository(db)
 	userRoleRepository := userRepo.NewUserRoleRepository(db)
-	userSvc := userService.NewUserService(userRepository, userRoleRepository, jwtManager, emailSvc, configSvc)
+	userSvc := userService.NewUserService(userRepository, userRoleRepository, jwtManager, emailSvc, configSvc, db)
 	mfaSvc := userService.NewMFAService(userRepository)
 	userHdl := userHandler.NewUserHandler(userSvc, mfaSvc)
 
@@ -142,6 +143,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		projectRepository,
 		issueTypeRepository,
 		userRepository,
+		db,
 	)
 	issueHdl := issueHandler.NewIssueHandler(issueSvc)
 
@@ -214,13 +216,17 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	alertHdl := alertHandler.NewAlertHandler(alertSvc)
 
 	// 注入工作流创建器到告警服务（告警建单时自动创建工作流实例）
-	if alertSvcImpl, ok := alertSvc.(interface{ SetWorkflowCreator(alertService.WorkflowCreator) }); ok {
+	if alertSvcImpl, ok := alertSvc.(interface {
+		SetWorkflowCreator(alertService.WorkflowCreator)
+	}); ok {
 		alertSvcImpl.SetWorkflowCreator(workflowEngine)
 	}
 
 	// ============ 设置告警同步服务（避免循环依赖）============
 	// 将 issueSvc 转换为具体类型以调用 SetAlertSyncService
-	if issueServiceImpl, ok := issueSvc.(interface{ SetAlertSyncService(issueService.AlertSyncService) }); ok {
+	if issueServiceImpl, ok := issueSvc.(interface {
+		SetAlertSyncService(issueService.AlertSyncService)
+	}); ok {
 		issueServiceImpl.SetAlertSyncService(alertSvc)
 	}
 
@@ -244,17 +250,23 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	reportHdl := reportHandler.NewReportHandler(reportSvc)
 
 	// ============ 设置活动日志记录器（避免循环依赖）============
-	if issueServiceImpl, ok := issueSvc.(interface{ SetActivityLogger(issueService.ActivityLogger) }); ok {
+	if issueServiceImpl, ok := issueSvc.(interface {
+		SetActivityLogger(issueService.ActivityLogger)
+	}); ok {
 		issueServiceImpl.SetActivityLogger(activitySvc)
 	}
 
 	// 设置附件服务的活动日志记录器
-	if attachmentServiceImpl, ok := attachmentSvc.(interface{ SetActivityLogger(issueService.ActivityLogger) }); ok {
+	if attachmentServiceImpl, ok := attachmentSvc.(interface {
+		SetActivityLogger(issueService.ActivityLogger)
+	}); ok {
 		attachmentServiceImpl.SetActivityLogger(activitySvc)
 	}
 
 	// 设置告警服务的活动日志记录器
-	if alertSvcImpl, ok := alertSvc.(interface{ SetActivityLogger(alertService.ActivityLogger) }); ok {
+	if alertSvcImpl, ok := alertSvc.(interface {
+		SetActivityLogger(alertService.ActivityLogger)
+	}); ok {
 		alertSvcImpl.SetActivityLogger(activitySvc)
 	}
 
@@ -276,7 +288,9 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	}
 
 	// ============ 设置工作流引擎（避免循环依赖）============
-	if issueServiceImpl, ok := issueSvc.(interface{ SetWorkflowEngine(issueService.WorkflowEngine) }); ok {
+	if issueServiceImpl, ok := issueSvc.(interface {
+		SetWorkflowEngine(issueService.WorkflowEngine)
+	}); ok {
 		issueServiceImpl.SetWorkflowEngine(workflowEngine)
 	}
 
@@ -300,7 +314,9 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	)
 
 	// 注入 IssueService 到 RequirementService（setter 注入，避免循环依赖）
-	if reqSvcImpl, ok := reqSvc.(interface{ SetIssueCreator(reqPoolService.IssueCreator) }); ok {
+	if reqSvcImpl, ok := reqSvc.(interface {
+		SetIssueCreator(reqPoolService.IssueCreator)
+	}); ok {
 		reqSvcImpl.SetIssueCreator(issueSvc)
 	}
 
@@ -358,7 +374,9 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	}
 
 	// 设置告警服务的项目外部渠道通知
-	if alertSvcImpl, ok := alertSvc.(interface{ SetProjectNotifier(alertService.ProjectNotifier) }); ok {
+	if alertSvcImpl, ok := alertSvc.(interface {
+		SetProjectNotifier(alertService.ProjectNotifier)
+	}); ok {
 		alertSvcImpl.SetProjectNotifier(notifChannelSvc)
 	}
 
@@ -371,7 +389,9 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 
 	// 设置告警服务的站内通知发送器
 	alertNotifAdapter := &alertNotificationAdapter{svc: notificationSvc}
-	if alertSvcImpl, ok := alertSvc.(interface{ SetNotificationSender(alertService.NotificationSender) }); ok {
+	if alertSvcImpl, ok := alertSvc.(interface {
+		SetNotificationSender(alertService.NotificationSender)
+	}); ok {
 		alertSvcImpl.SetNotificationSender(alertNotifAdapter)
 	}
 
@@ -464,16 +484,14 @@ func (r *Router) Setup() *gin.Engine {
 
 	// API v1 路由组
 	v1 := engine.Group("/api/v1")
-	{
-		// WebSocket 连接（使用 query 参数认证，不走中间件）
-		v1.GET("/ws", r.wsHandler.HandleWebSocket)
+	// WebSocket 连接（使用 query 参数认证，不走中间件）
+	v1.GET("/ws", r.wsHandler.HandleWebSocket)
 
-		// 注册公开路由
-		r.registerPublicRoutes(v1)
+	// 注册公开路由
+	r.registerPublicRoutes(v1)
 
-		// 注册需要认证的路由
-		r.registerProtectedRoutes(v1)
-	}
+	// 注册需要认证的路由
+	r.registerProtectedRoutes(v1)
 
 	return engine
 }
@@ -496,22 +514,20 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 		ConfigKey: "ratelimit.auth_limit",
 		ConfigSvc: r.configSvc,
 	}))
-	{
-		auth.POST("/login", r.userHandler.HandleLogin)
-		auth.POST("/register", r.userHandler.HandleRegister)
-		auth.POST("/refresh", r.userHandler.HandleRefreshToken)
-		auth.POST("/mfa/verify", r.userHandler.HandleVerifyMFA)
-		// 忘记密码相关路由
-		auth.POST("/forgot-password", r.userHandler.HandleForgotPassword)
-		auth.GET("/verify-reset-token", r.userHandler.HandleVerifyResetToken)
-		auth.POST("/reset-password", r.userHandler.HandleResetPasswordWithToken)
+	auth.POST("/login", r.userHandler.HandleLogin)
+	auth.POST("/register", r.userHandler.HandleRegister)
+	auth.POST("/refresh", r.userHandler.HandleRefreshToken)
+	auth.POST("/mfa/verify", r.userHandler.HandleVerifyMFA)
+	// 忘记密码相关路由
+	auth.POST("/forgot-password", r.userHandler.HandleForgotPassword)
+	auth.GET("/verify-reset-token", r.userHandler.HandleVerifyResetToken)
+	auth.POST("/reset-password", r.userHandler.HandleResetPasswordWithToken)
 
-		// SSO 相关路由
-		if r.ssoHandler != nil {
-			auth.GET("/sso/config", r.ssoHandler.HandleGetSSOConfig)
-			auth.GET("/sso/authorize", r.ssoHandler.HandleSSOAuthorize)
-			auth.POST("/sso/callback", r.ssoHandler.HandleSSOCallback)
-		}
+	// SSO 相关路由
+	if r.ssoHandler != nil {
+		auth.GET("/sso/config", r.ssoHandler.HandleGetSSOConfig)
+		auth.GET("/sso/authorize", r.ssoHandler.HandleSSOAuthorize)
+		auth.POST("/sso/callback", r.ssoHandler.HandleSSOCallback)
 	}
 
 	// 告警 Webhook（无需认证）
@@ -523,11 +539,9 @@ func (r *Router) registerPublicRoutes(rg *gin.RouterGroup) {
 		ConfigKey: "ratelimit.webhook_limit",
 		ConfigSvc: r.configSvc,
 	}))
-	{
-		alerts.POST("/webhook", r.alertHandler.HandleWebhook)
-		alerts.POST("/nightingale", r.alertHandler.HandleNightingaleWebhook)
-		alerts.POST("/datasource/:name/webhook", r.datasourceHandler.HandleDatasourceWebhook)
-	}
+	alerts.POST("/webhook", r.alertHandler.HandleWebhook)
+	alerts.POST("/nightingale", r.alertHandler.HandleNightingaleWebhook)
+	alerts.POST("/datasource/:name/webhook", r.datasourceHandler.HandleDatasourceWebhook)
 }
 
 // registerProtectedRoutes 注册需要认证的路由
@@ -542,69 +556,65 @@ func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 	}))
 	protected.Use(middleware.AuthMiddleware(r.jwtManager))
 	protected.Use(r.rbac.LoadUserRoles())
-	{
-		// 用户相关
-		r.registerUserRoutes(protected)
+	// 用户相关
+	r.registerUserRoutes(protected)
 
-		// 项目相关
-		r.registerProjectRoutes(protected)
+	// 项目相关
+	r.registerProjectRoutes(protected)
 
-		// 工单相关
-		r.registerIssueRoutes(protected)
+	// 工单相关
+	r.registerIssueRoutes(protected)
 
-		// 工作流相关
-		r.registerWorkflowRoutes(protected)
+	// 工作流相关
+	r.registerWorkflowRoutes(protected)
 
-		// 告警相关
-		r.registerAlertRoutes(protected)
+	// 告警相关
+	r.registerAlertRoutes(protected)
 
-		// 报表相关
-		r.registerReportRoutes(protected)
+	// 报表相关
+	r.registerReportRoutes(protected)
 
-		// 活动日志相关
-		r.registerActivityRoutes(protected)
+	// 活动日志相关
+	r.registerActivityRoutes(protected)
 
-		// 系统配置相关
-		r.registerConfigRoutes(protected)
+	// 系统配置相关
+	r.registerConfigRoutes(protected)
 
-		// 通知相关
-		r.registerNotificationRoutes(protected)
+	// 通知相关
+	r.registerNotificationRoutes(protected)
 
-		// 需求池相关
-		r.registerRequirementPoolRoutes(protected)
+	// 需求池相关
+	r.registerRequirementPoolRoutes(protected)
 
-		// 字段配置相关
-		r.registerFieldRoutes(protected)
-	}
+	// 字段配置相关
+	r.registerFieldRoutes(protected)
 }
 
 // registerUserRoutes 注册用户路由
 func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
-	{
-		// 当前用户相关
-		users.GET("/me", r.userHandler.HandleGetCurrentUser)
-		users.PUT("/me/password", r.userHandler.HandleUpdatePassword)
+	// 当前用户相关
+	users.GET("/me", r.userHandler.HandleGetCurrentUser)
+	users.PUT("/me/password", r.userHandler.HandleUpdatePassword)
 
-		// MFA 相关
-		users.GET("/me/mfa", r.userHandler.HandleGetMFAStatus)
-		users.POST("/me/mfa/setup", r.userHandler.HandleSetupMFA)
-		users.POST("/me/mfa/enable", r.userHandler.HandleEnableMFA)
-		users.POST("/me/mfa/disable", r.userHandler.HandleDisableMFA)
+	// MFA 相关
+	users.GET("/me/mfa", r.userHandler.HandleGetMFAStatus)
+	users.POST("/me/mfa/setup", r.userHandler.HandleSetupMFA)
+	users.POST("/me/mfa/enable", r.userHandler.HandleEnableMFA)
+	users.POST("/me/mfa/disable", r.userHandler.HandleDisableMFA)
 
-		// 获取所有用户（用于选择器，必须在 /:id 之前）
-		users.GET("/all", r.userHandler.HandleListAllUsers)
+	// 获取所有用户（用于选择器，必须在 /:id 之前）
+	users.GET("/all", r.userHandler.HandleListAllUsers)
 
-		// 用户管理（需要管理员权限）
-		users.GET("", r.userHandler.HandleListUsers)
-		users.POST("", r.rbac.RequireAdmin(), r.userHandler.HandleCreateUser)
-		users.GET("/:id", r.userHandler.HandleGetUser)
-		users.PUT("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleUpdateUser)
-		users.POST("/:id/enable", r.rbac.RequireAdmin(), r.userHandler.HandleEnableUser)
-		users.POST("/:id/disable", r.rbac.RequireAdmin(), r.userHandler.HandleDisableUser)
-		users.POST("/:id/reset-password", r.rbac.RequireAdmin(), r.userHandler.HandleResetPassword)
-		users.DELETE("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleDeleteUser)
-	}
+	// 用户管理（需要管理员权限）
+	users.GET("", r.userHandler.HandleListUsers)
+	users.POST("", r.rbac.RequireAdmin(), r.userHandler.HandleCreateUser)
+	users.GET("/:id", r.userHandler.HandleGetUser)
+	users.PUT("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleUpdateUser)
+	users.POST("/:id/enable", r.rbac.RequireAdmin(), r.userHandler.HandleEnableUser)
+	users.POST("/:id/disable", r.rbac.RequireAdmin(), r.userHandler.HandleDisableUser)
+	users.POST("/:id/reset-password", r.rbac.RequireAdmin(), r.userHandler.HandleResetPassword)
+	users.DELETE("/:id", r.rbac.RequireAdmin(), r.userHandler.HandleDeleteUser)
 }
 
 // registerProjectRoutes 注册项目路由
@@ -653,14 +663,12 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 
 		// 通知渠道管理
 		notifChannels := projects.Group("/:key/notification-channels")
-		{
-			notifChannels.GET("", r.requirePerm("project:view"), r.notifChannelHandler.HandleListChannels)
-			notifChannels.POST("", r.requirePerm("project:manage"), r.notifChannelHandler.HandleCreateChannel)
-			notifChannels.GET("/:id", r.requirePerm("project:view"), r.notifChannelHandler.HandleGetChannel)
-			notifChannels.PUT("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleUpdateChannel)
-			notifChannels.DELETE("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleDeleteChannel)
-			notifChannels.POST("/:id/test", r.requirePerm("project:manage"), r.notifChannelHandler.HandleTestChannel)
-		}
+		notifChannels.GET("", r.requirePerm("project:view"), r.notifChannelHandler.HandleListChannels)
+		notifChannels.POST("", r.requirePerm("project:manage"), r.notifChannelHandler.HandleCreateChannel)
+		notifChannels.GET("/:id", r.requirePerm("project:view"), r.notifChannelHandler.HandleGetChannel)
+		notifChannels.PUT("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleUpdateChannel)
+		notifChannels.DELETE("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleDeleteChannel)
+		notifChannels.POST("/:id/test", r.requirePerm("project:manage"), r.notifChannelHandler.HandleTestChannel)
 
 		// 工作流方案管理
 		projects.GET("/:key/workflow-schemes", r.requirePerm("workflow:view"), r.workflowHandler.HandleListSchemes)
@@ -672,57 +680,55 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 // registerIssueRoutes 注册工单路由
 func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 	issues := rg.Group("/issues")
-	{
-		// Dashboard 专用（必须放在 /:key 路由之前，避免被匹配为 key）
-		issues.GET("/my-todo", r.requireIssueListPerm(), r.issueHandler.HandleListMyTodoIssues)
-		issues.GET("/my-created", r.requireIssueListPerm(), r.issueHandler.HandleListMyCreatedIssues)
+	// Dashboard 专用（必须放在 /:key 路由之前，避免被匹配为 key）
+	issues.GET("/my-todo", r.requireIssueListPerm(), r.issueHandler.HandleListMyTodoIssues)
+	issues.GET("/my-created", r.requireIssueListPerm(), r.issueHandler.HandleListMyCreatedIssues)
 
-		// 工单列表（通过 query 参数 project_key 检查权限）
-		issues.GET("", r.requireIssueListPerm(), r.issueHandler.HandleListIssues)
-		issues.POST("", r.issueHandler.HandleCreateIssue)
+	// 工单列表（通过 query 参数 project_key 检查权限）
+	issues.GET("", r.requireIssueListPerm(), r.issueHandler.HandleListIssues)
+	issues.POST("", r.issueHandler.HandleCreateIssue)
 
-		// 工单 CRUD（通过工单 key 提取项目 key 检查权限）
-		issues.GET("/:key", r.requireIssuePerm("issue:view"), r.issueHandler.HandleGetIssue)
-		issues.PUT("/:key", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleUpdateIssue)
-		issues.DELETE("/:key", r.requireIssuePerm("issue:delete"), r.issueHandler.HandleDeleteIssue)
+	// 工单 CRUD（通过工单 key 提取项目 key 检查权限）
+	issues.GET("/:key", r.requireIssuePerm("issue:view"), r.issueHandler.HandleGetIssue)
+	issues.PUT("/:key", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleUpdateIssue)
+	issues.DELETE("/:key", r.requireIssuePerm("issue:delete"), r.issueHandler.HandleDeleteIssue)
 
-		issues.POST("/:key/assign", r.requireIssuePerm("issue:assign"), r.issueHandler.HandleAssignIssue)
+	issues.POST("/:key/assign", r.requireIssuePerm("issue:assign"), r.issueHandler.HandleAssignIssue)
 
-		// Epic 相关
-		issues.GET("/:key/epic-issues", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListIssuesInEpic)
+	// Epic 相关
+	issues.GET("/:key/epic-issues", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListIssuesInEpic)
 
-		// 子任务相关
-		issues.GET("/:key/subtasks", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListSubtasks)
+	// 子任务相关
+	issues.GET("/:key/subtasks", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListSubtasks)
 
-		// 评论管理
-		issues.GET("/:key/comments", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListComments)
-		issues.POST("/:key/comments", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddComment)
-		issues.DELETE("/:key/comments/:comment_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleDeleteComment)
+	// 评论管理
+	issues.GET("/:key/comments", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListComments)
+	issues.POST("/:key/comments", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddComment)
+	issues.DELETE("/:key/comments/:comment_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleDeleteComment)
 
-		// 关注人管理
-		issues.GET("/:key/watchers", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListWatchers)
-		issues.POST("/:key/watchers", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddWatcher)
-		issues.DELETE("/:key/watchers/:user_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleRemoveWatcher)
+	// 关注人管理
+	issues.GET("/:key/watchers", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListWatchers)
+	issues.POST("/:key/watchers", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddWatcher)
+	issues.DELETE("/:key/watchers/:user_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleRemoveWatcher)
 
-		// 工作日志管理
-		issues.GET("/:key/worklogs", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListWorklogs)
-		issues.POST("/:key/worklogs", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddWorklog)
-		issues.PUT("/:key/worklogs/:worklog_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleUpdateWorklog)
-		issues.DELETE("/:key/worklogs/:worklog_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleDeleteWorklog)
+	// 工作日志管理
+	issues.GET("/:key/worklogs", r.requireIssuePerm("issue:view"), r.issueHandler.HandleListWorklogs)
+	issues.POST("/:key/worklogs", r.requireIssuePerm("issue:view"), r.issueHandler.HandleAddWorklog)
+	issues.PUT("/:key/worklogs/:worklog_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleUpdateWorklog)
+	issues.DELETE("/:key/worklogs/:worklog_id", r.requireIssuePerm("issue:edit"), r.issueHandler.HandleDeleteWorklog)
 
-		// 附件管理
-		issues.POST("/:key/attachments", r.requireIssuePerm("issue:edit"), r.attachmentHandler.HandleUploadAttachment)
-		issues.GET("/:key/attachments", r.requireIssuePerm("issue:view"), r.attachmentHandler.HandleListAttachments)
-		issues.DELETE("/:key/attachments/:id", r.requireIssuePerm("issue:edit"), r.attachmentHandler.HandleDeleteAttachment)
-		issues.GET("/:key/attachments/:id/download", r.requireIssuePerm("issue:view"), r.attachmentHandler.HandleDownloadAttachment)
+	// 附件管理
+	issues.POST("/:key/attachments", r.requireIssuePerm("issue:edit"), r.attachmentHandler.HandleUploadAttachment)
+	issues.GET("/:key/attachments", r.requireIssuePerm("issue:view"), r.attachmentHandler.HandleListAttachments)
+	issues.DELETE("/:key/attachments/:id", r.requireIssuePerm("issue:edit"), r.attachmentHandler.HandleDeleteAttachment)
+	issues.GET("/:key/attachments/:id/download", r.requireIssuePerm("issue:view"), r.attachmentHandler.HandleDownloadAttachment)
 
-		// 工作流实例（通过工单 key 访问）
-		issues.GET("/:key/workflow", r.requireIssuePerm("issue:view"), r.workflowHandler.HandleGetInstanceByIssue)
-		issues.POST("/:key/workflow/approve", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleApprove)
-		issues.POST("/:key/workflow/reject", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleReject)
-		issues.POST("/:key/workflow/complete", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleComplete)
-		issues.GET("/:key/workflow/history", r.requireIssuePerm("issue:view"), r.workflowHandler.HandleGetHistory)
-	}
+	// 工作流实例（通过工单 key 访问）
+	issues.GET("/:key/workflow", r.requireIssuePerm("issue:view"), r.workflowHandler.HandleGetInstanceByIssue)
+	issues.POST("/:key/workflow/approve", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleApprove)
+	issues.POST("/:key/workflow/reject", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleReject)
+	issues.POST("/:key/workflow/complete", r.requireIssuePerm("issue:edit"), r.workflowHandler.HandleComplete)
+	issues.GET("/:key/workflow/history", r.requireIssuePerm("issue:view"), r.workflowHandler.HandleGetHistory)
 }
 
 // registerWorkflowRoutes 注册工作流路由
@@ -730,77 +736,67 @@ func (r *Router) registerWorkflowRoutes(rg *gin.RouterGroup) {
 	workflows := rg.Group("/workflows")
 
 	// 只读接口：认证用户即可访问（工单详情页渲染工作流图需要）
-	{
-		workflows.GET("", r.workflowHandler.HandleListWorkflows)
-		workflows.GET("/:id", r.workflowHandler.HandleGetWorkflow)
-		workflows.GET("/:id/nodes", r.workflowHandler.HandleListNodes)
-		workflows.GET("/:id/nodes/:node_id", r.workflowHandler.HandleGetNode)
-		workflows.GET("/:id/edges", r.workflowHandler.HandleListEdges)
-		workflows.GET("/:id/edges/:edge_id", r.workflowHandler.HandleGetEdge)
-	}
+	workflows.GET("", r.workflowHandler.HandleListWorkflows)
+	workflows.GET("/:id", r.workflowHandler.HandleGetWorkflow)
+	workflows.GET("/:id/nodes", r.workflowHandler.HandleListNodes)
+	workflows.GET("/:id/nodes/:node_id", r.workflowHandler.HandleGetNode)
+	workflows.GET("/:id/edges", r.workflowHandler.HandleListEdges)
+	workflows.GET("/:id/edges/:edge_id", r.workflowHandler.HandleGetEdge)
 
 	// 写操作：需要项目管理员权限
 	workflowsAdmin := workflows.Group("")
 	workflowsAdmin.Use(r.rbac.RequireProjectAdmin())
-	{
-		workflowsAdmin.POST("", r.workflowHandler.HandleCreateWorkflow)
-		workflowsAdmin.PUT("/:id", r.workflowHandler.HandleUpdateWorkflow)
-		workflowsAdmin.DELETE("/:id", r.rbac.RequireAdmin(), r.workflowHandler.HandleDeleteWorkflow)
+	workflowsAdmin.POST("", r.workflowHandler.HandleCreateWorkflow)
+	workflowsAdmin.PUT("/:id", r.workflowHandler.HandleUpdateWorkflow)
+	workflowsAdmin.DELETE("/:id", r.rbac.RequireAdmin(), r.workflowHandler.HandleDeleteWorkflow)
 
-		// 节点管理
-		workflowsAdmin.POST("/:id/nodes", r.workflowHandler.HandleCreateNode)
-		workflowsAdmin.PUT("/:id/nodes/:node_id", r.workflowHandler.HandleUpdateNode)
-		workflowsAdmin.DELETE("/:id/nodes/:node_id", r.workflowHandler.HandleDeleteNode)
+	// 节点管理
+	workflowsAdmin.POST("/:id/nodes", r.workflowHandler.HandleCreateNode)
+	workflowsAdmin.PUT("/:id/nodes/:node_id", r.workflowHandler.HandleUpdateNode)
+	workflowsAdmin.DELETE("/:id/nodes/:node_id", r.workflowHandler.HandleDeleteNode)
 
-		// 边管理
-		workflowsAdmin.POST("/:id/edges", r.workflowHandler.HandleCreateEdge)
-		workflowsAdmin.PUT("/:id/edges/:edge_id", r.workflowHandler.HandleUpdateEdge)
-		workflowsAdmin.DELETE("/:id/edges/:edge_id", r.workflowHandler.HandleDeleteEdge)
-	}
+	// 边管理
+	workflowsAdmin.POST("/:id/edges", r.workflowHandler.HandleCreateEdge)
+	workflowsAdmin.PUT("/:id/edges/:edge_id", r.workflowHandler.HandleUpdateEdge)
+	workflowsAdmin.DELETE("/:id/edges/:edge_id", r.workflowHandler.HandleDeleteEdge)
 }
 
 // registerAlertRoutes 注册告警路由
 func (r *Router) registerAlertRoutes(rg *gin.RouterGroup) {
 	alerts := rg.Group("/alerts")
-	{
-		// 告警查询
-		alerts.GET("", r.alertHandler.HandleListAlerts)
-		alerts.GET("/stats", r.alertHandler.HandleGetAlertStats)
-		alerts.GET("/group", r.alertHandler.HandleGroupAlerts)
-		alerts.GET("/label-keys", r.alertHandler.HandleGetAlertLabelKeys)
-		alerts.GET("/:id", r.alertHandler.HandleGetAlert)
+	// 告警查询
+	alerts.GET("", r.alertHandler.HandleListAlerts)
+	alerts.GET("/stats", r.alertHandler.HandleGetAlertStats)
+	alerts.GET("/group", r.alertHandler.HandleGroupAlerts)
+	alerts.GET("/label-keys", r.alertHandler.HandleGetAlertLabelKeys)
+	alerts.GET("/:id", r.alertHandler.HandleGetAlert)
 
-		// 告警操作
-		alerts.POST("/:id/ack", r.alertHandler.HandleAckAlert)
-		alerts.POST("/:id/resolve", r.alertHandler.HandleResolveAlert)
+	// 告警操作
+	alerts.POST("/:id/ack", r.alertHandler.HandleAckAlert)
+	alerts.POST("/:id/resolve", r.alertHandler.HandleResolveAlert)
 
-		// Webhook（无需认证，但需要在公开路由中注册）
-		// 这里暂时放在受保护路由中，实际使用时可能需要移到公开路由
-	}
+	// Webhook（无需认证，但需要在公开路由中注册）
+	// 这里暂时放在受保护路由中，实际使用时可能需要移到公开路由
 
 	// 告警规则管理（需要项目管理员权限）
 	alertRules := rg.Group("/alert-rules")
 	alertRules.Use(r.rbac.RequireProjectAdmin())
-	{
-		alertRules.GET("", r.alertHandler.HandleListAlertRules)
-		alertRules.POST("", r.alertHandler.HandleCreateAlertRule)
-		alertRules.GET("/:id", r.alertHandler.HandleGetAlertRule)
-		alertRules.PUT("/:id", r.alertHandler.HandleUpdateAlertRule)
-		alertRules.DELETE("/:id", r.rbac.RequireAdmin(), r.alertHandler.HandleDeleteAlertRule)
-	}
+	alertRules.GET("", r.alertHandler.HandleListAlertRules)
+	alertRules.POST("", r.alertHandler.HandleCreateAlertRule)
+	alertRules.GET("/:id", r.alertHandler.HandleGetAlertRule)
+	alertRules.PUT("/:id", r.alertHandler.HandleUpdateAlertRule)
+	alertRules.DELETE("/:id", r.rbac.RequireAdmin(), r.alertHandler.HandleDeleteAlertRule)
 
 	// 告警数据源管理（需要管理员权限）
 	alertDatasources := rg.Group("/alert-datasources")
 	alertDatasources.Use(r.rbac.RequireAdmin())
-	{
-		alertDatasources.GET("", r.datasourceHandler.HandleListDatasources)
-		alertDatasources.POST("", r.datasourceHandler.HandleCreateDatasource)
-		alertDatasources.GET("/:id", r.datasourceHandler.HandleGetDatasource)
-		alertDatasources.PUT("/:id", r.datasourceHandler.HandleUpdateDatasource)
-		alertDatasources.DELETE("/:id", r.datasourceHandler.HandleDeleteDatasource)
-		alertDatasources.POST("/test", r.datasourceHandler.HandleTestConnection)
-		alertDatasources.POST("/:id/test", r.datasourceHandler.HandleTestConnectionByID)
-	}
+	alertDatasources.GET("", r.datasourceHandler.HandleListDatasources)
+	alertDatasources.POST("", r.datasourceHandler.HandleCreateDatasource)
+	alertDatasources.GET("/:id", r.datasourceHandler.HandleGetDatasource)
+	alertDatasources.PUT("/:id", r.datasourceHandler.HandleUpdateDatasource)
+	alertDatasources.DELETE("/:id", r.datasourceHandler.HandleDeleteDatasource)
+	alertDatasources.POST("/test", r.datasourceHandler.HandleTestConnection)
+	alertDatasources.POST("/:id/test", r.datasourceHandler.HandleTestConnectionByID)
 
 	// 告警静默管理（需要项目管理员权限）
 	alertSilences := rg.Group("/alert-silences")

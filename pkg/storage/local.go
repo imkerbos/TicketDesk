@@ -16,7 +16,7 @@ type LocalStorage struct {
 // NewLocalStorage 创建本地存储实例
 func NewLocalStorage(basePath string) (*LocalStorage, error) {
 	// 确保基础路径存在
-	if err := os.MkdirAll(basePath, 0755); err != nil {
+	if err := os.MkdirAll(basePath, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create base path: %w", err)
 	}
 
@@ -34,7 +34,7 @@ func (s *LocalStorage) Save(file io.Reader, filename string) (string, error) {
 
 	// 确保目录存在
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
 

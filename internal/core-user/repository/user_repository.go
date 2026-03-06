@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // UserRepository 用户数据访问接口
@@ -104,9 +105,9 @@ func (r *userRepository) Update(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).Save(user).Error
 }
 
-// Delete 软删除用户
+// Delete 硬删除用户
 func (r *userRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.User{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.User{}, id).Error
 }
 
 // List 分页查询用户列表
@@ -223,9 +224,9 @@ func (r *userRoleRepository) Create(ctx context.Context, userRole *model.UserRol
 	return r.db.WithContext(ctx).Create(userRole).Error
 }
 
-// Delete 删除用户角色关联
+// Delete 硬删除用户角色关联
 func (r *userRoleRepository) Delete(ctx context.Context, userID, roleID uint64) error {
-	return r.db.WithContext(ctx).Where("user_id = ? AND role_id = ?", userID, roleID).Delete(&model.UserRole{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("user_id = ? AND role_id = ?", userID, roleID).Delete(&model.UserRole{}).Error
 }
 
 // GetUserRoles 获取用户的所有角色

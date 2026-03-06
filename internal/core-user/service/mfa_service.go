@@ -13,12 +13,13 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/kerbos/ticketdesk/internal/core-user/dto"
-	"github.com/kerbos/ticketdesk/internal/core-user/repository"
-	"github.com/kerbos/ticketdesk/pkg/logger"
 	qrcode "github.com/skip2/go-qrcode"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/core-user/dto"
+	"github.com/kerbos/ticketdesk/internal/core-user/repository"
+	"github.com/kerbos/ticketdesk/pkg/logger"
 )
 
 // MFA 相关错误

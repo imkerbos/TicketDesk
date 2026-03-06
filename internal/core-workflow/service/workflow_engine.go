@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kerbos/ticketdesk/internal/core-workflow/dto"
-	"github.com/kerbos/ticketdesk/internal/core-workflow/repository"
-	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
-	userRepo "github.com/kerbos/ticketdesk/internal/core-user/repository"
-	"github.com/kerbos/ticketdesk/internal/model"
-	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+
+	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
+	userRepo "github.com/kerbos/ticketdesk/internal/core-user/repository"
+	"github.com/kerbos/ticketdesk/internal/core-workflow/dto"
+	"github.com/kerbos/ticketdesk/internal/core-workflow/repository"
+	"github.com/kerbos/ticketdesk/internal/model"
+	"github.com/kerbos/ticketdesk/pkg/logger"
 )
 
 // IssueStatusSyncer 工单状态同步接口（用于告警联动，避免循环依赖）
@@ -45,7 +46,7 @@ type WorkflowEngine interface {
 	// 审批拒绝
 	Reject(ctx context.Context, instanceID, userID uint64, comment string) error
 	// 完成工作节点（result: 条件表达式值，如 approved, rejected, 或自定义条件名称，空=默认流转）
-	Complete(ctx context.Context, instanceID, userID uint64, comment string, result string) error
+	Complete(ctx context.Context, instanceID, userID uint64, comment, result string) error
 	// 获取流转历史
 	GetHistory(ctx context.Context, instanceID uint64) ([]*dto.WorkflowHistoryResponse, error)
 	// 根据项目和工单类型查找工作流方案，如果存在则自动创建工作流实例
@@ -70,19 +71,19 @@ type ProjectNotifier interface {
 
 // workflowEngine 工作流引擎实现
 type workflowEngine struct {
-	instanceRepo       repository.WorkflowInstanceRepository
-	historyRepo        repository.WorkflowHistoryRepository
-	approvalRepo       repository.ApprovalRecordRepository
-	workflowRepo       repository.WorkflowRepository
-	nodeRepo           repository.NodeRepository
-	edgeRepo           repository.EdgeRepository
-	schemeRepo         repository.WorkflowSchemeRepository
-	projectRoleRepo    projectRepo.ProjectRoleRepository
-	userRepo           userRepo.UserRepository
-	db                 *gorm.DB
-	issueStatusSyncer  IssueStatusSyncer // 告警联动（可选）
-	activityLogger     ActivityLogger    // 活动日志（可选）
-	projectNotifier    ProjectNotifier   // 项目外部通知（可选）
+	instanceRepo      repository.WorkflowInstanceRepository
+	historyRepo       repository.WorkflowHistoryRepository
+	approvalRepo      repository.ApprovalRecordRepository
+	workflowRepo      repository.WorkflowRepository
+	nodeRepo          repository.NodeRepository
+	edgeRepo          repository.EdgeRepository
+	schemeRepo        repository.WorkflowSchemeRepository
+	projectRoleRepo   projectRepo.ProjectRoleRepository
+	userRepo          userRepo.UserRepository
+	db                *gorm.DB
+	issueStatusSyncer IssueStatusSyncer // 告警联动（可选）
+	activityLogger    ActivityLogger    // 活动日志（可选）
+	projectNotifier   ProjectNotifier   // 项目外部通知（可选）
 }
 
 // NewWorkflowEngine 创建工作流引擎实例
@@ -295,9 +296,9 @@ func (e *workflowEngine) Approve(ctx context.Context, instanceID, userID uint64,
 	record.Comment = comment
 	record.ApprovedAt = &now
 
-	if err := e.approvalRepo.Update(ctx, record); err != nil {
-		logger.Error("failed to update approval record", zap.Error(err))
-		return fmt.Errorf("更新审批记录失败: %w", err)
+	if updateErr := e.approvalRepo.Update(ctx, record); updateErr != nil {
+		logger.Error("failed to update approval record", zap.Error(updateErr))
+		return fmt.Errorf("更新审批记录失败: %w", updateErr)
 	}
 
 	// 记录流转历史
@@ -310,16 +311,16 @@ func (e *workflowEngine) Approve(ctx context.Context, instanceID, userID uint64,
 		Comment:    comment,
 		OperatedAt: now,
 	}
-	if err := e.historyRepo.Create(ctx, history); err != nil {
-		logger.Warn("failed to create workflow history", zap.Error(err))
+	if historyErr := e.historyRepo.Create(ctx, history); historyErr != nil {
+		logger.Warn("failed to create workflow history", zap.Error(historyErr))
 	}
 
 	// 解析节点配置
 	var config dto.NodeConfig
 	if currentNode.Config != "" {
-		if err := json.Unmarshal([]byte(currentNode.Config), &config); err != nil {
-			logger.Error("failed to parse node config", zap.Error(err))
-			return fmt.Errorf("解析节点配置失败: %w", err)
+		if unmarshalErr := json.Unmarshal([]byte(currentNode.Config), &config); unmarshalErr != nil {
+			logger.Error("failed to parse node config", zap.Error(unmarshalErr))
+			return fmt.Errorf("解析节点配置失败: %w", unmarshalErr)
 		}
 	}
 
@@ -401,9 +402,9 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 	record.Comment = comment
 	record.ApprovedAt = &now
 
-	if err := e.approvalRepo.Update(ctx, record); err != nil {
-		logger.Error("failed to update approval record", zap.Error(err))
-		return fmt.Errorf("更新审批记录失败: %w", err)
+	if updateErr := e.approvalRepo.Update(ctx, record); updateErr != nil {
+		logger.Error("failed to update approval record", zap.Error(updateErr))
+		return fmt.Errorf("更新审批记录失败: %w", updateErr)
 	}
 
 	// 记录流转历史
@@ -416,8 +417,8 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 		Comment:    comment,
 		OperatedAt: now,
 	}
-	if err := e.historyRepo.Create(ctx, history); err != nil {
-		logger.Warn("failed to create workflow history", zap.Error(err))
+	if historyErr := e.historyRepo.Create(ctx, history); historyErr != nil {
+		logger.Warn("failed to create workflow history", zap.Error(historyErr))
 	}
 
 	// 查找是否有 "rejected" 条件的出边
@@ -477,7 +478,7 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 		}
 	} else {
 		// 没有拒绝分支边，回退到原来的行为：直接取消工作流
-		instance.Status = "cancelled"
+		instance.Status = "cancelled" //nolint:misspell // 状态值与前端约定保持一致
 		completedAt := time.Now()
 		instance.CompletedAt = &completedAt
 
@@ -546,7 +547,7 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 
 // Complete 完成工作节点，推进到下一个节点
 // result: 条件表达式值（如 "approved", "rejected", 或自定义条件名称），空字符串表示默认流转
-func (e *workflowEngine) Complete(ctx context.Context, instanceID, userID uint64, comment string, result string) error {
+func (e *workflowEngine) Complete(ctx context.Context, instanceID, userID uint64, comment, result string) error {
 	instance, err := e.instanceRepo.GetByID(ctx, instanceID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -637,8 +638,8 @@ func (e *workflowEngine) moveToNextNode(ctx context.Context, instance *model.Wor
 			instance.Status = "completed"
 			completedAt := time.Now()
 			instance.CompletedAt = &completedAt
-			if err := e.instanceRepo.Update(ctx, instance); err != nil {
-				return err
+			if updateErr := e.instanceRepo.Update(ctx, instance); updateErr != nil {
+				return updateErr
 			}
 			e.syncIssueStatus(ctx, instance.IssueID, currentNode)
 			return nil
@@ -1247,7 +1248,7 @@ func (e *workflowEngine) TryCreateInstanceForIssue(ctx context.Context, issueID,
 
 // isAdminOrProjectLead 检查用户是否为系统管理员或项目管理员/负责人
 // 系统管理员和项目管理员可以审批/完成任何工作流节点
-func (e *workflowEngine) isAdminOrProjectLead(ctx context.Context, userID uint64, issueID uint64) bool {
+func (e *workflowEngine) isAdminOrProjectLead(ctx context.Context, userID, issueID uint64) bool {
 	// 1. 检查是否为系统管理员（通过 user_roles 表关联的 roles 表）
 	var adminCount int64
 	e.db.WithContext(ctx).

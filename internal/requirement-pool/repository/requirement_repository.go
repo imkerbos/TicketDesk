@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // RequirementRepository 需求数据访问接口
@@ -106,9 +107,9 @@ func (r *requirementRepository) UpdateFields(ctx context.Context, id uint64, fie
 	return r.db.WithContext(ctx).Model(&model.Requirement{}).Where("id = ?", id).Updates(fields).Error
 }
 
-// Delete 删除需求（软删除）
+// Delete 删除需求（硬删除）
 func (r *requirementRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.Requirement{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.Requirement{}, id).Error
 }
 
 // List 获取需求列表

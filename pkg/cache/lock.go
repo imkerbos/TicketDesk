@@ -7,15 +7,19 @@ import (
 	"encoding/hex"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
 )
 
 // generateLockValue 生成随机锁值，用于所有权验证
 func generateLockValue() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		// 退化到时间戳，避免空值导致锁逻辑失效
+		return hex.EncodeToString([]byte(time.Now().UTC().Format(time.RFC3339Nano)))
+	}
 	return hex.EncodeToString(b)
 }
 
@@ -40,7 +44,7 @@ func TryLock(ctx context.Context, key string, ttl time.Duration) string {
 }
 
 // UnlockWithValue 释放分布式锁（仅当锁值匹配时才释放，防止误删他人的锁）
-func UnlockWithValue(ctx context.Context, key string, value string) {
+func UnlockWithValue(ctx context.Context, key, value string) {
 	client := redis.GetClient()
 	if client == nil {
 		return

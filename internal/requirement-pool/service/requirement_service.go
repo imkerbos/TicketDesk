@@ -7,13 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	issueDto "github.com/kerbos/ticketdesk/internal/core-issue/dto"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/dto"
 	"github.com/kerbos/ticketdesk/internal/requirement-pool/repository"
 	"github.com/kerbos/ticketdesk/pkg/cache"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // IssueCreator 工单创建接口（最小依赖，避免耦合完整 IssueService）
@@ -26,7 +27,7 @@ type RequirementService interface {
 	Create(ctx context.Context, req *dto.CreateRequirementRequest, userID uint64) (*dto.RequirementResponse, error)
 	GetByID(ctx context.Context, id uint64) (*dto.RequirementResponse, error)
 	Update(ctx context.Context, id uint64, req *dto.UpdateRequirementRequest, userID uint64) error
-	Delete(ctx context.Context, id uint64, userID uint64) error
+	Delete(ctx context.Context, id, userID uint64) error
 	List(ctx context.Context, req *dto.RequirementListRequest) ([]*dto.RequirementResponse, int64, error)
 	ConvertToIssue(ctx context.Context, id uint64, req *dto.ConvertToIssueRequest, userID uint64) (*dto.ConvertToIssueResponse, error)
 	AddComment(ctx context.Context, id uint64, req *dto.RequirementCommentRequest, userID uint64) (*dto.RequirementCommentResponse, error)
@@ -36,11 +37,11 @@ type RequirementService interface {
 
 // requirementService 需求业务逻辑实现
 type requirementService struct {
-	repo       repository.RequirementRepository
-	poolRepo   repository.RequirementPoolRepository
-	db         *gorm.DB
-	logger     *zap.Logger
-	issueSvc   IssueCreator
+	repo     repository.RequirementRepository
+	poolRepo repository.RequirementPoolRepository
+	db       *gorm.DB
+	logger   *zap.Logger
+	issueSvc IssueCreator
 }
 
 // SetIssueCreator 注入工单创建服务（setter 注入，避免循环依赖）
@@ -253,7 +254,7 @@ func (s *requirementService) Update(ctx context.Context, id uint64, req *dto.Upd
 }
 
 // Delete 删除需求
-func (s *requirementService) Delete(ctx context.Context, id uint64, userID uint64) error {
+func (s *requirementService) Delete(ctx context.Context, id, userID uint64) error {
 	_, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -401,13 +402,13 @@ func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req 
 			requirement.Status = model.RequirementStatusInProgress
 		}
 
-		if err := tx.Model(requirement).Updates(updates).Error; err != nil {
-			return fmt.Errorf("更新需求关联失败: %w", err)
+		if updateErr := tx.Model(requirement).Updates(updates).Error; updateErr != nil {
+			return fmt.Errorf("更新需求关联失败: %w", updateErr)
 		}
 
 		// 创建需求侧活动记录（工单侧由 IssueService 内部处理）
 		var user model.User
-		if err := tx.First(&user, userID).Error; err == nil {
+		if queryErr := tx.First(&user, userID).Error; queryErr == nil {
 			activity := &model.ActivityLog{
 				UserID:     userID,
 				UserName:   user.Username,
@@ -415,10 +416,10 @@ func (s *requirementService) ConvertToIssue(ctx context.Context, id uint64, req 
 				EntityType: "requirement",
 				EntityID:   requirement.ID,
 				EntityKey:  requirement.Title,
-				Details:    fmt.Sprintf(`{"issue_id":%d,"issue_key":"%s","message":"需求已转化为工单 %s"}`, issueResp.ID, issueResp.IssueKey, issueResp.IssueKey),
+				Details:    fmt.Sprintf(`{"issue_id":%d,"issue_key":%q,"message":"需求已转化为工单 %s"}`, issueResp.ID, issueResp.IssueKey, issueResp.IssueKey),
 			}
-			if err := tx.Create(activity).Error; err != nil {
-				s.logger.Warn("failed to create requirement activity log", zap.Error(err))
+			if createErr := tx.Create(activity).Error; createErr != nil {
+				s.logger.Warn("failed to create requirement activity log", zap.Error(createErr))
 			}
 		}
 
@@ -624,8 +625,8 @@ func (s *requirementService) GetReport(ctx context.Context, req *dto.ReportReque
 
 	// 获取需求池名称
 	if req.PoolID != nil {
-		pool, err := s.poolRepo.GetByID(ctx, *req.PoolID)
-		if err == nil {
+		pool, poolErr := s.poolRepo.GetByID(ctx, *req.PoolID)
+		if poolErr == nil {
 			response.PoolName = pool.Name
 		}
 	}

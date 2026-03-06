@@ -5,11 +5,12 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/activity/dto"
 	"github.com/kerbos/ticketdesk/internal/activity/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // ActivityService 活动日志服务接口

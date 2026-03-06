@@ -7,15 +7,15 @@ import "time"
 
 // ConfigResponse 配置响应
 type ConfigResponse struct {
-	ID          uint64     `json:"id"`
-	ConfigKey   string     `json:"config_key"`
-	ConfigValue string     `json:"config_value,omitempty"` // 敏感配置会隐藏值
-	ConfigType  string     `json:"config_type"`
-	Category    string     `json:"category"`
-	Description string     `json:"description"`
-	IsSecret    bool       `json:"is_secret"`
-	UpdatedBy   *uint64    `json:"updated_by"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uint64    `json:"id"`
+	ConfigKey   string    `json:"config_key"`
+	ConfigValue string    `json:"config_value,omitempty"` // 敏感配置会隐藏值
+	ConfigType  string    `json:"config_type"`
+	Category    string    `json:"category"`
+	Description string    `json:"description"`
+	IsSecret    bool      `json:"is_secret"`
+	UpdatedBy   *uint64   `json:"updated_by"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // UpdateConfigRequest 更新配置请求
@@ -68,16 +68,16 @@ type TestEmailRequest struct {
 
 // WebhookResponse Webhook 响应
 type WebhookResponse struct {
-	ID          uint64    `json:"id"`
-	Name        string    `json:"name"`
-	URL         string    `json:"url"`
-	Events      []string  `json:"events"`
+	ID          uint64            `json:"id"`
+	Name        string            `json:"name"`
+	URL         string            `json:"url"`
+	Events      []string          `json:"events"`
 	Headers     map[string]string `json:"headers,omitempty"`
-	Status      int8      `json:"status"`
-	Description string    `json:"description"`
-	CreatedBy   uint64    `json:"created_by"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Status      int8              `json:"status"`
+	Description string            `json:"description"`
+	CreatedBy   uint64            `json:"created_by"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
 // CreateWebhookRequest 创建 Webhook 请求
@@ -168,22 +168,22 @@ func (r *ListWebhookLogsRequest) GetDefaultPageSize() int {
 
 // SecurityConfig 安全配置
 type SecurityConfig struct {
-	MFAEnabled          bool `json:"mfa_enabled"`           // 是否启用 MFA
-	MFARequired         bool `json:"mfa_required"`          // 是否强制要求 MFA
-	PasswordMinLength   int  `json:"password_min_length"`   // 密码最小长度
-	PasswordRequireUpper bool `json:"password_require_upper"` // 密码是否需要大写字母
+	MFAEnabled            bool `json:"mfa_enabled"`             // 是否启用 MFA
+	MFARequired           bool `json:"mfa_required"`            // 是否强制要求 MFA
+	PasswordMinLength     int  `json:"password_min_length"`     // 密码最小长度
+	PasswordRequireUpper  bool `json:"password_require_upper"`  // 密码是否需要大写字母
 	PasswordRequireNumber bool `json:"password_require_number"` // 密码是否需要数字
-	SessionTimeout      int  `json:"session_timeout"`       // 会话超时时间（分钟）
+	SessionTimeout        int  `json:"session_timeout"`         // 会话超时时间（分钟）
 }
 
 // UpdateSecurityConfigRequest 更新安全配置请求
 type UpdateSecurityConfigRequest struct {
-	MFAEnabled          *bool `json:"mfa_enabled"`
-	MFARequired         *bool `json:"mfa_required"`
-	PasswordMinLength   *int  `json:"password_min_length" binding:"omitempty,min=6,max=32"`
-	PasswordRequireUpper *bool `json:"password_require_upper"`
+	MFAEnabled            *bool `json:"mfa_enabled"`
+	MFARequired           *bool `json:"mfa_required"`
+	PasswordMinLength     *int  `json:"password_min_length" binding:"omitempty,min=6,max=32"`
+	PasswordRequireUpper  *bool `json:"password_require_upper"`
 	PasswordRequireNumber *bool `json:"password_require_number"`
-	SessionTimeout      *int  `json:"session_timeout" binding:"omitempty,min=5,max=1440"`
+	SessionTimeout        *int  `json:"session_timeout" binding:"omitempty,min=5,max=1440"`
 }
 
 // ============ 限流配置 DTO ============
@@ -206,31 +206,31 @@ type UpdateRateLimitConfigRequest struct {
 
 // LarkConfig 飞书配置
 type LarkConfig struct {
-	Enabled    bool   `json:"enabled"`               // 是否启用飞书通知
-	WebhookURL string `json:"webhook_url"`           // 飞书机器人 Webhook URL
-	Secret     string `json:"secret,omitempty"`      // 签名密钥（返回时隐藏）
+	Enabled    bool   `json:"enabled"`          // 是否启用飞书通知
+	WebhookURL string `json:"webhook_url"`      // 飞书机器人 Webhook URL
+	Secret     string `json:"secret,omitempty"` // 签名密钥（返回时隐藏）
 }
 
 // UpdateLarkConfigRequest 更新飞书配置请求
 type UpdateLarkConfigRequest struct {
 	Enabled    bool   `json:"enabled"`
 	WebhookURL string `json:"webhook_url" binding:"required_if=Enabled true"`
-	Secret     string `json:"secret"`                // 为空时不更新
+	Secret     string `json:"secret"` // 为空时不更新
 }
 
 // ============ Telegram 配置 DTO ============
 
 // TelegramConfig Telegram 配置
 type TelegramConfig struct {
-	Enabled  bool   `json:"enabled"`              // 是否启用 Telegram 通知
-	BotToken string `json:"bot_token,omitempty"`  // Bot Token（返回时隐藏）
-	ChatID   string `json:"chat_id"`              // Chat ID
+	Enabled  bool   `json:"enabled"`             // 是否启用 Telegram 通知
+	BotToken string `json:"bot_token,omitempty"` // Bot Token（返回时隐藏）
+	ChatID   string `json:"chat_id"`             // Chat ID
 }
 
 // UpdateTelegramConfigRequest 更新 Telegram 配置请求
 type UpdateTelegramConfigRequest struct {
 	Enabled  bool   `json:"enabled"`
-	BotToken string `json:"bot_token"`            // 为空时不更新
+	BotToken string `json:"bot_token"` // 为空时不更新
 	ChatID   string `json:"chat_id" binding:"required_if=Enabled true"`
 }
 
@@ -261,7 +261,7 @@ type UpdateSSOConfigRequest struct {
 	Enabled        bool              `json:"enabled"`
 	ProviderName   string            `json:"provider_name"`
 	ClientID       string            `json:"client_id"`
-	ClientSecret   string            `json:"client_secret"`     // 为空时不更新
+	ClientSecret   string            `json:"client_secret"` // 为空时不更新
 	IssuerURL      string            `json:"issuer_url"`
 	RedirectURI    string            `json:"redirect_uri"`
 	Scopes         string            `json:"scopes"`

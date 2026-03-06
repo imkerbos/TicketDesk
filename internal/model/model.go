@@ -9,10 +9,9 @@ import (
 
 // BaseModel 基础模型，所有模型都应嵌入此结构
 type BaseModel struct {
-	ID        uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // User 用户模型
@@ -23,16 +22,16 @@ type User struct {
 	PasswordHash         string     `gorm:"size:255;not null" json:"-"`
 	DisplayName          string     `gorm:"size:100" json:"display_name"`
 	AvatarURL            string     `gorm:"size:255" json:"avatar_url"`
-	Status               int8       `gorm:"default:1;index" json:"status"`           // 0-禁用, 1-启用
-	LastLoginAt          *time.Time `json:"last_login_at,omitempty"`                 // 最后登录时间
-	MFAEnabled           bool       `gorm:"default:false" json:"mfa_enabled"`        // 是否启用 MFA
-	MFASecret            string     `gorm:"size:64" json:"-"`                        // TOTP 密钥
-	MFAVerifiedAt        *time.Time `json:"mfa_verified_at,omitempty"`               // MFA 验证时间
-	ResetPasswordToken   string     `gorm:"size:64;index" json:"-"`                  // 重置密码令牌
-	ResetPasswordExpires *time.Time `json:"-"`                                       // 重置密码令牌过期时间
-	SSOProvider          string     `gorm:"size:50;index:idx_sso_subject" json:"sso_provider,omitempty"`  // SSO 提供方标识（如 "eiam"）
+	Status               int8       `gorm:"default:1;index" json:"status"`                               // 0-禁用, 1-启用
+	LastLoginAt          *time.Time `json:"last_login_at,omitempty"`                                     // 最后登录时间
+	MFAEnabled           bool       `gorm:"default:false" json:"mfa_enabled"`                            // 是否启用 MFA
+	MFASecret            string     `gorm:"size:64" json:"-"`                                            // TOTP 密钥
+	MFAVerifiedAt        *time.Time `json:"mfa_verified_at,omitempty"`                                   // MFA 验证时间
+	ResetPasswordToken   string     `gorm:"size:64;index" json:"-"`                                      // 重置密码令牌
+	ResetPasswordExpires *time.Time `json:"-"`                                                           // 重置密码令牌过期时间
+	SSOProvider          string     `gorm:"size:50;index:idx_sso_subject" json:"sso_provider,omitempty"` // SSO 提供方标识（如 "eiam"）
 	SSOSubject           string     `gorm:"size:255;index:idx_sso_subject" json:"sso_subject,omitempty"` // OIDC sub claim
-	ExtraAttributes      string     `gorm:"type:json" json:"extra_attributes,omitempty"`    // SSO 扩展属性（JSON）
+	ExtraAttributes      string     `gorm:"type:json" json:"extra_attributes,omitempty"`                 // SSO 扩展属性（JSON）
 }
 
 // TableName 指定表名
@@ -138,10 +137,10 @@ type Issue struct {
 	WorkflowInstanceID *uint64    `gorm:"index" json:"workflow_instance_id,omitempty"`
 	MergedIntoIssueID  *uint64    `gorm:"index" json:"merged_into_issue_id,omitempty"` // 合并目标工单 ID（扁平化：所有旧工单直接指向最终合并目标）
 	DueDate            *time.Time `json:"due_date"`
-	PlannedStartDate   *time.Time `json:"planned_start_date"`   // 预计开始时间
-	PlannedEndDate     *time.Time `json:"planned_end_date"`     // 预计交付时间
-	ActualStartDate    *time.Time `json:"actual_start_date"`    // 实际开始时间（状态→in_progress 时自动记录）
-	ActualEndDate      *time.Time `json:"actual_end_date"`      // 实际完成时间（状态→closed 时自动记录）
+	PlannedStartDate   *time.Time `json:"planned_start_date"` // 预计开始时间
+	PlannedEndDate     *time.Time `json:"planned_end_date"`   // 预计交付时间
+	ActualStartDate    *time.Time `json:"actual_start_date"`  // 实际开始时间（状态→in_progress 时自动记录）
+	ActualEndDate      *time.Time `json:"actual_end_date"`    // 实际完成时间（状态→closed 时自动记录）
 	ResolvedAt         *time.Time `json:"resolved_at"`
 	ClosedAt           *time.Time `json:"closed_at"`
 }
@@ -251,9 +250,9 @@ type Alert struct {
 	StartsAt    time.Time  `gorm:"index;not null" json:"starts_at"`
 	EndsAt      *time.Time `json:"ends_at"`
 	IssueID     *uint64    `gorm:"index:idx_alert_issue_status,priority:1" json:"issue_id"`
-	AckAt       *time.Time `json:"ack_at"`       // 确认时间
-	AckBy       *uint64    `gorm:"index" json:"ack_by"` // 确认人
-	ResolvedAt  *time.Time `json:"resolved_at"`  // 解决时间
+	AckAt       *time.Time `json:"ack_at"`                   // 确认时间
+	AckBy       *uint64    `gorm:"index" json:"ack_by"`      // 确认人
+	ResolvedAt  *time.Time `json:"resolved_at"`              // 解决时间
 	ResolvedBy  *uint64    `gorm:"index" json:"resolved_by"` // 解决人
 }
 
@@ -271,10 +270,10 @@ type AlertRule struct {
 	IssueTypeID   uint64  `gorm:"index;not null" json:"issue_type_id"`
 	LabelMatchers string  `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则
 	Priority      string  `gorm:"size:10;default:P2" json:"priority"`
-	AssigneeID    *uint64 `gorm:"index" json:"assignee_id"` // 默认指派人
+	AssigneeID    *uint64 `gorm:"index" json:"assignee_id"`          // 默认指派人
 	AutoResolve   bool    `gorm:"default:false" json:"auto_resolve"` // 告警恢复时自动解决工单
-	MergeWindow   int     `gorm:"default:3600" json:"merge_window"` // 告警合并时间窗口（秒），0表示不合并
-	Status        int8    `gorm:"default:1;index" json:"status"` // 0-禁用, 1-启用
+	MergeWindow   int     `gorm:"default:3600" json:"merge_window"`  // 告警合并时间窗口（秒），0表示不合并
+	Status        int8    `gorm:"default:1;index" json:"status"`     // 0-禁用, 1-启用
 }
 
 // TableName 指定表名
@@ -285,14 +284,14 @@ func (AlertRule) TableName() string {
 // AlertSilence 告警静默模型
 type AlertSilence struct {
 	BaseModel
-	Name          string     `gorm:"size:100;not null" json:"name"`
-	Description   string     `gorm:"type:text" json:"description"`
-	LabelMatchers string     `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则
-	StartsAt      time.Time  `gorm:"index;not null" json:"starts_at"` // 静默开始时间
-	EndsAt        time.Time  `gorm:"index;not null" json:"ends_at"`   // 静默结束时间
-	CreatedBy     uint64     `gorm:"index;not null" json:"created_by"` // 创建人
-	Comment       string     `gorm:"type:text" json:"comment"` // 静默原因
-	Status        int8       `gorm:"default:1;index" json:"status"` // 0-已取消, 1-生效中, 2-已过期
+	Name          string    `gorm:"size:100;not null" json:"name"`
+	Description   string    `gorm:"type:text" json:"description"`
+	LabelMatchers string    `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则
+	StartsAt      time.Time `gorm:"index;not null" json:"starts_at"`          // 静默开始时间
+	EndsAt        time.Time `gorm:"index;not null" json:"ends_at"`            // 静默结束时间
+	CreatedBy     uint64    `gorm:"index;not null" json:"created_by"`         // 创建人
+	Comment       string    `gorm:"type:text" json:"comment"`                 // 静默原因
+	Status        int8      `gorm:"default:1;index" json:"status"`            // 0-已取消, 1-生效中, 2-已过期
 }
 
 // TableName 指定表名
@@ -303,13 +302,13 @@ func (AlertSilence) TableName() string {
 // SystemConfig 系统配置模型
 type SystemConfig struct {
 	BaseModel
-	ConfigKey   string  `gorm:"size:100;uniqueIndex;not null" json:"config_key"`  // 配置键
-	ConfigValue string  `gorm:"type:text" json:"config_value"`                     // 配置值
-	ConfigType  string  `gorm:"size:20;default:string" json:"config_type"`         // 类型: string, number, boolean, json
-	Category    string  `gorm:"size:50;index" json:"category"`                     // 分类: email, webhook, security, general
-	Description string  `gorm:"size:500" json:"description"`                       // 描述
-	IsSecret    bool    `gorm:"default:false" json:"is_secret"`                    // 是否为敏感配置（密码等）
-	UpdatedBy   *uint64 `gorm:"index" json:"updated_by"`                           // 最后修改人
+	ConfigKey   string  `gorm:"size:100;uniqueIndex;not null" json:"config_key"` // 配置键
+	ConfigValue string  `gorm:"type:text" json:"config_value"`                   // 配置值
+	ConfigType  string  `gorm:"size:20;default:string" json:"config_type"`       // 类型: string, number, boolean, json
+	Category    string  `gorm:"size:50;index" json:"category"`                   // 分类: email, webhook, security, general
+	Description string  `gorm:"size:500" json:"description"`                     // 描述
+	IsSecret    bool    `gorm:"default:false" json:"is_secret"`                  // 是否为敏感配置（密码等）
+	UpdatedBy   *uint64 `gorm:"index" json:"updated_by"`                         // 最后修改人
 }
 
 // TableName 指定表名
@@ -320,14 +319,14 @@ func (SystemConfig) TableName() string {
 // Webhook 外发 Webhook 配置模型
 type Webhook struct {
 	BaseModel
-	Name        string `gorm:"size:100;not null" json:"name"`                      // Webhook 名称
-	URL         string `gorm:"size:500;not null" json:"url"`                       // Webhook URL
-	Secret      string `gorm:"size:255" json:"-"`                                  // HMAC 签名密钥
-	Events      string `gorm:"type:json;not null" json:"events"`                   // 订阅的事件类型 JSON 数组
-	Headers     string `gorm:"type:json" json:"headers"`                           // 自定义请求头 JSON 对象
-	Status      int8   `gorm:"default:1;index" json:"status"`                      // 0-禁用, 1-启用
-	Description string `gorm:"type:text" json:"description"`                       // 描述
-	CreatedBy   uint64 `gorm:"index;not null" json:"created_by"`                   // 创建人
+	Name        string `gorm:"size:100;not null" json:"name"`    // Webhook 名称
+	URL         string `gorm:"size:500;not null" json:"url"`     // Webhook URL
+	Secret      string `gorm:"size:255" json:"-"`                // HMAC 签名密钥
+	Events      string `gorm:"type:json;not null" json:"events"` // 订阅的事件类型 JSON 数组
+	Headers     string `gorm:"type:json" json:"headers"`         // 自定义请求头 JSON 对象
+	Status      int8   `gorm:"default:1;index" json:"status"`    // 0-禁用, 1-启用
+	Description string `gorm:"type:text" json:"description"`     // 描述
+	CreatedBy   uint64 `gorm:"index;not null" json:"created_by"` // 创建人
 }
 
 // TableName 指定表名
@@ -338,14 +337,14 @@ func (Webhook) TableName() string {
 // WebhookLog Webhook 发送日志
 type WebhookLog struct {
 	ID           uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	WebhookID    uint64    `gorm:"index;not null" json:"webhook_id"`        // 关联的 Webhook
-	Event        string    `gorm:"size:50;index;not null" json:"event"`     // 事件类型
-	Payload      string    `gorm:"type:text" json:"payload"`                // 发送的数据
-	ResponseCode int       `gorm:"default:0" json:"response_code"`          // 响应状态码
-	ResponseBody string    `gorm:"type:text" json:"response_body"`          // 响应内容
-	Status       int8      `gorm:"default:0;index" json:"status"`           // 0-待发送, 1-成功, 2-失败
-	ErrorMessage string    `gorm:"type:text" json:"error_message"`          // 错误信息
-	RetryCount   int       `gorm:"default:0" json:"retry_count"`            // 重试次数
+	WebhookID    uint64    `gorm:"index;not null" json:"webhook_id"`    // 关联的 Webhook
+	Event        string    `gorm:"size:50;index;not null" json:"event"` // 事件类型
+	Payload      string    `gorm:"type:text" json:"payload"`            // 发送的数据
+	ResponseCode int       `gorm:"default:0" json:"response_code"`      // 响应状态码
+	ResponseBody string    `gorm:"type:text" json:"response_body"`      // 响应内容
+	Status       int8      `gorm:"default:0;index" json:"status"`       // 0-待发送, 1-成功, 2-失败
+	ErrorMessage string    `gorm:"type:text" json:"error_message"`      // 错误信息
+	RetryCount   int       `gorm:"default:0" json:"retry_count"`        // 重试次数
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 }
 
@@ -377,10 +376,10 @@ func (Notification) TableName() string {
 
 // 通知类型常量
 const (
-	NotificationTypeIssueAssigned     = "issue_assigned"      // 工单被指派
-	NotificationTypeIssueUpdated      = "issue_updated"       // 工单更新
-	NotificationTypeIssueCommented    = "issue_commented"     // 工单评论
-	NotificationTypeMention           = "mention"             // @提及
+	NotificationTypeIssueAssigned      = "issue_assigned"       // 工单被指派
+	NotificationTypeIssueUpdated       = "issue_updated"        // 工单更新
+	NotificationTypeIssueCommented     = "issue_commented"      // 工单评论
+	NotificationTypeMention            = "mention"              // @提及
 	NotificationTypeIssueStatusChanged = "issue_status_changed" // 状态变更
 )
 
@@ -390,10 +389,10 @@ type IssueWorklog struct {
 	IssueID      uint64    `gorm:"index;not null" json:"issue_id"`
 	UserID       uint64    `gorm:"index;not null" json:"user_id"`
 	Description  string    `gorm:"type:text;not null" json:"description"`
-	TimeSpent    string    `gorm:"size:50;not null" json:"time_spent"`       // 格式：2h 30m
-	TimeSpentSec int       `gorm:"not null" json:"time_spent_sec"`           // 秒数（用于统计）
+	TimeSpent    string    `gorm:"size:50;not null" json:"time_spent"` // 格式：2h 30m
+	TimeSpentSec int       `gorm:"not null" json:"time_spent_sec"`     // 秒数（用于统计）
 	WorkedAt     time.Time `gorm:"index;not null" json:"worked_at"`
-	WorkType     string    `gorm:"size:30" json:"work_type"`                 // 工作类型：开发、测试、调试、文档、故障排查、监控运维、部署发布、配置变更、巡检、安全响应等
+	WorkType     string    `gorm:"size:30" json:"work_type"` // 工作类型：开发、测试、调试、文档、故障排查、监控运维、部署发布、配置变更、巡检、安全响应等
 }
 
 // TableName 指定表名
@@ -404,13 +403,13 @@ func (IssueWorklog) TableName() string {
 // ActivityLog 活动日志模型
 type ActivityLog struct {
 	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID     uint64    `gorm:"index;not null" json:"user_id"`           // 操作用户 ID
-	UserName   string    `gorm:"size:50;not null" json:"user_name"`       // 操作用户名（冗余字段，避免关联查询）
-	Action     string    `gorm:"size:50;not null;index" json:"action"`    // 操作类型：created, updated, closed, commented, assigned 等
+	UserID     uint64    `gorm:"index;not null" json:"user_id"`             // 操作用户 ID
+	UserName   string    `gorm:"size:50;not null" json:"user_name"`         // 操作用户名（冗余字段，避免关联查询）
+	Action     string    `gorm:"size:50;not null;index" json:"action"`      // 操作类型：created, updated, closed, commented, assigned 等
 	EntityType string    `gorm:"size:30;not null;index" json:"entity_type"` // 实体类型：issue, alert, project 等
-	EntityID   uint64    `gorm:"index;not null" json:"entity_id"`         // 实体 ID
-	EntityKey  string    `gorm:"size:50;index" json:"entity_key"`         // 实体标识（如工单编号）
-	Details    string    `gorm:"type:text" json:"details"`                // 详细信息（JSON 格式）
+	EntityID   uint64    `gorm:"index;not null" json:"entity_id"`           // 实体 ID
+	EntityKey  string    `gorm:"size:50;index" json:"entity_key"`           // 实体标识（如工单编号）
+	Details    string    `gorm:"type:text" json:"details"`                  // 详细信息（JSON 格式）
 	CreatedAt  time.Time `gorm:"autoCreateTime;index" json:"created_at"`
 }
 
@@ -424,7 +423,7 @@ type ProjectRole struct {
 	BaseModel
 	ProjectID   uint64 `gorm:"not null;uniqueIndex:uk_project_role,priority:1" json:"project_id"`
 	RoleKey     string `gorm:"size:50;not null;uniqueIndex:uk_project_role,priority:2" json:"role_key"` // developers, testers, pm
-	RoleName    string `gorm:"size:100;not null" json:"role_name"`                                       // 开发人员, 测试人员, 项目经理
+	RoleName    string `gorm:"size:100;not null" json:"role_name"`                                      // 开发人员, 测试人员, 项目经理
 	Description string `gorm:"size:500" json:"description"`
 	IsSystem    bool   `gorm:"default:false" json:"is_system"` // 系统预置角色不可删除
 	SortOrder   int    `gorm:"default:0" json:"sort_order"`
@@ -455,7 +454,7 @@ type WorkflowInstance struct {
 	IssueID       uint64     `gorm:"not null;uniqueIndex" json:"issue_id"`
 	WorkflowID    uint64     `gorm:"not null;index" json:"workflow_id"`
 	CurrentNodeID uint64     `gorm:"not null;index" json:"current_node_id"`
-	Status        string     `gorm:"size:20;not null;index;index:idx_wi_issue_status,priority:2" json:"status"` // active, completed, cancelled, reviewing
+	Status        string     `gorm:"size:20;not null;index;index:idx_wi_issue_status,priority:2" json:"status"` // active, completed, reviewing, 已取消
 	StartedAt     time.Time  `gorm:"not null" json:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at,omitempty"`
 }
@@ -514,17 +513,17 @@ func (WorkflowScheme) TableName() string {
 // FieldDefinition 字段定义模型
 type FieldDefinition struct {
 	BaseModel
-	ProjectID    *uint64 `gorm:"index" json:"project_id"`                         // NULL=全局系统字段
-	FieldKey     string  `gorm:"size:50;not null;index" json:"field_key"`         // severity, environment, epic_link
-	FieldName    string  `gorm:"size:100;not null" json:"field_name"`             // 严重程度, 环境, Epic链接
-	FieldType    string  `gorm:"size:30;not null" json:"field_type"`              // text/textarea/number/date/select/multiselect/user/version/component/label/epic_link/time_estimate
-	Description  string  `gorm:"size:500" json:"description"`                     // 字段描述
-	IsSystem     bool    `gorm:"default:false" json:"is_system"`                  // 系统字段不可删除
-	IsActive     bool    `gorm:"default:true" json:"is_active"`                   // 是否启用
-	Options      string  `gorm:"type:json" json:"options"`                        // 选项配置JSON（select类型）
-	Validation   string  `gorm:"type:json" json:"validation"`                     // 校验规则JSON
-	DefaultValue string  `gorm:"size:500" json:"default_value"`                   // 默认值
-	SortOrder    int     `gorm:"default:0" json:"sort_order"`                     // 排序
+	ProjectID    *uint64 `gorm:"index" json:"project_id"`                 // NULL=全局系统字段
+	FieldKey     string  `gorm:"size:50;not null;index" json:"field_key"` // severity, environment, epic_link
+	FieldName    string  `gorm:"size:100;not null" json:"field_name"`     // 严重程度, 环境, Epic链接
+	FieldType    string  `gorm:"size:30;not null" json:"field_type"`      // text/textarea/number/date/select/multiselect/user/version/component/label/epic_link/time_estimate
+	Description  string  `gorm:"size:500" json:"description"`             // 字段描述
+	IsSystem     bool    `gorm:"default:false" json:"is_system"`          // 系统字段不可删除
+	IsActive     bool    `gorm:"default:true" json:"is_active"`           // 是否启用
+	Options      string  `gorm:"type:json" json:"options"`                // 选项配置JSON（select类型）
+	Validation   string  `gorm:"type:json" json:"validation"`             // 校验规则JSON
+	DefaultValue string  `gorm:"size:500" json:"default_value"`           // 默认值
+	SortOrder    int     `gorm:"default:0" json:"sort_order"`             // 排序
 }
 
 // TableName 指定表名
@@ -538,12 +537,12 @@ type IssueTypeFieldScheme struct {
 	ProjectID       uint64 `gorm:"not null;uniqueIndex:uk_type_field,priority:1;index" json:"project_id"`
 	IssueTypeID     uint64 `gorm:"not null;uniqueIndex:uk_type_field,priority:2;index" json:"issue_type_id"`
 	FieldID         uint64 `gorm:"not null;uniqueIndex:uk_type_field,priority:3;index" json:"field_id"`
-	IsRequired      bool   `gorm:"default:false" json:"is_required"`              // 是否必填
-	IsVisibleCreate bool   `gorm:"default:true" json:"is_visible_create"`         // 创建时显示
-	IsVisibleEdit   bool   `gorm:"default:true" json:"is_visible_edit"`           // 编辑时显示
-	IsVisibleDetail bool   `gorm:"default:true" json:"is_visible_detail"`         // 详情时显示
-	SortOrder       int    `gorm:"default:0" json:"sort_order"`                   // 排序
-	DefaultValue    string `gorm:"size:500" json:"default_value"`                 // 该类型的默认值（覆盖字段默认值）
+	IsRequired      bool   `gorm:"default:false" json:"is_required"`      // 是否必填
+	IsVisibleCreate bool   `gorm:"default:true" json:"is_visible_create"` // 创建时显示
+	IsVisibleEdit   bool   `gorm:"default:true" json:"is_visible_edit"`   // 编辑时显示
+	IsVisibleDetail bool   `gorm:"default:true" json:"is_visible_detail"` // 详情时显示
+	SortOrder       int    `gorm:"default:0" json:"sort_order"`           // 排序
+	DefaultValue    string `gorm:"size:500" json:"default_value"`         // 该类型的默认值（覆盖字段默认值）
 }
 
 // TableName 指定表名
@@ -556,10 +555,10 @@ type IssueFieldValue struct {
 	ID          uint64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	IssueID     uint64     `gorm:"not null;uniqueIndex:uk_issue_field,priority:1;index" json:"issue_id"`
 	FieldID     uint64     `gorm:"not null;uniqueIndex:uk_issue_field,priority:2;index" json:"field_id"`
-	ValueText   *string    `gorm:"type:text" json:"value_text"`                   // 文本值
-	ValueNumber *float64   `json:"value_number"`                                  // 数值
-	ValueDate   *time.Time `json:"value_date"`                                    // 日期值
-	ValueJSON   *string    `gorm:"type:json" json:"value_json"`                   // JSON值（多选、标签等）
+	ValueText   *string    `gorm:"type:text" json:"value_text"` // 文本值
+	ValueNumber *float64   `json:"value_number"`                // 数值
+	ValueDate   *time.Time `json:"value_date"`                  // 日期值
+	ValueJSON   *string    `gorm:"type:json" json:"value_json"` // JSON值（多选、标签等）
 	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
@@ -573,9 +572,9 @@ func (IssueFieldValue) TableName() string {
 type ProjectVersion struct {
 	BaseModel
 	ProjectID   uint64     `gorm:"not null;index" json:"project_id"`
-	Name        string     `gorm:"size:50;not null" json:"name"`                  // 版本名称
-	Description string     `gorm:"size:500" json:"description"`                   // 版本描述
-	ReleaseDate *time.Time `json:"release_date"`                                  // 发布日期
+	Name        string     `gorm:"size:50;not null" json:"name"`                   // 版本名称
+	Description string     `gorm:"size:500" json:"description"`                    // 版本描述
+	ReleaseDate *time.Time `json:"release_date"`                                   // 发布日期
 	Status      string     `gorm:"size:20;default:unreleased;index" json:"status"` // unreleased, released, archived
 	SortOrder   int        `gorm:"default:0" json:"sort_order"`
 }
@@ -589,9 +588,9 @@ func (ProjectVersion) TableName() string {
 type ProjectComponent struct {
 	BaseModel
 	ProjectID   uint64  `gorm:"not null;index" json:"project_id"`
-	Name        string  `gorm:"size:100;not null" json:"name"`                    // 组件名称
-	Description string  `gorm:"size:500" json:"description"`                      // 组件描述
-	LeadUserID  *uint64 `gorm:"index" json:"lead_user_id"`                        // 组件负责人
+	Name        string  `gorm:"size:100;not null" json:"name"` // 组件名称
+	Description string  `gorm:"size:500" json:"description"`   // 组件描述
+	LeadUserID  *uint64 `gorm:"index" json:"lead_user_id"`     // 组件负责人
 }
 
 // TableName 指定表名
@@ -603,9 +602,9 @@ func (ProjectComponent) TableName() string {
 type IssueLabel struct {
 	BaseModel
 	ProjectID   uint64 `gorm:"not null;index" json:"project_id"`
-	Name        string `gorm:"size:50;not null" json:"name"`                      // 标签名称
-	Color       string `gorm:"size:20" json:"color"`                              // 标签颜色
-	Description string `gorm:"size:200" json:"description"`                       // 标签描述
+	Name        string `gorm:"size:50;not null" json:"name"` // 标签名称
+	Color       string `gorm:"size:20" json:"color"`         // 标签颜色
+	Description string `gorm:"size:200" json:"description"`  // 标签描述
 }
 
 // TableName 指定表名

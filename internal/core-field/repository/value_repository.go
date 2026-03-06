@@ -4,9 +4,10 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // ValueRepository 字段值仓储接口
@@ -40,14 +41,14 @@ func (r *valueRepository) Update(ctx context.Context, value *model.IssueFieldVal
 	return r.db.WithContext(ctx).Save(value).Error
 }
 
-// Delete 删除字段值
+// Delete 硬删除字段值
 func (r *valueRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueFieldValue{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueFieldValue{}, id).Error
 }
 
-// DeleteByIssue 删除工单的所有字段值
+// DeleteByIssue 硬删除工单的所有字段值
 func (r *valueRepository) DeleteByIssue(ctx context.Context, issueID uint64) error {
-	return r.db.WithContext(ctx).
+	return r.db.WithContext(ctx).Unscoped().
 		Where("issue_id = ?", issueID).
 		Delete(&model.IssueFieldValue{}).Error
 }
@@ -80,7 +81,7 @@ func (r *valueRepository) BatchUpsert(ctx context.Context, values []*model.Issue
 	}
 	return r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "issue_id"}, {Name: "field_id"}},
+			Columns: []clause.Column{{Name: "issue_id"}, {Name: "field_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"value_text", "value_number", "value_date", "value_json", "updated_at",
 			}),

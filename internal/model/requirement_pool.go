@@ -2,8 +2,6 @@ package model
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // RequirementPoolType 需求池类型
@@ -33,7 +31,6 @@ type RequirementPool struct {
 	Status      RequirementPoolStatus `gorm:"type:varchar(20);not null;index;default:'active'" json:"status"`
 	CreatedAt   time.Time             `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time             `gorm:"autoUpdateTime" json:"updated_at"`
-	DeletedAt   gorm.DeletedAt        `gorm:"index" json:"deleted_at,omitempty"`
 
 	// 关联
 	Owner        *User          `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`

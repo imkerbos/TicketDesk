@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-field/dto"
 	"github.com/kerbos/ticketdesk/internal/core-field/service"
@@ -78,8 +79,8 @@ func (h *FieldHandler) UpdateField(c *gin.Context) {
 	}
 
 	var req dto.UpdateFieldRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 
@@ -193,8 +194,8 @@ func (h *FieldHandler) UpdateFieldScheme(c *gin.Context) {
 	}
 
 	var req dto.UpdateFieldSchemeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 
@@ -261,8 +262,8 @@ func (h *FieldHandler) UpdateVersion(c *gin.Context) {
 	}
 
 	var req dto.UpdateVersionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 
@@ -378,8 +379,8 @@ func (h *FieldHandler) UpdateComponent(c *gin.Context) {
 	}
 
 	var req dto.UpdateComponentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 
@@ -495,8 +496,8 @@ func (h *FieldHandler) UpdateLabel(c *gin.Context) {
 	}
 
 	var req dto.UpdateLabelRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 
@@ -621,8 +622,8 @@ func (h *FieldHandler) UpdateGlobalField(c *gin.Context) {
 		return
 	}
 	var req dto.UpdateFieldRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 	result, err := h.fieldService.UpdateGlobalField(c.Request.Context(), fieldID, &req)
@@ -713,8 +714,8 @@ func (h *FieldHandler) UpdateTemplate(c *gin.Context) {
 		return
 	}
 	var req dto.UpdateTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 	result, err := h.fieldService.UpdateTemplate(c.Request.Context(), templateID, &req)
@@ -767,8 +768,8 @@ func (h *FieldHandler) ApplyTemplate(c *gin.Context) {
 		return
 	}
 	var req dto.ApplyTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, bindErr.Error())
 		return
 	}
 	result, err := h.fieldService.ApplyTemplate(c.Request.Context(), projectKey, issueTypeID, &req)

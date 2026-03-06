@@ -9,11 +9,12 @@ import (
 	"net/http"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/repository"
 	"github.com/kerbos/ticketdesk/pkg/config"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // ============ N9eClient — 夜莺 API 客户端 ============

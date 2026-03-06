@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/api/router"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/config"
@@ -18,7 +20,6 @@ import (
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
 )
 
 var configPath string
@@ -92,8 +93,9 @@ func main() {
 
 	// 创建 HTTP 服务器
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.App.Port),
-		Handler: r,
+		Addr:              fmt.Sprintf(":%d", cfg.App.Port),
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	// 启动服务器

@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
+
+	"github.com/kerbos/ticketdesk/pkg/logger"
 )
 
 const (
@@ -134,9 +135,15 @@ func (c *WSClient) readPump() {
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		logger.Warn("failed to set ws read deadline", zap.Uint64("user_id", c.userID), zap.Error(err))
+		return
+	}
 	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+			logger.Warn("failed to refresh ws read deadline", zap.Uint64("user_id", c.userID), zap.Error(err))
+			return err
+		}
 		return nil
 	})
 
@@ -165,10 +172,15 @@ func (c *WSClient) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				logger.Warn("failed to set ws write deadline", zap.Uint64("user_id", c.userID), zap.Error(err))
+				return
+			}
 			if !ok {
 				// 通道已关闭
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+					logger.Warn("failed to write ws close message", zap.Uint64("user_id", c.userID), zap.Error(err))
+				}
 				return
 			}
 
@@ -177,7 +189,10 @@ func (c *WSClient) writePump() {
 			}
 
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				logger.Warn("failed to set ws ping deadline", zap.Uint64("user_id", c.userID), zap.Error(err))
+				return
+			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

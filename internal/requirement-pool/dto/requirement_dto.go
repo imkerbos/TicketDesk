@@ -35,8 +35,8 @@ type CreateRequirementRequest struct {
 	Category        model.RequirementCategory `json:"category" binding:"required,oneof=feature optimization bugfix security infrastructure other"`
 	ReporterID      *uint64                   `json:"reporter_id"`
 	AssigneeID      *uint64                   `json:"assignee_id"`
-	StartDate       *string                   `json:"start_date"`       // 格式: 2006-01-02 或 2006-01-02 15:04:05
-	EndDate         *string                   `json:"end_date"`         // 格式: 2006-01-02 或 2006-01-02 15:04:05
+	StartDate       *string                   `json:"start_date"` // 格式: 2006-01-02 或 2006-01-02 15:04:05
+	EndDate         *string                   `json:"end_date"`   // 格式: 2006-01-02 或 2006-01-02 15:04:05
 	TargetProjectID *uint64                   `json:"target_project_id"`
 	Tags            []string                  `json:"tags"`
 }
@@ -50,8 +50,8 @@ type UpdateRequirementRequest struct {
 	Category        *model.RequirementCategory `json:"category" binding:"omitempty,oneof=feature optimization bugfix security infrastructure other"`
 	ReporterID      *uint64                    `json:"reporter_id"`
 	AssigneeID      *uint64                    `json:"assignee_id"`
-	StartDate       *string                    `json:"start_date"`      // 格式: 2006-01-02 或 2006-01-02 15:04:05
-	EndDate         *string                    `json:"end_date"`        // 格式: 2006-01-02 或 2006-01-02 15:04:05
+	StartDate       *string                    `json:"start_date"` // 格式: 2006-01-02 或 2006-01-02 15:04:05
+	EndDate         *string                    `json:"end_date"`   // 格式: 2006-01-02 或 2006-01-02 15:04:05
 	Progress        *string                    `json:"progress" binding:"omitempty,max=10000"`
 	Result          *string                    `json:"result" binding:"omitempty,max=10000"`
 	TargetProjectID *uint64                    `json:"target_project_id"`
@@ -190,10 +190,10 @@ type KanbanResponse struct {
 
 // ReportRequest 报告请求
 type ReportRequest struct {
-	PoolID    *uint64    `form:"pool_id"`
-	StartDate time.Time  `form:"start_date" binding:"required" time_format:"2006-01-02"`
-	EndDate   time.Time  `form:"end_date" binding:"required" time_format:"2006-01-02"`
-	GroupBy   string     `form:"group_by" binding:"omitempty,oneof=day week month"`
+	PoolID    *uint64   `form:"pool_id"`
+	StartDate time.Time `form:"start_date" binding:"required" time_format:"2006-01-02"`
+	EndDate   time.Time `form:"end_date" binding:"required" time_format:"2006-01-02"`
+	GroupBy   string    `form:"group_by" binding:"omitempty,oneof=day week month"`
 }
 
 // StatusSummary 状态统计

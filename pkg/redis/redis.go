@@ -5,8 +5,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kerbos/ticketdesk/pkg/config"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/kerbos/ticketdesk/pkg/config"
 )
 
 // Client 全局 Redis 客户端

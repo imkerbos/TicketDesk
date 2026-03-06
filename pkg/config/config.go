@@ -22,7 +22,7 @@ type Config struct {
 // SSOConfig SSO 单点登录配置
 type SSOConfig struct {
 	Enabled        bool            `mapstructure:"enabled"`
-	ProviderName   string          `mapstructure:"provider_name"`   // 前端展示的名称，如 "企业统一认证"
+	ProviderName   string          `mapstructure:"provider_name"` // 前端展示的名称，如 "企业统一认证"
 	ClientID       string          `mapstructure:"client_id"`
 	ClientSecret   string          `mapstructure:"client_secret"`
 	IssuerURL      string          `mapstructure:"issuer_url"`

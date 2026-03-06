@@ -10,21 +10,22 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/system-config/dto"
 	"github.com/kerbos/ticketdesk/internal/system-config/repository"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // 配置分类常量
 const (
-	CategoryEmail    = "email"
-	CategoryWebhook  = "webhook"
-	CategorySecurity = "security"
-	CategoryGeneral  = "general"
+	CategoryEmail     = "email"
+	CategoryWebhook   = "webhook"
+	CategorySecurity  = "security"
+	CategoryGeneral   = "general"
 	CategoryLark      = "lark"
 	CategoryTelegram  = "telegram"
 	CategoryRateLimit = "ratelimit"
@@ -65,23 +66,23 @@ const (
 
 	// 限流配置键
 	KeyRateLimitWebhook = "ratelimit.webhook_limit" // 默认 100
-	KeyRateLimitAuth    = "ratelimit.auth_limit"     // 默认 20
-	KeyRateLimitAPI     = "ratelimit.api_limit"      // 默认 300
+	KeyRateLimitAuth    = "ratelimit.auth_limit"    // 默认 20
+	KeyRateLimitAPI     = "ratelimit.api_limit"     // 默认 300
 
 	// SSO 配置分类
 	CategorySSO = "sso"
 
 	// SSO 配置键
-	KeySSOEnabled          = "sso.enabled"
-	KeySSOProviderName     = "sso.provider_name"
-	KeySSOClientID         = "sso.client_id"
-	KeySSOClientSecret     = "sso.client_secret"
-	KeySSOIssuerURL        = "sso.issuer_url"
-	KeySSORedirectURI      = "sso.redirect_uri"
-	KeySSOScopes           = "sso.scopes"
-	KeySSOAutoCreateUser   = "sso.auto_create_user"
-	KeySSODefaultRole      = "sso.default_role"
-	KeySSOClaimMappings    = "sso.claim_mappings" // JSON: [{"local_field":"username","claim_name":"preferred_username"}, ...]
+	KeySSOEnabled        = "sso.enabled"
+	KeySSOProviderName   = "sso.provider_name"
+	KeySSOClientID       = "sso.client_id"
+	KeySSOClientSecret   = "sso.client_secret"
+	KeySSOIssuerURL      = "sso.issuer_url"
+	KeySSORedirectURI    = "sso.redirect_uri"
+	KeySSOScopes         = "sso.scopes"
+	KeySSOAutoCreateUser = "sso.auto_create_user"
+	KeySSODefaultRole    = "sso.default_role"
+	KeySSOClaimMappings  = "sso.claim_mappings" // JSON: [{"local_field":"username","claim_name":"preferred_username"}, ...]
 )
 
 // 业务错误定义
@@ -97,7 +98,7 @@ type ConfigService interface {
 	GetConfigValue(ctx context.Context, key string) (string, error)
 	GetConfigsByCategory(ctx context.Context, category string) ([]*dto.ConfigResponse, error)
 	GetAllConfigs(ctx context.Context) ([]*dto.ConfigResponse, error)
-	UpdateConfig(ctx context.Context, key string, value string, userID uint64) error
+	UpdateConfig(ctx context.Context, key, value string, userID uint64) error
 	BatchUpdateConfigs(ctx context.Context, configs map[string]string, userID uint64) error
 
 	// 邮件配置
@@ -250,7 +251,7 @@ func (s *configService) GetAllConfigs(ctx context.Context) ([]*dto.ConfigRespons
 }
 
 // UpdateConfig 更新配置
-func (s *configService) UpdateConfig(ctx context.Context, key string, value string, userID uint64) error {
+func (s *configService) UpdateConfig(ctx context.Context, key, value string, userID uint64) error {
 	config := &model.SystemConfig{
 		ConfigKey:   key,
 		ConfigValue: value,
@@ -385,12 +386,12 @@ func (s *configService) GetSecurityConfig(ctx context.Context) (*dto.SecurityCon
 
 	// 默认值
 	config := &dto.SecurityConfig{
-		MFAEnabled:           false,
-		MFARequired:          false,
-		PasswordMinLength:    6,
-		PasswordRequireUpper: false,
+		MFAEnabled:            false,
+		MFARequired:           false,
+		PasswordMinLength:     6,
+		PasswordRequireUpper:  false,
 		PasswordRequireNumber: false,
-		SessionTimeout:       120, // 2小时
+		SessionTimeout:        120, // 2小时
 	}
 
 	for _, c := range configs {

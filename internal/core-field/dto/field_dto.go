@@ -7,13 +7,13 @@ import "time"
 
 // CreateFieldRequest 创建字段定义请求
 type CreateFieldRequest struct {
-	FieldKey     string  `json:"field_key" binding:"required,min=2,max=50"`
-	FieldName    string  `json:"field_name" binding:"required,min=1,max=100"`
-	FieldType    string  `json:"field_type" binding:"required,oneof=text textarea number date select multiselect user version component label epic_link time_estimate"`
-	Description  string  `json:"description" binding:"max=500"`
-	Options      string  `json:"options"`       // JSON格式的选项配置
-	Validation   string  `json:"validation"`    // JSON格式的校验规则
-	DefaultValue string  `json:"default_value" binding:"max=500"`
+	FieldKey     string `json:"field_key" binding:"required,min=2,max=50"`
+	FieldName    string `json:"field_name" binding:"required,min=1,max=100"`
+	FieldType    string `json:"field_type" binding:"required,oneof=text textarea number date select multiselect user version component label epic_link time_estimate"`
+	Description  string `json:"description" binding:"max=500"`
+	Options      string `json:"options"`    // JSON格式的选项配置
+	Validation   string `json:"validation"` // JSON格式的校验规则
+	DefaultValue string `json:"default_value" binding:"max=500"`
 }
 
 // UpdateFieldRequest 更新字段定义请求
@@ -125,12 +125,12 @@ type FieldSchemeResponse struct {
 
 // FieldValueResponse 字段值响应
 type FieldValueResponse struct {
-	FieldID     uint64      `json:"field_id"`
-	FieldKey    string      `json:"field_key"`
-	FieldName   string      `json:"field_name"`
-	FieldType   string      `json:"field_type"`
-	Value       interface{} `json:"value"`
-	DisplayValue string     `json:"display_value"`
+	FieldID      uint64      `json:"field_id"`
+	FieldKey     string      `json:"field_key"`
+	FieldName    string      `json:"field_name"`
+	FieldType    string      `json:"field_type"`
+	Value        interface{} `json:"value"`
+	DisplayValue string      `json:"display_value"`
 }
 
 // VersionResponse 项目版本响应
@@ -228,14 +228,14 @@ type TemplateResponse struct {
 
 // TemplateDetailResponse 模板详情响应（含字段项）
 type TemplateDetailResponse struct {
-	ID          uint64                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	CreatedBy   uint64                 `json:"created_by"`
-	IsActive    bool                   `json:"is_active"`
+	ID          uint64                  `json:"id"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description"`
+	CreatedBy   uint64                  `json:"created_by"`
+	IsActive    bool                    `json:"is_active"`
 	Items       []*TemplateItemResponse `json:"items"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	CreatedAt   time.Time               `json:"created_at"`
+	UpdatedAt   time.Time               `json:"updated_at"`
 }
 
 // TemplateItemResponse 模板字段项响应

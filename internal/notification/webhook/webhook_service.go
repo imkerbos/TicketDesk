@@ -13,10 +13,11 @@ import (
 	"net/http"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/system-config/repository"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // WebhookPayload Webhook 请求负载
@@ -148,7 +149,11 @@ func (s *webhookService) SendToWebhook(ctx context.Context, webhook *model.Webho
 	defer resp.Body.Close()
 
 	// 读取响应
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		s.updateLogStatus(ctx, webhookLog, 2, resp.StatusCode, "", fmt.Sprintf("读取响应失败: %v", err))
+		return fmt.Errorf("读取 webhook 响应失败: %w", err)
+	}
 
 	// 判断响应状态
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {

@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // SchemeRepository 字段方案仓储接口
@@ -41,9 +42,9 @@ func (r *schemeRepository) Update(ctx context.Context, scheme *model.IssueTypeFi
 	return r.db.WithContext(ctx).Save(scheme).Error
 }
 
-// Delete 删除字段方案
+// Delete 硬删除字段方案
 func (r *schemeRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueTypeFieldScheme{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueTypeFieldScheme{}, id).Error
 }
 
 // DeleteByProjectAndType 硬删除项目工单类型的所有字段方案（替换场景，避免软删除与唯一键冲突）

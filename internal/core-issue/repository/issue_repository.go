@@ -6,8 +6,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // IssueRepository 工单数据访问接口
@@ -34,20 +35,20 @@ type IssueRepository interface {
 
 // IssueFilter 工单过滤条件
 type IssueFilter struct {
-	ProjectID        *uint64
-	ProjectIDs       []uint64 // 限定项目范围（非管理员用户可访问的项目列表）
-	LimitByProjects  bool     // 是否启用 ProjectIDs 过滤（区分 nil 和空切片）
-	Status           string
-	StatusNotIn      []string // 排除的状态列表
-	Priority         string
-	AssigneeID       *uint64
-	ReporterID       *uint64
-	IssueTypeID      *uint64
-	EpicID           *uint64
-	Keyword          string
-	Category         string // "normal" = 排除告警工单, "alert" = 仅告警工单
-	SortBy           string // 排序字段
-	Order            string // asc / desc
+	ProjectID       *uint64
+	ProjectIDs      []uint64 // 限定项目范围（非管理员用户可访问的项目列表）
+	LimitByProjects bool     // 是否启用 ProjectIDs 过滤（区分 nil 和空切片）
+	Status          string
+	StatusNotIn     []string // 排除的状态列表
+	Priority        string
+	AssigneeID      *uint64
+	ReporterID      *uint64
+	IssueTypeID     *uint64
+	EpicID          *uint64
+	Keyword         string
+	Category        string // "normal" = 排除告警工单, "alert" = 仅告警工单
+	SortBy          string // 排序字段
+	Order           string // asc / desc
 }
 
 // issueRepository 工单数据访问实现
@@ -90,9 +91,9 @@ func (r *issueRepository) Update(ctx context.Context, issue *model.Issue) error 
 	return r.db.WithContext(ctx).Save(issue).Error
 }
 
-// Delete 软删除工单
+// Delete 硬删除工单
 func (r *issueRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.Issue{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.Issue{}, id).Error
 }
 
 // maxCountLimit 分页计数上限，超过此值显示 "10,000+"
@@ -144,9 +145,9 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 			query = query.Where("issue_key LIKE ? OR title LIKE ?", keyword, keyword)
 		}
 		if filter.Category == "alert" {
-			query = query.Where("issue_type_id IN (SELECT id FROM issue_types WHERE name = 'Alert' AND deleted_at IS NULL)")
+			query = query.Where("issue_type_id IN (SELECT id FROM issue_types WHERE name = 'Alert')")
 		} else if filter.Category == "normal" {
-			query = query.Where("issue_type_id NOT IN (SELECT id FROM issue_types WHERE name = 'Alert' AND deleted_at IS NULL)")
+			query = query.Where("issue_type_id NOT IN (SELECT id FROM issue_types WHERE name = 'Alert')")
 		}
 	}
 
@@ -279,9 +280,9 @@ func (r *commentRepository) Update(ctx context.Context, comment *model.IssueComm
 	return r.db.WithContext(ctx).Save(comment).Error
 }
 
-// Delete 删除评论
+// Delete 硬删除评论
 func (r *commentRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueComment{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueComment{}, id).Error
 }
 
 // ListByIssue 获取工单的所有评论
@@ -316,14 +317,14 @@ func (r *watcherRepository) Create(ctx context.Context, watcher *model.IssueWatc
 	return r.db.WithContext(ctx).Create(watcher).Error
 }
 
-// Delete 删除关注人
+// Delete 硬删除关注人
 func (r *watcherRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueWatcher{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueWatcher{}, id).Error
 }
 
-// DeleteByIssueAndUser 根据工单和用户删除关注
+// DeleteByIssueAndUser 根据工单和用户硬删除关注
 func (r *watcherRepository) DeleteByIssueAndUser(ctx context.Context, issueID, userID uint64) error {
-	return r.db.WithContext(ctx).Where("issue_id = ? AND user_id = ?", issueID, userID).Delete(&model.IssueWatcher{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("issue_id = ? AND user_id = ?", issueID, userID).Delete(&model.IssueWatcher{}).Error
 }
 
 // ListByIssue 获取工单的所有关注人
@@ -391,9 +392,9 @@ func (r *worklogRepository) Update(ctx context.Context, worklog *model.IssueWork
 	return r.db.WithContext(ctx).Save(worklog).Error
 }
 
-// Delete 删除工作日志
+// Delete 硬删除工作日志
 func (r *worklogRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueWorklog{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueWorklog{}, id).Error
 }
 
 // ListByIssue 获取工单的所有工作日志

@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // FieldRepository 字段定义仓储接口
@@ -42,9 +43,9 @@ func (r *fieldRepository) Update(ctx context.Context, field *model.FieldDefiniti
 	return r.db.WithContext(ctx).Save(field).Error
 }
 
-// Delete 删除字段定义
+// Delete 硬删除字段定义
 func (r *fieldRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.FieldDefinition{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.FieldDefinition{}, id).Error
 }
 
 // GetByID 根据ID获取字段定义

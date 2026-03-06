@@ -5,9 +5,10 @@ import (
 	"context"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/model"
-	"gorm.io/gorm"
 )
 
 // AlertDatasourceRepository 告警数据源仓库接口
@@ -62,9 +63,9 @@ func (r *alertDatasourceRepository) Update(ctx context.Context, ds *model.AlertD
 	return r.db.WithContext(ctx).Save(ds).Error
 }
 
-// Delete 删除数据源
+// Delete 硬删除数据源
 func (r *alertDatasourceRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.AlertDatasource{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.AlertDatasource{}, id).Error
 }
 
 // List 获取数据源列表

@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // ComponentRepository 项目组件仓储接口
@@ -38,9 +39,9 @@ func (r *componentRepository) Update(ctx context.Context, component *model.Proje
 	return r.db.WithContext(ctx).Save(component).Error
 }
 
-// Delete 删除组件
+// Delete 硬删除组件
 func (r *componentRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.ProjectComponent{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.ProjectComponent{}, id).Error
 }
 
 // GetByID 根据ID获取组件

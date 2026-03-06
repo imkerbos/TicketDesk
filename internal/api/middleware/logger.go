@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kerbos/ticketdesk/pkg/logger"
 	"go.uber.org/zap"
+
+	"github.com/kerbos/ticketdesk/pkg/logger"
 )
 
 // LoggerMiddleware 请求日志中间件

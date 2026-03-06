@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // ProjectRepository 项目数据访问接口
@@ -60,9 +61,9 @@ func (r *projectRepository) Update(ctx context.Context, project *model.Project) 
 	return r.db.WithContext(ctx).Save(project).Error
 }
 
-// Delete 软删除项目
+// Delete 硬删除项目
 func (r *projectRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.Project{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.Project{}, id).Error
 }
 
 // List 分页查询项目列表
@@ -170,14 +171,14 @@ func (r *projectMemberRepository) Update(ctx context.Context, member *model.Proj
 	return r.db.WithContext(ctx).Save(member).Error
 }
 
-// Delete 删除项目成员
+// Delete 硬删除项目成员
 func (r *projectMemberRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.ProjectMember{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.ProjectMember{}, id).Error
 }
 
-// DeleteByProjectAndUser 根据项目和用户删除成员
+// DeleteByProjectAndUser 根据项目和用户硬删除成员
 func (r *projectMemberRepository) DeleteByProjectAndUser(ctx context.Context, projectID, userID uint64) error {
-	return r.db.WithContext(ctx).Where("project_id = ? AND user_id = ?", projectID, userID).Delete(&model.ProjectMember{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("project_id = ? AND user_id = ?", projectID, userID).Delete(&model.ProjectMember{}).Error
 }
 
 // ListByProject 获取项目的所有成员
@@ -271,9 +272,9 @@ func (r *issueTypeRepository) Update(ctx context.Context, issueType *model.Issue
 	return r.db.WithContext(ctx).Save(issueType).Error
 }
 
-// Delete 删除工单类型
+// Delete 硬删除工单类型
 func (r *issueTypeRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueType{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueType{}, id).Error
 }
 
 // ListByProject 获取项目的工单类型
@@ -356,9 +357,9 @@ func (r *projectRoleRepository) Update(ctx context.Context, role *model.ProjectR
 	return r.db.WithContext(ctx).Save(role).Error
 }
 
-// Delete 删除项目角色
+// Delete 硬删除项目角色
 func (r *projectRoleRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.ProjectRole{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.ProjectRole{}, id).Error
 }
 
 // ListByProject 获取项目的所有角色
@@ -413,14 +414,14 @@ func (r *projectRoleMemberRepository) Create(ctx context.Context, member *model.
 	return r.db.WithContext(ctx).Create(member).Error
 }
 
-// Delete 删除项目角色成员
+// Delete 硬删除项目角色成员
 func (r *projectRoleMemberRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.ProjectRoleMember{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.ProjectRoleMember{}, id).Error
 }
 
-// DeleteByRoleAndUser 根据角色和用户删除成员
+// DeleteByRoleAndUser 根据角色和用户硬删除成员
 func (r *projectRoleMemberRepository) DeleteByRoleAndUser(ctx context.Context, roleID, userID uint64) error {
-	return r.db.WithContext(ctx).Where("role_id = ? AND user_id = ?", roleID, userID).Delete(&model.ProjectRoleMember{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("role_id = ? AND user_id = ?", roleID, userID).Delete(&model.ProjectRoleMember{}).Error
 }
 
 // ListByRole 获取角色的所有成员
@@ -484,8 +485,8 @@ func (r *projectRolePermissionRepository) ListByRole(ctx context.Context, roleID
 // SetPermissions 全量设置角色权限（事务：删全量+批量创建）
 func (r *projectRolePermissionRepository) SetPermissions(ctx context.Context, roleID uint64, keys []string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 删除现有权限
-		if err := tx.Where("role_id = ?", roleID).Delete(&model.ProjectRolePermission{}).Error; err != nil {
+		// 硬删除现有权限
+		if err := tx.Unscoped().Where("role_id = ?", roleID).Delete(&model.ProjectRolePermission{}).Error; err != nil {
 			return err
 		}
 

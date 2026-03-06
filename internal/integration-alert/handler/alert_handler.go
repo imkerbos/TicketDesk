@@ -6,11 +6,12 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/integration-alert/service"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // AlertHandler 告警处理器
@@ -23,6 +24,20 @@ func NewAlertHandler(alertService service.AlertService) *AlertHandler {
 	return &AlertHandler{
 		alertService: alertService,
 	}
+}
+
+func resolveUserID(c *gin.Context) (uint64, bool) {
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		response.Unauthorized(c, "未认证")
+		return 0, false
+	}
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		response.Unauthorized(c, "无效的用户上下文")
+		return 0, false
+	}
+	return userID, true
 }
 
 // HandleWebhook 处理告警 Webhook
@@ -135,14 +150,12 @@ func (h *AlertHandler) HandleAckAlert(c *gin.Context) {
 		return
 	}
 
-	// 获取当前用户 ID
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Unauthorized(c, "未认证")
+	userID, ok := resolveUserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.alertService.AckAlert(c.Request.Context(), id, userID.(uint64), &req); err != nil {
+	if err := h.alertService.AckAlert(c.Request.Context(), id, userID, &req); err != nil {
 		logger.Error("failed to ack alert", zap.Uint64("id", id), zap.Error(err))
 		response.InternalError(c, "确认告警失败: "+err.Error())
 		return
@@ -166,14 +179,12 @@ func (h *AlertHandler) HandleResolveAlert(c *gin.Context) {
 		return
 	}
 
-	// 获取当前用户 ID
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Unauthorized(c, "未认证")
+	userID, ok := resolveUserID(c)
+	if !ok {
 		return
 	}
 
-	if err := h.alertService.ResolveAlert(c.Request.Context(), id, userID.(uint64), &req); err != nil {
+	if err := h.alertService.ResolveAlert(c.Request.Context(), id, userID, &req); err != nil {
 		logger.Error("failed to resolve alert", zap.Uint64("id", id), zap.Error(err))
 		response.InternalError(c, "解决告警失败: "+err.Error())
 		return
@@ -231,8 +242,8 @@ func (h *AlertHandler) HandleUpdateAlertRule(c *gin.Context) {
 	}
 
 	var req dto.UpdateAlertRuleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -322,14 +333,12 @@ func (h *AlertHandler) HandleCreateAlertSilence(c *gin.Context) {
 		return
 	}
 
-	// 获取当前用户 ID
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Unauthorized(c, "未认证")
+	userID, ok := resolveUserID(c)
+	if !ok {
 		return
 	}
 
-	silence, err := h.alertService.CreateAlertSilence(c.Request.Context(), &req, userID.(uint64))
+	silence, err := h.alertService.CreateAlertSilence(c.Request.Context(), &req, userID)
 	if err != nil {
 		logger.Error("failed to create alert silence", zap.Error(err))
 		response.InternalError(c, "创建告警静默失败")
@@ -368,8 +377,8 @@ func (h *AlertHandler) HandleUpdateAlertSilence(c *gin.Context) {
 	}
 
 	var req dto.UpdateAlertSilenceRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "参数错误: "+bindErr.Error())
 		return
 	}
 
@@ -416,7 +425,7 @@ func (h *AlertHandler) HandleCancelAlertSilence(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{"message": "alert silence cancelled"})
+	response.Success(c, gin.H{"message": "alert silence canceled"})
 }
 
 // HandleListAlertSilences 获取告警静默列表

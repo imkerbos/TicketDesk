@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // NotificationRepository 通知数据访问接口
@@ -72,7 +73,7 @@ func (r *notificationRepository) CountUnread(ctx context.Context, userID uint64)
 }
 
 // MarkAsRead 标记通知为已读
-func (r *notificationRepository) MarkAsRead(ctx context.Context, id uint64, userID uint64) error {
+func (r *notificationRepository) MarkAsRead(ctx context.Context, id, userID uint64) error {
 	return r.db.WithContext(ctx).Model(&model.Notification{}).
 		Where("id = ? AND user_id = ?", id, userID).
 		Updates(map[string]any{
@@ -91,9 +92,9 @@ func (r *notificationRepository) MarkAllAsRead(ctx context.Context, userID uint6
 		}).Error
 }
 
-// Delete 删除通知
-func (r *notificationRepository) Delete(ctx context.Context, id uint64, userID uint64) error {
-	return r.db.WithContext(ctx).
+// Delete 硬删除通知
+func (r *notificationRepository) Delete(ctx context.Context, id, userID uint64) error {
+	return r.db.WithContext(ctx).Unscoped().
 		Where("id = ? AND user_id = ?", id, userID).
 		Delete(&model.Notification{}).Error
 }

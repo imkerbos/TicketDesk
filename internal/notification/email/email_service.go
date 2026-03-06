@@ -9,9 +9,10 @@ import (
 	"strconv"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/system-config/service"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // EmailService 邮件服务接口

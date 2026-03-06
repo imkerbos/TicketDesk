@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // AttachmentRepository 附件数据访问接口
@@ -51,7 +52,7 @@ func (r *attachmentRepository) ListByIssueID(ctx context.Context, issueID uint64
 	return attachments, err
 }
 
-// Delete 删除附件记录
+// Delete 硬删除附件记录
 func (r *attachmentRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueAttachment{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueAttachment{}, id).Error
 }

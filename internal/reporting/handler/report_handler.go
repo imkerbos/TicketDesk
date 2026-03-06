@@ -3,6 +3,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/reporting/dto"
 	"github.com/kerbos/ticketdesk/internal/reporting/service"

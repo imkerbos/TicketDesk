@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS users (
     status TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-启用',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_users_username (username),
     INDEX idx_users_email (email),
     INDEX idx_users_status (status)
@@ -32,7 +31,6 @@ CREATE TABLE IF NOT EXISTS roles (
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_roles_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色表';
 
@@ -57,7 +55,6 @@ CREATE TABLE IF NOT EXISTS projects (
     status TINYINT DEFAULT 1 COMMENT '状态: 0-归档, 1-活跃',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_projects_key (project_key),
     INDEX idx_projects_status (status),
     INDEX idx_projects_lead (lead_user_id)
@@ -74,7 +71,6 @@ CREATE TABLE IF NOT EXISTS issue_types (
     color VARCHAR(20),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_issue_types_project (project_id),
     INDEX idx_issue_types_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工单类型表';
@@ -97,7 +93,6 @@ CREATE TABLE IF NOT EXISTS issues (
     closed_at DATETIME COMMENT '关闭时间',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_issues_key (issue_key),
     INDEX idx_issues_project (project_id),
     INDEX idx_issues_type (issue_type_id),
@@ -117,7 +112,6 @@ CREATE TABLE IF NOT EXISTS issue_comments (
     content TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_issue_comments_issue (issue_id),
     INDEX idx_issue_comments_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工单评论表';
@@ -142,7 +136,6 @@ CREATE TABLE IF NOT EXISTS workflows (
     status TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-启用',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_workflows_project (project_id),
     INDEX idx_workflows_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作流定义表';
@@ -158,7 +151,6 @@ CREATE TABLE IF NOT EXISTS workflow_nodes (
     position_y INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_workflow_nodes_workflow (workflow_id),
     INDEX idx_workflow_nodes_type (node_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作流节点表';
@@ -172,7 +164,6 @@ CREATE TABLE IF NOT EXISTS workflow_edges (
     condition_expr VARCHAR(500) COMMENT '条件表达式',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME,
     INDEX idx_workflow_edges_workflow (workflow_id),
     INDEX idx_workflow_edges_source (source_node_id),
     INDEX idx_workflow_edges_target (target_node_id)

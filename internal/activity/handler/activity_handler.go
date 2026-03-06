@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/activity/dto"
 	"github.com/kerbos/ticketdesk/internal/activity/service"
 	"github.com/kerbos/ticketdesk/internal/api/response"

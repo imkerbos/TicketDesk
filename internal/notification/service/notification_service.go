@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/internal/notification/email"
 	"github.com/kerbos/ticketdesk/internal/notification/lark"
@@ -14,7 +16,6 @@ import (
 	"github.com/kerbos/ticketdesk/internal/notification/webhook"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	"github.com/kerbos/ticketdesk/pkg/redis"
-	"go.uber.org/zap"
 )
 
 // 事件类型常量
@@ -61,15 +62,15 @@ type IssueEventData struct {
 
 // AlertEventData 告警事件数据
 type AlertEventData struct {
-	AlertID     uint64    `json:"alert_id"`
-	Fingerprint string    `json:"fingerprint"`
-	AlertName   string    `json:"alert_name"`
-	Severity    string    `json:"severity"`
-	Status      string    `json:"status"`
-	Labels      string    `json:"labels"`
-	StartsAt    time.Time `json:"starts_at"`
+	AlertID     uint64     `json:"alert_id"`
+	Fingerprint string     `json:"fingerprint"`
+	AlertName   string     `json:"alert_name"`
+	Severity    string     `json:"severity"`
+	Status      string     `json:"status"`
+	Labels      string     `json:"labels"`
+	StartsAt    time.Time  `json:"starts_at"`
 	EndsAt      *time.Time `json:"ends_at,omitempty"`
-	IssueKey    string    `json:"issue_key,omitempty"`
+	IssueKey    string     `json:"issue_key,omitempty"`
 }
 
 // NotificationService 通知服务接口

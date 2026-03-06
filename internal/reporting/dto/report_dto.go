@@ -13,8 +13,8 @@ type DashboardStatsRequest struct {
 // IssueStatsRequest 工单统计请求
 type IssueStatsRequest struct {
 	ProjectKey string `form:"project_key" binding:"omitempty"`
-	StartDate  string `form:"start_date" binding:"omitempty"`   // 开始日期 YYYY-MM-DD
-	EndDate    string `form:"end_date" binding:"omitempty"`     // 结束日期 YYYY-MM-DD
+	StartDate  string `form:"start_date" binding:"omitempty"`                    // 开始日期 YYYY-MM-DD
+	EndDate    string `form:"end_date" binding:"omitempty"`                      // 结束日期 YYYY-MM-DD
 	GroupBy    string `form:"group_by" binding:"omitempty,oneof=day week month"` // 分组方式
 }
 
@@ -59,11 +59,11 @@ type DashboardStatsResponse struct {
 
 	// 告警统计
 	AlertStats struct {
-		TotalFiring     int64 `json:"total_firing"`      // 触发中告警
-		TotalAcked      int64 `json:"total_acked"`       // 已确认告警
-		TotalResolved   int64 `json:"total_resolved"`    // 已恢复告警
-		TodayCreated    int64 `json:"today_created"`     // 今日告警
-		WeekCreated     int64 `json:"week_created"`      // 本周告警
+		TotalFiring   int64 `json:"total_firing"`   // 触发中告警
+		TotalAcked    int64 `json:"total_acked"`    // 已确认告警
+		TotalResolved int64 `json:"total_resolved"` // 已恢复告警
+		TodayCreated  int64 `json:"today_created"`  // 今日告警
+		WeekCreated   int64 `json:"week_created"`   // 本周告警
 	} `json:"alert_stats"`
 
 	// 项目统计
@@ -76,11 +76,11 @@ type DashboardStatsResponse struct {
 // IssueStatsResponse 工单统计响应
 type IssueStatsResponse struct {
 	Summary struct {
-		Total       int64   `json:"total"`         // 总数
-		Open        int64   `json:"open"`          // 待处理
-		InProgress  int64   `json:"in_progress"`   // 进行中
-		Resolved    int64   `json:"resolved"`      // 已解决
-		Closed      int64   `json:"closed"`        // 已关闭
+		Total          int64   `json:"total"`            // 总数
+		Open           int64   `json:"open"`             // 待处理
+		InProgress     int64   `json:"in_progress"`      // 进行中
+		Resolved       int64   `json:"resolved"`         // 已解决
+		Closed         int64   `json:"closed"`           // 已关闭
 		AvgResolveTime float64 `json:"avg_resolve_time"` // 平均解决时间（小时）
 	} `json:"summary"`
 
@@ -114,21 +114,21 @@ type TimelineItem struct {
 
 // DistributionItem 分布统计项
 type DistributionItem struct {
-	Name  string `json:"name"`  // 名称
-	Value int64  `json:"value"` // 数量
+	Name  string  `json:"name"`  // 名称
+	Value int64   `json:"value"` // 数量
 	Ratio float64 `json:"ratio"` // 占比
 }
 
 // SLAReportResponse SLA 报表响应
 type SLAReportResponse struct {
 	Summary struct {
-		TotalIssues   int64   `json:"total_issues"`   // 总工单数
-		ResolvedIssues int64  `json:"resolved_issues"` // 已解决工单数
-		MTTA          float64 `json:"mtta"`            // 平均确认时间（分钟）
-		MTTR          float64 `json:"mttr"`            // 平均解决时间（分钟）
-		SLAMet        int64   `json:"sla_met"`         // SLA 达标数
-		SLAViolated   int64   `json:"sla_violated"`    // SLA 违规数
-		SLARate       float64 `json:"sla_rate"`        // SLA 达标率（%）
+		TotalIssues    int64   `json:"total_issues"`    // 总工单数
+		ResolvedIssues int64   `json:"resolved_issues"` // 已解决工单数
+		MTTA           float64 `json:"mtta"`            // 平均确认时间（分钟）
+		MTTR           float64 `json:"mttr"`            // 平均解决时间（分钟）
+		SLAMet         int64   `json:"sla_met"`         // SLA 达标数
+		SLAViolated    int64   `json:"sla_violated"`    // SLA 违规数
+		SLARate        float64 `json:"sla_rate"`        // SLA 达标率（%）
 	} `json:"summary"`
 
 	// 按优先级的 SLA 统计
@@ -140,14 +140,14 @@ type SLAReportResponse struct {
 
 // SLAPriorityStats 按优先级的 SLA 统计
 type SLAPriorityStats struct {
-	Priority    string  `json:"priority"`     // 优先级
-	Total       int64   `json:"total"`        // 总数
-	Resolved    int64   `json:"resolved"`     // 已解决
-	MTTA        float64 `json:"mtta"`         // 平均确认时间
-	MTTR        float64 `json:"mttr"`         // 平均解决时间
-	SLATarget   int64   `json:"sla_target"`   // SLA 目标（分钟）
-	SLAMet      int64   `json:"sla_met"`      // 达标数
-	SLARate     float64 `json:"sla_rate"`     // 达标率
+	Priority  string  `json:"priority"`   // 优先级
+	Total     int64   `json:"total"`      // 总数
+	Resolved  int64   `json:"resolved"`   // 已解决
+	MTTA      float64 `json:"mtta"`       // 平均确认时间
+	MTTR      float64 `json:"mttr"`       // 平均解决时间
+	SLATarget int64   `json:"sla_target"` // SLA 目标（分钟）
+	SLAMet    int64   `json:"sla_met"`    // 达标数
+	SLARate   float64 `json:"sla_rate"`   // 达标率
 }
 
 // SLAProjectStats 按项目的 SLA 统计
@@ -163,10 +163,10 @@ type SLAProjectStats struct {
 // AlertStatsResponse 告警统计响应
 type AlertStatsResponse struct {
 	Summary struct {
-		Total      int64   `json:"total"`       // 总数
-		Firing     int64   `json:"firing"`      // 触发中
-		Acked      int64   `json:"acked"`       // 已确认
-		Resolved   int64   `json:"resolved"`    // 已恢复
+		Total      int64   `json:"total"`        // 总数
+		Firing     int64   `json:"firing"`       // 触发中
+		Acked      int64   `json:"acked"`        // 已确认
+		Resolved   int64   `json:"resolved"`     // 已恢复
 		AvgAckTime float64 `json:"avg_ack_time"` // 平均确认时间（分钟）
 	} `json:"summary"`
 
@@ -195,11 +195,11 @@ type TopAlertItem struct {
 
 // UserPerformanceResponse 用户绩效响应
 type UserPerformanceResponse struct {
-	UserID      uint64  `json:"user_id"`
-	Username    string  `json:"username"`
-	DisplayName string  `json:"display_name"`
-	Assigned    int64   `json:"assigned"`     // 指派数
-	Resolved    int64   `json:"resolved"`     // 解决数
+	UserID         uint64  `json:"user_id"`
+	Username       string  `json:"username"`
+	DisplayName    string  `json:"display_name"`
+	Assigned       int64   `json:"assigned"`         // 指派数
+	Resolved       int64   `json:"resolved"`         // 解决数
 	AvgResolveTime float64 `json:"avg_resolve_time"` // 平均解决时间
 }
 

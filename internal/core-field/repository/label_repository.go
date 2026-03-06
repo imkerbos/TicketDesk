@@ -4,8 +4,9 @@ package repository
 import (
 	"context"
 
-	"github.com/kerbos/ticketdesk/internal/model"
 	"gorm.io/gorm"
+
+	"github.com/kerbos/ticketdesk/internal/model"
 )
 
 // LabelRepository 工单标签仓储接口
@@ -39,9 +40,9 @@ func (r *labelRepository) Update(ctx context.Context, label *model.IssueLabel) e
 	return r.db.WithContext(ctx).Save(label).Error
 }
 
-// Delete 删除标签
+// Delete 硬删除标签
 func (r *labelRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.IssueLabel{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.IssueLabel{}, id).Error
 }
 
 // GetByID 根据ID获取标签

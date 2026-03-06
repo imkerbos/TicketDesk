@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/integration-alert/dto"
 	"github.com/kerbos/ticketdesk/internal/model"
-	"gorm.io/gorm"
 )
 
 // AlertRepository 告警仓库接口
@@ -23,12 +24,12 @@ type AlertRepository interface {
 	List(ctx context.Context, req *dto.AlertListRequest) ([]*model.Alert, int64, error)
 	Stats(ctx context.Context) (*dto.AlertStatsResponse, error)
 	UpdateStatus(ctx context.Context, id uint64, status string) error
-	Ack(ctx context.Context, id uint64, userID uint64, ackAt time.Time) error
-	Resolve(ctx context.Context, id uint64, userID uint64, resolvedAt time.Time) error
+	Ack(ctx context.Context, id, userID uint64, ackAt time.Time) error
+	Resolve(ctx context.Context, id, userID uint64, resolvedAt time.Time) error
 	ListByIssueID(ctx context.Context, issueID uint64) ([]*model.Alert, error)
 	UpdateStatusByIssueID(ctx context.Context, issueID uint64, status string) error
 	GroupBy(ctx context.Context, groupBy string, req *dto.AlertGroupRequest) ([]dto.AlertGroupItem, error)
-	ListBySourceAndStatus(ctx context.Context, source string, status string) ([]*model.Alert, error)
+	ListBySourceAndStatus(ctx context.Context, source, status string) ([]*model.Alert, error)
 	ListLabelKeys(ctx context.Context) ([]string, error)
 }
 
@@ -72,9 +73,9 @@ func (r *alertRepository) Update(ctx context.Context, alert *model.Alert) error 
 	return r.db.WithContext(ctx).Save(alert).Error
 }
 
-// Delete 删除告警
+// Delete 硬删除告警
 func (r *alertRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.Alert{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.Alert{}, id).Error
 }
 
 // List 获取告警列表
@@ -177,7 +178,7 @@ func (r *alertRepository) UpdateStatus(ctx context.Context, id uint64, status st
 }
 
 // Ack 确认告警
-func (r *alertRepository) Ack(ctx context.Context, id uint64, userID uint64, ackAt time.Time) error {
+func (r *alertRepository) Ack(ctx context.Context, id, userID uint64, ackAt time.Time) error {
 	return r.db.WithContext(ctx).Model(&model.Alert{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"ack_at": ackAt,
 		"ack_by": userID,
@@ -185,7 +186,7 @@ func (r *alertRepository) Ack(ctx context.Context, id uint64, userID uint64, ack
 }
 
 // Resolve 解决告警
-func (r *alertRepository) Resolve(ctx context.Context, id uint64, userID uint64, resolvedAt time.Time) error {
+func (r *alertRepository) Resolve(ctx context.Context, id, userID uint64, resolvedAt time.Time) error {
 	return r.db.WithContext(ctx).Model(&model.Alert{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      "resolved",
 		"resolved_at": resolvedAt,
@@ -212,7 +213,7 @@ func (r *alertRepository) UpdateStatusByIssueID(ctx context.Context, issueID uin
 }
 
 // ListBySourceAndStatus 根据来源和状态查询告警列表
-func (r *alertRepository) ListBySourceAndStatus(ctx context.Context, source string, status string) ([]*model.Alert, error) {
+func (r *alertRepository) ListBySourceAndStatus(ctx context.Context, source, status string) ([]*model.Alert, error) {
 	var alerts []*model.Alert
 	err := r.db.WithContext(ctx).Where("source = ? AND status = ?", source, status).Find(&alerts).Error
 	return alerts, err
@@ -335,9 +336,9 @@ func (r *alertSilenceRepository) Update(ctx context.Context, silence *model.Aler
 	return r.db.WithContext(ctx).Save(silence).Error
 }
 
-// Delete 删除告警静默
+// Delete 硬删除告警静默
 func (r *alertSilenceRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.AlertSilence{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.AlertSilence{}, id).Error
 }
 
 // List 获取告警静默列表
@@ -390,7 +391,6 @@ func (r *alertSilenceRepository) Cancel(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Model(&model.AlertSilence{}).Where("id = ?", id).Update("status", 0).Error
 }
 
-
 // ============ AlertRuleRepository ============
 
 // AlertRuleRepository 告警规则仓库接口
@@ -433,9 +433,9 @@ func (r *alertRuleRepository) Update(ctx context.Context, rule *model.AlertRule)
 	return r.db.WithContext(ctx).Save(rule).Error
 }
 
-// Delete 删除告警规则
+// Delete 硬删除告警规则
 func (r *alertRuleRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Delete(&model.AlertRule{}, id).Error
+	return r.db.WithContext(ctx).Unscoped().Delete(&model.AlertRule{}, id).Error
 }
 
 // List 获取告警规则列表
@@ -488,7 +488,10 @@ func LabelsToJSON(labels map[string]string) string {
 	if labels == nil {
 		return "{}"
 	}
-	data, _ := json.Marshal(labels)
+	data, err := json.Marshal(labels)
+	if err != nil {
+		return "{}"
+	}
 	return string(data)
 }
 
@@ -500,4 +503,3 @@ func JSONToLabels(jsonStr string) map[string]string {
 	}
 	return labels
 }
-

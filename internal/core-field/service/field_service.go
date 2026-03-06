@@ -10,32 +10,33 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/kerbos/ticketdesk/internal/core-field/dto"
 	"github.com/kerbos/ticketdesk/internal/core-field/repository"
 	projectRepo "github.com/kerbos/ticketdesk/internal/core-project/repository"
 	userRepo "github.com/kerbos/ticketdesk/internal/core-user/repository"
 	"github.com/kerbos/ticketdesk/internal/model"
 	"github.com/kerbos/ticketdesk/pkg/logger"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // 业务错误定义
 var (
-	ErrProjectNotFound      = errors.New("项目不存在")
-	ErrFieldNotFound        = errors.New("字段不存在")
-	ErrFieldKeyExists       = errors.New("字段Key已存在")
-	ErrCannotDeleteSystem   = errors.New("不能删除系统字段")
-	ErrCannotModifySystem   = errors.New("不能修改系统字段")
-	ErrIssueTypeNotFound    = errors.New("工单类型不存在")
-	ErrVersionNotFound      = errors.New("版本不存在")
-	ErrVersionNameExists    = errors.New("版本名称已存在")
-	ErrComponentNotFound    = errors.New("组件不存在")
-	ErrComponentNameExists  = errors.New("组件名称已存在")
-	ErrLabelNotFound        = errors.New("标签不存在")
-	ErrLabelNameExists      = errors.New("标签名称已存在")
-	ErrTemplateNotFound     = errors.New("模板不存在")
-	ErrTemplateNameExists   = errors.New("模板名称已存在")
+	ErrProjectNotFound     = errors.New("项目不存在")
+	ErrFieldNotFound       = errors.New("字段不存在")
+	ErrFieldKeyExists      = errors.New("字段Key已存在")
+	ErrCannotDeleteSystem  = errors.New("不能删除系统字段")
+	ErrCannotModifySystem  = errors.New("不能修改系统字段")
+	ErrIssueTypeNotFound   = errors.New("工单类型不存在")
+	ErrVersionNotFound     = errors.New("版本不存在")
+	ErrVersionNameExists   = errors.New("版本名称已存在")
+	ErrComponentNotFound   = errors.New("组件不存在")
+	ErrComponentNameExists = errors.New("组件名称已存在")
+	ErrLabelNotFound       = errors.New("标签不存在")
+	ErrLabelNameExists     = errors.New("标签名称已存在")
+	ErrTemplateNotFound    = errors.New("模板不存在")
+	ErrTemplateNameExists  = errors.New("模板名称已存在")
 )
 
 // FieldService 字段服务接口

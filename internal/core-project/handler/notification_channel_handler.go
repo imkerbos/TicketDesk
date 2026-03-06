@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-project/dto"
 	"github.com/kerbos/ticketdesk/internal/core-project/service"
@@ -170,8 +171,8 @@ func (h *NotificationChannelHandler) HandleUpdateChannel(c *gin.Context) {
 	}
 
 	var req dto.UpdateNotificationChannelRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/notification/lark"
 	"github.com/kerbos/ticketdesk/internal/notification/telegram"
@@ -299,8 +300,8 @@ func (h *ConfigHandler) HandleUpdateWebhook(c *gin.Context) {
 	}
 
 	var req dto.UpdateWebhookRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
 		return
 	}
 

@@ -78,7 +78,7 @@ func SuccessWithPageHasMore(c *gin.Context, items interface{}, total int64, page
 }
 
 // Error 错误响应
-func Error(c *gin.Context, httpCode int, code string, message string) {
+func Error(c *gin.Context, httpCode int, code, message string) {
 	c.JSON(httpCode, ErrorResponse{
 		Code:    code,
 		Message: message,
@@ -86,7 +86,7 @@ func Error(c *gin.Context, httpCode int, code string, message string) {
 }
 
 // ErrorWithDetails 带详情的错误响应
-func ErrorWithDetails(c *gin.Context, httpCode int, code string, message string, details interface{}) {
+func ErrorWithDetails(c *gin.Context, httpCode int, code, message string, details interface{}) {
 	c.JSON(httpCode, ErrorResponse{
 		Code:    code,
 		Message: message,
