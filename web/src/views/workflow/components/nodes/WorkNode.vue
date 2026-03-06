@@ -56,7 +56,7 @@ const statusText = computed(() => {
 <style scoped lang="scss">
 .work-node {
   .node-body {
-    background: #fff;
+    background: var(--td-bg-card);
     border: 2px solid #3b82f6;
     border-radius: 12px;
     min-width: 160px;
@@ -79,8 +79,8 @@ const statusText = computed(() => {
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    background: #3b82f6;
-    color: #fff;
+    background: var(--td-color-primary);
+    color: var(--td-text-white);
   }
 
   .node-icon {
@@ -108,21 +108,21 @@ const statusText = computed(() => {
   .node-type-badge {
     font-size: 11px;
     padding: 2px 8px;
-    background: #dbeafe;
-    color: #1e40af;
+    background: var(--td-tag-primary-border);
+    color: var(--td-tag-primary-text);
     border-radius: 10px;
     font-weight: 500;
   }
 
   .node-detail {
     font-size: 11px;
-    color: #1e40af;
+    color: var(--td-tag-primary-text);
   }
 
   .node-status {
     padding: 4px 14px 8px;
     font-size: 11px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
   }
 }
 </style>

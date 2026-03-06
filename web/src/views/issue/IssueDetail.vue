@@ -58,14 +58,14 @@
                     command="approve"
                     :disabled="!isCurrentUserApprover"
                   >
-                    <el-icon style="color: #67c23a"><Check /></el-icon>
+                    <el-icon style="color: var(--td-color-success)"><Check /></el-icon>
                     审批通过
                   </el-dropdown-item>
                   <el-dropdown-item
                     command="reject"
                     :disabled="!isCurrentUserApprover"
                   >
-                    <el-icon style="color: #f56c6c"><Delete /></el-icon>
+                    <el-icon style="color: var(--td-color-danger)"><Delete /></el-icon>
                     审批拒绝
                   </el-dropdown-item>
                 </template>
@@ -87,7 +87,7 @@
                   <!-- 无分支的工作节点：显示完成 -->
                   <template v-else>
                     <el-dropdown-item command="complete">
-                      <el-icon style="color: #409eff"><Check /></el-icon>
+                      <el-icon style="color: var(--td-color-primary)"><Check /></el-icon>
                       {{ nextNodeName ? `流转至: ${nextNodeName}` : '完成节点' }}
                     </el-dropdown-item>
                   </template>
@@ -95,7 +95,7 @@
                 <!-- 工作流可操作但节点信息缺失（如 reviewing 状态且节点被重建） -->
                 <template v-else-if="isWorkflowOperable">
                   <el-dropdown-item command="complete">
-                    <el-icon style="color: #409eff"><Check /></el-icon>
+                    <el-icon style="color: var(--td-color-primary)"><Check /></el-icon>
                     确认完成
                   </el-dropdown-item>
                 </template>
@@ -106,7 +106,7 @@
                   </el-dropdown-item>
                 </template>
                 <el-dropdown-item divided command="view-workflow">
-                  <el-icon style="color: #909399"><View /></el-icon>
+                  <el-icon style="color: var(--td-color-info)"><View /></el-icon>
                   查看工作流
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -957,7 +957,7 @@
                 <template #label>
                   <span>{{ item.field?.field_name }}</span>
                   <el-tooltip v-if="item.field?.description" :content="item.field?.description" placement="top">
-                    <el-icon class="field-hint" style="margin-left: 4px; font-size: 14px; color: #c0c4cc; cursor: help;"><QuestionFilled /></el-icon>
+                    <el-icon class="field-hint" style="margin-left: 4px; font-size: 14px; color: var(--td-text-disabled); cursor: help;"><QuestionFilled /></el-icon>
                   </el-tooltip>
                 </template>
                 <!-- assignee 字段：包装"分配给我"按钮 -->
@@ -1028,7 +1028,7 @@
                 <template #label>
                   <span>{{ item.field?.field_name }}</span>
                   <el-tooltip v-if="item.field?.description" :content="item.field?.description" placement="top">
-                    <el-icon class="field-hint" style="margin-left: 4px; font-size: 14px; color: #c0c4cc; cursor: help;"><QuestionFilled /></el-icon>
+                    <el-icon class="field-hint" style="margin-left: 4px; font-size: 14px; color: var(--td-text-disabled); cursor: help;"><QuestionFilled /></el-icon>
                   </el-tooltip>
                 </template>
                 <FieldRenderer
@@ -2571,14 +2571,14 @@ const showWorkflowDiagram = async () => {
 
   &.is-embedded {
     padding: 16px 20px;
-    background: #fafbfc;
+    background: var(--td-bg-section);
 
     .issue-header {
       margin-bottom: 16px;
       padding: 20px 24px;
       border-radius: 10px;
       box-shadow: none;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--td-border-color);
     }
 
     .embedded-key-row {
@@ -2591,7 +2591,7 @@ const showWorkflowDiagram = async () => {
       gap: 4px;
       font-size: 13px;
       font-weight: 600;
-      color: #3b82f6;
+      color: var(--td-color-primary);
       cursor: pointer;
       text-decoration: none;
       transition: color 150ms ease-out;
@@ -2601,7 +2601,7 @@ const showWorkflowDiagram = async () => {
       }
 
       &:hover {
-        color: #2563eb;
+        color: var(--td-color-primary-hover);
         text-decoration: underline;
       }
     }
@@ -2619,7 +2619,7 @@ const showWorkflowDiagram = async () => {
     .content-card,
     .info-card {
       border-radius: 10px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--td-border-color);
       box-shadow: none;
     }
 
@@ -2641,7 +2641,7 @@ const showWorkflowDiagram = async () => {
   align-items: flex-start;
   margin-bottom: 24px;
   padding: 28px 32px;
-  background: #fff;
+  background: var(--td-bg-card);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 
@@ -2653,7 +2653,7 @@ const showWorkflowDiagram = async () => {
     font-size: 24px;
     font-weight: 700;
     margin: 0 0 16px 0;
-    color: #1f2937;
+    color: var(--td-text-primary);
     line-height: 1.4;
   }
 
@@ -2661,7 +2661,7 @@ const showWorkflowDiagram = async () => {
     display: flex;
     align-items: center;
     gap: 14px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
     font-size: 14px;
     flex-wrap: wrap;
 
@@ -2670,8 +2670,8 @@ const showWorkflowDiagram = async () => {
       align-items: center;
       gap: 6px;
       padding: 5px 14px;
-      background: #3b82f6;
-      color: #fff;
+      background: var(--td-color-primary);
+      color: var(--td-text-white);
       border-radius: 6px;
       font-size: 13px;
       font-weight: 500;
@@ -2721,13 +2721,13 @@ const showWorkflowDiagram = async () => {
     border-radius: 50%;
   }
 
-  &.open { background: #f3f4f6; color: #6b7280; .status-dot { background: #9ca3af; } }
-  &.in_progress { background: #fff7ed; color: #c2410c; .status-dot { background: #f59e0b; } }
-  &.pending_review { background: #fffbeb; color: #b45309; .status-dot { background: #f59e0b; } }
-  &.resolved { background: #ecfdf5; color: #059669; .status-dot { background: #10b981; } }
-  &.closed { background: #f3f4f6; color: #6b7280; .status-dot { background: #9ca3af; } }
-  &.reopened { background: #fef2f2; color: #dc2626; .status-dot { background: #ef4444; } }
-  &.merged { background: #f3e8ff; color: #7c3aed; .status-dot { background: #8b5cf6; } }
+  &.open { background: var(--td-bg-section); color: var(--td-text-secondary); .status-dot { background: var(--td-text-placeholder); } }
+  &.in_progress { background: var(--td-tag-orange-bg); color: var(--td-tag-orange-text); .status-dot { background: var(--td-color-warning); } }
+  &.pending_review { background: var(--td-tag-warning-bg); color: var(--td-tag-orange-text); .status-dot { background: var(--td-color-warning); } }
+  &.resolved { background: var(--td-tag-success-bg); color: var(--td-color-success); .status-dot { background: var(--td-color-success); } }
+  &.closed { background: var(--td-bg-section); color: var(--td-text-secondary); .status-dot { background: var(--td-text-placeholder); } }
+  &.reopened { background: var(--td-tag-danger-bg); color: var(--td-color-danger); .status-dot { background: var(--td-color-danger); } }
+  &.merged { background: var(--td-tag-purple-bg); color: var(--td-tag-purple-text); .status-dot { background: var(--td-tag-purple-text); } }
 
   &.sm { padding: 2px 10px; font-size: 12px; .status-dot { width: 6px; height: 6px; } }
 }
@@ -2739,7 +2739,7 @@ const showWorkflowDiagram = async () => {
 
   :deep(.el-card__header) {
     padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--td-divider-color);
   }
 }
 
@@ -2763,23 +2763,23 @@ const showWorkflowDiagram = async () => {
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  color: #fff;
+  color: var(--td-text-white);
 
-  &.desc { background: #3b82f6; }
-  &.comment { background: #10b981; }
-  &.activity { background: #3b82f6; }
-  &.info { background: #ef4444; }
-  &.watcher { background: #f59e0b; }
+  &.desc { background: var(--td-color-primary); }
+  &.comment { background: var(--td-color-success); }
+  &.activity { background: var(--td-color-primary); }
+  &.info { background: var(--td-color-danger); }
+  &.watcher { background: var(--td-color-warning); }
   &.custom { background: #8b5cf6; }
-  &.epic { background: #3b82f6; }
-  &.subtask { background: #f59e0b; }
-  &.attachment { background: #f59e0b; }
+  &.epic { background: var(--td-color-primary); }
+  &.subtask { background: var(--td-color-warning); }
+  &.attachment { background: var(--td-color-warning); }
   &.workflow { background: #8b5cf6; }
-  &.alert { background: #ef4444; }
-  &.time { background: #3b82f6; }
+  &.alert { background: var(--td-color-danger); }
+  &.time { background: var(--td-color-primary); }
 }
 
-.card-title { font-size: 15px; font-weight: 600; color: #1f2937; }
+.card-title { font-size: 15px; font-weight: 600; color: var(--td-text-primary); }
 
 .card-count {
   display: inline-flex;
@@ -2788,15 +2788,15 @@ const showWorkflowDiagram = async () => {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  background: #e5e7eb;
+  background: var(--td-border-color);
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--td-text-regular);
 }
 
 .empty-placeholder {
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   text-align: center;
   padding: 32px 0;
   font-size: 14px;
@@ -2808,7 +2808,7 @@ const showWorkflowDiagram = async () => {
 .description-content {
   white-space: pre-wrap;
   line-height: 1.8;
-  color: #374151;
+  color: var(--td-text-regular);
   padding: 20px;
 }
 
@@ -2824,7 +2824,7 @@ const showWorkflowDiagram = async () => {
       .field-label {
         font-size: 12px;
         font-weight: 500;
-        color: #6b7280;
+        color: var(--td-text-secondary);
         margin-bottom: 6px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -2832,12 +2832,12 @@ const showWorkflowDiagram = async () => {
 
       .field-value {
         font-size: 14px;
-        color: #1f2937;
+        color: var(--td-text-primary);
         line-height: 1.6;
         word-break: break-word;
 
         .empty-value {
-          color: #9ca3af;
+          color: var(--td-text-placeholder);
           font-style: italic;
         }
 
@@ -2845,13 +2845,13 @@ const showWorkflowDiagram = async () => {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          color: #3b82f6;
+          color: var(--td-color-primary);
           text-decoration: none;
           font-weight: 500;
           transition: all 0.2s;
 
           &:hover {
-            color: #2563eb;
+            color: var(--td-color-primary-hover);
             text-decoration: underline;
           }
 
@@ -2867,7 +2867,7 @@ const showWorkflowDiagram = async () => {
 // 评论区
 .add-comment {
   padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--td-divider-color);
 
   .comment-actions {
     margin-top: 12px;
@@ -2888,8 +2888,8 @@ const showWorkflowDiagram = async () => {
       width: 38px;
       height: 38px;
       border-radius: 10px;
-      background: #3b82f6;
-      color: #fff;
+      background: var(--td-color-primary);
+      color: var(--td-text-white);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -2912,13 +2912,13 @@ const showWorkflowDiagram = async () => {
         gap: 12px;
         margin-bottom: 8px;
 
-        .comment-author { font-weight: 600; color: #1f2937; font-size: 14px; }
-        .system-author { color: #7c3aed; }
-        .comment-time { font-size: 12px; color: #9ca3af; }
+        .comment-author { font-weight: 600; color: var(--td-text-primary); font-size: 14px; }
+        .system-author { color: var(--td-tag-purple-text); }
+        .comment-time { font-size: 12px; color: var(--td-text-placeholder); }
       }
 
       .comment-text {
-        color: #374151;
+        color: var(--td-text-regular);
         line-height: 1.6;
         white-space: pre-wrap;
         font-size: 14px;
@@ -2926,7 +2926,7 @@ const showWorkflowDiagram = async () => {
     }
 
     &.system-comment {
-      background: #faf5ff;
+      background: var(--td-tag-purple-bg);
       border-radius: 8px;
       margin: 4px 0;
     }
@@ -2940,11 +2940,11 @@ const showWorkflowDiagram = async () => {
   .activity-content {
     font-size: 14px;
 
-    .activity-user { font-weight: 600; color: #1f2937; }
-    .activity-action { color: #606266; margin: 0 4px; }
-    .activity-field { color: #909399; margin: 0 4px; }
-    .activity-old-value { text-decoration: line-through; color: #f56c6c; margin: 0 4px; }
-    .activity-new-value { color: #67c23a; margin: 0 4px; }
+    .activity-user { font-weight: 600; color: var(--td-text-primary); }
+    .activity-action { color: var(--td-text-secondary); margin: 0 4px; }
+    .activity-field { color: var(--td-color-info); margin: 0 4px; }
+    .activity-old-value { text-decoration: line-through; color: var(--td-color-danger); margin: 0 4px; }
+    .activity-new-value { color: var(--td-color-success); margin: 0 4px; }
   }
 }
 
@@ -2966,7 +2966,7 @@ const showWorkflowDiagram = async () => {
     &:last-child { border-bottom: none; }
 
     .info-label {
-      color: #9ca3af;
+      color: var(--td-text-placeholder);
       font-size: 12px;
       font-weight: 500;
       text-align: left;
@@ -2976,7 +2976,7 @@ const showWorkflowDiagram = async () => {
       display: flex;
       align-items: center;
       gap: 8px;
-      color: #1f2937;
+      color: var(--td-text-primary);
       font-size: 13px;
     }
 
@@ -2992,7 +2992,7 @@ const showWorkflowDiagram = async () => {
     > .el-tag,
     > .el-link,
     > .status-badge {
-      color: #1f2937;
+      color: var(--td-text-primary);
       font-size: 13px;
       justify-self: start;
     }
@@ -3006,7 +3006,7 @@ const showWorkflowDiagram = async () => {
 
       .sla-hint {
         font-size: 12px;
-        color: #9ca3af;
+        color: var(--td-text-placeholder);
         white-space: nowrap;
       }
     }
@@ -3017,8 +3017,8 @@ const showWorkflowDiagram = async () => {
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  background: #3b82f6;
-  color: #fff;
+  background: var(--td-color-primary);
+  color: var(--td-text-white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3027,7 +3027,7 @@ const showWorkflowDiagram = async () => {
   flex-shrink: 0;
 }
 
-.text-muted { color: #9ca3af; }
+.text-muted { color: var(--td-text-placeholder); }
 
 // 关注人列表
 .watcher-list {
@@ -3048,7 +3048,7 @@ const showWorkflowDiagram = async () => {
       flex: 1;
     }
 
-    .watcher-name { font-size: 14px; color: #374151; }
+    .watcher-name { font-size: 14px; color: var(--td-text-regular); }
   }
 }
 
@@ -3079,13 +3079,13 @@ const showWorkflowDiagram = async () => {
 
 .add-worklog {
   padding: 20px;
-  background: #f9fafb;
+  background: var(--td-bg-page);
   border-radius: 8px;
   margin-bottom: 20px;
 
   .form-hint {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
     margin-top: 4px;
   }
 }
@@ -3096,12 +3096,12 @@ const showWorkflowDiagram = async () => {
     align-items: center;
     gap: 8px;
     padding: 12px 16px;
-    background: #ecfdf5;
+    background: var(--td-tag-success-bg);
     border-radius: 8px;
     margin-bottom: 16px;
     font-size: 14px;
     font-weight: 500;
-    color: #059669;
+    color: var(--td-color-success);
 
     .el-icon { font-size: 16px; }
   }
@@ -3110,7 +3110,7 @@ const showWorkflowDiagram = async () => {
     display: flex;
     gap: 12px;
     padding: 16px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--td-divider-color);
 
     &:last-child { border-bottom: none; }
 
@@ -3118,8 +3118,8 @@ const showWorkflowDiagram = async () => {
       width: 36px;
       height: 36px;
       border-radius: 8px;
-      background: #3b82f6;
-      color: #fff;
+      background: var(--td-color-primary);
+      color: var(--td-text-white);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -3147,7 +3147,7 @@ const showWorkflowDiagram = async () => {
 
           .worklog-author {
             font-weight: 600;
-            color: #1f2937;
+            color: var(--td-text-primary);
             font-size: 14px;
           }
         }
@@ -3160,13 +3160,13 @@ const showWorkflowDiagram = async () => {
 
           .worklog-time {
             font-size: 13px;
-            color: #9ca3af;
+            color: var(--td-text-placeholder);
           }
         }
       }
 
       .worklog-text {
-        color: #4b5563;
+        color: var(--td-text-regular);
         font-size: 14px;
         line-height: 1.6;
         white-space: pre-wrap;
@@ -3180,12 +3180,12 @@ const showWorkflowDiagram = async () => {
 .workflow-card {
   .workflow-current-node {
     padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--td-divider-color);
 
     .current-node-label {
       font-size: 12px;
       font-weight: 500;
-      color: #6b7280;
+      color: var(--td-text-secondary);
       margin-bottom: 8px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -3200,12 +3200,12 @@ const showWorkflowDiagram = async () => {
 
   .workflow-approvals {
     padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--td-divider-color);
 
     .approvals-label {
       font-size: 12px;
       font-weight: 500;
-      color: #6b7280;
+      color: var(--td-text-secondary);
       margin-bottom: 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -3222,7 +3222,7 @@ const showWorkflowDiagram = async () => {
       align-items: center;
       gap: 10px;
       padding: 8px 12px;
-      background: #f9fafb;
+      background: var(--td-bg-page);
       border-radius: 8px;
 
       .approval-user {
@@ -3230,13 +3230,13 @@ const showWorkflowDiagram = async () => {
         align-items: center;
         gap: 8px;
         font-size: 13px;
-        color: #1f2937;
+        color: var(--td-text-primary);
         font-weight: 500;
       }
 
       .approval-comment {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--td-text-secondary);
         margin-left: auto;
       }
     }
@@ -3244,12 +3244,12 @@ const showWorkflowDiagram = async () => {
 
   .workflow-actions {
     padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--td-divider-color);
 
     .actions-label {
       font-size: 12px;
       font-weight: 500;
-      color: #6b7280;
+      color: var(--td-text-secondary);
       margin-bottom: 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -3267,7 +3267,7 @@ const showWorkflowDiagram = async () => {
     .history-label {
       font-size: 12px;
       font-weight: 500;
-      color: #6b7280;
+      color: var(--td-text-secondary);
       margin-bottom: 12px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -3282,25 +3282,25 @@ const showWorkflowDiagram = async () => {
 
       .history-user {
         font-weight: 600;
-        color: #1f2937;
+        color: var(--td-text-primary);
       }
 
       .history-action {
-        color: #6b7280;
+        color: var(--td-text-secondary);
         margin: 0 4px;
       }
 
       .history-arrow {
-        color: #9ca3af;
+        color: var(--td-text-placeholder);
         margin: 0 4px;
       }
 
       .history-comment {
         margin-top: 4px;
         font-size: 12px;
-        color: #6b7280;
+        color: var(--td-text-secondary);
         padding: 6px 10px;
-        background: #f9fafb;
+        background: var(--td-bg-page);
         border-radius: 6px;
       }
     }
@@ -3329,12 +3329,12 @@ const showWorkflowDiagram = async () => {
     align-items: center;
     margin-bottom: 16px;
     padding-top: 8px;
-    border-top: 1px dashed #e4e7ed;
+    border-top: 1px dashed var(--td-border-color);
 
     span {
       font-size: 13px;
       font-weight: 500;
-      color: #606266;
+      color: var(--td-text-secondary);
     }
   }
 }
@@ -3355,13 +3355,13 @@ const showWorkflowDiagram = async () => {
   .custom-fields-section {
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px dashed #e4e7ed;
+    border-top: 1px dashed var(--td-border-color);
 
     .section-divider {
       margin-bottom: 16px;
       font-size: 13px;
       font-weight: 500;
-      color: #606266;
+      color: var(--td-text-secondary);
     }
   }
 }
@@ -3381,15 +3381,15 @@ const showWorkflowDiagram = async () => {
       align-items: center;
       padding: 14px 16px;
       margin-bottom: 8px;
-      background: #ffffff;
+      background: var(--td-bg-card);
       border-radius: 8px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--td-border-color);
       transition: all 0.2s ease;
       cursor: pointer;
 
       &:hover {
-        background: #f9fafb;
-        border-color: #3b82f6;
+        background: var(--td-bg-page);
+        border-color: var(--td-color-primary);
         box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
         transform: translateY(-1px);
       }
@@ -3416,17 +3416,17 @@ const showWorkflowDiagram = async () => {
           flex-shrink: 0;
 
           &.task {
-            background: #3b82f6;
+            background: var(--td-color-primary);
             color: white;
           }
 
           &.bug {
-            background: #ef4444;
+            background: var(--td-color-danger);
             color: white;
           }
 
           &.epic {
-            background: #3b82f6;
+            background: var(--td-color-primary);
             color: white;
           }
         }
@@ -3438,11 +3438,11 @@ const showWorkflowDiagram = async () => {
           .issue-key {
             font-size: 13px;
             font-weight: 600;
-            color: #3b82f6;
+            color: var(--td-color-primary);
             transition: all 0.2s;
 
             &:hover {
-              color: #2563eb;
+              color: var(--td-color-primary-hover);
               text-decoration: underline;
             }
           }
@@ -3450,7 +3450,7 @@ const showWorkflowDiagram = async () => {
 
         .issue-title {
           font-size: 14px;
-          color: #1f2937;
+          color: var(--td-text-primary);
           font-weight: 500;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -3481,8 +3481,8 @@ const showWorkflowDiagram = async () => {
           border-radius: 12px;
           font-size: 12px;
           font-weight: 500;
-          background: #f3f4f6;
-          color: #6b7280;
+          background: var(--td-bg-section);
+          color: var(--td-text-secondary);
 
           .status-dot {
             width: 6px;
@@ -3492,33 +3492,33 @@ const showWorkflowDiagram = async () => {
           }
 
           &.open {
-            background: #dbeafe;
-            color: #1e40af;
+            background: var(--td-tag-primary-border);
+            color: var(--td-tag-primary-text);
           }
 
           &.in_progress {
-            background: #fef3c7;
-            color: #92400e;
+            background: var(--td-tag-orange-border);
+            color: var(--td-tag-orange-text);
           }
 
           &.resolved {
-            background: #d1fae5;
-            color: #065f46;
+            background: var(--td-tag-success-border);
+            color: var(--td-tag-success-text);
           }
 
           &.closed {
-            background: #e5e7eb;
-            color: #4b5563;
+            background: var(--td-border-color);
+            color: var(--td-text-regular);
           }
 
           &.pending_review {
-            background: #fffbeb;
-            color: #b45309;
+            background: var(--td-tag-warning-bg);
+            color: var(--td-tag-orange-text);
           }
 
           &.merged {
-            background: #f3e8ff;
-            color: #7c3aed;
+            background: var(--td-tag-purple-bg);
+            color: var(--td-tag-purple-text);
           }
         }
 
@@ -3532,7 +3532,7 @@ const showWorkflowDiagram = async () => {
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            background: #3b82f6;
+            background: var(--td-color-primary);
             color: white;
             display: flex;
             align-items: center;
@@ -3543,19 +3543,19 @@ const showWorkflowDiagram = async () => {
             flex-shrink: 0;
 
             &.unassigned {
-              background: #e5e7eb;
-              color: #9ca3af;
+              background: var(--td-border-color);
+              color: var(--td-text-placeholder);
             }
           }
 
           .assignee-name {
             font-size: 13px;
-            color: #4b5563;
+            color: var(--td-text-regular);
             font-weight: 500;
             white-space: nowrap;
 
             &.unassigned {
-              color: #9ca3af;
+              color: var(--td-text-placeholder);
               font-style: italic;
             }
           }
@@ -3580,7 +3580,7 @@ const showWorkflowDiagram = async () => {
       text-align: center;
 
       .empty-text {
-        color: #9ca3af;
+        color: var(--td-text-placeholder);
         font-size: 13px;
       }
     }
@@ -3591,15 +3591,15 @@ const showWorkflowDiagram = async () => {
       align-items: center;
       padding: 14px 16px;
       margin-bottom: 8px;
-      background: #ffffff;
+      background: var(--td-bg-card);
       border-radius: 8px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--td-border-color);
       transition: all 0.2s ease;
       cursor: pointer;
 
       &:hover {
-        background: #f9fafb;
-        border-color: #fa709a;
+        background: var(--td-bg-page);
+        border-color: var(--td-color-danger);
         box-shadow: 0 2px 8px rgba(250, 112, 154, 0.1);
         transform: translateY(-1px);
       }
@@ -3626,12 +3626,12 @@ const showWorkflowDiagram = async () => {
           flex-shrink: 0;
 
           &.task {
-            background: #3b82f6;
+            background: var(--td-color-primary);
             color: white;
           }
 
           &.bug {
-            background: #ef4444;
+            background: var(--td-color-danger);
             color: white;
           }
         }
@@ -3643,11 +3643,11 @@ const showWorkflowDiagram = async () => {
           .issue-key {
             font-size: 13px;
             font-weight: 600;
-            color: #fa709a;
+            color: var(--td-color-danger);
             transition: all 0.2s;
 
             &:hover {
-              color: #f5576c;
+              color: var(--td-color-danger);
               text-decoration: underline;
             }
           }
@@ -3655,7 +3655,7 @@ const showWorkflowDiagram = async () => {
 
         .issue-title {
           font-size: 14px;
-          color: #1f2937;
+          color: var(--td-text-primary);
           font-weight: 500;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -3686,8 +3686,8 @@ const showWorkflowDiagram = async () => {
           border-radius: 12px;
           font-size: 12px;
           font-weight: 500;
-          background: #f3f4f6;
-          color: #6b7280;
+          background: var(--td-bg-section);
+          color: var(--td-text-secondary);
 
           .status-dot {
             width: 6px;
@@ -3697,33 +3697,33 @@ const showWorkflowDiagram = async () => {
           }
 
           &.open {
-            background: #dbeafe;
-            color: #1e40af;
+            background: var(--td-tag-primary-border);
+            color: var(--td-tag-primary-text);
           }
 
           &.in_progress {
-            background: #fef3c7;
-            color: #92400e;
+            background: var(--td-tag-orange-border);
+            color: var(--td-tag-orange-text);
           }
 
           &.resolved {
-            background: #d1fae5;
-            color: #065f46;
+            background: var(--td-tag-success-border);
+            color: var(--td-tag-success-text);
           }
 
           &.closed {
-            background: #e5e7eb;
-            color: #4b5563;
+            background: var(--td-border-color);
+            color: var(--td-text-regular);
           }
 
           &.pending_review {
-            background: #fffbeb;
-            color: #b45309;
+            background: var(--td-tag-warning-bg);
+            color: var(--td-tag-orange-text);
           }
 
           &.merged {
-            background: #f3e8ff;
-            color: #7c3aed;
+            background: var(--td-tag-purple-bg);
+            color: var(--td-tag-purple-text);
           }
         }
 
@@ -3737,7 +3737,7 @@ const showWorkflowDiagram = async () => {
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            background: #f59e0b;
+            background: var(--td-color-warning);
             color: white;
             display: flex;
             align-items: center;
@@ -3748,19 +3748,19 @@ const showWorkflowDiagram = async () => {
             flex-shrink: 0;
 
             &.unassigned {
-              background: #e5e7eb;
-              color: #9ca3af;
+              background: var(--td-border-color);
+              color: var(--td-text-placeholder);
             }
           }
 
           .assignee-name {
             font-size: 13px;
-            color: #4b5563;
+            color: var(--td-text-regular);
             font-weight: 500;
             white-space: nowrap;
 
             &.unassigned {
-              color: #9ca3af;
+              color: var(--td-text-placeholder);
               font-style: italic;
             }
           }
@@ -3807,21 +3807,21 @@ const showWorkflowDiagram = async () => {
     width: 110px;
     height: 80px;
     border-radius: 10px;
-    border: 2px solid #dcdfe6;
-    background: #f5f7fa;
+    border: 2px solid var(--td-border-color);
+    background: var(--td-bg-page);
     transition: all 0.3s ease;
     cursor: default;
 
     .diagram-node-icon {
       font-size: 20px;
       margin-bottom: 4px;
-      color: #909399;
+      color: var(--td-color-info);
     }
 
     .diagram-node-name {
       font-size: 13px;
       font-weight: 600;
-      color: #303133;
+      color: var(--td-text-primary);
       white-space: nowrap;
       max-width: 100px;
       overflow: hidden;
@@ -3830,7 +3830,7 @@ const showWorkflowDiagram = async () => {
 
     .diagram-node-type {
       font-size: 11px;
-      color: #909399;
+      color: var(--td-color-info);
       margin-top: 2px;
     }
 
@@ -3841,8 +3841,8 @@ const showWorkflowDiagram = async () => {
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      background: #67c23a;
-      color: #fff;
+      background: var(--td-color-success);
+      color: var(--td-text-white);
       font-size: 12px;
       display: flex;
       align-items: center;
@@ -3851,44 +3851,44 @@ const showWorkflowDiagram = async () => {
     }
 
     // 节点类型图标颜色
-    &.node-start .diagram-node-icon { color: #67c23a; }
-    &.node-end .diagram-node-icon { color: #909399; }
-    &.node-approval .diagram-node-icon { color: #e6a23c; }
-    &.node-work .diagram-node-icon { color: #409eff; }
+    &.node-start .diagram-node-icon { color: var(--td-color-success); }
+    &.node-end .diagram-node-icon { color: var(--td-color-info); }
+    &.node-approval .diagram-node-icon { color: var(--td-color-warning); }
+    &.node-work .diagram-node-icon { color: var(--td-color-primary); }
 
     // 已完成节点
     &.visited {
-      border-color: #67c23a;
-      background: #f0f9eb;
+      border-color: var(--td-color-success);
+      background: var(--td-tag-success-bg);
 
-      .diagram-node-name { color: #67c23a; }
-      .diagram-node-icon { color: #67c23a; }
+      .diagram-node-name { color: var(--td-color-success); }
+      .diagram-node-icon { color: var(--td-color-success); }
     }
 
     // 当前节点
     &.current {
-      border-color: #409eff;
-      background: #ecf5ff;
+      border-color: var(--td-color-primary);
+      background: var(--td-tag-primary-bg);
       box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
       animation: pulse-border 2s ease-in-out infinite;
 
-      .diagram-node-name { color: #409eff; }
-      .diagram-node-icon { color: #409eff; }
+      .diagram-node-name { color: var(--td-color-primary); }
+      .diagram-node-icon { color: var(--td-color-primary); }
     }
 
     // 被取消节点
     &.cancelled {
-      border-color: #f56c6c;
-      background: #fef0f0;
+      border-color: var(--td-color-danger);
+      background: var(--td-tag-danger-bg);
 
-      .diagram-node-name { color: #f56c6c; }
-      .diagram-node-icon { color: #f56c6c; }
+      .diagram-node-name { color: var(--td-color-danger); }
+      .diagram-node-icon { color: var(--td-color-danger); }
     }
 
     // 未到达节点
     &.pending {
-      border-color: #dcdfe6;
-      background: #f5f7fa;
+      border-color: var(--td-border-color);
+      background: var(--td-bg-page);
       opacity: 0.7;
     }
   }
@@ -3912,10 +3912,10 @@ const showWorkflowDiagram = async () => {
 // 关联告警样式
 .alert-card {
   :deep(.el-table) {
-    .clickable-row { cursor: pointer; &:hover { background-color: #f9fafb; } }
+    .clickable-row { cursor: pointer; &:hover { background-color: var(--td-bg-page); } }
   }
 
-  .alert-name-text { font-weight: 500; color: #1f2937; font-size: 13px; }
+  .alert-name-text { font-weight: 500; color: var(--td-text-primary); font-size: 13px; }
 
   .alert-status-badge {
     display: inline-flex;
@@ -3927,8 +3927,8 @@ const showWorkflowDiagram = async () => {
 
     .status-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-    &.firing { background: #fef2f2; color: #dc2626; .status-dot { background: #ef4444; } }
-    &.resolved { background: #ecfdf5; color: #059669; .status-dot { background: #10b981; } }
+    &.firing { background: var(--td-tag-danger-bg); color: var(--td-color-danger); .status-dot { background: var(--td-color-danger); } }
+    &.resolved { background: var(--td-tag-success-bg); color: var(--td-color-success); .status-dot { background: var(--td-color-success); } }
   }
 }
 </style>

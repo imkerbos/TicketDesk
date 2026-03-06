@@ -595,7 +595,7 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
+  background: var(--td-bg-page);
   min-height: 100vh;
 
   .page-header {
@@ -604,7 +604,7 @@ onMounted(() => {
     align-items: center;
     margin-bottom: 24px;
     padding: 20px 24px;
-    background: #3b82f6;
+    background: var(--td-color-primary);
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 
@@ -612,7 +612,7 @@ onMounted(() => {
       margin: 0;
       font-size: 28px;
       font-weight: 600;
-      color: #fff;
+      color: var(--td-text-white);
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -623,7 +623,7 @@ onMounted(() => {
       :deep(.el-button) {
         background: rgba(255, 255, 255, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.3);
-        color: #fff;
+        color: var(--td-text-white);
         backdrop-filter: blur(10px);
         transition: all 0.3s ease;
 
@@ -635,12 +635,12 @@ onMounted(() => {
 
         &.el-button--primary {
           background: rgba(255, 255, 255, 0.95);
-          color: #3b82f6;
+          color: var(--td-color-primary);
           font-weight: 500;
 
           &:hover {
-            background: #fff;
-            color: #2563eb;
+            background: var(--td-bg-card);
+            color: var(--td-color-primary-hover);
           }
         }
       }
@@ -681,7 +681,7 @@ onMounted(() => {
 
       .kanban-column {
         flex: 0 0 320px;
-        background: #fff;
+        background: var(--td-bg-card);
         border-radius: 12px;
         display: flex;
         flex-direction: column;
@@ -694,13 +694,13 @@ onMounted(() => {
         }
 
         &.completed-column {
-          background: #ecfdf5;
+          background: var(--td-tag-success-bg);
           border: 2px solid #6ee7b7;
         }
 
         .column-header {
           padding: 18px 20px;
-          background: #3b82f6;
+          background: var(--td-color-primary);
           color: white;
           border-radius: 12px 12px 0 0;
           display: flex;
@@ -711,11 +711,11 @@ onMounted(() => {
           box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 
           &.completed-header {
-            background: #10b981;
+            background: var(--td-color-success);
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 
             :deep(.el-badge__content) {
-              background: #10b981;
+              background: var(--td-color-success);
             }
           }
 
@@ -725,7 +725,7 @@ onMounted(() => {
           }
 
           :deep(.el-badge__content) {
-            background: #3b82f6;
+            background: var(--td-color-primary);
             border: none;
             font-weight: 600;
           }
@@ -735,26 +735,26 @@ onMounted(() => {
           flex: 1;
           overflow-y: auto;
           padding: 16px;
-          background: #fafbfc;
+          background: var(--td-bg-section);
 
           &.completed-content {
-            background: #ecfdf5;
+            background: var(--td-tag-success-bg);
           }
 
           .kanban-card {
-            background: #fff;
+            background: var(--td-bg-card);
             border-radius: 10px;
             padding: 16px;
             margin-bottom: 12px;
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e9ecef;
+            border: 1px solid var(--td-border-color);
             transition: all 0.3s ease;
 
             &:hover {
               box-shadow: 0 6px 20px rgba(59, 130, 246, 0.2);
               transform: translateY(-4px);
-              border-color: #3b82f6;
+              border-color: var(--td-color-primary);
             }
 
             .card-header {
@@ -798,7 +798,7 @@ onMounted(() => {
 
                 .el-icon {
                   font-size: 14px;
-                  color: #3b82f6;
+                  color: var(--td-color-primary);
                 }
               }
             }
@@ -808,20 +808,20 @@ onMounted(() => {
               align-items: center;
               gap: 8px;
               font-size: 12px;
-              color: #495057;
+              color: var(--td-text-regular);
               padding: 8px;
-              background: #eef2ff;
+              background: var(--td-tag-primary-bg);
               border-radius: 6px;
               margin-bottom: 8px;
 
               .el-icon {
                 font-size: 14px;
-                color: #3b82f6;
+                color: var(--td-color-primary);
               }
 
               .issue-key {
                 font-weight: 600;
-                color: #3b82f6;
+                color: var(--td-color-primary);
               }
 
               .el-tag {
@@ -836,7 +836,7 @@ onMounted(() => {
               font-size: 12px;
               color: #6c757d;
               padding-top: 12px;
-              border-top: 1px solid #f0f0f0;
+              border-top: 1px solid var(--td-divider-color);
 
               .pool-name {
                 max-width: 180px;
@@ -844,7 +844,7 @@ onMounted(() => {
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 font-weight: 500;
-                color: #3b82f6;
+                color: var(--td-color-primary);
               }
 
               .comment-count {
@@ -865,7 +865,7 @@ onMounted(() => {
             color: #adb5bd;
             padding: 60px 20px;
             font-size: 14px;
-            background: #fff;
+            background: var(--td-bg-card);
             border-radius: 8px;
             border: 2px dashed #dee2e6;
           }
@@ -882,19 +882,19 @@ onMounted(() => {
     h4 {
       margin: 0 0 12px 0;
       font-size: 15px;
-      color: #495057;
+      color: var(--td-text-regular);
       font-weight: 600;
     }
   }
 
   .description-content {
     padding: 16px;
-    background: #f8f9fa;
+    background: var(--td-bg-section);
     border-radius: 8px;
     white-space: pre-wrap;
     line-height: 1.8;
-    color: #495057;
-    border: 1px solid #e9ecef;
+    color: var(--td-text-regular);
+    border: 1px solid var(--td-border-color);
   }
 
   .tags {
@@ -906,7 +906,7 @@ onMounted(() => {
       border-radius: 6px;
       padding: 6px 14px;
       font-weight: 500;
-      background: #dbeafe;
+      background: var(--td-tag-primary-border);
       color: #1976d2;
       border: none;
     }
@@ -919,7 +919,7 @@ onMounted(() => {
       padding: 24px;
       margin-bottom: 0;
       border-bottom: 2px solid #e9ecef;
-      background: #f8f9fa;
+      background: var(--td-bg-section);
 
       .el-drawer__title {
         font-size: 18px;
@@ -935,7 +935,7 @@ onMounted(() => {
     .el-descriptions {
       :deep(.el-descriptions__label) {
         font-weight: 600;
-        color: #495057;
+        color: var(--td-text-regular);
       }
     }
 
@@ -965,21 +965,21 @@ onMounted(() => {
 
     .el-dialog__header {
       padding: 20px 24px;
-      background: #3b82f6;
+      background: var(--td-color-primary);
       border-radius: 12px 12px 0 0;
 
       .el-dialog__title {
-        color: #fff;
+        color: var(--td-text-white);
         font-weight: 600;
         font-size: 18px;
       }
 
       .el-dialog__headerbtn .el-dialog__close {
-        color: #fff;
+        color: var(--td-text-white);
         font-size: 20px;
 
         &:hover {
-          color: #fff;
+          color: var(--td-text-white);
         }
       }
     }
@@ -993,7 +993,7 @@ onMounted(() => {
       border-top: 1px solid #e9ecef;
 
       .el-button--primary {
-        background: #3b82f6;
+        background: var(--td-color-primary);
         border: none;
         padding: 10px 24px;
         transition: all 0.3s ease;

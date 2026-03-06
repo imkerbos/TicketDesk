@@ -599,7 +599,7 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 24px;
   padding: 16px 20px;
-  background: #fff;
+  background: var(--td-bg-card);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -623,7 +623,7 @@ onMounted(async () => {
 
 // 方案视图
 .schemes-view {
-  background: #fff;
+  background: var(--td-bg-card);
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -643,7 +643,7 @@ onMounted(async () => {
     gap: 12px;
     font-size: 15px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
   }
 }
 
@@ -653,9 +653,9 @@ onMounted(async () => {
 
   :deep(.el-table__header) {
     th {
-      background: #f9fafb !important;
+      background: var(--td-bg-page) !important;
       font-weight: 600;
-      color: #374151;
+      color: var(--td-text-regular);
     }
   }
 }
@@ -674,9 +674,9 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  color: #fff;
+  color: var(--td-text-white);
   flex-shrink: 0;
-  background: #3b82f6;
+  background: var(--td-color-primary);
 
   &.small {
     width: 32px;
@@ -685,13 +685,13 @@ onMounted(async () => {
     border-radius: 8px;
   }
 
-  &.text, &.textarea { background: #3b82f6; }
-  &.number { background: #10b981; }
-  &.date { background: #f59e0b; }
+  &.text, &.textarea { background: var(--td-color-primary); }
+  &.number { background: var(--td-color-success); }
+  &.date { background: var(--td-color-warning); }
   &.select, &.multiselect { background: #8b5cf6; }
   &.user { background: #ec4899; }
   &.version, &.label { background: #06b6d4; }
-  &.component { background: #6b7280; }
+  &.component { background: var(--td-text-secondary); }
   &.epic { background: #f97316; }
   &.time { background: #14b8a6; }
 }
@@ -703,7 +703,7 @@ onMounted(async () => {
   .field-name {
     font-size: 14px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
     margin-bottom: 4px;
   }
 
@@ -716,13 +716,13 @@ onMounted(async () => {
 
   .field-key {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
     font-family: monospace;
   }
 
   .field-desc {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
     line-height: 1.4;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -734,7 +734,7 @@ onMounted(async () => {
 .custom-dialog {
   :deep(.el-dialog__header) {
     padding: 20px 24px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--td-border-color);
   }
 
   :deep(.el-dialog__body) {
@@ -753,20 +753,20 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--td-border-color);
   border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: #f9fafb;
-    border-color: #d1d5db;
+    background: var(--td-bg-page);
+    border-color: var(--td-text-disabled);
   }
 
   &.selected {
-    background: #f0f9ff;
-    border-color: #3b82f6;
+    background: var(--td-color-primary-light);
+    border-color: var(--td-color-primary);
   }
 }
 
@@ -786,7 +786,7 @@ onMounted(async () => {
 .apply-label {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--td-text-regular);
 }
 
 .template-option {
@@ -807,19 +807,19 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--td-border-color);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    border-color: #bfdbfe;
-    background: #fafbff;
+    border-color: var(--td-tag-primary-border);
+    background: var(--td-bg-section);
   }
 
   &.active {
-    border-color: #3b82f6;
-    background: #eff6ff;
+    border-color: var(--td-color-primary);
+    background: var(--td-tag-primary-bg);
   }
 }
 
@@ -837,7 +837,7 @@ onMounted(async () => {
   position: relative;
 
   &.checked {
-    border-color: #3b82f6;
+    border-color: var(--td-color-primary);
 
     &::after {
       content: '';
@@ -847,7 +847,7 @@ onMounted(async () => {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #3b82f6;
+      background: var(--td-color-primary);
     }
   }
 }
@@ -859,13 +859,13 @@ onMounted(async () => {
 .mode-card-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
   line-height: 1.3;
 }
 
 .mode-card-desc {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   margin-top: 3px;
   line-height: 1.4;
 }

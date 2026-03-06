@@ -674,9 +674,9 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 12px;
-  color: #fff;
+  color: var(--td-text-white);
 
   .header-info {
     display: flex;
@@ -711,7 +711,7 @@ onMounted(() => {
   .header-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #fff;
+    color: var(--td-text-white);
     &:hover {
       background: rgba(255, 255, 255, 0.3);
     }
@@ -733,7 +733,7 @@ onMounted(() => {
 }
 
 .workflow-item {
-  background: #f8fafc;
+  background: var(--td-bg-page);
   border-radius: 12px;
   padding: 20px;
   transition: box-shadow 0.2s;
@@ -763,8 +763,8 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  color: #fff;
-  background: #3b82f6;
+  color: var(--td-text-white);
+  background: var(--td-color-primary);
 }
 
 .workflow-details {
@@ -773,13 +773,13 @@ onMounted(() => {
   .workflow-name {
     font-size: 16px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
     margin: 0 0 4px 0;
   }
 
   .workflow-desc {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
     margin: 0 0 8px 0;
   }
 
@@ -791,7 +791,7 @@ onMounted(() => {
 
   .workflow-project {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
   }
 }
 
@@ -816,11 +816,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: #f8fafc;
+  background: var(--td-bg-page);
   border-radius: 8px;
 
   &:hover {
-    background: #f1f5f9;
+    background: var(--td-bg-section);
   }
 }
 
@@ -838,19 +838,19 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  color: #fff;
+  color: var(--td-text-white);
 
   &.start {
-    background: #10b981;
+    background: var(--td-color-success);
   }
   &.end {
-    background: #6b7280;
+    background: var(--td-text-secondary);
   }
   &.approval {
-    background: #f59e0b;
+    background: var(--td-color-warning);
   }
   &.work {
-    background: #3b82f6;
+    background: var(--td-color-primary);
   }
   &.system {
     background: #8b5cf6;
@@ -866,7 +866,7 @@ onMounted(() => {
   h4 {
     font-size: 15px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
     margin: 0;
   }
 }
@@ -883,11 +883,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f8fafc;
+  background: var(--td-bg-page);
   border-radius: 8px;
 
   &:hover {
-    background: #f1f5f9;
+    background: var(--td-bg-section);
   }
 }
 
@@ -900,14 +900,14 @@ onMounted(() => {
   .edge-node {
     font-size: 14px;
     font-weight: 500;
-    color: #1f2937;
+    color: var(--td-text-primary);
     padding: 4px 10px;
-    background: #e5e7eb;
+    background: var(--td-border-color);
     border-radius: 6px;
   }
 
   .edge-arrow {
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
     font-size: 16px;
   }
 
@@ -934,12 +934,12 @@ onMounted(() => {
   .node-name {
     font-size: 14px;
     font-weight: 500;
-    color: #1f2937;
+    color: var(--td-text-primary);
   }
 
   .node-desc {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
     margin: 0;
   }
 }

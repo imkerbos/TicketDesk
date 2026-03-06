@@ -46,8 +46,8 @@ const onDragStart = (event: DragEvent, nodeType: NodeType) => {
 <style scoped lang="scss">
 .node-toolbar {
   width: 200px;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--td-bg-card);
+  border-right: 1px solid var(--td-border-color);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -59,12 +59,12 @@ const onDragStart = (event: DragEvent, nodeType: NodeType) => {
 .toolbar-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
 }
 
 .toolbar-hint {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   margin-top: -8px;
 }
 
@@ -82,8 +82,8 @@ const onDragStart = (event: DragEvent, nodeType: NodeType) => {
   border-radius: 10px;
   cursor: grab;
   transition: all 0.2s;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1px solid var(--td-border-color);
+  background: var(--td-bg-page);
 
   &:hover {
     transform: translateY(-1px);
@@ -103,7 +103,7 @@ const onDragStart = (event: DragEvent, nodeType: NodeType) => {
     align-items: center;
     justify-content: center;
     font-size: 18px;
-    color: #fff;
+    color: var(--td-text-white);
     flex-shrink: 0;
   }
 
@@ -115,34 +115,34 @@ const onDragStart = (event: DragEvent, nodeType: NodeType) => {
   .item-name {
     font-size: 13px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
   }
 
   .item-desc {
     font-size: 11px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
   }
 
   &.start .item-icon {
-    background: #10b981;
+    background: var(--td-color-success);
   }
   &.end .item-icon {
-    background: #6b7280;
+    background: var(--td-text-secondary);
   }
   &.approval .item-icon {
-    background: #f59e0b;
+    background: var(--td-color-warning);
   }
   &.work .item-icon {
-    background: #3b82f6;
+    background: var(--td-color-primary);
   }
   &.system .item-icon {
     background: #8b5cf6;
   }
 
-  &.start:hover { border-color: #10b981; background: #ecfdf5; }
-  &.end:hover { border-color: #6b7280; background: #f3f4f6; }
-  &.approval:hover { border-color: #f59e0b; background: #fffbeb; }
-  &.work:hover { border-color: #3b82f6; background: #eff6ff; }
-  &.system:hover { border-color: #8b5cf6; background: #f5f3ff; }
+  &.start:hover { border-color: var(--td-color-success); background: var(--td-tag-success-bg); }
+  &.end:hover { border-color: var(--td-text-secondary); background: var(--td-bg-section); }
+  &.approval:hover { border-color: var(--td-color-warning); background: var(--td-tag-warning-bg); }
+  &.work:hover { border-color: var(--td-color-primary); background: var(--td-tag-primary-bg); }
+  &.system:hover { border-color: var(--td-tag-purple-text); background: var(--td-tag-purple-bg); }
 }
 </style>

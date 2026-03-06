@@ -211,7 +211,7 @@ const handleDelete = () => {
 <style scoped lang="scss">
 .form-hint {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   margin-top: 4px;
 }
 </style>

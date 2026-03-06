@@ -1,0 +1,351 @@
+// TicketDesk 主题变量系统
+// 亮色模式（默认）
+:root {
+  // 品牌色（亮暗模式保持一致）
+  --td-color-primary: #3b82f6;
+  --td-color-primary-hover: #2563eb;
+  --td-color-primary-active: #1d4ed8;
+  --td-color-primary-light: rgba(59, 130, 246, 0.1);
+  --td-color-primary-light-hover: rgba(59, 130, 246, 0.15);
+
+  // 语义色（亮暗模式保持一致）
+  --td-color-danger: #ef4444;
+  --td-color-warning: #f59e0b;
+  --td-color-success: #10b981;
+  --td-color-info: #909399;
+
+  // 页面背景
+  --td-bg-page: #f5f7fa;
+  --td-bg-card: #ffffff;
+  --td-bg-card-hover: #f9fafb;
+  --td-bg-section: #f3f4f6;
+  --td-bg-tooltip: #1f2937;
+  --td-bg-mask: rgba(0, 0, 0, 0.5);
+
+  // 侧边栏
+  --td-sidebar-bg: #1e1e2d;
+  --td-sidebar-border: rgba(255, 255, 255, 0.05);
+  --td-sidebar-text: #9899ac;
+  --td-sidebar-text-active: #ffffff;
+  --td-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --td-sidebar-active-bg: rgba(59, 130, 246, 0.15);
+
+  // Header
+  --td-header-bg: #ffffff;
+  --td-header-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  // 文字
+  --td-text-primary: #1f2937;
+  --td-text-regular: #374151;
+  --td-text-secondary: #6b7280;
+  --td-text-placeholder: #9ca3af;
+  --td-text-disabled: #d1d5db;
+  --td-text-white: #ffffff;
+
+  // 边框
+  --td-border-color: #e5e7eb;
+  --td-border-color-light: #f3f4f6;
+  --td-border-color-dark: #d1d5db;
+  --td-divider-color: #f0f0f0;
+
+  // 阴影
+  --td-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --td-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --td-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  // 聚焦环
+  --td-focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.2);
+
+  // 标签/徽章浅色背景
+  --td-tag-danger-bg: #fef0f0;
+  --td-tag-danger-border: #fde2e2;
+  --td-tag-danger-text: #ef4444;
+  --td-tag-warning-bg: #fdf6ec;
+  --td-tag-warning-border: #faecd8;
+  --td-tag-warning-text: #f59e0b;
+  --td-tag-success-bg: #f0fdf4;
+  --td-tag-success-border: #d1fae5;
+  --td-tag-success-text: #10b981;
+  --td-tag-info-bg: #f4f4f5;
+  --td-tag-info-border: #e9e9eb;
+  --td-tag-info-text: #909399;
+  --td-tag-primary-bg: #eff6ff;
+  --td-tag-primary-border: #dbeafe;
+  --td-tag-primary-text: #3b82f6;
+  --td-tag-orange-bg: #fff7ed;
+  --td-tag-orange-border: #fed7aa;
+  --td-tag-orange-text: #c2410c;
+  --td-tag-purple-bg: #f3e8ff;
+  --td-tag-purple-border: #e9d5ff;
+  --td-tag-purple-text: #7c3aed;
+  --td-tag-indigo-bg: #e0e7ff;
+  --td-tag-indigo-text: #4338ca;
+  --td-tag-pink-bg: #fce7f3;
+  --td-tag-pink-text: #be185d;
+  --td-tag-cyan-bg: #cffafe;
+  --td-tag-cyan-text: #0e7490;
+  --td-tag-teal-bg: #ccfbf1;
+  --td-tag-teal-text: #0f766e;
+
+  // 表格
+  --td-table-header-bg: #f9fafb;
+  --td-table-row-hover: #f5f7fa;
+  --td-table-border: #ebeef5;
+
+  // 输入框
+  --td-input-bg: #ffffff;
+  --td-input-border: #dcdfe6;
+  --td-input-placeholder: #a8abb2;
+
+  // 按钮
+  --td-btn-default-bg: #ffffff;
+  --td-btn-default-border: #dcdfe6;
+  --td-btn-default-text: #606266;
+
+  // 禁用态
+  --td-disabled-bg: #f5f7fa;
+  --td-disabled-text: #c0c4cc;
+  --td-disabled-border: #e4e7ed;
+
+  // 滚动条
+  --td-scrollbar-thumb: #c1c1c1;
+  --td-scrollbar-track: transparent;
+
+  // 代码块
+  --td-code-bg: #f6f8fa;
+
+  // 空状态
+  --td-empty-text: #909399;
+
+  // Element Plus 变量覆盖
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f5f7fa;
+  --el-bg-color-overlay: #ffffff;
+  --el-text-color-primary: #1f2937;
+  --el-text-color-regular: #374151;
+  --el-text-color-secondary: #6b7280;
+  --el-text-color-placeholder: #9ca3af;
+  --el-border-color: #e5e7eb;
+  --el-border-color-light: #f3f4f6;
+  --el-fill-color-blank: #ffffff;
+  --el-fill-color-light: #f5f7fa;
+  --el-color-primary: #3b82f6;
+  --el-color-danger: #ef4444;
+  --el-color-warning: #f59e0b;
+  --el-color-success: #10b981;
+}
+
+// 暗黑模式
+html.dark {
+  // 页面背景
+  --td-bg-page: #1a1a2e;
+  --td-bg-card: #232340;
+  --td-bg-card-hover: #2a2a4a;
+  --td-bg-section: #1e1e36;
+  --td-bg-tooltip: #3a3a5a;
+  --td-bg-mask: rgba(0, 0, 0, 0.7);
+
+  // 侧边栏
+  --td-sidebar-bg: #16162a;
+  --td-sidebar-border: rgba(255, 255, 255, 0.06);
+
+  // Header
+  --td-header-bg: #232340;
+  --td-header-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+
+  // 文字
+  --td-text-primary: #e5e7eb;
+  --td-text-regular: #d1d5db;
+  --td-text-secondary: #9ca3af;
+  --td-text-placeholder: #6b7280;
+  --td-text-disabled: #4b5563;
+
+  // 边框
+  --td-border-color: #374151;
+  --td-border-color-light: #2a2a4a;
+  --td-border-color-dark: #4b5563;
+  --td-divider-color: #2a2a4a;
+
+  // 阴影
+  --td-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --td-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --td-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  // 聚焦环
+  --td-focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.35);
+
+  // 标签/徽章浅色背景（暗色模式下使用低透明度）
+  --td-tag-danger-bg: rgba(239, 68, 68, 0.15);
+  --td-tag-danger-border: rgba(239, 68, 68, 0.3);
+  --td-tag-danger-text: #f87171;
+  --td-tag-warning-bg: rgba(245, 158, 11, 0.15);
+  --td-tag-warning-border: rgba(245, 158, 11, 0.3);
+  --td-tag-warning-text: #fbbf24;
+  --td-tag-success-bg: rgba(16, 185, 129, 0.15);
+  --td-tag-success-border: rgba(16, 185, 129, 0.3);
+  --td-tag-success-text: #34d399;
+  --td-tag-info-bg: rgba(144, 147, 153, 0.15);
+  --td-tag-info-border: rgba(144, 147, 153, 0.3);
+  --td-tag-info-text: #a8abb2;
+  --td-tag-primary-bg: rgba(59, 130, 246, 0.15);
+  --td-tag-primary-border: rgba(59, 130, 246, 0.3);
+  --td-tag-primary-text: #60a5fa;
+  --td-tag-orange-bg: rgba(194, 65, 12, 0.15);
+  --td-tag-orange-border: rgba(194, 65, 12, 0.3);
+  --td-tag-orange-text: #fb923c;
+  --td-tag-purple-bg: rgba(124, 58, 237, 0.15);
+  --td-tag-purple-border: rgba(124, 58, 237, 0.3);
+  --td-tag-purple-text: #a78bfa;
+  --td-tag-indigo-bg: rgba(99, 102, 241, 0.15);
+  --td-tag-indigo-text: #a5b4fc;
+  --td-tag-pink-bg: rgba(236, 72, 153, 0.15);
+  --td-tag-pink-text: #f9a8d4;
+  --td-tag-cyan-bg: rgba(6, 182, 212, 0.15);
+  --td-tag-cyan-text: #67e8f9;
+  --td-tag-teal-bg: rgba(20, 184, 166, 0.15);
+  --td-tag-teal-text: #5eead4;
+
+  // 表格
+  --td-table-header-bg: #1e1e36;
+  --td-table-row-hover: #2a2a4a;
+  --td-table-border: #2a2a4a;
+
+  // 输入框
+  --td-input-bg: #1e1e36;
+  --td-input-border: #374151;
+  --td-input-placeholder: #6b7280;
+
+  // 按钮
+  --td-btn-default-bg: #232340;
+  --td-btn-default-border: #374151;
+  --td-btn-default-text: #d1d5db;
+
+  // 禁用态
+  --td-disabled-bg: #1e1e36;
+  --td-disabled-text: #4b5563;
+  --td-disabled-border: #2a2a4a;
+
+  // 滚动条
+  --td-scrollbar-thumb: #4b5563;
+  --td-scrollbar-track: transparent;
+
+  // 代码块
+  --td-code-bg: #1e1e36;
+
+  // 空状态
+  --td-empty-text: #6b7280;
+
+  // Element Plus 变量覆盖 — 基础色
+  --el-bg-color: #232340;
+  --el-bg-color-page: #1a1a2e;
+  --el-bg-color-overlay: #2a2a4a;
+  --el-text-color-primary: #e5e7eb;
+  --el-text-color-regular: #d1d5db;
+  --el-text-color-secondary: #9ca3af;
+  --el-text-color-placeholder: #6b7280;
+  --el-text-color-disabled: #4b5563;
+  --el-disabled-text-color: #4b5563;
+
+  // Element Plus — 边框色系列
+  --el-border-color: #374151;
+  --el-border-color-light: #2a2a4a;
+  --el-border-color-lighter: #232340;
+  --el-border-color-extra-light: #1e1e36;
+  --el-border-color-dark: #4b5563;
+  --el-border-color-darker: #6b7280;
+  --el-border-color-hover: #4b5563;
+
+  // Element Plus — 填充色系列
+  --el-fill-color-blank: #232340;
+  --el-fill-color-light: #1e1e36;
+  --el-fill-color: #2a2a4a;
+  --el-fill-color-lighter: #1e1e36;
+  --el-fill-color-extra-light: #1a1a2e;
+  --el-fill-color-dark: #374151;
+  --el-fill-color-darker: #4b5563;
+
+  // Element Plus — 阴影 / 遮罩
+  --el-mask-color: rgba(0, 0, 0, 0.7);
+  --el-mask-color-extra-light: rgba(0, 0, 0, 0.4);
+  --el-box-shadow-light: 0 0 12px rgba(0, 0, 0, 0.5);
+  --el-box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --el-box-shadow-dark: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --el-box-shadow-lighter: 0 0 6px rgba(0, 0, 0, 0.5);
+
+  // Element Plus — 主色 light 变体（用于按钮 hover / tag 背景等）
+  --el-color-primary-light-3: #2563eb;
+  --el-color-primary-light-5: #1e3a5f;
+  --el-color-primary-light-7: #1a2d4a;
+  --el-color-primary-light-8: #182540;
+  --el-color-primary-light-9: rgba(59, 130, 246, 0.15);
+  --el-color-primary-dark-2: #1d4ed8;
+  --el-color-success-light-9: rgba(16, 185, 129, 0.15);
+  --el-color-warning-light-9: rgba(245, 158, 11, 0.15);
+  --el-color-danger-light-9: rgba(239, 68, 68, 0.15);
+  --el-color-info-light-9: rgba(144, 147, 153, 0.15);
+
+  // Element Plus — 卡片
+  --el-card-bg-color: #232340;
+  --el-card-border-color: #374151;
+
+  // Element Plus — 表格
+  --el-table-bg-color: #232340;
+  --el-table-tr-bg-color: #232340;
+  --el-table-header-bg-color: #1e1e36;
+  --el-table-row-hover-bg-color: #2a2a4a;
+  --el-table-border-color: #2a2a4a;
+  --el-table-text-color: #d1d5db;
+  --el-table-header-text-color: #9ca3af;
+  --el-table-current-row-bg-color: rgba(59, 130, 246, 0.15);
+  --el-table-expanded-cell-bg-color: #232340;
+
+  // Element Plus — 输入框 / 选择器
+  --el-input-bg-color: #1e1e36;
+  --el-input-border-color: #374151;
+  --el-input-hover-border-color: #4b5563;
+  --el-input-focus-border-color: #3b82f6;
+  --el-input-text-color: #d1d5db;
+  --el-input-placeholder-color: #6b7280;
+  --el-input-icon-color: #6b7280;
+  --el-select-border-color-hover: #4b5563;
+  --el-select-input-focus-border-color: #3b82f6;
+
+  // Element Plus — 对话框
+  --el-dialog-bg-color: #232340;
+
+  // Element Plus — 分页
+  --el-pagination-bg-color: #232340;
+  --el-pagination-button-bg-color: #2a2a4a;
+  --el-pagination-button-color: #d1d5db;
+  --el-pagination-hover-color: #3b82f6;
+
+  // Element Plus — 标签页
+  --el-tabs-header-height: 40px;
+
+  // Element Plus — 菜单
+  --el-menu-bg-color: #232340;
+  --el-menu-hover-bg-color: rgba(59, 130, 246, 0.15);
+  --el-menu-item-hover-fill: rgba(59, 130, 246, 0.15);
+
+  // Element Plus — 禁用状态
+  --el-disabled-bg-color: #1e1e36;
+  --el-disabled-border-color: #2a2a4a;
+
+  // Element Plus — Tag
+  --el-tag-bg-color: #2a2a4a;
+  --el-tag-border-color: #374151;
+  --el-tag-hover-color: #3b82f6;
+
+  // Element Plus — Popover / Tooltip / Dropdown
+  --el-popover-bg-color: #2a2a4a;
+  --el-tooltip-bg-color: #3a3a5a;
+  --el-dropdown-menuItem-hover-fill: #1e1e36;
+  --el-dropdown-menuItem-hover-color: #e5e7eb;
+
+  // Element Plus — Switch
+  --el-switch-off-color: #4b5563;
+
+  // Element Plus — Loading
+  --el-loading-spinner-size: 42px;
+  --el-loading-fullscreen-spinner-size: 50px;
+}

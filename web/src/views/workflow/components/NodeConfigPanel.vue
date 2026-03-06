@@ -252,8 +252,8 @@ const nodeTypeTagType = computed((): 'primary' | 'success' | 'info' | 'warning' 
 <style scoped lang="scss">
 .config-panel {
   width: 300px;
-  background: #fff;
-  border-left: 1px solid #e5e7eb;
+  background: var(--td-bg-card);
+  border-left: 1px solid var(--td-border-color);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -265,12 +265,12 @@ const nodeTypeTagType = computed((): 'primary' | 'success' | 'info' | 'warning' 
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--td-border-color);
 
   .panel-title {
     font-size: 15px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
     margin: 0;
   }
 }
@@ -287,10 +287,10 @@ const nodeTypeTagType = computed((): 'primary' | 'success' | 'info' | 'warning' 
   .section-title {
     font-size: 13px;
     font-weight: 600;
-    color: #374151;
+    color: var(--td-text-regular);
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--td-border-color);
   }
 }
 
@@ -300,7 +300,7 @@ const nodeTypeTagType = computed((): 'primary' | 'success' | 'info' | 'warning' 
 
 :deep(.el-form-item__label) {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   padding-bottom: 4px !important;
 }
 </style>

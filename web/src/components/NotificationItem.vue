@@ -92,20 +92,20 @@ const timeAgo = (dateStr: string): string => {
   padding: 12px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--td-divider-color);
   position: relative;
 }
 
 .notification-item:hover {
-  background-color: #f5f7fa;
+  background-color: var(--td-bg-page);
 }
 
 .notification-item.unread {
-  background-color: #f0f7ff;
+  background-color: var(--td-tag-primary-bg);
 }
 
 .notification-item.unread:hover {
-  background-color: #e6f0fa;
+  background-color: var(--td-tag-primary-bg);
 }
 
 .notif-icon {
@@ -113,7 +113,7 @@ const timeAgo = (dateStr: string): string => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #f5f7fa;
+  background: var(--td-bg-page);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -127,14 +127,14 @@ const timeAgo = (dateStr: string): string => {
 
 .notif-title {
   font-size: 13px;
-  color: #1f2937;
+  color: var(--td-text-primary);
   line-height: 1.4;
   font-weight: 500;
 }
 
 .notif-content {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   margin-top: 2px;
   line-height: 1.4;
   overflow: hidden;
@@ -148,11 +148,11 @@ const timeAgo = (dateStr: string): string => {
   gap: 8px;
   margin-top: 4px;
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 }
 
 .notif-actor {
-  color: #6b7280;
+  color: var(--td-text-secondary);
 }
 
 .notif-dot {
@@ -160,7 +160,7 @@ const timeAgo = (dateStr: string): string => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   margin-top: 6px;
 }
 </style>

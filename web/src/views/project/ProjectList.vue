@@ -335,9 +335,9 @@ onMounted(() => { loadProjects(); loadUsers() })
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 12px;
-  color: #fff;
+  color: var(--td-text-white);
 
   .header-info {
     display: flex;
@@ -364,7 +364,7 @@ onMounted(() => { loadProjects(); loadUsers() })
   .header-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #fff;
+    color: var(--td-text-white);
     &:hover { background: rgba(255, 255, 255, 0.3); }
   }
 }
@@ -390,11 +390,11 @@ onMounted(() => { loadProjects(); loadUsers() })
 }
 
 .project-card {
-  background: #fff;
+  background: var(--td-bg-card);
   border-radius: 12px;
   height: 100%;
   cursor: pointer;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--td-divider-color);
   display: flex;
   flex-direction: column;
   transition: transform 0.3s, box-shadow 0.3s;
@@ -424,7 +424,7 @@ onMounted(() => { loadProjects(); loadUsers() })
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--td-text-white);
     font-weight: 700;
     font-size: 16px;
   }
@@ -432,19 +432,19 @@ onMounted(() => { loadProjects(); loadUsers() })
   .project-name {
     font-size: 16px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
     margin-bottom: 4px;
   }
 
   .project-key-text {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
     margin-bottom: 12px;
   }
 
   .project-description {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -458,8 +458,8 @@ onMounted(() => { loadProjects(); loadUsers() })
     justify-content: space-between;
     align-items: center;
     padding: 14px 20px;
-    border-top: 1px solid #f5f5f5;
-    background: #fafafa;
+    border-top: 1px solid var(--td-divider-color);
+    background: var(--td-bg-section);
   }
 
   .lead-info {
@@ -469,7 +469,7 @@ onMounted(() => { loadProjects(); loadUsers() })
 
     .lead-name {
       font-size: 13px;
-      color: #6b7280;
+      color: var(--td-text-secondary);
     }
   }
 
@@ -477,8 +477,8 @@ onMounted(() => { loadProjects(); loadUsers() })
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    background: #3b82f6;
-    color: #fff;
+    background: var(--td-color-primary);
+    color: var(--td-text-white);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -492,7 +492,7 @@ onMounted(() => { loadProjects(); loadUsers() })
     align-items: center;
     gap: 4px;
     font-size: 13px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
     margin-right: 8px;
   }
 
@@ -513,7 +513,7 @@ onMounted(() => { loadProjects(); loadUsers() })
 
 .form-tip {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   margin-top: 4px;
 }
 
@@ -529,19 +529,19 @@ onMounted(() => { loadProjects(); loadUsers() })
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--td-border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    border-color: #a0cfff;
-    background: #f0f7ff;
+    border-color: var(--td-color-primary);
+    background: var(--td-tag-primary-bg);
   }
 
   &.active {
-    border-color: #409eff;
-    background: #ecf5ff;
+    border-color: var(--td-color-primary);
+    background: var(--td-tag-primary-bg);
   }
 }
 
@@ -552,26 +552,26 @@ onMounted(() => { loadProjects(); loadUsers() })
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--td-bg-section);
+  color: var(--td-text-secondary);
   flex-shrink: 0;
 
   .template-card.active & {
-    background: #d9ecff;
-    color: #409eff;
+    background: var(--td-tag-primary-border);
+    color: var(--td-color-primary);
   }
 }
 
 .template-card-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
   line-height: 1.4;
 }
 
 .template-card-desc {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   line-height: 1.4;
   margin-top: 2px;
 }

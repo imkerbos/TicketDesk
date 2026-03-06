@@ -90,7 +90,7 @@
           <el-select v-model="selectedUserId" placeholder="选择用户" filterable style="width: 300px">
             <el-option v-for="u in availableUsers" :key="u.id" :label="u.display_name" :value="u.id">
               <span>{{ u.display_name }}</span>
-              <span style="color: #999; margin-left: 8px">{{ u.username }}</span>
+              <span style="color: var(--td-text-placeholder); margin-left: 8px">{{ u.username }}</span>
             </el-option>
           </el-select>
           <el-button type="primary" :loading="addMemberLoading" @click="handleAddMember" :disabled="!selectedUserId">
@@ -337,9 +337,9 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 12px;
-  color: #fff;
+  color: var(--td-text-white);
 
   .header-info {
     display: flex;
@@ -379,7 +379,7 @@ onMounted(() => {
   .header-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #fff;
+    color: var(--td-text-white);
     &:hover {
       background: rgba(255, 255, 255, 0.3);
     }
@@ -401,7 +401,7 @@ onMounted(() => {
 }
 
 .role-item {
-  background: #f8fafc;
+  background: var(--td-bg-page);
   border-radius: 12px;
   padding: 20px;
   transition: box-shadow 0.2s;
@@ -430,20 +430,20 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  color: #fff;
-  background: #3b82f6;
+  color: var(--td-text-white);
+  background: var(--td-color-primary);
 
   &.admin {
-    background: #f59e0b;
+    background: var(--td-color-warning);
   }
   &.dev {
-    background: #3b82f6;
+    background: var(--td-color-primary);
   }
   &.test {
-    background: #10b981;
+    background: var(--td-color-success);
   }
   &.view {
-    background: #6b7280;
+    background: var(--td-text-secondary);
   }
 }
 
@@ -458,20 +458,20 @@ onMounted(() => {
   .role-name {
     font-size: 16px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--td-text-primary);
     margin: 0;
   }
 
   .role-key {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
     margin: 0 0 4px 0;
     font-family: monospace;
   }
 
   .role-desc {
     font-size: 13px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
     margin: 0;
   }
 }
@@ -502,10 +502,10 @@ onMounted(() => {
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 8px;
-    background: #f8fafc;
+    background: var(--td-bg-page);
 
     &:hover {
-      background: #f1f5f9;
+      background: var(--td-bg-section);
     }
   }
 
@@ -519,8 +519,8 @@ onMounted(() => {
     width: 36px;
     height: 36px;
     border-radius: 8px;
-    background: #3b82f6;
-    color: #fff;
+    background: var(--td-color-primary);
+    color: var(--td-text-white);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -536,12 +536,12 @@ onMounted(() => {
   .member-name {
     font-size: 14px;
     font-weight: 500;
-    color: #1f2937;
+    color: var(--td-text-primary);
   }
 
   .member-username {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
   }
 }
 </style>

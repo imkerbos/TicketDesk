@@ -376,9 +376,9 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 12px;
-  color: #fff;
+  color: var(--td-text-white);
 
   .header-info {
     display: flex;
@@ -414,7 +414,7 @@ onMounted(() => {
   .header-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #fff;
+    color: var(--td-text-white);
 
     &:hover {
       background: rgba(255, 255, 255, 0.3);
@@ -434,9 +434,9 @@ onMounted(() => {
     border-radius: 12px;
 
     th.el-table__cell {
-      background: #f8fafc;
+      background: var(--td-bg-page);
       font-weight: 600;
-      color: #374151;
+      color: var(--td-text-regular);
     }
   }
 }
@@ -457,29 +457,29 @@ onMounted(() => {
   }
 
   &.active {
-    background: #ecfdf5;
-    color: #059669;
+    background: var(--td-tag-success-bg);
+    color: var(--td-color-success);
 
     .status-dot {
-      background: #10b981;
+      background: var(--td-color-success);
     }
   }
 
   &.disabled {
-    background: #f3f4f6;
-    color: #6b7280;
+    background: var(--td-bg-section);
+    color: var(--td-text-secondary);
 
     .status-dot {
-      background: #9ca3af;
+      background: var(--td-text-placeholder);
     }
   }
 
   &.expired {
-    background: #fef3c7;
-    color: #d97706;
+    background: var(--td-tag-warning-border);
+    color: var(--td-color-warning);
 
     .status-dot {
-      background: #f59e0b;
+      background: var(--td-color-warning);
     }
   }
 }
@@ -495,7 +495,7 @@ onMounted(() => {
     padding: 4px;
 
     &:hover {
-      background: #f3f4f6;
+      background: var(--td-bg-section);
       border-radius: 6px;
     }
   }
@@ -506,7 +506,7 @@ onMounted(() => {
   padding: 20px;
   display: flex;
   justify-content: flex-end;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--td-divider-color);
 }
 
 // 匹配器行

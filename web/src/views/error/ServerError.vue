@@ -34,7 +34,7 @@ const handleRefresh = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: var(--td-bg-page);
 }
 
 .error-content {
@@ -45,7 +45,7 @@ const handleRefresh = () => {
 .error-code {
   font-size: 120px;
   font-weight: 800;
-  color: #ef4444;
+  color: var(--td-color-danger);
   line-height: 1;
   margin-bottom: 8px;
 }
@@ -58,13 +58,13 @@ const handleRefresh = () => {
 .error-title {
   font-size: 22px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
   margin: 0 0 8px;
 }
 
 .error-desc {
   font-size: 15px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   margin: 0 0 32px;
 }
 

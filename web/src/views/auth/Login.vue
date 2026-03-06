@@ -209,7 +209,7 @@ onMounted(async () => {
 .login-page {
   display: flex;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--td-bg-page);
 }
 
 /* 左侧品牌区域 */
@@ -219,8 +219,8 @@ onMounted(async () => {
   flex-direction: column;
   justify-content: space-between;
   padding: 48px;
-  background: #1e1e2d;
-  color: #fff;
+  background: var(--td-sidebar-bg);
+  color: var(--td-text-white);
 }
 
 .brand-content {
@@ -237,7 +237,7 @@ onMounted(async () => {
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -316,13 +316,13 @@ onMounted(async () => {
 .login-title {
   font-size: 28px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--td-text-primary);
   margin: 0 0 8px;
 }
 
 .login-subtitle {
   font-size: 15px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   margin: 0;
 }
 
@@ -333,7 +333,7 @@ onMounted(async () => {
 .login-form :deep(.el-form-item__label) {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--td-text-regular);
   padding-bottom: 8px;
 }
 
@@ -346,25 +346,25 @@ onMounted(async () => {
 
 .forgot-link {
   font-size: 13px;
-  color: #3b82f6;
+  color: var(--td-color-primary);
   text-decoration: none;
   transition: color 150ms ease-out;
   font-weight: 400;
 }
 
 .forgot-link:hover {
-  color: #2563eb;
+  color: var(--td-color-primary-hover);
 }
 
 .form-input :deep(.el-input__wrapper) {
   padding: 4px 12px;
   border-radius: 8px;
-  box-shadow: 0 0 0 1px #e5e7eb;
+  box-shadow: 0 0 0 1px var(--td-border-color);
   transition: box-shadow 150ms ease-out;
 }
 
 .form-input :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #d1d5db;
+  box-shadow: 0 0 0 1px var(--td-border-color-dark);
 }
 
 .form-input :deep(.el-input__wrapper.is-focus) {
@@ -372,12 +372,12 @@ onMounted(async () => {
 }
 
 .input-icon {
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   transition: color 150ms ease-out;
 }
 
 .form-input :deep(.el-input__wrapper.is-focus .input-icon) {
-  color: #3b82f6;
+  color: var(--td-color-primary);
 }
 
 .remember-row {
@@ -386,7 +386,7 @@ onMounted(async () => {
 
 .remember-row :deep(.el-checkbox__label) {
   font-size: 14px;
-  color: #4b5563;
+  color: var(--td-text-regular);
 }
 
 .login-button {
@@ -395,18 +395,18 @@ onMounted(async () => {
   font-size: 16px;
   font-weight: 600;
   border-radius: 8px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border: none;
   transition: background-color 150ms ease-out, box-shadow 150ms ease-out;
 }
 
 .login-button:hover {
-  background: #2563eb;
+  background: var(--td-color-primary-hover);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
 }
 
 .login-button:active {
-  background: #1d4ed8;
+  background: var(--td-color-primary-active);
   box-shadow: none;
 }
 
@@ -425,13 +425,13 @@ onMounted(async () => {
 .sso-divider::after {
   content: '';
   flex: 1;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--td-border-color);
 }
 
 .sso-divider-text {
   padding: 0 16px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 }
 
 .sso-button {
@@ -440,16 +440,16 @@ onMounted(async () => {
   font-size: 15px;
   font-weight: 500;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border: 1px solid var(--td-border-color-dark);
+  background: var(--td-bg-card);
+  color: var(--td-text-regular);
   transition: border-color 150ms ease-out, color 150ms ease-out, background-color 150ms ease-out;
 }
 
 .sso-button:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--td-color-primary);
+  color: var(--td-color-primary);
+  background: var(--td-tag-primary-bg);
 }
 
 

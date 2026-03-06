@@ -121,7 +121,7 @@
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
-                    <span class="card-dot" style="background: #3b82f6"></span>
+                    <span class="card-dot" style="background: var(--td-color-primary)"></span>
                     <span class="card-title">工单类型分布</span>
                   </div>
                 </template>
@@ -166,7 +166,7 @@
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
-                    <span class="card-dot" style="background: #f59e0b"></span>
+                    <span class="card-dot" style="background: var(--td-color-warning)"></span>
                     <span class="card-title">Epic 分布</span>
                   </div>
                 </template>
@@ -194,7 +194,7 @@
               </div>
             </template>
             <div class="timeline-list">
-              <el-table :data="issueStats.timeline || []" stripe size="small" :header-cell-style="{ background: '#f8fafc', color: '#475569', fontWeight: 600 }">
+              <el-table :data="issueStats.timeline || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
                 <el-table-column label="日期" min-width="120">
                   <template #default="{ row }">
                     <span class="timeline-date">{{ formatDate(row.date) }}</span>
@@ -458,7 +458,7 @@
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
-                    <span class="card-dot" style="background: #f59e0b"></span>
+                    <span class="card-dot" style="background: var(--td-color-warning)"></span>
                     <span class="card-title">工作类型分布</span>
                   </div>
                 </template>
@@ -485,7 +485,7 @@
                 <span class="card-title">个人工时排行</span>
               </div>
             </template>
-            <el-table :data="worklogStats.user_stats || []" stripe size="small" :header-cell-style="{ background: '#f8fafc', color: '#475569', fontWeight: 600 }">
+            <el-table :data="worklogStats.user_stats || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
               <el-table-column label="排名" width="60" align="center">
                 <template #default="{ $index }">
                   <span :class="['rank-badge', { 'top-3': $index < 3 }]">{{ $index + 1 }}</span>
@@ -836,7 +836,7 @@ onMounted(() => {
   padding: 24px 28px;
   background: #8b5cf6;
   border-radius: 16px;
-  color: #fff;
+  color: var(--td-text-white);
 
   .header-info {
     display: flex;
@@ -894,14 +894,14 @@ onMounted(() => {
 }
 
 .summary-card {
-  background: #fff;
+  background: var(--td-bg-card);
   border-radius: 14px;
   padding: 18px 20px;
   display: flex;
   align-items: center;
   gap: 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--td-divider-color);
   transition: transform 0.2s, box-shadow 0.2s;
 
   &:hover {
@@ -918,11 +918,11 @@ onMounted(() => {
     justify-content: center;
     flex-shrink: 0;
 
-    &.default { background: #eef2ff; color: #6366f1; }
-    &.success { background: #ecfdf5; color: #10b981; }
-    &.warning { background: #fffbeb; color: #f59e0b; }
-    &.info    { background: #eff6ff; color: #3b82f6; }
-    &.danger  { background: #fef2f2; color: #ef4444; }
+    &.default { background: var(--td-tag-primary-bg); color: #6366f1; }
+    &.success { background: var(--td-tag-success-bg); color: var(--td-color-success); }
+    &.warning { background: var(--td-tag-warning-bg); color: var(--td-color-warning); }
+    &.info    { background: var(--td-tag-primary-bg); color: var(--td-color-primary); }
+    &.danger  { background: var(--td-tag-danger-bg); color: var(--td-color-danger); }
   }
 
   .summary-body {
@@ -932,13 +932,13 @@ onMounted(() => {
   .summary-value {
     font-size: 24px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--td-text-primary);
     line-height: 1.2;
   }
 
   .summary-label {
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--td-text-secondary);
     margin-top: 2px;
     white-space: nowrap;
   }
@@ -948,11 +948,11 @@ onMounted(() => {
 .chart-card {
   margin-bottom: 16px;
   border-radius: 14px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--td-divider-color);
 
   :deep(.el-card__header) {
     padding: 14px 20px;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid var(--td-divider-color);
   }
 
   :deep(.el-card__body) {
@@ -975,7 +975,7 @@ onMounted(() => {
   .card-title {
     font-size: 14px;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--td-text-primary);
   }
 }
 
@@ -1005,14 +1005,14 @@ onMounted(() => {
     .dist-avatar {
       background: #8b5cf6;
       font-size: 11px;
-      color: #fff;
+      color: var(--td-text-white);
       flex-shrink: 0;
     }
 
     .dist-name {
       flex: 1;
       font-size: 13px;
-      color: #475569;
+      color: var(--td-text-regular);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1021,20 +1021,20 @@ onMounted(() => {
     .dist-value {
       font-size: 13px;
       font-weight: 600;
-      color: #1e293b;
+      color: var(--td-text-primary);
       white-space: nowrap;
 
       .dist-ratio {
         font-weight: 400;
         font-size: 11px;
-        color: #94a3b8;
+        color: var(--td-text-secondary);
         margin-left: 4px;
       }
     }
 
     :deep(.el-progress-bar__outer) {
       border-radius: 4px;
-      background: #f1f5f9;
+      background: var(--td-bg-section);
     }
 
     :deep(.el-progress-bar__inner) {
@@ -1050,7 +1050,7 @@ onMounted(() => {
 
   .timeline-date {
     font-size: 13px;
-    color: #475569;
+    color: var(--td-text-regular);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1065,26 +1065,26 @@ onMounted(() => {
     font-weight: 600;
 
     &.created {
-      background: #eef2ff;
+      background: var(--td-tag-primary-bg);
       color: #6366f1;
     }
     &.in-progress {
-      background: #fffbeb;
-      color: #d97706;
+      background: var(--td-tag-warning-bg);
+      color: var(--td-color-warning);
     }
     &.resolved {
-      background: #ecfdf5;
-      color: #10b981;
+      background: var(--td-tag-success-bg);
+      color: var(--td-color-success);
     }
     &.closed {
-      background: #eff6ff;
-      color: #3b82f6;
+      background: var(--td-tag-primary-bg);
+      color: var(--td-color-primary);
     }
   }
 
   :deep(.el-table) {
     border-radius: 8px;
-    --el-table-border-color: #f1f5f9;
+    --el-table-border-color: var(--td-border-color-light);
   }
 }
 
@@ -1094,7 +1094,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     padding: 10px 0;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid var(--td-divider-color);
 
     &:last-child {
       border-bottom: none;
@@ -1103,26 +1103,26 @@ onMounted(() => {
     .top-rank {
       width: 22px;
       height: 22px;
-      background: #f1f5f9;
+      background: var(--td-bg-section);
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 11px;
       font-weight: 700;
-      color: #64748b;
+      color: var(--td-text-secondary);
       margin-right: 12px;
       flex-shrink: 0;
     }
 
-    &:nth-child(1) .top-rank { background: #fef3c7; color: #d97706; }
-    &:nth-child(2) .top-rank { background: #e2e8f0; color: #475569; }
-    &:nth-child(3) .top-rank { background: #fed7aa; color: #c2410c; }
+    &:nth-child(1) .top-rank { background: var(--td-tag-warning-border); color: var(--td-color-warning); }
+    &:nth-child(2) .top-rank { background: var(--td-bg-section); color: var(--td-text-regular); }
+    &:nth-child(3) .top-rank { background: var(--td-tag-orange-border); color: var(--td-tag-orange-text); }
 
     .top-name {
       flex: 1;
       font-size: 13px;
-      color: #334155;
+      color: var(--td-text-primary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1184,7 +1184,7 @@ onMounted(() => {
 
   .bar-value {
     font-size: 10px;
-    color: #64748b;
+    color: var(--td-text-secondary);
     margin-bottom: 4px;
     white-space: nowrap;
   }
@@ -1192,7 +1192,7 @@ onMounted(() => {
   .bar-fill {
     width: 100%;
     max-width: 32px;
-    background: #3b82f6;
+    background: var(--td-color-primary);
     border-radius: 4px 4px 0 0;
     min-height: 2px;
     transition: height 0.3s ease;
@@ -1200,7 +1200,7 @@ onMounted(() => {
 
   .bar-label {
     font-size: 10px;
-    color: #94a3b8;
+    color: var(--td-text-secondary);
     margin-top: 6px;
     white-space: nowrap;
   }
@@ -1215,12 +1215,12 @@ onMounted(() => {
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
-  background: #f1f5f9;
+  color: var(--td-text-secondary);
+  background: var(--td-bg-section);
 
   &.top-3 {
-    color: #fff;
-    background: #f59e0b;
+    color: var(--td-text-white);
+    background: var(--td-color-warning);
   }
 }
 
@@ -1232,6 +1232,6 @@ onMounted(() => {
 
 .worklog-time-value {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--td-text-primary);
 }
 </style>

@@ -170,7 +170,7 @@
                     divided
                     v-if="row.status !== 'completed' && row.status !== 'rejected' && !row.converted_issue_id"
                   >转工单</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided style="color: #f56c6c;">删除</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided style="color: var(--td-color-danger);">删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -1033,7 +1033,7 @@ onMounted(async () => {
 <style scoped lang="scss">
 .requirement-list {
   padding: 24px;
-  background: #f5f7fa;
+  background: var(--td-bg-page);
   min-height: 100vh;
 
   .page-header {
@@ -1042,7 +1042,7 @@ onMounted(async () => {
     align-items: center;
     margin-bottom: 24px;
     padding: 20px 24px;
-    background: #3b82f6;
+    background: var(--td-color-primary);
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 
@@ -1050,7 +1050,7 @@ onMounted(async () => {
       margin: 0;
       font-size: 28px;
       font-weight: 600;
-      color: #fff;
+      color: var(--td-text-white);
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -1061,7 +1061,7 @@ onMounted(async () => {
       :deep(.el-button) {
         background: rgba(255, 255, 255, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.3);
-        color: #fff;
+        color: var(--td-text-white);
         backdrop-filter: blur(10px);
         transition: all 0.3s ease;
 
@@ -1073,12 +1073,12 @@ onMounted(async () => {
 
         &.el-button--primary {
           background: rgba(255, 255, 255, 0.95);
-          color: #3b82f6;
+          color: var(--td-color-primary);
           font-weight: 500;
 
           &:hover {
-            background: #fff;
-            color: #2563eb;
+            background: var(--td-bg-card);
+            color: var(--td-color-primary-hover);
           }
         }
       }
@@ -1105,7 +1105,7 @@ onMounted(async () => {
     }
 
     :deep(.el-button--primary) {
-      background: #3b82f6;
+      background: var(--td-color-primary);
       border: none;
       transition: all 0.3s ease;
 
@@ -1130,8 +1130,8 @@ onMounted(async () => {
       border-radius: 12px;
 
       th {
-        background: #f8f9fa;
-        color: #495057;
+        background: var(--td-table-header-bg);
+        color: var(--td-text-regular);
         font-weight: 600;
         font-size: 14px;
         padding: 16px 12px;
@@ -1145,7 +1145,7 @@ onMounted(async () => {
         transition: all 0.3s ease;
 
         &:hover {
-          background: #f8f9ff !important;
+          background: var(--td-bg-card-hover) !important;
           transform: scale(1.005);
           box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
         }
@@ -1153,14 +1153,14 @@ onMounted(async () => {
     }
 
     .link {
-      color: #3b82f6;
+      color: var(--td-color-primary);
       text-decoration: none;
       font-weight: 500;
       font-size: 15px;
       transition: all 0.3s ease;
 
       &:hover {
-        color: #2563eb;
+        color: var(--td-color-primary-hover);
         text-decoration: underline;
       }
     }
@@ -1175,8 +1175,8 @@ onMounted(async () => {
         border-radius: 6px;
         padding: 2px 10px;
         font-size: 12px;
-        background: #dbeafe;
-        color: #1976d2;
+        background: var(--td-tag-primary-border);
+        color: var(--td-color-primary);
         border: none;
         font-weight: 500;
       }
@@ -1190,29 +1190,29 @@ onMounted(async () => {
     }
 
     :deep(.el-button--primary) {
-      color: #3b82f6;
+      color: var(--td-color-primary);
 
       &:hover {
-        color: #2563eb;
-        background: #f0f3ff;
+        color: var(--td-color-primary-hover);
+        background: var(--td-tag-primary-bg);
       }
     }
 
     :deep(.el-button--success) {
-      color: #67c23a;
+      color: var(--td-color-success);
 
       &:hover {
-        color: #67c23a;
-        background: #f0f9ff;
+        color: var(--td-color-success);
+        background: var(--td-color-primary-light);
       }
     }
 
     :deep(.el-button--danger) {
-      color: #f56c6c;
+      color: var(--td-color-danger);
 
       &:hover {
-        color: #f56c6c;
-        background: #fef0f0;
+        color: var(--td-color-danger);
+        background: var(--td-tag-danger-bg);
       }
     }
 
@@ -1221,8 +1221,8 @@ onMounted(async () => {
       padding: 20px 24px;
       display: flex;
       justify-content: flex-end;
-      background: #fafbfc;
-      border-top: 1px solid #e9ecef;
+      background: var(--td-bg-section);
+      border-top: 1px solid var(--td-border-color);
     }
   }
 
@@ -1232,21 +1232,21 @@ onMounted(async () => {
 
     .el-dialog__header {
       padding: 20px 24px;
-      background: #3b82f6;
+      background: var(--td-color-primary);
       border-radius: 12px 12px 0 0;
 
       .el-dialog__title {
-        color: #fff;
+        color: var(--td-text-white);
         font-weight: 600;
         font-size: 18px;
       }
 
       .el-dialog__headerbtn .el-dialog__close {
-        color: #fff;
+        color: var(--td-text-white);
         font-size: 20px;
 
         &:hover {
-          color: #fff;
+          color: var(--td-text-white);
         }
       }
     }
@@ -1260,7 +1260,7 @@ onMounted(async () => {
       border-top: 1px solid #e9ecef;
 
       .el-button--primary {
-        background: #3b82f6;
+        background: var(--td-color-primary);
         border: none;
         padding: 10px 24px;
         transition: all 0.3s ease;

@@ -31,7 +31,7 @@ const router = useRouter()
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: var(--td-bg-page);
 }
 
 .error-content {
@@ -42,7 +42,7 @@ const router = useRouter()
 .error-code {
   font-size: 120px;
   font-weight: 800;
-  color: #3b82f6;
+  color: var(--td-color-primary);
   line-height: 1;
   margin-bottom: 8px;
 }
@@ -55,13 +55,13 @@ const router = useRouter()
 .error-title {
   font-size: 22px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
   margin: 0 0 8px;
 }
 
 .error-desc {
   font-size: 15px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   margin: 0 0 32px;
 }
 

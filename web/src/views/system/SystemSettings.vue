@@ -96,7 +96,7 @@
                 active-text="启用"
                 inactive-text="禁用"
                 inline-prompt
-                style="--el-switch-on-color: #67c23a"
+                style="--el-switch-on-color: var(--td-color-success)"
               />
             </div>
           </template>
@@ -532,7 +532,7 @@
                 active-text="启用"
                 inactive-text="禁用"
                 inline-prompt
-                style="--el-switch-on-color: #67c23a"
+                style="--el-switch-on-color: var(--td-color-success)"
               />
             </div>
           </template>
@@ -649,7 +649,7 @@
                             size="default"
                           />
                         </el-col>
-                        <el-col :span="2" style="text-align: center; line-height: 32px; color: #909399">
+                        <el-col :span="2" style="text-align: center; line-height: 32px; color: var(--td-color-info)">
                           ←
                         </el-col>
                         <el-col :span="10">
@@ -1107,7 +1107,7 @@ onMounted(() => {
 
   :deep(.el-card__header) {
     padding: 20px 24px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--td-divider-color);
   }
 
   :deep(.el-card__body) {
@@ -1136,23 +1136,23 @@ onMounted(() => {
     font-size: 24px;
 
     &.email-icon {
-      background: #3b82f6;
-      color: #fff;
+      background: var(--td-color-primary);
+      color: var(--td-text-white);
     }
 
     &.general-icon {
-      background: #10b981;
-      color: #fff;
+      background: var(--td-color-success);
+      color: var(--td-text-white);
     }
 
     &.sso-icon {
-      background: #f59e0b;
-      color: #fff;
+      background: var(--td-color-warning);
+      color: var(--td-text-white);
     }
 
     &.worklog-icon {
-      background: #3b82f6;
-      color: #fff;
+      background: var(--td-color-primary);
+      color: var(--td-text-white);
     }
   }
 
@@ -1164,12 +1164,12 @@ onMounted(() => {
     .title {
       font-size: 16px;
       font-weight: 600;
-      color: #1f2937;
+      color: var(--td-text-primary);
     }
 
     .subtitle {
       font-size: 13px;
-      color: #909399;
+      color: var(--td-color-info);
     }
   }
 }
@@ -1182,10 +1182,10 @@ onMounted(() => {
     .section-title {
       font-size: 14px;
       font-weight: 600;
-      color: #374151;
+      color: var(--td-text-regular);
       margin-bottom: 16px;
       padding-bottom: 8px;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--td-divider-color);
     }
   }
 
@@ -1194,13 +1194,13 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: #f9fafb;
+    background: var(--td-bg-page);
     border-radius: 8px;
   }
 
   .form-item-tip {
     font-size: 12px;
-    color: #909399;
+    color: var(--td-color-info);
     margin-top: 4px;
     line-height: 1.5;
   }
@@ -1213,13 +1213,13 @@ onMounted(() => {
 
   .setting-label {
     font-size: 14px;
-    color: #374151;
+    color: var(--td-text-regular);
     font-weight: 500;
   }
 
   .setting-desc {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
   }
 }
 
@@ -1231,10 +1231,10 @@ onMounted(() => {
 }
 
 .info-card {
-  background: #f0f9ff;
+  background: var(--td-color-primary-light);
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid #bae6fd;
+  border: 1px solid var(--td-color-primary-light-hover);
 
   .info-title {
     display: flex;
@@ -1252,7 +1252,7 @@ onMounted(() => {
 
     li {
       font-size: 13px;
-      color: #475569;
+      color: var(--td-text-regular);
       line-height: 1.8;
     }
   }
@@ -1272,7 +1272,7 @@ onMounted(() => {
     align-items: center;
     gap: 16px;
     padding: 20px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--td-divider-color);
 
     .block-icon {
       width: 44px;
@@ -1284,33 +1284,33 @@ onMounted(() => {
       font-size: 22px;
 
       &.mfa-icon {
-        background: #3b82f6;
-        color: #fff;
+        background: var(--td-color-primary);
+        color: var(--td-text-white);
       }
 
       &.password-icon {
         background: #ec4899;
-        color: #fff;
+        color: var(--td-text-white);
       }
 
       &.session-icon {
-        background: #3b82f6;
-        color: #fff;
+        background: var(--td-color-primary);
+        color: var(--td-text-white);
       }
 
       &.webhook-rl-icon {
         background: #ec4899;
-        color: #fff;
+        color: var(--td-text-white);
       }
 
       &.auth-rl-icon {
-        background: #3b82f6;
-        color: #fff;
+        background: var(--td-color-primary);
+        color: var(--td-text-white);
       }
 
       &.api-rl-icon {
-        background: #10b981;
-        color: #fff;
+        background: var(--td-color-success);
+        color: var(--td-text-white);
       }
     }
 
@@ -1322,12 +1322,12 @@ onMounted(() => {
       .title {
         font-size: 15px;
         font-weight: 600;
-        color: #1f2937;
+        color: var(--td-text-primary);
       }
 
       .desc {
         font-size: 12px;
-        color: #9ca3af;
+        color: var(--td-text-placeholder);
       }
     }
   }
@@ -1344,14 +1344,14 @@ onMounted(() => {
   padding: 14px 0;
 
   &:not(:last-child) {
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--td-border-color);
   }
 }
 
 .action-bar {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--td-border-color);
 }
 
 // 响应式
@@ -1375,7 +1375,7 @@ onMounted(() => {
 
   .claim-mapping-hint {
     font-size: 12px;
-    color: #909399;
+    color: var(--td-color-info);
     margin-top: 8px;
     line-height: 1.6;
   }
@@ -1393,10 +1393,10 @@ onMounted(() => {
 
 // 配置说明面板
 .config-tips {
-  background: #f0f9ff;
+  background: var(--td-color-primary-light);
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid #bae6fd;
+  border: 1px solid var(--td-color-primary-light-hover);
 
   .tip-title {
     display: flex;
@@ -1418,17 +1418,17 @@ onMounted(() => {
     .tip-label {
       font-size: 13px;
       font-weight: 600;
-      color: #374151;
+      color: var(--td-text-regular);
       margin-bottom: 4px;
     }
 
     .tip-desc {
       font-size: 13px;
-      color: #475569;
+      color: var(--td-text-regular);
       line-height: 1.8;
 
       code {
-        background: #f1f5f9;
+        background: var(--td-bg-section);
         padding: 2px 6px;
         border-radius: 4px;
         font-size: 12px;
@@ -1439,7 +1439,7 @@ onMounted(() => {
 
     .tip-example {
       font-size: 12px;
-      color: #64748b;
+      color: var(--td-text-secondary);
       margin-top: 4px;
       font-style: italic;
     }

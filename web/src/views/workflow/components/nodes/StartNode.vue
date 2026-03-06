@@ -28,9 +28,9 @@ defineProps<{
     align-items: center;
     gap: 6px;
     padding: 12px 20px;
-    background: #10b981;
+    background: var(--td-color-success);
     border-radius: 50px;
-    color: #fff;
+    color: var(--td-text-white);
     min-width: 80px;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     transition: box-shadow 0.2s, transform 0.2s;

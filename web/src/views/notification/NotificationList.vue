@@ -309,9 +309,9 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 12px;
-  color: #fff;
+  color: var(--td-text-white);
 
   .header-info {
     display: flex;
@@ -417,7 +417,7 @@ onMounted(() => {
   align-items: flex-start;
   gap: 16px;
   padding: 20px 24px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--td-divider-color);
   cursor: pointer;
   transition: all 0.2s;
 
@@ -426,14 +426,14 @@ onMounted(() => {
   }
 
   &:hover {
-    background-color: #f9fafb;
+    background-color: var(--td-bg-page);
   }
 
   &.unread {
-    background-color: #f0f7ff;
+    background-color: var(--td-tag-primary-bg);
 
     &:hover {
-      background-color: #e6f0fa;
+      background-color: var(--td-tag-primary-bg);
     }
   }
 }
@@ -466,7 +466,7 @@ onMounted(() => {
 .item-title {
   font-size: 15px;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--td-text-primary);
 }
 
 .item-tag {
@@ -475,7 +475,7 @@ onMounted(() => {
 
 .item-body {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   line-height: 1.5;
   margin-bottom: 8px;
   overflow: hidden;
@@ -490,7 +490,7 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 
   .item-actor,
   .item-time {
@@ -524,6 +524,6 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--td-divider-color);
 }
 </style>

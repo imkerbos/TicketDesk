@@ -280,7 +280,7 @@ onMounted(() => {
   flex-direction: column;
   height: calc(100vh - 64px);
   margin: -24px;
-  background: #f5f7fa;
+  background: var(--td-bg-page);
 }
 
 // ---- 头部 ----
@@ -290,8 +290,8 @@ onMounted(() => {
   align-items: center;
   padding: 0 24px;
   height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--td-bg-card);
+  border-bottom: 1px solid var(--td-border-color);
   flex-shrink: 0;
 }
 
@@ -308,7 +308,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--td-text-white);
   font-weight: 700;
   font-size: 12px;
   flex-shrink: 0;
@@ -323,19 +323,19 @@ onMounted(() => {
 .header-breadcrumb {
   :deep(.el-breadcrumb__inner) {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--td-text-placeholder);
   }
 
   :deep(.el-breadcrumb__separator) {
     font-size: 12px;
-    color: #d1d5db;
+    color: var(--td-text-disabled);
   }
 }
 
 .project-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
   margin: 0;
   line-height: 1.2;
 }
@@ -353,7 +353,7 @@ onMounted(() => {
     padding: 6px 14px;
     border-radius: 6px;
     font-size: 13px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
     text-decoration: none;
     transition: background-color 150ms ease-out, color 150ms ease-out;
 
@@ -362,14 +362,14 @@ onMounted(() => {
     }
 
     &:hover {
-      background: #f3f4f6;
-      color: #1f2937;
+      background: var(--td-bg-section);
+      color: var(--td-text-primary);
     }
 
     &.active,
     &.router-link-exact-active {
-      background: #eff6ff;
-      color: #3b82f6;
+      background: var(--td-tag-primary-bg);
+      color: var(--td-color-primary);
       font-weight: 500;
     }
   }
@@ -385,7 +385,7 @@ onMounted(() => {
 .board-left {
   width: 360px;
   min-width: 360px;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--td-border-color);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -394,7 +394,7 @@ onMounted(() => {
 .board-right {
   flex: 1;
   overflow-y: auto;
-  background: #fafbfc;
+  background: var(--td-bg-section);
 }
 
 // ---- 空状态 ----
@@ -403,7 +403,7 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   height: 100%;
-  background: #fafbfc;
+  background: var(--td-bg-section);
 }
 
 .empty-inner {
@@ -414,24 +414,24 @@ onMounted(() => {
   width: 80px;
   height: 80px;
   margin: 0 auto 20px;
-  background: #f0f5ff;
+  background: var(--td-color-primary-light);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #93b5f6;
+  color: var(--td-color-primary);
 }
 
 .empty-text {
   font-size: 15px;
-  color: #374151;
+  color: var(--td-text-regular);
   margin: 0 0 6px;
   font-weight: 500;
 }
 
 .empty-hint {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   margin: 0;
 }
 

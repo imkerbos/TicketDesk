@@ -98,11 +98,11 @@ const goToNotificationPage = () => {
 }
 
 .bell-wrapper:hover {
-  background-color: #f5f7fa;
+  background-color: var(--td-bg-page);
 }
 
 .bell-icon {
-  color: #6b7280;
+  color: var(--td-text-secondary);
 }
 
 .notification-dropdown {
@@ -114,13 +114,13 @@ const goToNotificationPage = () => {
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--td-divider-color);
 }
 
 .dropdown-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
 }
 
 .empty-state {
@@ -129,7 +129,7 @@ const goToNotificationPage = () => {
   align-items: center;
   justify-content: center;
   padding: 40px 0;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 }
 
 .empty-state p {
@@ -141,6 +141,6 @@ const goToNotificationPage = () => {
   display: flex;
   justify-content: center;
   padding: 10px 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--td-divider-color);
 }
 </style>

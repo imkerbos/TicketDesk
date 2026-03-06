@@ -198,7 +198,7 @@
 
         <el-form-item v-if="!form.push_mode" label="轮询间隔">
           <el-input-number v-model="form.poll_interval" :min="5" :max="3600" :step="5" />
-          <span style="margin-left: 8px; color: #909399">秒</span>
+          <span style="margin-left: 8px; color: var(--td-color-info)">秒</span>
         </el-form-item>
       </el-form>
 
@@ -455,9 +455,9 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 24px;
   padding: 28px 32px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 16px;
-  color: #fff;
+  color: var(--td-text-white);
 }
 
 .header-title {
@@ -477,7 +477,7 @@ onMounted(() => {
   flex-shrink: 0;
   border-color: rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  color: var(--td-text-white);
   font-weight: 500;
   backdrop-filter: blur(4px);
 }
@@ -494,8 +494,8 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 80px 20px;
-  background: #fff;
-  border: 2px dashed #e5e7eb;
+  background: var(--td-bg-card);
+  border: 2px dashed var(--td-border-color);
   border-radius: 16px;
 }
 
@@ -508,13 +508,13 @@ onMounted(() => {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
-  color: #374151;
+  color: var(--td-text-regular);
 }
 
 .empty-desc {
   margin: 0 0 24px 0;
   font-size: 14px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 }
 
 /* ===== 卡片列表 ===== */
@@ -525,8 +525,8 @@ onMounted(() => {
 }
 
 .datasource-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--td-bg-card);
+  border: 1px solid var(--td-border-color);
   border-radius: 12px;
   overflow: hidden;
   transition: box-shadow 0.25s, transform 0.25s;
@@ -546,11 +546,11 @@ onMounted(() => {
 }
 
 .bar-prometheus {
-  background: #ef4444;
+  background: var(--td-color-danger);
 }
 
 .bar-nightingale {
-  background: #10b981;
+  background: var(--td-color-success);
 }
 
 .card-body {
@@ -591,7 +591,7 @@ onMounted(() => {
 .card-name {
   font-size: 17px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
   word-break: break-all;
 }
 
@@ -602,7 +602,7 @@ onMounted(() => {
 }
 
 .card-desc {
-  color: #6b7280;
+  color: var(--td-text-secondary);
   font-size: 13px;
   margin-bottom: 16px;
   line-height: 1.5;
@@ -614,8 +614,8 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px 32px;
   padding: 16px 0;
-  border-top: 1px solid #f3f4f6;
-  border-bottom: 1px solid #f3f4f6;
+  border-top: 1px solid var(--td-border-color);
+  border-bottom: 1px solid var(--td-border-color);
   margin-bottom: 16px;
 }
 
@@ -631,7 +631,7 @@ onMounted(() => {
 
 .detail-label {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -639,11 +639,11 @@ onMounted(() => {
 
 .detail-value {
   font-size: 13px;
-  color: #374151;
+  color: var(--td-text-regular);
 }
 
 .detail-error {
-  color: #ef4444;
+  color: var(--td-color-danger);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -665,29 +665,29 @@ onMounted(() => {
 }
 
 .status-ok .status-indicator {
-  background: #10b981;
+  background: var(--td-color-success);
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
 }
 
 .status-ok {
-  color: #059669;
+  color: var(--td-color-success);
 }
 
 .status-fail .status-indicator {
-  background: #ef4444;
+  background: var(--td-color-danger);
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
 }
 
 .status-fail {
-  color: #dc2626;
+  color: var(--td-color-danger);
 }
 
 .status-unknown .status-indicator {
-  background: #d1d5db;
+  background: var(--td-text-disabled);
 }
 
 .status-unknown {
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 }
 
 /* ===== Webhook URL ===== */
@@ -698,12 +698,12 @@ onMounted(() => {
 }
 
 .webhook-url {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--td-bg-page);
+  border: 1px solid var(--td-border-color);
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 12px;
-  color: #374151;
+  color: var(--td-text-regular);
   font-family: 'SF Mono', 'Fira Code', monospace;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -728,7 +728,7 @@ onMounted(() => {
 
 .form-hint {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
   margin-top: 4px;
   line-height: 1.4;
 }

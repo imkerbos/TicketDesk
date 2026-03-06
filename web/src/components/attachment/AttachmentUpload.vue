@@ -100,19 +100,19 @@ const handleError = () => {
 }
 
 .el-upload__text {
-  color: #606266;
+  color: var(--td-text-secondary);
   font-size: 14px;
   text-align: center;
 }
 
 .el-upload__text em {
-  color: #409eff;
+  color: var(--td-color-primary);
   font-style: normal;
 }
 
 .el-upload__tip {
   font-size: 12px;
-  color: #909399;
+  color: var(--td-color-info);
   margin-top: 7px;
 }
 </style>

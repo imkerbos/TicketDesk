@@ -675,7 +675,7 @@ onMounted(() => {
   flex-direction: column;
   height: calc(100vh - 64px);
   width: 100%;
-  background: #f8fafc;
+  background: var(--td-bg-page);
   margin: -24px;
   width: calc(100% + 48px);
 }
@@ -685,8 +685,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--td-bg-card);
+  border-bottom: 1px solid var(--td-border-color);
   flex-shrink: 0;
   z-index: 10;
 
@@ -709,19 +709,19 @@ onMounted(() => {
 
     .title-icon {
       font-size: 20px;
-      color: #3b82f6;
+      color: var(--td-color-primary);
     }
 
     .title-text {
       font-size: 16px;
       font-weight: 600;
-      color: #1f2937;
+      color: var(--td-text-primary);
       cursor: pointer;
       padding: 2px 6px;
       border-radius: 4px;
 
       &:hover {
-        background: #f3f4f6;
+        background: var(--td-bg-section);
       }
     }
 
@@ -746,7 +746,7 @@ onMounted(() => {
 .vue-flow-canvas {
   width: 100%;
   height: 100%;
-  background: #f8fafc;
+  background: var(--td-bg-page);
 }
 
 // Vue Flow 全局样式覆盖
@@ -769,13 +769,13 @@ onMounted(() => {
 :deep(.vue-flow__handle) {
   width: 10px;
   height: 10px;
-  background: #94a3b8;
-  border: 2px solid #fff;
+  background: var(--td-text-secondary);
+  border: 2px solid var(--td-bg-card);
   border-radius: 50%;
   transition: all 0.2s;
 
   &:hover {
-    background: #3b82f6;
+    background: var(--td-color-primary);
     transform: scale(1.3);
   }
 }
@@ -793,12 +793,12 @@ onMounted(() => {
 }
 
 .edge-label-badge {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--td-bg-card);
+  border: 1px solid var(--td-border-color);
   border-radius: 4px;
   padding: 2px 8px;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   white-space: nowrap;
 }
 </style>

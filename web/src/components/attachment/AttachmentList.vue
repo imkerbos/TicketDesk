@@ -268,13 +268,13 @@ const handleDelete = async (attachmentId: number) => {
   display: flex;
   align-items: center;
   padding: 12px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--td-border-color);
   border-radius: 4px;
   transition: all 0.3s;
 }
 
 .attachment-item:hover {
-  background-color: #f5f7fa;
+  background-color: var(--td-bg-page);
   border-color: #c0c4cc;
 }
 
@@ -298,7 +298,7 @@ const handleDelete = async (attachmentId: number) => {
   width: 60px;
   height: 60px;
   margin-right: 12px;
-  background-color: #f5f7fa;
+  background-color: var(--td-bg-page);
   border-radius: 4px;
 }
 
@@ -310,7 +310,7 @@ const handleDelete = async (attachmentId: number) => {
 .file-name {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--td-text-primary);
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -319,7 +319,7 @@ const handleDelete = async (attachmentId: number) => {
 
 .file-meta {
   font-size: 12px;
-  color: #909399;
+  color: var(--td-color-info);
 }
 
 .separator {
@@ -341,10 +341,10 @@ const handleDelete = async (attachmentId: number) => {
   width: 100%;
   height: 100%;
   font-size: 12px;
-  color: #909399;
+  color: var(--td-color-info);
 }
 
 .image-error {
-  color: #f56c6c;
+  color: var(--td-color-danger);
 }
 </style>

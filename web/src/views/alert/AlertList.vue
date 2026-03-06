@@ -606,9 +606,9 @@ const loadLabelKeys = async () => {
   align-items: center;
   margin-bottom: 24px;
   padding: 24px 32px;
-  background: #ef4444;
+  background: var(--td-color-danger);
   border-radius: 12px;
-  color: #fff;
+  color: var(--td-text-white);
 
   .header-info {
     display: flex;
@@ -641,7 +641,7 @@ const loadLabelKeys = async () => {
   align-items: center;
   gap: 14px;
   padding: 16px 18px;
-  background: #fff;
+  background: var(--td-bg-card);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   transition: all 0.3s;
@@ -653,44 +653,44 @@ const loadLabelKeys = async () => {
 
   .stat-icon-wrapper {
     width: 44px; height: 44px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; color: #fff;
+    display: flex; align-items: center; justify-content: center; color: var(--td-text-white);
     flex-shrink: 0;
   }
 
   .stat-content {
     .stat-value { font-size: 24px; font-weight: 700; line-height: 1.2; }
-    .stat-label { font-size: 12px; color: #909399; margin-top: 2px; }
+    .stat-label { font-size: 12px; color: var(--td-color-info); margin-top: 2px; }
   }
 
   &.total {
-    .stat-icon-wrapper { background: #3b82f6; }
-    .stat-value { color: #3b82f6; }
-    &.active { border-color: #3b82f6; }
+    .stat-icon-wrapper { background: var(--td-color-primary); }
+    .stat-value { color: var(--td-color-primary); }
+    &.active { border-color: var(--td-color-primary); }
   }
   &.firing {
-    .stat-icon-wrapper { background: #ef4444; }
-    .stat-value { color: #e74c3c; }
-    &.active { border-color: #e74c3c; }
+    .stat-icon-wrapper { background: var(--td-color-danger); }
+    .stat-value { color: var(--td-color-danger); }
+    &.active { border-color: var(--td-color-danger); }
   }
   &.resolved {
-    .stat-icon-wrapper { background: #10b981; }
-    .stat-value { color: #2ecc71; }
-    &.active { border-color: #2ecc71; }
+    .stat-icon-wrapper { background: var(--td-color-success); }
+    .stat-value { color: var(--td-color-success); }
+    &.active { border-color: var(--td-color-success); }
   }
   &.critical {
-    .stat-icon-wrapper { background: #ef4444; }
-    .stat-value { color: #c0392b; }
-    &.active { border-color: #c0392b; }
+    .stat-icon-wrapper { background: var(--td-color-danger); }
+    .stat-value { color: var(--td-color-danger); }
+    &.active { border-color: var(--td-color-danger); }
   }
   &.warning {
-    .stat-icon-wrapper { background: #f59e0b; }
-    .stat-value { color: #d68910; }
-    &.active { border-color: #d68910; }
+    .stat-icon-wrapper { background: var(--td-color-warning); }
+    .stat-value { color: var(--td-color-warning); }
+    &.active { border-color: var(--td-color-warning); }
   }
   &.info {
-    .stat-icon-wrapper { background: #6b7280; }
-    .stat-value { color: #6b7280; }
-    &.active { border-color: #6b7280; }
+    .stat-icon-wrapper { background: var(--td-text-secondary); }
+    .stat-value { color: var(--td-text-secondary); }
+    &.active { border-color: var(--td-text-secondary); }
   }
 }
 
@@ -730,7 +730,7 @@ const loadLabelKeys = async () => {
     align-items: center;
     gap: 8px;
 
-    .group-label { font-size: 13px; color: #6b7280; }
+    .group-label { font-size: 13px; color: var(--td-text-secondary); }
     .group-select { width: 120px; }
   }
 }
@@ -740,14 +740,14 @@ const loadLabelKeys = async () => {
   border-radius: 8px;
 
   th.el-table__cell {
-    background: #f8fafc;
+    background: var(--td-bg-page);
     font-weight: 600;
-    color: #374151;
+    color: var(--td-text-regular);
   }
 
   .clickable-row {
     cursor: pointer;
-    &:hover { background-color: #f9fafb; }
+    &:hover { background-color: var(--td-bg-page); }
   }
 }
 
@@ -762,14 +762,14 @@ const loadLabelKeys = async () => {
     border-radius: 2px;
     flex-shrink: 0;
 
-    &.critical { background: #ef4444; }
-    &.warning { background: #f59e0b; }
-    &.info { background: #6b7280; }
+    &.critical { background: var(--td-color-danger); }
+    &.warning { background: var(--td-color-warning); }
+    &.info { background: var(--td-text-secondary); }
   }
 
   .alert-info {
-    .alert-name { font-weight: 500; color: #1f2937; font-size: 14px; }
-    .alert-fingerprint { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .alert-name { font-weight: 500; color: var(--td-text-primary); font-size: 14px; }
+    .alert-fingerprint { font-size: 12px; color: var(--td-text-placeholder); margin-top: 2px; }
   }
 }
 
@@ -783,8 +783,8 @@ const loadLabelKeys = async () => {
 
   .status-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-  &.firing { background: #fef2f2; color: #dc2626; .status-dot { background: #ef4444; } }
-  &.resolved { background: #ecfdf5; color: #059669; .status-dot { background: #10b981; } }
+  &.firing { background: var(--td-tag-danger-bg); color: var(--td-color-danger); .status-dot { background: var(--td-color-danger); } }
+  &.resolved { background: var(--td-tag-success-bg); color: var(--td-color-success); .status-dot { background: var(--td-color-success); } }
 }
 
 .labels-cell {
@@ -793,15 +793,15 @@ const loadLabelKeys = async () => {
   gap: 4px;
 }
 
-.text-muted { color: #d1d5db; }
+.text-muted { color: var(--td-text-disabled); }
 
 .time-cell {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #6b7280;
-  .el-icon { font-size: 14px; color: #9ca3af; }
+  color: var(--td-text-secondary);
+  .el-icon { font-size: 14px; color: var(--td-text-placeholder); }
 }
 
 .action-buttons {
@@ -812,7 +812,7 @@ const loadLabelKeys = async () => {
   .el-button {
     font-size: 16px;
     padding: 4px;
-    &:hover { background: #f3f4f6; border-radius: 6px; }
+    &:hover { background: var(--td-bg-section); border-radius: 6px; }
   }
 }
 
@@ -820,7 +820,7 @@ const loadLabelKeys = async () => {
   padding-top: 20px;
   display: flex;
   justify-content: flex-end;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--td-divider-color);
   margin-top: 16px;
 }
 
@@ -828,10 +828,10 @@ const loadLabelKeys = async () => {
 .group-col { margin-bottom: 20px; }
 
 .group-card {
-  background: #fff;
+  background: var(--td-bg-card);
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--td-divider-color);
   transition: transform 0.3s, box-shadow 0.3s;
   cursor: pointer;
 
@@ -843,20 +843,20 @@ const loadLabelKeys = async () => {
   .group-name {
     font-size: 14px;
     font-weight: 600;
-    color: #374151;
+    color: var(--td-text-regular);
     margin-bottom: 8px;
   }
 
   .group-total {
     font-size: 36px;
     font-weight: 700;
-    color: #3b82f6;
+    color: var(--td-color-primary);
     margin-bottom: 12px;
   }
 
   .group-divider {
     height: 1px;
-    background: #f0f0f0;
+    background: var(--td-bg-section);
     margin-bottom: 12px;
   }
 
@@ -877,9 +877,9 @@ const loadLabelKeys = async () => {
       border-radius: 50%;
     }
 
-    &.critical { color: #dc2626; .severity-dot { background: #ef4444; } }
-    &.warning { color: #d97706; .severity-dot { background: #f59e0b; } }
-    &.info { color: #6b7280; .severity-dot { background: #9ca3af; } }
+    &.critical { color: var(--td-color-danger); .severity-dot { background: var(--td-color-danger); } }
+    &.warning { color: var(--td-color-warning); .severity-dot { background: var(--td-color-warning); } }
+    &.info { color: var(--td-text-secondary); .severity-dot { background: var(--td-text-placeholder); } }
   }
 }
 
@@ -894,13 +894,13 @@ const loadLabelKeys = async () => {
       margin: 0 auto 12px;
       border-radius: 14px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px; color: #fff;
+      font-size: 24px; color: var(--td-text-white);
 
-      &.ack { background: #3b82f6; }
-      &.resolve { background: #10b981; }
+      &.ack { background: var(--td-color-primary); }
+      &.resolve { background: var(--td-color-success); }
     }
 
-    .dialog-tip { font-size: 14px; color: #6b7280; margin: 0; }
+    .dialog-tip { font-size: 14px; color: var(--td-text-secondary); margin: 0; }
   }
 }
 
@@ -919,7 +919,7 @@ const loadLabelKeys = async () => {
     align-items: center;
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--td-divider-color);
   }
 }
 

@@ -7,8 +7,10 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 
 import App from './App.vue'
 import router from './router'
+import './styles/theme.scss'
 import './styles/index.scss'
 import { useUserStore } from './stores/user'
+import { useThemeStore } from './stores/theme'
 
 const app = createApp(App)
 
@@ -23,6 +25,10 @@ app.use(pinia)
 // 初始化用户状态（必须在 pinia 注册后）
 const userStore = useUserStore()
 userStore.initFromStorage()
+
+// 初始化主题
+const themeStore = useThemeStore()
+themeStore.init()
 
 app.use(router)
 app.use(ElementPlus)

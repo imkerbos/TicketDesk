@@ -75,7 +75,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--td-bg-page);
 }
 
 .callback-container {
@@ -91,7 +91,7 @@ onMounted(async () => {
 }
 
 .loading-icon {
-  color: #3b82f6;
+  color: var(--td-color-primary);
   animation: spin 1s linear infinite;
 }
 
@@ -102,7 +102,7 @@ onMounted(async () => {
 
 .loading-text {
   font-size: 16px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
 }
 
 .callback-error {
@@ -113,12 +113,12 @@ onMounted(async () => {
 }
 
 .error-icon {
-  color: #ef4444;
+  color: var(--td-color-danger);
 }
 
 .error-text {
   font-size: 16px;
-  color: #374151;
+  color: var(--td-text-regular);
 }
 
 .back-button {

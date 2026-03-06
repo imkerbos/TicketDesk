@@ -120,7 +120,7 @@ const handleSubmit = async () => {
 .forgot-password-page {
   display: flex;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--td-bg-page);
 }
 
 /* 左侧品牌区域 */
@@ -130,8 +130,8 @@ const handleSubmit = async () => {
   flex-direction: column;
   justify-content: space-between;
   padding: 48px;
-  background: #1e1e2d;
-  color: #fff;
+  background: var(--td-sidebar-bg);
+  color: var(--td-text-white);
 }
 
 .brand-content {
@@ -148,7 +148,7 @@ const handleSubmit = async () => {
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -202,13 +202,13 @@ const handleSubmit = async () => {
 .form-title {
   font-size: 28px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--td-text-primary);
   margin: 0 0 8px;
 }
 
 .form-subtitle {
   font-size: 15px;
-  color: #6b7280;
+  color: var(--td-text-secondary);
   margin: 0;
 }
 
@@ -219,19 +219,19 @@ const handleSubmit = async () => {
 .forgot-form :deep(.el-form-item__label) {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--td-text-regular);
   padding-bottom: 8px;
 }
 
 .form-input :deep(.el-input__wrapper) {
   padding: 4px 12px;
   border-radius: 8px;
-  box-shadow: 0 0 0 1px #e5e7eb;
+  box-shadow: 0 0 0 1px var(--td-border-color);
   transition: all 0.2s;
 }
 
 .form-input :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #d1d5db;
+  box-shadow: 0 0 0 1px var(--td-border-color-dark);
 }
 
 .form-input :deep(.el-input__wrapper.is-focus) {
@@ -239,7 +239,7 @@ const handleSubmit = async () => {
 }
 
 .input-icon {
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 }
 
 .submit-button {
@@ -248,7 +248,7 @@ const handleSubmit = async () => {
   font-size: 16px;
   font-weight: 600;
   border-radius: 8px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border: none;
   transition: all 0.3s;
 }
@@ -272,14 +272,14 @@ const handleSubmit = async () => {
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #3b82f6;
+  color: var(--td-color-primary);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
 }
 
 .back-link:hover {
-  color: #2563eb;
+  color: var(--td-color-primary-hover);
 }
 
 /* 响应式设计 */

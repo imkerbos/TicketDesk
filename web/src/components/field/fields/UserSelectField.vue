@@ -83,8 +83,8 @@ const handleChange = (value: number | undefined) => {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #3b82f6;
-  color: #fff;
+  background: var(--td-color-primary);
+  color: var(--td-text-white);
   display: flex;
   align-items: center;
   justify-content: center;

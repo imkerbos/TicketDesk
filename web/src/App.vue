@@ -126,6 +126,16 @@
           <div class="header-content">
             <div class="page-title">{{ $route.meta.title }}</div>
             <div class="header-right">
+              <el-tooltip
+                :content="themeStore.mode === 'light' ? '切换到暗黑模式' : themeStore.mode === 'dark' ? '切换到跟随系统' : '切换到亮色模式'"
+                placement="bottom"
+              >
+                <button class="theme-toggle" @click="themeStore.toggleMode()">
+                  <el-icon v-if="themeStore.mode === 'light'" :size="18"><Sunny /></el-icon>
+                  <el-icon v-else-if="themeStore.mode === 'dark'" :size="18"><Moon /></el-icon>
+                  <el-icon v-else :size="18"><Monitor /></el-icon>
+                </button>
+              </el-tooltip>
               <NotificationBell />
               <el-dropdown trigger="click">
                 <div class="user-info">
@@ -160,15 +170,17 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton, Document, DataAnalysis } from '@element-plus/icons-vue'
+import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton, Document, DataAnalysis, Sunny, Moon, Monitor } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
+import { useThemeStore } from '@/stores/theme'
 import NotificationBell from '@/components/NotificationBell.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const notificationStore = useNotificationStore()
+const themeStore = useThemeStore()
 
 // 登录后连接 WebSocket
 onMounted(() => {
@@ -247,8 +259,8 @@ const handleMenuSelect = (index: string) => {
   left: 0;
   top: 0;
   bottom: 0;
-  background: #1e1e2d;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--td-sidebar-bg);
+  border-right: 1px solid var(--td-sidebar-border);
   z-index: 100;
   overflow-y: auto;
 }
@@ -259,26 +271,26 @@ const handleMenuSelect = (index: string) => {
   justify-content: center;
   gap: 10px;
   padding: 24px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--td-sidebar-border);
 }
 
 .logo-icon {
   width: 36px;
   height: 36px;
-  background: #3b82f6;
+  background: var(--td-color-primary);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--td-text-white);
 }
 
 .logo-text {
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
+  color: var(--td-text-white);
 }
 
 .sidebar-menu {
@@ -306,7 +318,7 @@ const handleMenuSelect = (index: string) => {
 .sidebar-menu .el-menu-item .menu-badge :deep(.el-badge__content) {
   position: static;
   transform: none;
-  background: #ef4444;
+  background: var(--td-color-danger);
   border: 2px solid rgba(255, 255, 255, 0.2);
   font-weight: 600;
   font-size: 11px;
@@ -320,13 +332,13 @@ const handleMenuSelect = (index: string) => {
 }
 
 .sidebar-menu .el-menu-item:hover {
-  background-color: rgba(255, 255, 255, 0.05) !important;
+  background-color: var(--td-sidebar-hover) !important;
 }
 
 .sidebar-menu .el-menu-item.is-active {
-  background: rgba(59, 130, 246, 0.15) !important;
-  color: #fff;
-  border-left: 3px solid #3b82f6;
+  background: var(--td-sidebar-active-bg) !important;
+  color: var(--td-sidebar-text-active);
+  border-left: 3px solid var(--td-color-primary);
   padding-left: calc(20px - 3px);
 }
 
@@ -338,7 +350,7 @@ const handleMenuSelect = (index: string) => {
 }
 
 .sidebar-menu :deep(.el-sub-menu__title:hover) {
-  background-color: rgba(255, 255, 255, 0.05) !important;
+  background-color: var(--td-sidebar-hover) !important;
 }
 
 .sidebar-menu :deep(.el-sub-menu .el-menu-item) {
@@ -351,12 +363,12 @@ const handleMenuSelect = (index: string) => {
 .main-container {
   margin-left: 220px;
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background-color: var(--td-bg-page);
 }
 
 .header {
-  background-color: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background-color: var(--td-header-bg);
+  box-shadow: var(--td-header-shadow);
   padding: 0 24px;
   height: 64px;
 }
@@ -371,13 +383,32 @@ const handleMenuSelect = (index: string) => {
 .page-title {
   font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--td-text-primary);
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--td-text-secondary);
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.theme-toggle:hover {
+  background-color: var(--td-bg-section);
+  color: var(--td-text-primary);
 }
 
 .user-info {
@@ -391,23 +422,23 @@ const handleMenuSelect = (index: string) => {
 }
 
 .user-info:hover {
-  background-color: #f5f7fa;
+  background-color: var(--td-bg-section);
 }
 
 .user-avatar {
-  background: #3b82f6;
+  background: var(--td-color-primary);
   font-size: 14px;
 }
 
 .user-name {
   font-size: 14px;
-  color: #374151;
+  color: var(--td-text-regular);
   font-weight: 500;
 }
 
 .arrow-icon {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--td-text-placeholder);
 }
 
 .main-content {

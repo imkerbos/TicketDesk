@@ -55,7 +55,7 @@ const statusText = computed(() => {
 <style scoped lang="scss">
 .approval-node {
   .node-body {
-    background: #fff;
+    background: var(--td-bg-card);
     border: 2px solid #f59e0b;
     border-radius: 12px;
     min-width: 160px;
@@ -78,8 +78,8 @@ const statusText = computed(() => {
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    background: #f59e0b;
-    color: #fff;
+    background: var(--td-color-warning);
+    color: var(--td-text-white);
   }
 
   .node-icon {
@@ -107,21 +107,21 @@ const statusText = computed(() => {
   .node-type-badge {
     font-size: 11px;
     padding: 2px 8px;
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--td-tag-warning-border);
+    color: var(--td-tag-orange-text);
     border-radius: 10px;
     font-weight: 500;
   }
 
   .node-detail {
     font-size: 11px;
-    color: #92400e;
+    color: var(--td-tag-orange-text);
   }
 
   .node-status {
     padding: 4px 14px 8px;
     font-size: 11px;
-    color: #6b7280;
+    color: var(--td-text-secondary);
   }
 }
 </style>
