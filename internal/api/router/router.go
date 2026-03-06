@@ -72,6 +72,7 @@ type Router struct {
 	wsHandler              *notifHandler.WebSocketHandler
 	requirementPoolHandler *reqPoolHandler.RequirementPoolHandler
 	requirementHandler     *reqPoolHandler.RequirementHandler
+	categoryHandler        *reqPoolHandler.CategoryHandler
 	fieldHandler           *fieldHandler.FieldHandler
 	rbac                   *middleware.RBACMiddleware
 	permChecker            middleware.ProjectPermissionChecker
@@ -323,6 +324,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	reqPoolHdl := reqPoolHandler.NewRequirementPoolHandler(reqPoolSvc, logger)
 	reqHdl := reqPoolHandler.NewRequirementHandler(reqSvc, logger)
 
+	// 初始化需求分类管理
+	catRepository := reqPoolRepo.NewCategoryRepository(db)
+	catSvc := reqPoolService.NewCategoryService(catRepository, logger)
+	catHdl := reqPoolHandler.NewCategoryHandler(catSvc, logger)
+
 	// ============ 初始化 Field 模块 ============
 	fieldRepository := fieldRepo.NewFieldRepository(db)
 	schemeRepository := fieldRepo.NewSchemeRepository(db)
@@ -431,6 +437,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		wsHandler:              wsHdl,
 		requirementPoolHandler: reqPoolHdl,
 		requirementHandler:     reqHdl,
+		categoryHandler:        catHdl,
 		fieldHandler:           fieldHdl,
 		rbac:                   rbac,
 		permChecker:            projectSvc,
@@ -1081,6 +1088,15 @@ func (r *Router) registerFieldRoutes(rg *gin.RouterGroup) {
 
 // registerRequirementPoolRoutes 注册需求池路由
 func (r *Router) registerRequirementPoolRoutes(rg *gin.RouterGroup) {
+	// 需求分类管理
+	categories := rg.Group("/requirement-categories")
+	{
+		categories.GET("", r.categoryHandler.List)
+		categories.POST("", r.rbac.RequireProjectAdmin(), r.categoryHandler.Create)
+		categories.PUT("/:id", r.rbac.RequireProjectAdmin(), r.categoryHandler.Update)
+		categories.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.categoryHandler.Delete)
+	}
+
 	// 需求池管理
 	pools := rg.Group("/requirement-pools")
 	{

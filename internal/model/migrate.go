@@ -59,6 +59,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&AlertDatasource{},
 		&ProjectNotificationChannel{},
 		&ProjectRolePermission{},
+		&RequirementCategoryDef{},
 	}
 
 	for _, model := range models {
@@ -451,7 +452,33 @@ func SeedData(db *gorm.DB) error {
 		logger.Warn("failed to migrate alert priority visibility", zap.Error(err))
 	}
 
+	// 初始化默认需求分类
+	if err := seedRequirementCategories(db); err != nil {
+		logger.Warn("failed to seed requirement categories", zap.Error(err))
+	}
+
 	logger.Info("seed data completed")
+	return nil
+}
+
+// seedRequirementCategories 初始化默认需求分类
+func seedRequirementCategories(db *gorm.DB) error {
+	categories := []RequirementCategoryDef{
+		{Name: "feature", Label: "功能需求", Color: "primary", SortOrder: 1, IsDefault: true, IsSystem: true},
+		{Name: "optimization", Label: "优化改进", Color: "success", SortOrder: 2, IsSystem: true},
+		{Name: "bugfix", Label: "故障修复", Color: "danger", SortOrder: 3, IsSystem: true},
+		{Name: "security", Label: "安全合规", Color: "warning", SortOrder: 4, IsSystem: true},
+		{Name: "infrastructure", Label: "基础设施", Color: "info", SortOrder: 5, IsSystem: true},
+		{Name: "other", Label: "其他", Color: "info", SortOrder: 6, IsSystem: true},
+	}
+
+	for _, cat := range categories {
+		result := db.Where("name = ?", cat.Name).FirstOrCreate(&cat)
+		if result.Error != nil {
+			logger.Error("failed to seed requirement category", zap.String("name", cat.Name), zap.Error(result.Error))
+		}
+	}
+
 	return nil
 }
 

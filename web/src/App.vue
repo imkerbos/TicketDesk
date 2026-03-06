@@ -75,6 +75,9 @@
             <el-menu-item index="/requirements/kanban">
               <span>需求看板</span>
             </el-menu-item>
+            <el-menu-item index="/requirement-categories">
+              <span>分类管理</span>
+            </el-menu-item>
           </el-sub-menu>
 
           <!-- 告警中心 -->

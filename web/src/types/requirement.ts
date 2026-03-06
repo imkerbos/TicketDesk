@@ -10,8 +10,34 @@ export type RequirementStatus = 'pending_review' | 'planning' | 'in_progress' | 
 // 需求优先级
 export type RequirementPriority = 'P0' | 'P1' | 'P2' | 'P3'
 
-// 需求分类
-export type RequirementCategory = 'feature' | 'optimization' | 'bugfix' | 'security' | 'infrastructure' | 'other'
+// 需求分类（动态，不再硬编码联合类型）
+export type RequirementCategory = string
+
+// 需求分类定义
+export interface RequirementCategoryDef {
+  id: number
+  name: string
+  label: string
+  color: 'primary' | 'success' | 'danger' | 'warning' | 'info'
+  sort_order: number
+  is_default: boolean
+  is_system: boolean
+}
+
+// 创建需求分类请求
+export interface CreateCategoryRequest {
+  name: string
+  label: string
+  color: string
+}
+
+// 更新需求分类请求
+export interface UpdateCategoryRequest {
+  label?: string
+  color?: string
+  sort_order?: number
+  is_default?: boolean
+}
 
 // 需求池
 export interface RequirementPool {

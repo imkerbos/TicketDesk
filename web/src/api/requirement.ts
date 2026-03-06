@@ -15,7 +15,32 @@ import type {
   KanbanResponse,
   ReportRequest,
   ReportResponse,
+  RequirementCategoryDef,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
 } from '@/types/requirement'
+
+// ============ 需求分类 API ============
+
+// 获取需求分类列表
+export const getRequirementCategories = () => {
+  return request.get<ApiResponse<RequirementCategoryDef[]>>('/requirement-categories')
+}
+
+// 创建需求分类
+export const createRequirementCategory = (data: CreateCategoryRequest) => {
+  return request.post<ApiResponse<RequirementCategoryDef>>('/requirement-categories', data)
+}
+
+// 更新需求分类
+export const updateRequirementCategory = (id: number, data: UpdateCategoryRequest) => {
+  return request.put<ApiResponse<void>>(`/requirement-categories/${id}`, data)
+}
+
+// 删除需求分类
+export const deleteRequirementCategory = (id: number) => {
+  return request.delete(`/requirement-categories/${id}`)
+}
 
 // ============ 需求池 API ============
 

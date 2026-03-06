@@ -32,7 +32,7 @@ type CreateRequirementRequest struct {
 	Title           string                    `json:"title" binding:"required,min=1,max=500"`
 	Description     string                    `json:"description" binding:"max=10000"`
 	Priority        model.RequirementPriority `json:"priority" binding:"required,oneof=P0 P1 P2 P3"`
-	Category        model.RequirementCategory `json:"category" binding:"required,oneof=feature optimization bugfix security infrastructure other"`
+	Category        model.RequirementCategory `json:"category" binding:"required"`
 	ReporterID      *uint64                   `json:"reporter_id"`
 	AssigneeID      *uint64                   `json:"assignee_id"`
 	StartDate       *string                   `json:"start_date"` // 格式: 2006-01-02 或 2006-01-02 15:04:05
@@ -47,7 +47,7 @@ type UpdateRequirementRequest struct {
 	Description     *string                    `json:"description" binding:"omitempty,max=10000"`
 	Priority        *model.RequirementPriority `json:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
 	Status          *model.RequirementStatus   `json:"status" binding:"omitempty,oneof=pending_review planning in_progress completed on_hold rejected"`
-	Category        *model.RequirementCategory `json:"category" binding:"omitempty,oneof=feature optimization bugfix security infrastructure other"`
+	Category        *model.RequirementCategory `json:"category"`
 	ReporterID      *uint64                    `json:"reporter_id"`
 	AssigneeID      *uint64                    `json:"assignee_id"`
 	StartDate       *string                    `json:"start_date"` // 格式: 2006-01-02 或 2006-01-02 15:04:05
@@ -123,7 +123,7 @@ type RequirementListRequest struct {
 	PoolID     *uint64                    `form:"pool_id"`
 	Status     *model.RequirementStatus   `form:"status" binding:"omitempty,oneof=pending_review planning in_progress completed on_hold rejected"`
 	Priority   *model.RequirementPriority `form:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
-	Category   *model.RequirementCategory `form:"category" binding:"omitempty,oneof=feature optimization bugfix security infrastructure other"`
+	Category   *model.RequirementCategory `form:"category"`
 	AssigneeID *uint64                    `form:"assignee_id"`
 	CreatedBy  *uint64                    `form:"created_by"`
 	StartDate  *time.Time                 `form:"start_date" time_format:"2006-01-02"`

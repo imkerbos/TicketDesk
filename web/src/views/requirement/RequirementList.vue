@@ -39,12 +39,12 @@
         </el-form-item>
         <el-form-item label="分类">
           <el-select v-model="filters.category" placeholder="全部" clearable style="width: 120px">
-            <el-option label="功能需求" value="feature" />
-            <el-option label="优化改进" value="optimization" />
-            <el-option label="故障修复" value="bugfix" />
-            <el-option label="安全合规" value="security" />
-            <el-option label="基础设施" value="infrastructure" />
-            <el-option label="其他" value="other" />
+            <el-option
+              v-for="cat in categories"
+              :key="cat.name"
+              :label="cat.label"
+              :value="cat.name"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="优先级">
@@ -225,12 +225,12 @@
           <el-col :span="12">
             <el-form-item label="分类" prop="category">
               <el-select v-model="form.category" placeholder="请选择分类" style="width: 100%">
-                <el-option label="功能需求" value="feature" />
-                <el-option label="优化改进" value="optimization" />
-                <el-option label="故障修复" value="bugfix" />
-                <el-option label="安全合规" value="security" />
-                <el-option label="基础设施" value="infrastructure" />
-                <el-option label="其他" value="other" />
+                <el-option
+                  v-for="cat in categories"
+                  :key="cat.name"
+                  :label="cat.label"
+                  :value="cat.name"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -467,6 +467,7 @@ import {
   updateRequirement,
   deleteRequirement,
   convertToIssue,
+  getRequirementCategories,
 } from '@/api/requirement'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
@@ -478,6 +479,7 @@ import type {
   RequirementStatus,
   RequirementPriority,
   RequirementCategory,
+  RequirementCategoryDef,
 } from '@/types/requirement'
 
 const router = useRouter()
@@ -486,6 +488,7 @@ const route = useRoute()
 // 数据
 const requirements = ref<Requirement[]>([])
 const pools = ref<RequirementPool[]>([])
+const categories = ref<RequirementCategoryDef[]>([])
 const projects = ref<any[]>([])
 const users = ref<any[]>([])
 const issueTypes = ref<any[]>([])
@@ -612,27 +615,13 @@ const getStatusType = (status: RequirementStatus): TagType => {
 }
 
 const getCategoryLabel = (category: RequirementCategory) => {
-  const map: Record<RequirementCategory, string> = {
-    feature: '功能需求',
-    optimization: '优化改进',
-    bugfix: '故障修复',
-    security: '安全合规',
-    infrastructure: '基础设施',
-    other: '其他',
-  }
-  return map[category] || category
+  const cat = categories.value.find(c => c.name === category)
+  return cat?.label || category
 }
 
 const getCategoryType = (category: RequirementCategory): TagType => {
-  const map: Record<RequirementCategory, TagType> = {
-    feature: 'primary',
-    optimization: 'success',
-    bugfix: 'danger',
-    security: 'warning',
-    infrastructure: 'info',
-    other: 'info',
-  }
-  return map[category] || 'info'
+  const cat = categories.value.find(c => c.name === category)
+  return (cat?.color as TagType) || 'info'
 }
 
 const getPriorityType = (priority: RequirementPriority): TagType => {
@@ -705,6 +694,16 @@ const loadData = async () => {
     ElMessage.error('加载需求列表失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 加载需求分类
+const loadCategories = async () => {
+  try {
+    const { data } = await getRequirementCategories()
+    categories.value = data.data
+  } catch (error) {
+    console.error('加载需求分类失败', error)
   }
 }
 
@@ -987,6 +986,12 @@ const handleCancel = () => {
   showCreateDialog.value = false
 }
 
+// 获取默认分类
+const getDefaultCategory = (): RequirementCategory => {
+  const defaultCat = categories.value.find(c => c.is_default)
+  return defaultCat?.name || categories.value[0]?.name || 'feature'
+}
+
 // 重置表单
 const resetForm = () => {
   editingRequirement.value = null
@@ -994,7 +999,7 @@ const resetForm = () => {
   form.title = ''
   form.description = ''
   form.priority = 'P2'
-  form.category = 'feature'
+  form.category = getDefaultCategory()
   form.reporter_id = undefined
   form.assignee_id = undefined
   form.start_date = undefined
@@ -1012,7 +1017,7 @@ onMounted(async () => {
     filters.pool_id = Number(route.query.pool_id)
   }
 
-  await Promise.all([loadData(), loadPools(), loadProjects(), loadUsers()])
+  await Promise.all([loadData(), loadPools(), loadProjects(), loadUsers(), loadCategories()])
 
   // 处理看板跳转过来的转化请求
   if (route.query.convert) {

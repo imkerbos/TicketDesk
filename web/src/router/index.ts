@@ -172,6 +172,12 @@ const router = createRouter({
       component: () => import('@/views/requirement/RequirementKanban.vue'),
       meta: { title: '需求看板', requiresProjectAdmin: true },
     },
+    {
+      path: '/requirement-categories',
+      name: 'RequirementCategoryList',
+      component: () => import('@/views/requirement/RequirementCategoryList.vue'),
+      meta: { title: '需求分类管理', requiresProjectAdmin: true },
+    },
     // 报表统计
     {
       path: '/reports',
