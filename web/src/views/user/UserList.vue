@@ -210,7 +210,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right" align="center">
+        <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-tooltip content="编辑" placement="top">
@@ -232,6 +232,11 @@
                   <el-icon>
                     <component :is="row.status === 1 ? Lock : Unlock" />
                   </el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="删除" placement="top">
+                <el-button link type="danger" @click="handleDeleteUser(row)">
+                  <el-icon><Delete /></el-icon>
                 </el-button>
               </el-tooltip>
             </div>
@@ -386,10 +391,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
-  Search, Refresh, Plus, User, UserFilled, Avatar, Edit, Key, Lock, Unlock,
+  Search, Refresh, Plus, User, UserFilled, Avatar, Edit, Key, Lock, Unlock, Delete,
   CircleCheck, CircleClose, Clock, Calendar, Check, Postcard, Message
 } from '@element-plus/icons-vue'
-import { getUserList, createUser, updateUser, enableUser, disableUser, resetUserPassword } from '@/api/user'
+import { getUserList, createUser, updateUser, enableUser, disableUser, resetUserPassword, deleteUser } from '@/api/user'
 import type { User as UserType, CreateUserRequest } from '@/types/user'
 import dayjs from 'dayjs'
 
@@ -631,6 +636,23 @@ const handleToggleStatus = async (user: UserType) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to toggle status:', error)
+    }
+  }
+}
+
+const handleDeleteUser = async (user: UserType) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除用户 "${user.display_name || user.username}" 吗？删除后将清理其角色、项目成员和站内通知关联。`,
+      '删除确认',
+      { type: 'warning' }
+    )
+    await deleteUser(user.id)
+    ElMessage.success('删除成功')
+    loadUsers()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete user:', error)
     }
   }
 }

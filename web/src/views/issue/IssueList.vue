@@ -26,6 +26,43 @@
 
     <!-- 过滤器 -->
     <el-card shadow="never" class="filter-card">
+      <div class="quick-filter-bar">
+        <div class="quick-filter-left">
+          <span class="quick-filter-label">快捷筛选</span>
+          <el-button-group>
+            <el-button size="small" :type="activeQuickFilter === '' ? 'primary' : 'default'" @click="applyQuickFilter('')">全部</el-button>
+            <el-button size="small" :type="activeQuickFilter === 'my-todo' ? 'primary' : 'default'" @click="applyQuickFilter('my-todo')">
+              我的待办
+            </el-button>
+            <el-button size="small" :type="activeQuickFilter === 'my-created' ? 'primary' : 'default'" @click="applyQuickFilter('my-created')">
+              我创建的
+            </el-button>
+          </el-button-group>
+          <el-tag
+            v-if="activeQuickFilterLabel"
+            type="info"
+            effect="plain"
+            closable
+            class="active-filter-tag"
+            @close="applyQuickFilter('')"
+          >
+            {{ activeQuickFilterLabel }}
+          </el-tag>
+        </div>
+        <div class="quick-filter-right">
+          <el-select
+            v-model="selectedSavedViewId"
+            clearable
+            placeholder="已保存视图"
+            class="saved-view-select"
+            @change="handleSavedViewChange"
+          >
+            <el-option v-for="view in savedViews" :key="view.id" :label="view.name" :value="view.id" />
+          </el-select>
+          <el-button @click="handleSaveCurrentView">保存当前视图</el-button>
+          <el-button type="danger" plain :disabled="!selectedSavedViewId" @click="handleDeleteCurrentView">删除视图</el-button>
+        </div>
+      </div>
       <div class="filter-content">
         <div class="filter-left">
           <el-input
@@ -57,10 +94,10 @@
             <el-option label="P2 - 中" value="P2" />
             <el-option label="P3 - 低" value="P3" />
           </el-select>
-          <el-select v-model="queryParams.assignee_id" placeholder="指派人" clearable filterable class="filter-select" @change="handleQuery">
+          <el-select v-model="queryParams.assignee_id" placeholder="指派人" clearable filterable class="filter-select" @change="handleAssigneeFilterChange">
             <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
           </el-select>
-          <el-select v-model="queryParams.reporter_id" placeholder="报告人" clearable filterable class="filter-select" @change="handleQuery">
+          <el-select v-model="queryParams.reporter_id" placeholder="报告人" clearable filterable class="filter-select" @change="handleReporterFilterChange">
             <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
           </el-select>
           <el-select v-model="queryParams.issue_type_id" placeholder="工单类型" clearable class="filter-select" @change="handleQuery">
@@ -171,6 +208,14 @@
                 <el-icon><Clock /></el-icon>
                 <span>{{ formatTime(row.created_at) }}</span>
               </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="90" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button type="danger" link @click.stop="handleDeleteIssue(row)">
+                <el-icon><Delete /></el-icon>
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -298,9 +343,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Check, QuestionFilled } from '@element-plus/icons-vue'
-import { getIssueList, createIssue } from '@/api/issue'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Check, QuestionFilled, Delete } from '@element-plus/icons-vue'
+import { getIssueList, createIssue, deleteIssue } from '@/api/issue'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import { getFieldScheme } from '@/api/field'
@@ -308,12 +353,14 @@ import type { Issue, IssueStatus, IssuePriority, CreateIssueRequest, KanbanColum
 import type { Project, ProjectIssueType } from '@/types/project'
 import type { UserOption } from '@/types/user'
 import type { FieldSchemeItem } from '@/types/field'
+import { useUserStore } from '@/stores/user'
 import { FieldRenderer } from '@/components/field'
 import { extractBuiltinFields } from '@/utils/builtin-fields'
 import dayjs from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const loading = ref(false)
 const issueList = ref<Issue[]>([])
@@ -331,14 +378,45 @@ const fieldSchemeLoading = ref(false)
 
 // 从 URL query 初始化筛选条件
 const initQuery = route.query
+type QuickFilterKey = '' | 'my-todo' | 'my-created'
+interface SavedViewSnapshot {
+  quick_filter: QuickFilterKey
+  project_key?: string
+  status?: IssueStatus
+  priority?: IssuePriority
+  assignee_id?: number
+  reporter_id?: number
+  issue_type_id?: number
+  epic_id?: number
+  keyword?: string
+  category: '' | 'normal' | 'alert'
+  sort_by?: string
+  order?: 'asc' | 'desc'
+}
+interface SavedFilterView {
+  id: string
+  name: string
+  snapshot: SavedViewSnapshot
+  created_at: string
+}
+
+const dashboardFilter = ((initQuery.filter as string) || '') as QuickFilterKey
+const currentUserId = userStore.user?.id
+const initAssigneeID = initQuery.assignee_id
+  ? Number(initQuery.assignee_id)
+  : (dashboardFilter === 'my-todo' ? currentUserId : undefined)
+const initReporterID = initQuery.reporter_id
+  ? Number(initQuery.reporter_id)
+  : (dashboardFilter === 'my-created' ? currentUserId : undefined)
+
 const queryParams = reactive({
   page: initQuery.page ? Number(initQuery.page) : 1,
   page_size: initQuery.page_size ? Number(initQuery.page_size) : 20,
   project_key: (initQuery.project_key as string) || undefined,
   status: (initQuery.status as IssueStatus | undefined) || undefined,
   priority: (initQuery.priority as IssuePriority | undefined) || undefined,
-  assignee_id: initQuery.assignee_id ? Number(initQuery.assignee_id) : undefined,
-  reporter_id: initQuery.reporter_id ? Number(initQuery.reporter_id) : undefined,
+  assignee_id: initAssigneeID,
+  reporter_id: initReporterID,
   issue_type_id: initQuery.issue_type_id ? Number(initQuery.issue_type_id) : undefined,
   epic_id: initQuery.epic_id ? Number(initQuery.epic_id) : undefined,
   keyword: (initQuery.keyword as string) || undefined,
@@ -347,9 +425,64 @@ const queryParams = reactive({
   order: (initQuery.order as 'asc' | 'desc' | undefined) || undefined,
 })
 
+const activeQuickFilter = ref<QuickFilterKey>(dashboardFilter)
+const savedViews = ref<SavedFilterView[]>([])
+const selectedSavedViewId = ref((initQuery.view as string) || '')
+const activeQuickFilterLabel = computed(() => {
+  if (activeQuickFilter.value === 'my-todo') return '已应用：我的待办'
+  if (activeQuickFilter.value === 'my-created') return '已应用：我创建的'
+  return ''
+})
+const savedViewsStorageKey = computed(() => `issue_list_saved_views_${userStore.user?.id || 'anonymous'}`)
+
+const buildSnapshot = (): SavedViewSnapshot => ({
+  quick_filter: activeQuickFilter.value,
+  project_key: queryParams.project_key,
+  status: queryParams.status,
+  priority: queryParams.priority,
+  assignee_id: queryParams.assignee_id,
+  reporter_id: queryParams.reporter_id,
+  issue_type_id: queryParams.issue_type_id,
+  epic_id: queryParams.epic_id,
+  keyword: queryParams.keyword,
+  category: queryParams.category,
+  sort_by: queryParams.sort_by,
+  order: queryParams.order,
+})
+
+const applySnapshot = (snapshot: SavedViewSnapshot) => {
+  activeQuickFilter.value = snapshot.quick_filter || ''
+  queryParams.project_key = snapshot.project_key
+  queryParams.status = snapshot.status
+  queryParams.priority = snapshot.priority
+  queryParams.assignee_id = snapshot.assignee_id
+  queryParams.reporter_id = snapshot.reporter_id
+  queryParams.issue_type_id = snapshot.issue_type_id
+  queryParams.epic_id = snapshot.epic_id
+  queryParams.keyword = snapshot.keyword
+  queryParams.category = snapshot.category || ''
+  queryParams.sort_by = snapshot.sort_by
+  queryParams.order = snapshot.order
+}
+
+const loadSavedViewsFromStorage = () => {
+  try {
+    const raw = localStorage.getItem(savedViewsStorageKey.value)
+    savedViews.value = raw ? JSON.parse(raw) : []
+  } catch (error) {
+    console.error('Failed to load saved issue views:', error)
+    savedViews.value = []
+  }
+}
+
+const persistSavedViews = () => {
+  localStorage.setItem(savedViewsStorageKey.value, JSON.stringify(savedViews.value))
+}
+
 // 筛选条件同步到 URL query params
 const syncQueryToUrl = () => {
   const query: Record<string, string> = {}
+  if (activeQuickFilter.value) query.filter = activeQuickFilter.value
   if (queryParams.keyword) query.keyword = queryParams.keyword
   if (queryParams.project_key) query.project_key = queryParams.project_key
   if (queryParams.status) query.status = queryParams.status
@@ -361,6 +494,7 @@ const syncQueryToUrl = () => {
   if (queryParams.category) query.category = queryParams.category
   if (queryParams.sort_by) query.sort_by = queryParams.sort_by
   if (queryParams.order) query.order = queryParams.order
+  if (selectedSavedViewId.value) query.view = selectedSavedViewId.value
   if (queryParams.page > 1) query.page = String(queryParams.page)
   router.replace({ query })
 }
@@ -459,9 +593,136 @@ const loadFilterEpics = async () => {
   }
 }
 
-const handleCategoryChange = () => { queryParams.page = 1; syncQueryToUrl(); loadData() }
-const handleQuery = () => { queryParams.page = 1; syncQueryToUrl(); loadData() }
+const clearSelectedSavedView = () => {
+  selectedSavedViewId.value = ''
+}
+
+const normalizeQuickFilter = () => {
+  if (activeQuickFilter.value === 'my-todo' && queryParams.assignee_id !== currentUserId) {
+    activeQuickFilter.value = ''
+  }
+  if (activeQuickFilter.value === 'my-created' && queryParams.reporter_id !== currentUserId) {
+    activeQuickFilter.value = ''
+  }
+}
+
+const applyQuickFilter = (filter: QuickFilterKey) => {
+  if ((filter === 'my-todo' || filter === 'my-created') && !currentUserId) {
+    ElMessage.warning('未识别当前用户，无法应用快捷筛选')
+    return
+  }
+  activeQuickFilter.value = filter
+  if (filter === 'my-todo') {
+    queryParams.assignee_id = currentUserId
+    queryParams.reporter_id = undefined
+  } else if (filter === 'my-created') {
+    queryParams.reporter_id = currentUserId
+    queryParams.assignee_id = undefined
+  } else {
+    queryParams.assignee_id = undefined
+    queryParams.reporter_id = undefined
+  }
+  clearSelectedSavedView()
+  queryParams.page = 1
+  syncQueryToUrl()
+  loadData()
+}
+
+const handleSaveCurrentView = async () => {
+  try {
+    const promptResult = await ElMessageBox.prompt('请输入视图名称', '保存当前视图', {
+      inputValue: activeQuickFilterLabel.value ? activeQuickFilterLabel.value.replace('已应用：', '') : '',
+      inputPlaceholder: '例如：我的高优先级待办',
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      inputValidator: (val: string) => !!val?.trim() || '视图名称不能为空',
+    })
+    if (typeof promptResult === 'string' || !promptResult || !('value' in promptResult)) return
+    const name = promptResult.value.trim()
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    savedViews.value.unshift({
+      id,
+      name,
+      snapshot: buildSnapshot(),
+      created_at: new Date().toISOString(),
+    })
+    persistSavedViews()
+    selectedSavedViewId.value = id
+    syncQueryToUrl()
+    ElMessage.success('视图已保存')
+  } catch {
+    // 用户取消
+  }
+}
+
+const handleSavedViewChange = async (viewID?: string) => {
+  if (!viewID) {
+    selectedSavedViewId.value = ''
+    syncQueryToUrl()
+    return
+  }
+  const view = savedViews.value.find(v => v.id === viewID)
+  if (!view) {
+    ElMessage.warning('视图不存在')
+    selectedSavedViewId.value = ''
+    syncQueryToUrl()
+    return
+  }
+  selectedSavedViewId.value = view.id
+  applySnapshot(view.snapshot)
+  queryParams.page = 1
+  await loadFilterIssueTypes()
+  await loadFilterEpics()
+  syncQueryToUrl()
+  loadData()
+}
+
+const handleDeleteCurrentView = async () => {
+  if (!selectedSavedViewId.value) return
+  const view = savedViews.value.find(v => v.id === selectedSavedViewId.value)
+  if (!view) return
+  try {
+    await ElMessageBox.confirm(`确定删除视图「${view.name}」吗？`, '删除视图', { type: 'warning' })
+    savedViews.value = savedViews.value.filter(v => v.id !== selectedSavedViewId.value)
+    selectedSavedViewId.value = ''
+    persistSavedViews()
+    syncQueryToUrl()
+    ElMessage.success('视图已删除')
+  } catch {
+    // 用户取消
+  }
+}
+
+const handleCategoryChange = () => {
+  clearSelectedSavedView()
+  queryParams.page = 1
+  syncQueryToUrl()
+  loadData()
+}
+const handleQuery = () => {
+  clearSelectedSavedView()
+  normalizeQuickFilter()
+  queryParams.page = 1
+  syncQueryToUrl()
+  loadData()
+}
 const handlePageChange = () => { syncQueryToUrl(); loadData() }
+
+const handleAssigneeFilterChange = () => {
+  clearSelectedSavedView()
+  normalizeQuickFilter()
+  queryParams.page = 1
+  syncQueryToUrl()
+  loadData()
+}
+
+const handleReporterFilterChange = () => {
+  clearSelectedSavedView()
+  normalizeQuickFilter()
+  queryParams.page = 1
+  syncQueryToUrl()
+  loadData()
+}
 
 // 排序：prop 到后端字段的映射
 const sortFieldMap: Record<string, string> = {
@@ -488,12 +749,15 @@ const handleSortChange = ({ prop, order }: { prop: string; order: string | null 
     queryParams.sort_by = sortFieldMap[prop] || prop
     queryParams.order = order === 'ascending' ? 'asc' : 'desc'
   }
+  clearSelectedSavedView()
   queryParams.page = 1
   syncQueryToUrl()
   loadData()
 }
 
 const handleProjectFilterChange = async () => {
+  clearSelectedSavedView()
+  normalizeQuickFilter()
   queryParams.issue_type_id = undefined
   queryParams.epic_id = undefined
   queryParams.page = 1
@@ -504,6 +768,8 @@ const handleProjectFilterChange = async () => {
 }
 
 const handleReset = () => {
+  clearSelectedSavedView()
+  activeQuickFilter.value = ''
   queryParams.page = 1
   queryParams.page_size = 20
   queryParams.project_key = undefined
@@ -515,6 +781,8 @@ const handleReset = () => {
   queryParams.epic_id = undefined
   queryParams.keyword = undefined
   queryParams.category = ''
+  queryParams.sort_by = undefined
+  queryParams.order = undefined
   filterIssueTypes.value = []
   filterEpics.value = []
   syncQueryToUrl()
@@ -661,6 +929,23 @@ const submitCreate = async () => {
   })
 }
 
+const handleDeleteIssue = async (issue: Issue) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除工单 "${issue.issue_key}" 吗？删除后评论、附件、工作流实例与活动记录将一并清理。`,
+      '删除确认',
+      { type: 'warning' }
+    )
+    await deleteIssue(issue.issue_key)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete issue:', error)
+    }
+  }
+}
+
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 const getPriorityType = (priority: string): TagType => {
   const map: Record<string, TagType> = { P0: 'danger', P1: 'warning', P2: 'info', P3: 'info' }
@@ -699,11 +984,20 @@ const getDueDateStatus = (row: Issue): 'overdue' | 'due_soon' | null => {
 }
 
 onMounted(async () => {
+  loadSavedViewsFromStorage()
+  if (selectedSavedViewId.value) {
+    const view = savedViews.value.find(v => v.id === selectedSavedViewId.value)
+    if (view) {
+      applySnapshot(view.snapshot)
+    } else {
+      selectedSavedViewId.value = ''
+    }
+  }
   await loadFilterOptions()
   // 如果 URL 中有 project_key，加载对应的工单类型和 Epic 选项
   if (queryParams.project_key) {
     await loadFilterIssueTypes()
-    loadFilterEpics()
+    await loadFilterEpics()
   }
   loadData()
 })
@@ -791,6 +1085,45 @@ onMounted(async () => {
   border-radius: 12px;
 
   :deep(.el-card__body) { padding: 16px 20px; }
+
+  .quick-filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed #e5e7eb;
+  }
+
+  .quick-filter-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .quick-filter-label {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+  }
+
+  .active-filter-tag {
+    margin-left: 2px;
+  }
+
+  .quick-filter-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .saved-view-select {
+    width: 180px;
+  }
 
   .filter-content {
     display: flex;
@@ -1213,6 +1546,19 @@ onMounted(async () => {
 
   .filter-card .filter-left {
     flex-direction: column;
+  }
+
+  .filter-card .quick-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-card .quick-filter-right {
+    justify-content: flex-start;
+  }
+
+  .filter-card .saved-view-select {
+    width: 100%;
   }
 
   .search-input, .filter-select, .filter-select-sm {
