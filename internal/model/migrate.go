@@ -143,6 +143,16 @@ func createCompositeIndexes(db *gorm.DB) {
 		{"activity_logs", "idx_activity_entity", "entity_type, entity_id, created_at DESC"},
 	}
 
+	// 唯一索引（使用 COALESCE 处理 NULL 值：MySQL UNIQUE 无法约束 NULL != NULL）
+	uniqueIndexes := []struct {
+		table string
+		name  string
+		expr  string
+	}{
+		{"issue_types", "uk_issue_type_name_project", "name, (COALESCE(project_id, 0))"},
+		{"workflows", "uk_workflow_name_project", "name, (COALESCE(project_id, 0))"},
+	}
+
 	for _, idx := range indexes {
 		// MySQL 8.4 不支持 CREATE INDEX IF NOT EXISTS，先检查索引是否存在
 		var count int64
@@ -155,6 +165,24 @@ func createCompositeIndexes(db *gorm.DB) {
 		sql := "CREATE INDEX " + idx.name + " ON " + idx.table + " (" + idx.cols + ")"
 		if err := db.Exec(sql).Error; err != nil {
 			logger.Warn("failed to create composite index",
+				zap.String("index", idx.name),
+				zap.Error(err),
+			)
+		}
+	}
+
+	// 创建唯一索引
+	for _, idx := range uniqueIndexes {
+		var count int64
+		db.Raw("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?",
+			idx.table, idx.name).Scan(&count)
+		if count > 0 {
+			continue
+		}
+
+		sql := "CREATE UNIQUE INDEX " + idx.name + " ON " + idx.table + " (" + idx.expr + ")"
+		if err := db.Exec(sql).Error; err != nil {
+			logger.Warn("failed to create unique index",
 				zap.String("index", idx.name),
 				zap.Error(err),
 			)
@@ -235,6 +263,12 @@ func SeedData(db *gorm.DB) error {
 			logger.Error("failed to seed role", zap.String("name", role.Name), zap.Error(result.Error))
 			return result.Error
 		}
+	}
+
+	// 去重全局工单类型和工作流（一次性迁移，在初始化工单类型前执行）
+	if err := deduplicateGlobalRecords(db); err != nil {
+		logger.Error("failed to deduplicate global records", zap.Error(err))
+		return err
 	}
 
 	// 初始化默认工单类型
@@ -1298,6 +1332,183 @@ func seedExistingProjectRolePermissions(db *gorm.DB) error {
 		}
 	}
 	return nil
+}
+
+// deduplicateGlobalRecords 去重全局工单类型和工作流（一次性迁移）
+// 旧版软删除导致 FirstOrCreate 重复创建，移除软删除后重复记录全部可见
+func deduplicateGlobalRecords(db *gorm.DB) error {
+	const migrationKey = "migration.deduplicate_global_types_v1"
+
+	var config SystemConfig
+	if err := db.Where("config_key = ?", migrationKey).First(&config).Error; err == nil {
+		return nil // 已执行过
+	}
+
+	logger.Info("deduplicating global issue_types and workflows...")
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		// ==================== issue_types 去重 ====================
+		type dupGroup struct {
+			Name  string
+			MinID uint64
+		}
+		var itDups []dupGroup
+		if err := tx.Raw(`
+			SELECT name, MIN(id) AS min_id
+			FROM issue_types
+			WHERE project_id IS NULL
+			GROUP BY name
+			HAVING COUNT(*) > 1
+		`).Scan(&itDups).Error; err != nil {
+			return err
+		}
+
+		for _, dup := range itDups {
+			// 查出需要删除的重复 ID
+			var dupIDs []uint64
+			if err := tx.Raw("SELECT id FROM issue_types WHERE name = ? AND project_id IS NULL AND id != ?",
+				dup.Name, dup.MinID).Scan(&dupIDs).Error; err != nil {
+				return err
+			}
+			if len(dupIDs) == 0 {
+				continue
+			}
+
+			keepID := dup.MinID
+
+			// 迁移 issues.issue_type_id
+			if err := tx.Exec("UPDATE issues SET issue_type_id = ? WHERE issue_type_id IN ?", keepID, dupIDs).Error; err != nil {
+				return err
+			}
+
+			// 迁移 alert_rules.issue_type_id
+			if err := tx.Exec("UPDATE alert_rules SET issue_type_id = ? WHERE issue_type_id IN ?", keepID, dupIDs).Error; err != nil {
+				return err
+			}
+
+			// 迁移 workflow_schemes.issue_type_id（有 uk_project_issue_type 唯一索引，先删冲突行再更新）
+			if err := tx.Exec(`
+				DELETE FROM workflow_schemes
+				WHERE issue_type_id IN ?
+				  AND project_id IN (
+				    SELECT project_id FROM (
+				      SELECT project_id FROM workflow_schemes WHERE issue_type_id = ?
+				    ) AS keep_rows
+				  )
+			`, dupIDs, keepID).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE workflow_schemes SET issue_type_id = ? WHERE issue_type_id IN ?", keepID, dupIDs).Error; err != nil {
+				return err
+			}
+
+			// 迁移 issue_type_field_schemes.issue_type_id（有 uk_type_field 唯一索引，先删冲突行再更新）
+			if err := tx.Exec(`
+				DELETE FROM issue_type_field_schemes
+				WHERE issue_type_id IN ?
+				  AND (project_id, field_id) IN (
+				    SELECT project_id, field_id FROM (
+				      SELECT project_id, field_id FROM issue_type_field_schemes WHERE issue_type_id = ?
+				    ) AS keep_rows
+				  )
+			`, dupIDs, keepID).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE issue_type_field_schemes SET issue_type_id = ? WHERE issue_type_id IN ?", keepID, dupIDs).Error; err != nil {
+				return err
+			}
+
+			// 删除重复的 issue_types 记录
+			if err := tx.Exec("DELETE FROM issue_types WHERE id IN ?", dupIDs).Error; err != nil {
+				return err
+			}
+
+			logger.Info("deduplicated issue_type",
+				zap.String("name", dup.Name),
+				zap.Uint64("keep_id", keepID),
+				zap.Int("removed", len(dupIDs)),
+			)
+		}
+
+		// ==================== workflows 去重 ====================
+		var wfDups []dupGroup
+		if err := tx.Raw(`
+			SELECT name, MIN(id) AS min_id
+			FROM workflows
+			WHERE project_id IS NULL
+			GROUP BY name
+			HAVING COUNT(*) > 1
+		`).Scan(&wfDups).Error; err != nil {
+			return err
+		}
+
+		for _, dup := range wfDups {
+			var dupIDs []uint64
+			if err := tx.Raw("SELECT id FROM workflows WHERE name = ? AND project_id IS NULL AND id != ?",
+				dup.Name, dup.MinID).Scan(&dupIDs).Error; err != nil {
+				return err
+			}
+			if len(dupIDs) == 0 {
+				continue
+			}
+
+			keepID := dup.MinID
+
+			// 删除重复工作流的节点和边
+			if err := tx.Exec("DELETE FROM workflow_nodes WHERE workflow_id IN ?", dupIDs).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("DELETE FROM workflow_edges WHERE workflow_id IN ?", dupIDs).Error; err != nil {
+				return err
+			}
+
+			// 迁移 workflow_schemes.workflow_id（有 uk_project_issue_type 唯一索引，先删冲突行再更新）
+			if err := tx.Exec(`
+				DELETE FROM workflow_schemes
+				WHERE workflow_id IN ?
+				  AND (project_id, issue_type_id) IN (
+				    SELECT project_id, issue_type_id FROM (
+				      SELECT project_id, issue_type_id FROM workflow_schemes WHERE workflow_id = ?
+				    ) AS keep_rows
+				  )
+			`, dupIDs, keepID).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE workflow_schemes SET workflow_id = ? WHERE workflow_id IN ?", keepID, dupIDs).Error; err != nil {
+				return err
+			}
+
+			// 迁移 workflow_instances.workflow_id
+			if err := tx.Exec("UPDATE workflow_instances SET workflow_id = ? WHERE workflow_id IN ?", keepID, dupIDs).Error; err != nil {
+				return err
+			}
+
+			// 删除重复的 workflows 记录
+			if err := tx.Exec("DELETE FROM workflows WHERE id IN ?", dupIDs).Error; err != nil {
+				return err
+			}
+
+			logger.Info("deduplicated workflow",
+				zap.String("name", dup.Name),
+				zap.Uint64("keep_id", keepID),
+				zap.Int("removed", len(dupIDs)),
+			)
+		}
+
+		// 标记迁移完成
+		if err := tx.Create(&SystemConfig{
+			ConfigKey:   migrationKey,
+			ConfigValue: "done",
+			ConfigType:  "string",
+			Category:    "migration",
+			Description: "全局工单类型和工作流去重迁移标记",
+		}).Error; err != nil {
+			return err
+		}
+
+		logger.Info("global deduplication completed")
+		return nil
+	})
 }
 
 // seedDefaultAlertSilences 初始化默认告警静默规则模板
