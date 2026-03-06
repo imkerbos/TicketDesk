@@ -11,7 +11,7 @@
           <p class="header-desc">管理所有项目和工作空间</p>
         </div>
       </div>
-      <el-button type="primary" @click="handleCreate" class="header-btn">
+      <el-button type="primary" class="header-btn" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         创建项目
       </el-button>
@@ -72,7 +72,7 @@
             <div class="card-footer">
               <div class="footer-left">
                 <div class="lead-info">
-                  <div class="mini-avatar" v-if="project.lead_user">
+                  <div v-if="project.lead_user" class="mini-avatar">
                     {{ project.lead_user.display_name?.charAt(0) }}
                   </div>
                   <span class="lead-name">{{ project.lead_user?.display_name || '未指定' }}</span>

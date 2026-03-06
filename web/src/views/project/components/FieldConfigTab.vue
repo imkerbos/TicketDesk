@@ -3,7 +3,7 @@
     <!-- 顶部操作栏 -->
     <div class="config-header">
       <div class="header-left">
-        <el-select v-model="selectedIssueTypeId" placeholder="请选择工单类型" @change="loadFieldScheme" style="width: 240px">
+        <el-select v-model="selectedIssueTypeId" placeholder="请选择工单类型" style="width: 240px" @change="loadFieldScheme">
           <el-option
             v-for="type in issueTypes"
             :key="type.id"

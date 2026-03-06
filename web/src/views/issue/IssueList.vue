@@ -11,7 +11,7 @@
           <p class="header-desc">跟踪和管理所有工单任务</p>
         </div>
       </div>
-      <el-button type="primary" @click="handleCreate" class="header-btn">
+      <el-button type="primary" class="header-btn" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         创建工单
       </el-button>
@@ -117,7 +117,7 @@
     <el-card shadow="never" class="table-card">
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-radio-group v-model="viewMode" @change="handleViewModeChange" class="view-toggle">
+          <el-radio-group v-model="viewMode" class="view-toggle" @change="handleViewModeChange">
             <el-radio-button value="table">
               <el-icon><List /></el-icon>
               表格
@@ -319,10 +319,10 @@
                 </template>
                 <FieldRenderer
                   v-if="item.field"
+                  v-model="customFieldValues[item.field_id]"
                   :field="item.field"
                   :scheme="item"
                   :project-key="createForm.project_key"
-                  v-model="customFieldValues[item.field_id]"
                 />
               </el-form-item>
             </el-col>

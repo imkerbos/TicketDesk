@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -137,7 +138,10 @@ func (s *alertService) findMergeableIssue(ctx context.Context, rule *model.Alert
 		First(&issue).Error
 
 	if err != nil {
-		return 0, nil // 没有找到可合并的工单，返回 0
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to query mergeable issue: %w", err)
 	}
 
 	return issue.ID, nil
@@ -484,7 +488,7 @@ func (s *alertService) ListAlertSilences(ctx context.Context, req *dto.AlertSile
 // toAlertSilenceResponse 转换为告警静默响应
 func (s *alertService) toAlertSilenceResponse(silence *model.AlertSilence) *dto.AlertSilenceResponse {
 	var matchers []dto.LabelMatcher
-	json.Unmarshal([]byte(silence.LabelMatchers), &matchers)
+	_ = json.Unmarshal([]byte(silence.LabelMatchers), &matchers)
 
 	return &dto.AlertSilenceResponse{
 		ID:            silence.ID,

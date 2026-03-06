@@ -11,7 +11,7 @@
           <p class="header-desc">配置告警自动建单规则和匹配策略</p>
         </div>
       </div>
-      <el-button type="primary" @click="handleCreate" class="header-btn">
+      <el-button type="primary" class="header-btn" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         创建规则
       </el-button>
@@ -116,7 +116,7 @@
       width="700px"
       @close="handleDialogClose"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
+      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-row :gutter="16">
           <el-col :span="24">
             <el-form-item label="规则名称" prop="name">
@@ -134,7 +134,7 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="项目" prop="project_id">
-              <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%" @change="handleProjectChange" filterable>
+              <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%" filterable @change="handleProjectChange">
                 <el-option
                   v-for="p in projectList"
                   :key="p.id"

@@ -18,12 +18,12 @@
       <div v-if="!loading && datasources.length === 0" class="empty-state">
         <div class="empty-icon">
           <svg viewBox="0 0 120 120" width="120" height="120" fill="none">
-            <rect x="20" y="30" width="80" height="60" rx="8" fill="#e0e7ff" stroke="#818cf8" stroke-width="2"/>
-            <circle cx="60" cy="55" r="12" fill="#818cf8" opacity="0.3"/>
-            <path d="M54 55l4 4 8-8" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <rect x="35" y="70" width="50" height="4" rx="2" fill="#c7d2fe"/>
-            <rect x="42" y="78" width="36" height="3" rx="1.5" fill="#e0e7ff"/>
-            <path d="M60 20v6M44 24l3 5.2M76 24l-3 5.2" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+            <rect x="20" y="30" width="80" height="60" rx="8" fill="#e0e7ff" stroke="#818cf8" stroke-width="2" />
+            <circle cx="60" cy="55" r="12" fill="#818cf8" opacity="0.3" />
+            <path d="M54 55l4 4 8-8" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="35" y="70" width="50" height="4" rx="2" fill="#c7d2fe" />
+            <rect x="42" y="78" width="36" height="3" rx="1.5" fill="#e0e7ff" />
+            <path d="M60 20v6M44 24l3 5.2M76 24l-3 5.2" stroke="#818cf8" stroke-width="2" stroke-linecap="round" />
           </svg>
         </div>
         <h3 class="empty-title">暂无数据源</h3>
@@ -38,13 +38,13 @@
       <div v-else class="card-grid">
         <div v-for="ds in datasources" :key="ds.id" class="datasource-card" :class="{ 'card-disabled': ds.status === 0 }">
           <!-- 卡片顶部：类型色条 -->
-          <div class="card-color-bar" :class="ds.type === 'prometheus' ? 'bar-prometheus' : 'bar-nightingale'" />
+          <div class="card-color-bar" :class="ds.type === 'prometheus' ? 'bar-prometheus' : 'bar-nightingale'"></div>
 
           <div class="card-body">
             <!-- 标题行 -->
             <div class="card-header">
               <div class="card-title-row">
-                <span class="type-icon" v-html="getTypeLogo(ds.type)" />
+                <span class="type-icon" v-html="getTypeLogo(ds.type)"></span>
                 <div class="card-title-info">
                   <span class="card-name">{{ ds.name }}</span>
                   <div class="card-tags">
@@ -74,13 +74,13 @@
               <div class="detail-item">
                 <span class="detail-label">连接状态</span>
                 <span v-if="ds.last_check_ok === true" class="status-badge status-ok">
-                  <span class="status-indicator" />正常
+                  <span class="status-indicator"></span>正常
                 </span>
                 <span v-else-if="ds.last_check_ok === false" class="status-badge status-fail">
-                  <span class="status-indicator" />异常
+                  <span class="status-indicator"></span>异常
                 </span>
                 <span v-else class="status-badge status-unknown">
-                  <span class="status-indicator" />未检测
+                  <span class="status-indicator"></span>未检测
                 </span>
               </div>
 

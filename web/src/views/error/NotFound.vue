@@ -4,10 +4,10 @@
       <div class="error-code">404</div>
       <div class="error-illustration">
         <svg viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="100" cy="60" r="50" fill="#f0f5ff" stroke="#d6e4ff" stroke-width="2"/>
-          <path d="M80 50 L90 60 L80 70" stroke="#4f6ef7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M120 50 L110 60 L120 70" stroke="#4f6ef7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M88 82 Q100 75 112 82" stroke="#4f6ef7" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <circle cx="100" cy="60" r="50" fill="#f0f5ff" stroke="#d6e4ff" stroke-width="2" />
+          <path d="M80 50 L90 60 L80 70" stroke="#4f6ef7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M120 50 L110 60 L120 70" stroke="#4f6ef7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M88 82 Q100 75 112 82" stroke="#4f6ef7" stroke-width="2.5" stroke-linecap="round" fill="none" />
         </svg>
       </div>
       <h2 class="error-title">页面不存在</h2>

@@ -277,7 +277,7 @@ func (s *configService) UpdateConfig(ctx context.Context, key, value string, use
 	}
 
 	// 清除缓存
-	s.InvalidateCache(ctx, key)
+	_ = s.InvalidateCache(ctx, key)
 
 	logger.Info("config updated",
 		zap.String("key", key),
@@ -289,7 +289,7 @@ func (s *configService) UpdateConfig(ctx context.Context, key, value string, use
 
 // BatchUpdateConfigs 批量更新配置
 func (s *configService) BatchUpdateConfigs(ctx context.Context, configs map[string]string, userID uint64) error {
-	var modelConfigs []*model.SystemConfig
+	modelConfigs := make([]*model.SystemConfig, 0, len(configs))
 	for key, value := range configs {
 		modelConfigs = append(modelConfigs, &model.SystemConfig{
 			ConfigKey:   key,
@@ -303,7 +303,7 @@ func (s *configService) BatchUpdateConfigs(ctx context.Context, configs map[stri
 	}
 
 	// 清除所有缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("configs batch updated",
 		zap.Int("count", len(configs)),
@@ -382,7 +382,7 @@ func (s *configService) UpdateEmailConfig(ctx context.Context, req *dto.UpdateEm
 	}
 
 	// 清除缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("email config updated", zap.Uint64("updated_by", userID))
 
@@ -509,7 +509,7 @@ func (s *configService) UpdateSecurityConfig(ctx context.Context, req *dto.Updat
 	}
 
 	// 清除缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("security config updated", zap.Uint64("updated_by", userID))
 
@@ -568,7 +568,7 @@ func (s *configService) UpdateLarkConfig(ctx context.Context, req *dto.UpdateLar
 	}
 
 	// 清除缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("lark config updated", zap.Uint64("updated_by", userID))
 
@@ -627,7 +627,7 @@ func (s *configService) UpdateTelegramConfig(ctx context.Context, req *dto.Updat
 	}
 
 	// 清除缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("telegram config updated", zap.Uint64("updated_by", userID))
 
@@ -714,7 +714,7 @@ func (s *configService) UpdateRateLimitConfig(ctx context.Context, req *dto.Upda
 	}
 
 	// 清除缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("ratelimit config updated", zap.Uint64("updated_by", userID))
 
@@ -818,7 +818,7 @@ func (s *configService) UpdateSSOConfig(ctx context.Context, req *dto.UpdateSSOC
 	}
 
 	// 清除缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("SSO config updated", zap.Uint64("updated_by", userID))
 
@@ -892,7 +892,7 @@ func (s *configService) UpdateBrandConfig(ctx context.Context, req *dto.UpdateBr
 	}
 
 	// 清除缓存
-	s.InvalidateAllCache(ctx)
+	_ = s.InvalidateAllCache(ctx)
 
 	logger.Info("brand config updated", zap.Uint64("updated_by", userID))
 
@@ -1119,8 +1119,8 @@ func (s *configService) toWebhookResponse(webhook *model.Webhook) *dto.WebhookRe
 	var events []string
 	var headers map[string]string
 
-	json.Unmarshal([]byte(webhook.Events), &events)
-	json.Unmarshal([]byte(webhook.Headers), &headers)
+	_ = json.Unmarshal([]byte(webhook.Events), &events)
+	_ = json.Unmarshal([]byte(webhook.Headers), &headers)
 
 	return &dto.WebhookResponse{
 		ID:          webhook.ID,

@@ -11,13 +11,13 @@
     </div>
     <div class="notif-body">
       <div class="notif-title">{{ notification.title }}</div>
-      <div class="notif-content" v-if="notification.content">{{ notification.content }}</div>
+      <div v-if="notification.content" class="notif-content">{{ notification.content }}</div>
       <div class="notif-meta">
         <span v-if="notification.actor_name" class="notif-actor">{{ notification.actor_name }}</span>
         <span class="notif-time">{{ timeAgo(notification.created_at) }}</span>
       </div>
     </div>
-    <div class="notif-dot" v-if="!notification.is_read"></div>
+    <div v-if="!notification.is_read" class="notif-dot"></div>
   </div>
 </template>
 

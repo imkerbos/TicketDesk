@@ -233,10 +233,10 @@
         <div class="mfa-step">
           <h4>第 2 步：扫描二维码</h4>
           <p>使用验证器应用扫描以下二维码：</p>
-          <div class="qr-code" v-if="mfaSetupData">
+          <div v-if="mfaSetupData" class="qr-code">
             <img :src="qrCodeUrl" alt="MFA QR Code" />
           </div>
-          <p class="manual-key" v-if="mfaSetupData">
+          <p v-if="mfaSetupData" class="manual-key">
             或手动输入密钥：<code>{{ mfaSetupData.secret }}</code>
           </p>
         </div>

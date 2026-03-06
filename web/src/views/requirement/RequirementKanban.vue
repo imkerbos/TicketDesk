@@ -39,7 +39,7 @@
     </el-card>
 
     <!-- 看板 -->
-    <div class="kanban-container" v-loading="loading">
+    <div v-loading="loading" class="kanban-container">
       <div class="kanban-board">
         <div
           v-for="column in kanbanData.columns"
@@ -85,7 +85,7 @@
                 </span>
               </div>
               <!-- 关联工单信息 -->
-              <div class="card-issue" v-if="requirement.converted_issue_key">
+              <div v-if="requirement.converted_issue_key" class="card-issue">
                 <el-icon><Link /></el-icon>
                 <span class="issue-key">{{ requirement.converted_issue_key }}</span>
                 <el-tag
@@ -98,7 +98,7 @@
               </div>
               <div class="card-footer">
                 <span class="pool-name">{{ requirement.pool_name }}</span>
-                <span class="comment-count" v-if="requirement.comment_count > 0">
+                <span v-if="requirement.comment_count > 0" class="comment-count">
                   <el-icon><ChatDotRound /></el-icon>
                   {{ requirement.comment_count }}
                 </span>
@@ -168,17 +168,17 @@
           <div class="description-content">{{ selectedRequirement.description || '暂无描述' }}</div>
         </div>
 
-        <div class="description-section" v-if="selectedRequirement.progress">
+        <div v-if="selectedRequirement.progress" class="description-section">
           <h4>当前进度</h4>
           <div class="description-content">{{ selectedRequirement.progress }}</div>
         </div>
 
-        <div class="description-section" v-if="selectedRequirement.result">
+        <div v-if="selectedRequirement.result" class="description-section">
           <h4>结果</h4>
           <div class="description-content">{{ selectedRequirement.result }}</div>
         </div>
 
-        <div class="tags-section" v-if="selectedRequirement.tags && selectedRequirement.tags.length">
+        <div v-if="selectedRequirement.tags && selectedRequirement.tags.length" class="tags-section">
           <h4>标签</h4>
           <div class="tags">
             <el-tag v-for="tag in selectedRequirement.tags" :key="tag" size="small">{{ tag }}</el-tag>
@@ -187,25 +187,25 @@
 
         <div class="actions-section">
           <el-button-group>
-            <el-button @click="handleStatusChange('planning')" v-if="selectedRequirement.status === 'pending_review'">
+            <el-button v-if="selectedRequirement.status === 'pending_review'" @click="handleStatusChange('planning')">
               开始规划
             </el-button>
-            <el-button type="primary" @click="handleStatusChange('in_progress')" v-if="selectedRequirement.status === 'pending_review' || selectedRequirement.status === 'planning' || selectedRequirement.status === 'on_hold'">
+            <el-button v-if="selectedRequirement.status === 'pending_review' || selectedRequirement.status === 'planning' || selectedRequirement.status === 'on_hold'" type="primary" @click="handleStatusChange('in_progress')">
               开始执行
             </el-button>
-            <el-button type="success" @click="handleStatusChange('completed')" v-if="selectedRequirement.status === 'in_progress'">
+            <el-button v-if="selectedRequirement.status === 'in_progress'" type="success" @click="handleStatusChange('completed')">
               完成
             </el-button>
-            <el-button type="warning" @click="handleStatusChange('on_hold')" v-if="selectedRequirement.status === 'pending_review' || selectedRequirement.status === 'planning' || selectedRequirement.status === 'in_progress'">
+            <el-button v-if="selectedRequirement.status === 'pending_review' || selectedRequirement.status === 'planning' || selectedRequirement.status === 'in_progress'" type="warning" @click="handleStatusChange('on_hold')">
               搁置
             </el-button>
-            <el-button type="danger" @click="handleStatusChange('rejected')" v-if="selectedRequirement.status === 'pending_review' || selectedRequirement.status === 'planning' || selectedRequirement.status === 'in_progress'">
+            <el-button v-if="selectedRequirement.status === 'pending_review' || selectedRequirement.status === 'planning' || selectedRequirement.status === 'in_progress'" type="danger" @click="handleStatusChange('rejected')">
               拒绝
             </el-button>
-            <el-button @click="handleStatusChange('pending_review')" v-if="selectedRequirement.status === 'rejected' || selectedRequirement.status === 'on_hold'">
+            <el-button v-if="selectedRequirement.status === 'rejected' || selectedRequirement.status === 'on_hold'" @click="handleStatusChange('pending_review')">
               重新评估
             </el-button>
-            <el-button type="primary" @click="handleConvert" v-if="selectedRequirement.status !== 'completed' && selectedRequirement.status !== 'rejected' && !selectedRequirement.converted_issue_id">
+            <el-button v-if="selectedRequirement.status !== 'completed' && selectedRequirement.status !== 'rejected' && !selectedRequirement.converted_issue_id" type="primary" @click="handleConvert">
               转化为工单
             </el-button>
           </el-button-group>
@@ -215,7 +215,7 @@
 
     <!-- 创建需求对话框 -->
     <el-dialog v-model="showCreateDialog" title="创建需求" width="700px" @closed="resetForm">
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="需求池" prop="pool_id">
           <el-select v-model="form.pool_id" placeholder="请选择需求池" style="width: 100%">
             <el-option
@@ -278,7 +278,7 @@
       </el-form>
       <template #footer>
         <el-button @click="handleCancel">取消</el-button>
-        <el-button type="primary" @click="handleCreateSubmit" :loading="submitting">确定</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleCreateSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -447,7 +447,7 @@ const loadKanban = async () => {
       group_by: filters.group_by,
     })
     kanbanData.value = data.data
-  } catch (error) {
+  } catch {
     ElMessage.error('加载看板数据失败')
   } finally {
     loading.value = false

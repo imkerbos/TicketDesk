@@ -1,6 +1,6 @@
 <template>
   <div class="alert-detail-container">
-    <el-page-header @back="$router.back()" style="margin-bottom: 20px">
+    <el-page-header style="margin-bottom: 20px" @back="$router.back()">
       <template #content>
         <span style="font-size: 18px; font-weight: 500">告警详情</span>
       </template>

@@ -11,7 +11,7 @@
           <p class="header-desc">配置和管理工作流程</p>
         </div>
       </div>
-      <el-button type="primary" @click="handleCreate" class="header-btn">
+      <el-button type="primary" class="header-btn" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         创建工作流
       </el-button>
@@ -118,7 +118,7 @@
             </div>
             <div class="node-actions">
               <el-button size="small" @click="handleEditNode(node)">编辑</el-button>
-              <el-button size="small" type="danger" @click="handleDeleteNode(node)" :disabled="node.node_type === 'start' || node.node_type === 'end'">删除</el-button>
+              <el-button size="small" type="danger" :disabled="node.node_type === 'start' || node.node_type === 'end'" @click="handleDeleteNode(node)">删除</el-button>
             </div>
           </div>
           <el-empty v-if="!nodesLoading && workflowNodes.length === 0" description="暂无节点" />
@@ -127,7 +127,7 @@
         <!-- 边管理 -->
         <div class="section-header" style="margin-top: 24px;">
           <h4>边列表（流转路径）</h4>
-          <el-button type="primary" size="small" @click="handleAddEdge" :disabled="workflowNodes.length < 2">
+          <el-button type="primary" size="small" :disabled="workflowNodes.length < 2" @click="handleAddEdge">
             <el-icon><Plus /></el-icon>
             添加边
           </el-button>

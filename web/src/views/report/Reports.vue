@@ -23,7 +23,7 @@
           :shortcuts="dateShortcuts"
           @change="handleDateChange"
         />
-        <el-select v-model="selectedProject" placeholder="全部项目" clearable style="width: 200px" @change="handleProjectChange" filterable>
+        <el-select v-model="selectedProject" placeholder="全部项目" clearable style="width: 200px" filterable @change="handleProjectChange">
           <el-option v-for="p in projects" :key="p.project_key" :label="`${p.project_key} - ${p.name}`" :value="p.project_key" />
         </el-select>
       </div>

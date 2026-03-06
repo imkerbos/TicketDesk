@@ -677,8 +677,8 @@
                     v-for="mKey in issue.merged_from_issue_keys"
                     :key="mKey"
                     type="primary"
-                    @click="navigateToIssue(mKey)"
                     style="margin-right: 8px;"
+                    @click="navigateToIssue(mKey)"
                   >
                     {{ mKey }}
                   </el-link>
@@ -964,20 +964,20 @@
                 <div v-if="item.field?.field_key === 'assignee'" style="display: flex; gap: 8px; width: 100%;">
                   <FieldRenderer
                     v-if="item.field && issue"
+                    v-model="editFieldValues[item.field_id]"
                     :field="item.field"
                     :scheme="item"
                     :project-key="issue.project_key"
-                    v-model="editFieldValues[item.field_id]"
                     style="flex: 1;"
                   />
                   <el-button @click="assignToMeField(item.field_id)">分配给我</el-button>
                 </div>
                 <FieldRenderer
                   v-else-if="item.field && issue"
+                  v-model="editFieldValues[item.field_id]"
                   :field="item.field"
                   :scheme="item"
                   :project-key="issue.project_key"
-                  v-model="editFieldValues[item.field_id]"
                 />
               </el-form-item>
             </el-col>
@@ -1033,10 +1033,10 @@
                 </template>
                 <FieldRenderer
                   v-if="item.field"
+                  v-model="createSubtaskFieldValues[item.field_id]"
                   :field="item.field"
                   :scheme="item"
                   :project-key="createSubtaskForm.project_key"
-                  v-model="createSubtaskFieldValues[item.field_id]"
                 />
               </el-form-item>
             </el-col>
@@ -1156,6 +1156,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   embedded: false,
   issueKey: '',
+  onNavigateIssue: undefined,
+  onDeleted: undefined,
 })
 
 const route = useRoute()
@@ -1332,7 +1334,7 @@ const loadWorkflowData = async (key: string) => {
   try {
     const { data } = await getWorkflowInstance(key)
     workflowInstance.value = (data as any).data
-  } catch (e: any) {
+  } catch {
     // 404 或其他错误表示没有关联工作流，不显示卡片
     workflowInstance.value = null
     workflowHistoryList.value = []
@@ -1348,7 +1350,7 @@ const loadWorkflowData = async (key: string) => {
     ])
     diagramNodes.value = (nodesRes.data as any).data || []
     diagramEdges.value = (edgesRes.data as any).data || []
-  } catch (e: any) {
+  } catch {
     // 静默处理
   }
 
@@ -1356,7 +1358,7 @@ const loadWorkflowData = async (key: string) => {
   try {
     const { data } = await getWorkflowHistory(key)
     workflowHistoryList.value = (data as any).data || []
-  } catch (e: any) {
+  } catch {
     workflowHistoryList.value = []
   }
 }

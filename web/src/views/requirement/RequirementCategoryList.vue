@@ -57,9 +57,11 @@
                 link
                 type="danger"
                 size="small"
-                @click="handleDelete(row)"
                 :disabled="row.is_system"
-              >删除</el-button>
+                @click="handleDelete(row)"
+              >
+                删除
+              </el-button>
             </div>
           </template>
         </el-table-column>
@@ -74,14 +76,14 @@
       destroy-on-close
       @closed="resetForm"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="标识" prop="name">
           <el-input
             v-model="form.name"
             placeholder="英文标识，如 feature"
             :disabled="!!editing"
           />
-          <div class="form-tip" v-if="!editing">创建后不可修改，建议使用英文小写</div>
+          <div v-if="!editing" class="form-tip">创建后不可修改，建议使用英文小写</div>
         </el-form-item>
         <el-form-item label="显示名称" prop="label">
           <el-input v-model="form.label" placeholder="如 功能需求" />
@@ -110,16 +112,16 @@
             </el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="排序" prop="sort_order" v-if="editing">
+        <el-form-item v-if="editing" label="排序" prop="sort_order">
           <el-input-number v-model="form.sort_order" :min="0" :max="999" />
         </el-form-item>
-        <el-form-item label="设为默认" v-if="editing">
+        <el-form-item v-if="editing" label="设为默认">
           <el-switch v-model="form.is_default" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>

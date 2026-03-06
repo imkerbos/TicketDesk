@@ -133,7 +133,7 @@ func (s *attachmentService) UploadAttachment(ctx context.Context, issueKey strin
 
 	if err := s.attachmentRepo.Create(ctx, attachment); err != nil {
 		// 删除已保存的文件
-		s.storage.Delete(relPath)
+		_ = s.storage.Delete(relPath)
 		logger.Error("failed to create attachment record", zap.Error(err))
 		return nil, fmt.Errorf("创建附件记录失败: %w", err)
 	}
@@ -145,7 +145,7 @@ func (s *attachmentService) UploadAttachment(ctx context.Context, issueKey strin
 		if user != nil {
 			userName = user.DisplayName
 		}
-		s.activityLogger.LogActivity(
+		_ = s.activityLogger.LogActivity(
 			ctx,
 			userID,
 			userName,
@@ -235,7 +235,7 @@ func (s *attachmentService) DeleteAttachment(ctx context.Context, issueKey strin
 		if user != nil {
 			userName = user.DisplayName
 		}
-		s.activityLogger.LogActivity(
+		_ = s.activityLogger.LogActivity(
 			ctx,
 			userID,
 			userName,

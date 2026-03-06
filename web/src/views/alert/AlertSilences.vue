@@ -105,7 +105,7 @@
       width="600px"
       @close="handleDialogClose"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-position="top">
+      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item label="静默名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入静默名称" />
         </el-form-item>

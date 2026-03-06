@@ -50,7 +50,7 @@
               clearable
               class="search-input"
             />
-            <el-button type="primary" @click="openCreateFieldDialog" class="action-btn">
+            <el-button type="primary" class="action-btn" @click="openCreateFieldDialog">
               <el-icon><Plus /></el-icon>
               创建字段
             </el-button>
@@ -121,7 +121,7 @@
               </div>
               <span class="section-hint">全局可用的自定义字段，可被所有项目引用</span>
             </div>
-            <div class="field-card-list" v-loading="fieldsLoading">
+            <div v-loading="fieldsLoading" class="field-card-list">
               <div
                 v-for="field in filteredCustomFields"
                 :key="field.id"
@@ -179,7 +179,7 @@
           <!-- 模板列表头部 -->
           <div class="tab-header">
             <div class="tab-header-hint">模板定义了一组字段配置，可快速套用到项目的工单类型</div>
-            <el-button type="primary" @click="openCreateTemplateDialog" class="action-btn">
+            <el-button type="primary" class="action-btn" @click="openCreateTemplateDialog">
               <el-icon><Plus /></el-icon>
               创建模板
             </el-button>
@@ -230,7 +230,7 @@
                           <el-icon><Edit /></el-icon>
                           编辑信息
                         </el-dropdown-item>
-                        <el-dropdown-item divided @click="handleDeleteTemplate(tpl)" class="danger-item">
+                        <el-dropdown-item divided class="danger-item" @click="handleDeleteTemplate(tpl)">
                           <el-icon><Delete /></el-icon>
                           删除模板
                         </el-dropdown-item>
@@ -436,8 +436,8 @@
       <el-table
         :data="availableFieldsForTemplate"
         max-height="400"
-        @selection-change="handleTemplateFieldSelectionChange"
         class="select-field-table"
+        @selection-change="handleTemplateFieldSelectionChange"
       >
         <el-table-column type="selection" width="46" />
         <el-table-column label="字段" min-width="200">
@@ -722,7 +722,7 @@ const submitFieldForm = async () => {
 const handleToggleFieldActive = async (field: FieldDefinition) => {
   try {
     await updateGlobalField(field.id, { is_active: field.is_active })
-  } catch (error) {
+  } catch {
     field.is_active = !field.is_active
     ElMessage.error('更新状态失败')
   }
@@ -731,7 +731,7 @@ const handleToggleFieldActive = async (field: FieldDefinition) => {
 const handleUpdateFieldSort = async (field: FieldDefinition) => {
   try {
     await updateGlobalField(field.id, { sort_order: field.sort_order })
-  } catch (error) {
+  } catch {
     ElMessage.error('更新排序失败')
     await loadFields()
   }

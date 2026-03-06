@@ -98,13 +98,6 @@ func (s *larkService) SendTestMessage(ctx context.Context) error {
 		return fmt.Errorf("飞书 Webhook URL 未配置")
 	}
 
-	// 获取站点 URL
-	siteURL, _ := s.configSvc.GetConfigValue(ctx, configService.KeyGeneralSiteURL)
-	if siteURL == "" {
-		siteURL = "https://ticketdesk.example.com"
-	}
-	siteURL = strings.TrimRight(siteURL, "/")
-
 	card := map[string]interface{}{
 		"config": map[string]interface{}{
 			"wide_screen_mode": true,

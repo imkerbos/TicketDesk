@@ -52,7 +52,7 @@ func NewN9eClientFromDatasource(baseURL, token string) *N9eClient {
 func (c *N9eClient) FetchActiveAlerts(ctx context.Context, page, limit int) ([]dto.N9eAlertEvent, int64, error) {
 	url := fmt.Sprintf("%s/api/n9e/alert-cur-events/list?limit=%d&p=%d", c.baseURL, limit, page)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}

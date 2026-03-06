@@ -4,11 +4,11 @@
       <div class="error-code">403</div>
       <div class="error-illustration">
         <svg viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="100" cy="60" r="50" fill="#fff7ed" stroke="#fed7aa" stroke-width="2"/>
-          <rect x="88" y="40" width="24" height="30" rx="4" stroke="#f59e0b" stroke-width="2.5" fill="none"/>
-          <path d="M92 40 V34 Q100 22 108 34 V40" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-          <circle cx="100" cy="53" r="3" fill="#f59e0b"/>
-          <line x1="100" y1="56" x2="100" y2="62" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="100" cy="60" r="50" fill="#fff7ed" stroke="#fed7aa" stroke-width="2" />
+          <rect x="88" y="40" width="24" height="30" rx="4" stroke="#f59e0b" stroke-width="2.5" fill="none" />
+          <path d="M92 40 V34 Q100 22 108 34 V40" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          <circle cx="100" cy="53" r="3" fill="#f59e0b" />
+          <line x1="100" y1="56" x2="100" y2="62" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" />
         </svg>
       </div>
       <h2 class="error-title">没有访问权限</h2>

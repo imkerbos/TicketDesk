@@ -36,14 +36,15 @@ func LoggerMiddleware() gin.HandlerFunc {
 			fields = append(fields, zap.Any("user_id", userID))
 		}
 
-		if len(c.Errors) > 0 {
+		switch {
+		case len(c.Errors) > 0:
 			fields = append(fields, zap.String("errors", c.Errors.String()))
 			logger.Error("request error", fields...)
-		} else if statusCode >= 500 {
+		case statusCode >= 500:
 			logger.Error("server error", fields...)
-		} else if statusCode >= 400 {
+		case statusCode >= 400:
 			logger.Warn("client error", fields...)
-		} else {
+		default:
 			logger.Info("request completed", fields...)
 		}
 	}

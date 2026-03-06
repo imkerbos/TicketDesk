@@ -21,7 +21,7 @@
         <span
           class="label-color"
           :style="{ backgroundColor: label.color || '#909399' }"
-        />
+        ></span>
         <span class="label-name">{{ label.name }}</span>
       </div>
     </el-option>

@@ -110,7 +110,6 @@
             {{ ssoConfig.provider_name || 'SSO 登录' }}
           </el-button>
         </div>
-
       </div>
     </div>
   </div>

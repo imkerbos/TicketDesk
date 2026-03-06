@@ -226,7 +226,7 @@
                 </div>
 
                 <el-form-item>
-                  <el-button type="primary" @click="saveGeneralConfig" :loading="generalLoading">
+                  <el-button type="primary" :loading="generalLoading" @click="saveGeneralConfig">
                     保存配置
                   </el-button>
                 </el-form-item>
@@ -647,19 +647,19 @@
                   <el-input
                     v-model="item.label"
                     placeholder="工作类型名称"
-                    @input="item.value = item.label"
                     style="flex: 1"
+                    @input="item.value = item.label"
                   />
                   <el-button
                     type="danger"
                     link
-                    @click="removeWorkType(index)"
                     :disabled="workTypeList.length <= 1"
+                    @click="removeWorkType(index)"
                   >
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <el-button type="primary" link @click="addWorkType" style="margin-top: 8px">
+                <el-button type="primary" link style="margin-top: 8px" @click="addWorkType">
                   + 添加工作类型
                 </el-button>
               </div>
@@ -810,7 +810,7 @@
                 <div class="form-section">
                   <div class="section-title">
                     Claims 映射
-                    <el-button type="primary" link size="small" @click="addClaimMapping" style="margin-left: 8px">
+                    <el-button type="primary" link size="small" style="margin-left: 8px" @click="addClaimMapping">
                       + 添加映射
                     </el-button>
                   </div>
@@ -842,8 +842,8 @@
                           <el-button
                             type="danger"
                             link
-                            @click="removeClaimMapping(index)"
                             :disabled="ssoForm.claim_mappings.length <= 1"
+                            @click="removeClaimMapping(index)"
                           >
                             删除
                           </el-button>
@@ -875,24 +875,24 @@
                   <div class="tip-item">
                     <div class="tip-label">OIDC 对接步骤</div>
                     <div class="tip-desc">
-                      1. 在 EIAM 中创建 OIDC 应用，获取 Client ID 和 Secret<br>
-                      2. 填写 Issuer URL（通常为 EIAM 的 realm 地址）<br>
-                      3. 在 EIAM 中配置回调地址为本系统的回调 URL<br>
+                      1. 在 EIAM 中创建 OIDC 应用，获取 Client ID 和 Secret<br />
+                      2. 填写 Issuer URL（通常为 EIAM 的 realm 地址）<br />
+                      3. 在 EIAM 中配置回调地址为本系统的回调 URL<br />
                       4. 启用 SSO 后，登录页将出现 SSO 登录按钮
                     </div>
                   </div>
                   <div class="tip-item">
                     <div class="tip-label">IdP-initiated 登录</div>
                     <div class="tip-desc">
-                      在 EIAM 门户中将应用入口 URL 配置为：<br>
+                      在 EIAM 门户中将应用入口 URL 配置为：<br />
                       <code>{{ ssoForm.redirect_uri?.replace('/auth/sso/callback', '/auth/sso/login') || 'https://your-domain/auth/sso/login' }}</code>
                     </div>
                   </div>
                   <div class="tip-item">
                     <div class="tip-label">Claims 映射</div>
                     <div class="tip-desc">
-                      根据 EIAM 返回的 ID Token 中的 claim 名称进行映射。<br>
-                      内置字段：username、email、display_name、avatar 会映射到用户基本信息。<br>
+                      根据 EIAM 返回的 ID Token 中的 claim 名称进行映射。<br />
+                      内置字段：username、email、display_name、avatar 会映射到用户基本信息。<br />
                       自定义字段名（如 department、employee_id）会存入用户扩展属性。
                     </div>
                   </div>
@@ -1113,7 +1113,7 @@ const saveGeneralConfig = async () => {
     try {
       await updateConfig('general.site_url', generalForm.site_url)
       ElMessage.success('通用配置保存成功')
-    } catch (error) {
+    } catch {
       // 错误已在拦截器中处理
     } finally {
       generalLoading.value = false

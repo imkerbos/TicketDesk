@@ -1,5 +1,5 @@
 <template>
-  <div class="config-panel" v-if="node">
+  <div v-if="node" class="config-panel">
     <div class="panel-header">
       <h3 class="panel-title">节点配置</h3>
       <el-button text size="small" @click="$emit('close')">
@@ -135,7 +135,7 @@
         </template>
 
         <!-- 删除按钮（开始/结束节点不可删除） -->
-        <div class="config-section" v-if="node.data.nodeType !== 'start' && node.data.nodeType !== 'end'">
+        <div v-if="node.data.nodeType !== 'start' && node.data.nodeType !== 'end'" class="config-section">
           <el-button type="danger" plain style="width: 100%" @click="$emit('delete', node.id)">
             <el-icon><Delete /></el-icon>
             删除节点

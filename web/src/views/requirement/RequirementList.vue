@@ -67,13 +67,13 @@
 
     <!-- 需求列表 -->
     <el-card class="table-card" shadow="never">
-      <el-table :data="requirements" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="requirements" stripe>
         <el-table-column prop="title" label="需求名称" min-width="250">
           <template #default="{ row }">
             <span class="link" @click="handleViewDetail(row)">
               {{ row.title }}
             </span>
-            <div class="tags" v-if="row.tags && row.tags.length">
+            <div v-if="row.tags && row.tags.length" class="tags">
               <el-tag v-for="tag in row.tags" :key="tag" size="small" type="info">{{ tag }}</el-tag>
             </div>
           </template>
@@ -158,18 +158,20 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="planning" v-if="row.status === 'pending_review'">流转：规划中</el-dropdown-item>
-                  <el-dropdown-item command="in_progress" v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'on_hold'">流转：进行中</el-dropdown-item>
-                  <el-dropdown-item command="completed" v-if="row.status === 'in_progress'">流转：已完成</el-dropdown-item>
-                  <el-dropdown-item command="on_hold" v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'in_progress'">流转：搁置</el-dropdown-item>
-                  <el-dropdown-item command="rejected" v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'in_progress'">流转：拒绝</el-dropdown-item>
-                  <el-dropdown-item command="pending_review" v-if="row.status === 'rejected' || row.status === 'on_hold'">恢复：待评估</el-dropdown-item>
-                  <el-dropdown-item command="in_progress" v-if="row.status === 'completed'">恢复：进行中</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'pending_review'" command="planning">流转：规划中</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'on_hold'" command="in_progress">流转：进行中</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'in_progress'" command="completed">流转：已完成</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'in_progress'" command="on_hold">流转：搁置</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'pending_review' || row.status === 'planning' || row.status === 'in_progress'" command="rejected">流转：拒绝</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'rejected' || row.status === 'on_hold'" command="pending_review">恢复：待评估</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'completed'" command="in_progress">恢复：进行中</el-dropdown-item>
                   <el-dropdown-item
+                    v-if="row.status !== 'completed' && row.status !== 'rejected' && !row.converted_issue_id"
                     command="convert"
                     divided
-                    v-if="row.status !== 'completed' && row.status !== 'rejected' && !row.converted_issue_id"
-                  >转工单</el-dropdown-item>
+                  >
+                    转工单
+                  </el-dropdown-item>
                   <el-dropdown-item command="delete" divided style="color: var(--td-color-danger);">删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -199,7 +201,7 @@
       width="700px"
       @closed="resetForm"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="需求池" prop="pool_id">
           <el-select v-model="form.pool_id" placeholder="请选择需求池" :disabled="!!editingRequirement" style="width: 100%">
             <el-option
@@ -295,7 +297,7 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="进度" prop="progress" v-if="editingRequirement">
+        <el-form-item v-if="editingRequirement" label="进度" prop="progress">
           <el-input
             v-model="form.progress"
             type="textarea"
@@ -303,7 +305,7 @@
             placeholder="请输入当前进度描述"
           />
         </el-form-item>
-        <el-form-item label="结果" prop="result" v-if="editingRequirement">
+        <el-form-item v-if="editingRequirement" label="结果" prop="result">
           <el-input
             v-model="form.result"
             type="textarea"
@@ -335,13 +337,13 @@
       </el-form>
       <template #footer>
         <el-button @click="handleCancel">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
 
     <!-- 转化为工单对话框 -->
     <el-dialog v-model="showConvertDialog" title="转化为工单" width="500px">
-      <el-form :model="convertForm" :rules="convertRules" ref="convertFormRef" label-width="100px">
+      <el-form ref="convertFormRef" :model="convertForm" :rules="convertRules" label-width="100px">
         <el-form-item label="目标项目" prop="project_key">
           <el-select v-model="convertForm.project_key" placeholder="请选择项目" style="width: 100%" @change="loadIssueTypes">
             <el-option
@@ -375,12 +377,12 @@
       </el-form>
       <template #footer>
         <el-button @click="showConvertDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleConvertSubmit" :loading="converting">转化</el-button>
+        <el-button type="primary" :loading="converting" @click="handleConvertSubmit">转化</el-button>
       </template>
     </el-dialog>
 
     <!-- 详情抽屉 -->
-    <el-drawer v-model="showDetailDrawer" title="需求详情" size="50%" v-if="selectedRequirement">
+    <el-drawer v-if="selectedRequirement" v-model="showDetailDrawer" title="需求详情" size="50%">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="标题" :span="2">{{ selectedRequirement.title }}</el-descriptions-item>
         <el-descriptions-item label="需求池" :span="2">{{ selectedRequirement.pool_name }}</el-descriptions-item>
@@ -431,17 +433,17 @@
         <p>{{ selectedRequirement.description || '暂无描述' }}</p>
       </div>
 
-      <div class="description-section" style="margin-top: 20px;" v-if="selectedRequirement.progress">
+      <div v-if="selectedRequirement.progress" class="description-section" style="margin-top: 20px;">
         <h4>当前进度</h4>
         <p>{{ selectedRequirement.progress }}</p>
       </div>
 
-      <div class="description-section" style="margin-top: 20px;" v-if="selectedRequirement.result">
+      <div v-if="selectedRequirement.result" class="description-section" style="margin-top: 20px;">
         <h4>结果</h4>
         <p>{{ selectedRequirement.result }}</p>
       </div>
 
-      <div class="tags-section" style="margin-top: 20px;" v-if="selectedRequirement.tags && selectedRequirement.tags.length">
+      <div v-if="selectedRequirement.tags && selectedRequirement.tags.length" class="tags-section" style="margin-top: 20px;">
         <h4>标签</h4>
         <el-tag v-for="tag in selectedRequirement.tags" :key="tag" style="margin-right: 8px;">{{ tag }}</el-tag>
       </div>
@@ -690,7 +692,7 @@ const loadData = async () => {
     })
     requirements.value = data.data.items
     pagination.total = data.data.total
-  } catch (error) {
+  } catch {
     ElMessage.error('加载需求列表失败')
   } finally {
     loading.value = false

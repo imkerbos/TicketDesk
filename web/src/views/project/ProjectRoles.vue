@@ -16,7 +16,7 @@
           <el-icon><Back /></el-icon>
           返回项目
         </el-button>
-        <el-button type="primary" @click="handleCreateRole" class="header-btn">
+        <el-button type="primary" class="header-btn" @click="handleCreateRole">
           <el-icon><Plus /></el-icon>
           创建角色
         </el-button>
@@ -93,7 +93,7 @@
               <span style="color: var(--td-text-placeholder); margin-left: 8px">{{ u.username }}</span>
             </el-option>
           </el-select>
-          <el-button type="primary" :loading="addMemberLoading" @click="handleAddMember" :disabled="!selectedUserId">
+          <el-button type="primary" :loading="addMemberLoading" :disabled="!selectedUserId" @click="handleAddMember">
             <el-icon><Plus /></el-icon>
             添加成员
           </el-button>

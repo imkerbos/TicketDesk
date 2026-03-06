@@ -211,7 +211,9 @@ func (s *issueService) notifyProjectChannels(projectID uint64, event string, dat
 		return
 	}
 	go func() {
-		if err := s.projectNotifier.NotifyProject(context.Background(), projectID, event, data); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := s.projectNotifier.NotifyProject(ctx, projectID, event, data); err != nil {
 			logger.Warn("failed to notify project channels",
 				zap.Uint64("project_id", projectID),
 				zap.String("event", event),
@@ -229,26 +231,30 @@ func (s *issueService) sendNotification(actorID uint64, actorName string, req *N
 	req.ActorID = actorID
 	req.ActorName = actorName
 	go func() {
-		if err := s.notifSender.CreateNotification(context.Background(), req); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.notifSender.CreateNotification(ctx, req); err != nil {
 			logger.Warn("failed to send notification", zap.Error(err))
 		}
 	}()
 }
 
-// notifyWatchers 通知所有关注者（排除指定用户）
-func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID, actorID uint64, actorName, notifType, title, content string) {
+// notifyWatchers 通知所有关注者（排除指定用户），返回已通知的用户ID集合
+func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID, actorID uint64, actorName, notifType, title, content string) map[uint64]bool {
+	notified := make(map[uint64]bool)
 	if s.notifSender == nil {
-		return
+		return notified
 	}
 	watchers, err := s.watcherRepo.ListByIssue(context.Background(), issue.ID)
 	if err != nil {
 		logger.Warn("failed to list watchers for notification", zap.Error(err))
-		return
+		return notified
 	}
 	for _, w := range watchers {
 		if w.UserID == excludeUserID {
 			continue
 		}
+		notified[w.UserID] = true
 		s.sendNotification(actorID, actorName, &NotificationRequest{
 			UserID:     w.UserID,
 			Type:       notifType,
@@ -259,6 +265,7 @@ func (s *issueService) notifyWatchers(issue *model.Issue, excludeUserID, actorID
 			EntityKey:  issue.IssueKey,
 		})
 	}
+	return notified
 }
 
 // getUserFromCtx 从 context 中获取当前用户信息
@@ -1123,10 +1130,11 @@ func (s *issueService) AddComment(ctx context.Context, issueKey string, req *dto
 
 	// 通知关注者
 	notifTitle := fmt.Sprintf("工单 %s 有新评论", issue.IssueKey)
-	s.notifyWatchers(issue, userID, userID, userName, "issue_commented", notifTitle, req.Content)
+	notifiedUsers := s.notifyWatchers(issue, userID, userID, userName, "issue_commented", notifTitle, req.Content)
 
-	// 通知创建者（如果不是评论人）
-	if issue.ReporterID != userID {
+	// 通知创建者（如果不是评论人，且未作为关注人被通知）
+	if issue.ReporterID != userID && !notifiedUsers[issue.ReporterID] {
+		notifiedUsers[issue.ReporterID] = true
 		s.sendNotification(userID, userName, &NotificationRequest{
 			UserID:     issue.ReporterID,
 			Type:       "issue_commented",
@@ -1140,7 +1148,6 @@ func (s *issueService) AddComment(ctx context.Context, issueKey string, req *dto
 
 	// 解析 @提及
 	mentions := extractMentions(req.Content)
-	notifiedUsers := make(map[uint64]bool)
 	for _, username := range mentions {
 		mentionedUser, err := s.userRepo.GetByUsername(ctx, username)
 		if err != nil || mentionedUser == nil {
@@ -1653,8 +1660,8 @@ func (s *issueService) toIssueResponse(ctx context.Context, issue *model.Issue, 
 		var mergedFrom []model.Issue
 		if err := s.issueRepo.ListByMergedIntoIssueID(ctx, issue.ID, &mergedFrom); err == nil && len(mergedFrom) > 0 {
 			resp.MergedFromIssueKeys = make([]string, len(mergedFrom))
-			for i, mf := range mergedFrom {
-				resp.MergedFromIssueKeys[i] = mf.IssueKey
+			for i := range mergedFrom {
+				resp.MergedFromIssueKeys[i] = mergedFrom[i].IssueKey
 			}
 		}
 	}
@@ -1892,7 +1899,7 @@ func parseTimeSpent(timeStr string) (int, error) {
 	dayRegex := regexp.MustCompile(`(\d+)d`)
 	if matches := dayRegex.FindStringSubmatch(timeStr); len(matches) > 1 {
 		days := 0
-		fmt.Sscanf(matches[1], "%d", &days)
+		_, _ = fmt.Sscanf(matches[1], "%d", &days)
 		totalSeconds += days * 8 * 3600 // 1天 = 8小时
 	}
 
@@ -1900,7 +1907,7 @@ func parseTimeSpent(timeStr string) (int, error) {
 	hourRegex := regexp.MustCompile(`(\d+)h`)
 	if matches := hourRegex.FindStringSubmatch(timeStr); len(matches) > 1 {
 		hours := 0
-		fmt.Sscanf(matches[1], "%d", &hours)
+		_, _ = fmt.Sscanf(matches[1], "%d", &hours)
 		totalSeconds += hours * 3600
 	}
 
@@ -1908,7 +1915,7 @@ func parseTimeSpent(timeStr string) (int, error) {
 	minRegex := regexp.MustCompile(`(\d+)m`)
 	if matches := minRegex.FindStringSubmatch(timeStr); len(matches) > 1 {
 		minutes := 0
-		fmt.Sscanf(matches[1], "%d", &minutes)
+		_, _ = fmt.Sscanf(matches[1], "%d", &minutes)
 		totalSeconds += minutes * 60
 	}
 

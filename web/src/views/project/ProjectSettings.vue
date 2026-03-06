@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <el-button @click="$router.push('/projects')" class="back-btn" circle>
+        <el-button class="back-btn" circle @click="$router.push('/projects')">
           <el-icon><ArrowLeft /></el-icon>
         </el-button>
         <div class="header-info">
@@ -93,7 +93,7 @@
                 </div>
               </el-form-item>
               <div class="form-actions">
-                <el-button type="primary" :loading="saveLoading" @click="saveBasicInfo" size="large">
+                <el-button type="primary" :loading="saveLoading" size="large" @click="saveBasicInfo">
                   <el-icon><Check /></el-icon>
                   保存更改
                 </el-button>
@@ -557,9 +557,9 @@
             ref="memberTableRef"
             :data="filteredAvailableUsers"
             max-height="400"
-            @selection-change="handleMemberSelectionChange"
             row-key="id"
             size="small"
+            @selection-change="handleMemberSelectionChange"
           >
             <el-table-column type="selection" width="40" :reserve-selection="true" />
             <el-table-column label="用户" min-width="200">
@@ -754,7 +754,7 @@
                 :style="{ background: color }"
                 :class="{ active: issueTypeForm.color === color }"
                 @click="issueTypeForm.color = color"
-              />
+              ></div>
             </div>
           </div>
         </el-form-item>
@@ -904,8 +904,8 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="channelDialogVisible = false" size="large">取消</el-button>
-          <el-button type="primary" :loading="channelSubmitLoading" @click="submitChannel" size="large">
+          <el-button size="large" @click="channelDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="channelSubmitLoading" size="large" @click="submitChannel">
             <el-icon><Check /></el-icon>
             {{ isEditingChannel ? '保存更改' : '添加渠道' }}
           </el-button>
@@ -1792,7 +1792,7 @@ const closeMemberMgmtDialog = () => {
   memberMgmtDialogVisible.value = false
   currentMgmtRole.value = null
   roleMembers.value = []
-  const { roleId, ...rest } = route.query
+  const { roleId: _roleId, ...rest } = route.query
   router.replace({ query: rest })
 }
 

@@ -145,7 +145,7 @@
     <el-card shadow="never" class="table-card">
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-radio-group v-model="viewMode" @change="handleViewModeChange" class="view-toggle">
+          <el-radio-group v-model="viewMode" class="view-toggle" @change="handleViewModeChange">
             <el-radio-button value="list">
               <el-icon><List /></el-icon>
               列表
@@ -466,13 +466,13 @@ const applyLabelFilters = () => {
   queryParams.label_filters = parts.length > 0 ? parts.join(',') : undefined
   queryParams.page = 1
   syncQueryToURL()
-  viewMode.value === 'list' ? loadData() : loadGroupData()
+  if (viewMode.value === 'list') { loadData() } else { loadGroupData() }
 }
 
 const handleQuery = () => {
   queryParams.page = 1
   syncQueryToURL()
-  viewMode.value === 'list' ? loadData() : loadGroupData()
+  if (viewMode.value === 'list') { loadData() } else { loadGroupData() }
 }
 
 const handleStatClick = (status?: 'firing' | 'resolved', severity?: 'critical' | 'warning' | 'info') => {
@@ -487,7 +487,7 @@ const handleReset = () => {
   queryParams.issue_id = undefined; queryParams.label_filters = undefined
   labelFilters.splice(0, labelFilters.length)
   router.replace({ query: {} })
-  viewMode.value === 'list' ? loadData() : loadGroupData()
+  if (viewMode.value === 'list') { loadData() } else { loadGroupData() }
 }
 
 const handlePageChange = () => {
@@ -495,7 +495,7 @@ const handlePageChange = () => {
   loadData()
 }
 
-const handleViewModeChange = () => { viewMode.value === 'list' ? loadData() : loadGroupData() }
+const handleViewModeChange = () => { if (viewMode.value === 'list') { loadData() } else { loadGroupData() } }
 const handleRowClick = (row: Alert, _col: any, event: MouseEvent) => {
   const path = `/alerts/${row.id}`
   if (event.metaKey || event.ctrlKey) {

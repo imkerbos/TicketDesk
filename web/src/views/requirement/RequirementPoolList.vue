@@ -32,10 +32,10 @@
 
     <!-- 需求池列表 -->
     <el-card class="table-card" shadow="never">
-      <el-table :data="pools" v-loading="loading" stripe>
+      <el-table v-loading="loading" :data="pools" stripe>
         <el-table-column prop="name" label="名称" min-width="200">
           <template #default="{ row }">
-            <span class="link" @click="handleViewRequirements(row)" style="cursor: pointer;">
+            <span class="link" style="cursor: pointer;" @click="handleViewRequirements(row)">
               {{ row.name }}
             </span>
           </template>
@@ -92,7 +92,7 @@
       width="600px"
       @closed="resetForm"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入需求池名称" />
         </el-form-item>
@@ -110,7 +110,7 @@
             <el-radio label="project">项目级需求池</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="关联项目" prop="project_id" v-if="form.type === 'project'">
+        <el-form-item v-if="form.type === 'project'" label="关联项目" prop="project_id">
           <el-select v-model="form.project_id" placeholder="请选择项目" :disabled="!!editingPool" style="width: 100%">
             <el-option
               v-for="project in projects"
@@ -133,7 +133,7 @@
       </el-form>
       <template #footer>
         <el-button @click="handleCancel">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -241,7 +241,7 @@ const loadData = async () => {
     })
     pools.value = data.data.items
     pagination.total = data.data.total
-  } catch (error) {
+  } catch {
     ElMessage.error('加载需求池列表失败')
   } finally {
     loading.value = false

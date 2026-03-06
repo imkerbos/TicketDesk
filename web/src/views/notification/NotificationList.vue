@@ -100,7 +100,7 @@
                 {{ item.entity_key }}
               </el-tag>
             </div>
-            <div class="item-body" v-if="item.content">{{ item.content }}</div>
+            <div v-if="item.content" class="item-body">{{ item.content }}</div>
             <div class="item-footer">
               <span v-if="item.actor_name" class="item-actor">
                 <el-icon><User /></el-icon>
@@ -137,7 +137,7 @@
       </div>
 
       <!-- 分页 -->
-      <div class="pagination-wrapper" v-if="total > pageSize">
+      <div v-if="total > pageSize" class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
           :page-size="pageSize"

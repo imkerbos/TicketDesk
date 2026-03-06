@@ -195,7 +195,7 @@
         </el-table-column>
         <el-table-column prop="last_login_at" label="最后登录" width="180">
           <template #default="{ row }">
-            <div class="time-cell" v-if="row.last_login_at">
+            <div v-if="row.last_login_at" class="time-cell">
               <el-icon><Clock /></el-icon>
               <span>{{ formatTime(row.last_login_at) }}</span>
             </div>
@@ -219,7 +219,7 @@
                 </el-button>
               </el-tooltip>
               <el-tooltip :content="row.auth_source === 'sso' ? 'SSO 用户无法重置密码' : '重置密码'" placement="top">
-                <el-button link type="warning" @click="handleResetPassword(row)" :disabled="row.auth_source === 'sso'">
+                <el-button link type="warning" :disabled="row.auth_source === 'sso'" @click="handleResetPassword(row)">
                   <el-icon><Key /></el-icon>
                 </el-button>
               </el-tooltip>

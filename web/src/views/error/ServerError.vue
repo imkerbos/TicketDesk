@@ -4,9 +4,9 @@
       <div class="error-code">500</div>
       <div class="error-illustration">
         <svg viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="100" cy="60" r="50" fill="#fef2f2" stroke="#fecaca" stroke-width="2"/>
-          <path d="M85 45 L115 75" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
-          <path d="M115 45 L85 75" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="100" cy="60" r="50" fill="#fef2f2" stroke="#fecaca" stroke-width="2" />
+          <path d="M85 45 L115 75" stroke="#ef4444" stroke-width="3" stroke-linecap="round" />
+          <path d="M115 45 L85 75" stroke="#ef4444" stroke-width="3" stroke-linecap="round" />
         </svg>
       </div>
       <h2 class="error-title">服务器异常</h2>

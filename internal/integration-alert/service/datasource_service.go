@@ -231,7 +231,7 @@ func (s *datasourceService) TestConnection(ctx context.Context, req *dto.TestDat
 			}, nil
 		}
 		healthURL := baseURL + "/-/healthy"
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, nil)
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, http.NoBody)
 		if err != nil {
 			return &dto.TestDatasourceResponse{
 				Success: false,
@@ -473,7 +473,7 @@ func (s *datasourceService) migrateLegacyConfig(ctx context.Context) {
 // toDatasourceResponse 转换为数据源响应
 func (s *datasourceService) toDatasourceResponse(ds *model.AlertDatasource) *dto.DatasourceResponse {
 	var configMap map[string]interface{}
-	json.Unmarshal([]byte(ds.Config), &configMap)
+	_ = json.Unmarshal([]byte(ds.Config), &configMap)
 
 	webhookURL := fmt.Sprintf("/api/v1/alerts/datasource/%s/webhook", ds.Name)
 

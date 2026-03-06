@@ -2,6 +2,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -475,7 +476,7 @@ func seedRequirementCategories(db *gorm.DB) error {
 	for _, cat := range categories {
 		result := db.Where("name = ?", cat.Name).FirstOrCreate(&cat)
 		if result.Error != nil {
-			logger.Error("failed to seed requirement category", zap.String("name", cat.Name), zap.Error(result.Error))
+			return fmt.Errorf("failed to seed requirement category %s: %w", cat.Name, result.Error)
 		}
 	}
 
@@ -1272,10 +1273,7 @@ func InitProjectFieldSchemes(db *gorm.DB, projectID uint64) error {
 			bi = builtinFieldsAlert
 		}
 		for _, bf := range bi {
-			allFields = append(allFields, fullFieldCfg{
-				FieldKey: bf.FieldKey, IsRequired: bf.IsRequired, SortOrder: bf.SortOrder,
-				IsVisibleCreate: bf.IsVisibleCreate, IsVisibleEdit: bf.IsVisibleEdit, IsVisibleDetail: bf.IsVisibleDetail,
-			})
+			allFields = append(allFields, fullFieldCfg(bf))
 		}
 		for _, ef := range extFields {
 			allFields = append(allFields, fullFieldCfg{

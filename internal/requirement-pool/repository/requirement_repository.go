@@ -295,13 +295,14 @@ func (r *requirementRepository) GetKanbanData(ctx context.Context, filter *Kanba
 		case "timeline":
 			if req.EndDate != nil {
 				now := time.Now()
-				if req.EndDate.Before(now.AddDate(0, 0, 7)) {
+				switch {
+				case req.EndDate.Before(now.AddDate(0, 0, 7)):
 					key = "this_week"
-				} else if req.EndDate.Before(now.AddDate(0, 1, 0)) {
+				case req.EndDate.Before(now.AddDate(0, 1, 0)):
 					key = "this_month"
-				} else if req.EndDate.Before(now.AddDate(0, 3, 0)) {
+				case req.EndDate.Before(now.AddDate(0, 3, 0)):
 					key = "this_quarter"
-				} else {
+				default:
 					key = "later"
 				}
 			} else {

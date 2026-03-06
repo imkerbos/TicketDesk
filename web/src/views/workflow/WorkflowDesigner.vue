@@ -15,31 +15,31 @@
           </span>
           <el-input
             v-else
+            ref="titleInputRef"
             v-model="workflowName"
             size="small"
             style="width: 200px"
             @blur="finishEditTitle"
             @keyup.enter="finishEditTitle"
-            ref="titleInputRef"
           />
           <el-tag v-if="hasUnsavedChanges" type="warning" size="small" class="unsaved-tag">未保存</el-tag>
         </div>
       </div>
       <div class="toolbar-right">
-        <el-button @click="autoLayout" :icon="Rank">自动布局</el-button>
-        <el-button type="primary" @click="handleSave" :loading="saving" :icon="Check">
+        <el-button :icon="Rank" @click="autoLayout">自动布局</el-button>
+        <el-button type="primary" :loading="saving" :icon="Check" @click="handleSave">
           保存
         </el-button>
       </div>
     </div>
 
     <!-- 主体区域 -->
-    <div class="designer-body" v-loading="loading" element-loading-text="加载工作流...">
+    <div v-loading="loading" class="designer-body" element-loading-text="加载工作流...">
       <!-- 左侧节点工具栏 -->
       <NodeToolbar />
 
       <!-- 中间画布 -->
-      <div class="canvas-wrapper" ref="canvasRef" @drop="onDrop" @dragover="onDragOver">
+      <div ref="canvasRef" class="canvas-wrapper" @drop="onDrop" @dragover="onDragOver">
         <VueFlow
           v-model:nodes="nodes"
           v-model:edges="edges"

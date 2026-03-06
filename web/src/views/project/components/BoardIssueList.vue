@@ -6,7 +6,7 @@
         <span class="list-title">工单</span>
         <span class="list-count">{{ total }}</span>
       </div>
-      <el-button type="primary" size="small" @click="$emit('create')" class="create-btn">
+      <el-button type="primary" size="small" class="create-btn" @click="$emit('create')">
         <el-icon><Plus /></el-icon>
         创建
       </el-button>
@@ -92,7 +92,7 @@
             <div v-else class="mini-avatar unassigned">?</div>
             <span class="assignee-name">{{ item.assignee?.display_name || '未分配' }}</span>
           </div>
-          <span class="issue-type" v-if="item.issue_type">{{ item.issue_type.display_name }}</span>
+          <span v-if="item.issue_type" class="issue-type">{{ item.issue_type.display_name }}</span>
         </div>
       </div>
     </div>

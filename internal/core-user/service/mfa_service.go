@@ -305,7 +305,7 @@ func generateHOTP(key []byte, counter uint64) string {
 		int32(h[offset+3]&0xff)
 
 	// 取模得到指定位数的码
-	code = code % 1000000 // 6 位
+	code %= 1000000 // 6 位
 
 	return fmt.Sprintf("%06d", code)
 }

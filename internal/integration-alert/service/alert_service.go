@@ -351,7 +351,7 @@ func (s *alertService) calculateFingerprint(labels map[string]string) string {
 	sort.Strings(keys)
 
 	// 构建指纹字符串
-	var parts []string
+	parts := make([]string, 0, len(keys))
 	for _, k := range keys {
 		parts = append(parts, fmt.Sprintf("%s=%s", k, labels[k]))
 	}
@@ -502,57 +502,64 @@ func (s *alertService) tryAutoCreateIssue(ctx context.Context, alert *model.Aler
 				)
 				return nil
 			}
-			defer cache.UnlockWithValue(ctx, lockKey, lockValue)
+			err := func() error {
+				defer cache.UnlockWithValue(ctx, lockKey, lockValue)
 
-			// 检查是否需要合并到现有工单
-			if rule.MergeWindow > 0 {
-				existingIssueID, err := s.findMergeableIssue(ctx, rule, alert)
-				if err != nil {
-					logger.Error("failed to find mergeable issue", zap.Error(err))
-				} else if existingIssueID > 0 {
-					// 合并到现有工单
-					logger.Info("merging alert to existing issue",
-						zap.Uint64("alert_id", alert.ID),
-						zap.Uint64("issue_id", existingIssueID),
-					)
-					alert.IssueID = &existingIssueID
-					if err := s.alertRepo.Update(ctx, alert); err != nil {
-						return fmt.Errorf("failed to update alert with issue_id: %w", err)
-					}
-					// 追加实例信息到工单
-					if err := s.appendAlertToIssue(ctx, existingIssueID, alert, labels, annotations); err != nil {
-						logger.Error("failed to append alert info to issue",
+				// 检查是否需要合并到现有工单
+				if rule.MergeWindow > 0 {
+					existingIssueID, findErr := s.findMergeableIssue(ctx, rule, alert)
+					if findErr != nil {
+						logger.Error("failed to find mergeable issue", zap.Error(findErr))
+					} else if existingIssueID > 0 {
+						// 合并到现有工单
+						logger.Info("merging alert to existing issue",
+							zap.Uint64("alert_id", alert.ID),
 							zap.Uint64("issue_id", existingIssueID),
-							zap.Error(err),
 						)
+						alert.IssueID = &existingIssueID
+						if updateErr := s.alertRepo.Update(ctx, alert); updateErr != nil {
+							return fmt.Errorf("failed to update alert with issue_id: %w", updateErr)
+						}
+						// 追加实例信息到工单
+						if appendErr := s.appendAlertToIssue(ctx, existingIssueID, alert, labels); appendErr != nil {
+							logger.Error("failed to append alert info to issue",
+								zap.Uint64("issue_id", existingIssueID),
+								zap.Error(appendErr),
+							)
+						}
+						// 如果工单处于 pending_review 状态，重新激活（新告警触发说明问题未解决）
+						s.reactivateIssueIfPendingReview(ctx, existingIssueID)
+						return nil
 					}
-					// 如果工单处于 pending_review 状态，重新激活（新告警触发说明问题未解决）
-					s.reactivateIssueIfPendingReview(ctx, existingIssueID)
-					return nil
 				}
-			}
 
-			// 创建新工单
-			issueID, newIssueKey, err := s.createIssueFromAlert(ctx, alert, rule, labels, annotations)
+				// 创建新工单
+				issueID, newIssueKey, createErr := s.createIssueFromAlert(ctx, alert, rule, labels, annotations)
+				if createErr != nil {
+					return fmt.Errorf("failed to create issue: %w", createErr)
+				}
+
+				// 将同名旧工单标记为 merged，并双向关联
+				if rule.MergeWindow > 0 {
+					s.mergeOldIssues(ctx, rule, alert, issueID, newIssueKey)
+				}
+
+				// 更新告警关联的工单 ID
+				alert.IssueID = &issueID
+				if updateErr := s.alertRepo.Update(ctx, alert); updateErr != nil {
+					return fmt.Errorf("failed to update alert with issue_id: %w", updateErr)
+				}
+
+				logger.Info("issue created from alert",
+					zap.Uint64("alert_id", alert.ID),
+					zap.Uint64("issue_id", issueID),
+				)
+
+				return nil
+			}()
 			if err != nil {
-				return fmt.Errorf("failed to create issue: %w", err)
+				return err
 			}
-
-			// 将同名旧工单标记为 merged，并双向关联
-			if rule.MergeWindow > 0 {
-				s.mergeOldIssues(ctx, rule, alert, issueID, newIssueKey)
-			}
-
-			// 更新告警关联的工单 ID
-			alert.IssueID = &issueID
-			if err := s.alertRepo.Update(ctx, alert); err != nil {
-				return fmt.Errorf("failed to update alert with issue_id: %w", err)
-			}
-
-			logger.Info("issue created from alert",
-				zap.Uint64("alert_id", alert.ID),
-				zap.Uint64("issue_id", issueID),
-			)
 
 			break
 		}
@@ -797,7 +804,6 @@ func (s *alertService) appendAlertToIssue(
 	issueID uint64,
 	alert *model.Alert,
 	labels map[string]string,
-	annotations map[string]string,
 ) error {
 	issue, err := s.issueRepo.GetByID(ctx, issueID)
 	if err != nil {
@@ -1603,7 +1609,7 @@ func (s *alertService) ListAlertRules(ctx context.Context, req *dto.AlertRuleLis
 // toAlertRuleResponse 转换为告警规则响应
 func (s *alertService) toAlertRuleResponse(rule *model.AlertRule) *dto.AlertRuleResponse {
 	var matchers []dto.LabelMatcher
-	json.Unmarshal([]byte(rule.LabelMatchers), &matchers)
+	_ = json.Unmarshal([]byte(rule.LabelMatchers), &matchers)
 
 	resp := &dto.AlertRuleResponse{
 		ID:            rule.ID,
