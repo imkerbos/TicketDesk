@@ -263,42 +263,84 @@ func (s *reportService) GetSLAReport(ctx context.Context, req *dto.SLAReportRequ
 
 	resp.Summary.TotalIssues = slaStats.TotalIssues
 	resp.Summary.ResolvedIssues = slaStats.ResolvedIssues
+	resp.Summary.MTTA = slaStats.TotalMTTA
 	resp.Summary.MTTR = slaStats.TotalMTTR
 
-	// 按优先级统计
-	priorityStats, err := s.reportRepo.GetSLAStatsByPriority(ctx, projectID, startDate, endDate)
+	// 按优先级统计（逐条判断 SLA 达标）
+	priorityStats, err := s.reportRepo.GetSLAStatsByPriority(ctx, projectID, startDate, endDate, slaTargets)
 	if err != nil {
 		logger.Warn("failed to get sla stats by priority", zap.Error(err))
 	}
 	resp.ByPriority = make([]dto.SLAPriorityStats, len(priorityStats))
 	for i, ps := range priorityStats {
 		slaTarget := slaTargets[ps.Priority]
-		slaMet := int64(0)
-		if ps.MTTR > 0 && ps.MTTR <= float64(slaTarget) {
-			slaMet = ps.Resolved
-		}
 		slaRate := float64(0)
 		if ps.Resolved > 0 {
-			slaRate = float64(slaMet) / float64(ps.Resolved) * 100
+			slaRate = float64(ps.SLAMet) / float64(ps.Resolved) * 100
 		}
 
 		resp.ByPriority[i] = dto.SLAPriorityStats{
 			Priority:  ps.Priority,
 			Total:     ps.Total,
 			Resolved:  ps.Resolved,
+			MTTA:      ps.MTTA,
 			MTTR:      ps.MTTR,
 			SLATarget: slaTarget,
-			SLAMet:    slaMet,
+			SLAMet:    ps.SLAMet,
 			SLARate:   slaRate,
 		}
 
-		resp.Summary.SLAMet += slaMet
+		resp.Summary.SLAMet += ps.SLAMet
 	}
 
 	if resp.Summary.ResolvedIssues > 0 {
 		resp.Summary.SLARate = float64(resp.Summary.SLAMet) / float64(resp.Summary.ResolvedIssues) * 100
 	}
 	resp.Summary.SLAViolated = resp.Summary.ResolvedIssues - resp.Summary.SLAMet
+
+	// 按项目统计
+	projectStats, err := s.reportRepo.GetSLAStatsByProject(ctx, projectID, startDate, endDate, slaTargets)
+	if err != nil {
+		logger.Warn("failed to get sla stats by project", zap.Error(err))
+	}
+	resp.ByProject = make([]dto.SLAProjectStats, len(projectStats))
+	for i, ps := range projectStats {
+		slaRate := float64(0)
+		if ps.Resolved > 0 {
+			slaRate = float64(ps.SLAMet) / float64(ps.Resolved) * 100
+		}
+		resp.ByProject[i] = dto.SLAProjectStats{
+			ProjectKey:  ps.ProjectKey,
+			ProjectName: ps.ProjectName,
+			Total:       ps.Total,
+			Resolved:    ps.Resolved,
+			MTTR:        ps.MTTR,
+			SLARate:     slaRate,
+		}
+	}
+
+	// SLA 违规工单列表
+	violations, err := s.reportRepo.GetSLAViolations(ctx, projectID, startDate, endDate, slaTargets)
+	if err != nil {
+		logger.Warn("failed to get sla violations", zap.Error(err))
+	}
+	resp.Violations = make([]dto.SLAViolation, len(violations))
+	for i, v := range violations {
+		slaTarget := slaTargets[v.Priority]
+		overdueBy := v.ActualTime - float64(slaTarget)
+		if overdueBy < 0 {
+			overdueBy = 0
+		}
+		resp.Violations[i] = dto.SLAViolation{
+			IssueKey:     v.IssueKey,
+			Title:        v.Title,
+			Priority:     v.Priority,
+			AssigneeName: v.AssigneeName,
+			SLATarget:    slaTarget,
+			ActualTime:   v.ActualTime,
+			OverdueBy:    overdueBy,
+		}
+	}
 
 	return resp, nil
 }
@@ -363,6 +405,7 @@ func (s *reportService) GetAlertStats(ctx context.Context, req *dto.AlertStatsRe
 	for i, item := range topAlerts {
 		resp.TopAlerts[i] = dto.TopAlertItem{
 			AlertName: item.AlertName,
+			Severity:  item.Severity,
 			Count:     item.Count,
 		}
 	}

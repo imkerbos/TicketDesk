@@ -136,6 +136,20 @@ type SLAReportResponse struct {
 
 	// 按项目的 SLA 统计
 	ByProject []SLAProjectStats `json:"by_project"`
+
+	// SLA 违规工单列表
+	Violations []SLAViolation `json:"violations"`
+}
+
+// SLAViolation SLA 违规工单
+type SLAViolation struct {
+	IssueKey     string  `json:"issue_key"`     // 工单号
+	Title        string  `json:"title"`         // 标题
+	Priority     string  `json:"priority"`      // 优先级
+	AssigneeName string  `json:"assignee_name"` // 经办人
+	SLATarget    int64   `json:"sla_target"`    // SLA 目标（分钟）
+	ActualTime   float64 `json:"actual_time"`   // 实际耗时（分钟）
+	OverdueBy    float64 `json:"overdue_by"`    // 超时时长（分钟）
 }
 
 // SLAPriorityStats 按优先级的 SLA 统计
@@ -190,6 +204,7 @@ type AlertTimelineItem struct {
 // TopAlertItem 告警排名项
 type TopAlertItem struct {
 	AlertName string `json:"alert_name"` // 告警名称
+	Severity  string `json:"severity"`   // 严重程度
 	Count     int64  `json:"count"`      // 数量
 }
 

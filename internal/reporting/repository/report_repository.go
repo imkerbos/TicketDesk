@@ -3,6 +3,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"time"
 
 	"gorm.io/gorm"
@@ -24,7 +26,9 @@ type ReportRepository interface {
 
 	// SLA 统计
 	GetSLAStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (*SLAStats, error)
-	GetSLAStatsByPriority(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]PrioritySLAStats, error)
+	GetSLAStatsByPriority(ctx context.Context, projectID *uint64, startDate, endDate time.Time, slaTargets map[string]int64) ([]PrioritySLAStats, error)
+	GetSLAStatsByProject(ctx context.Context, projectID *uint64, startDate, endDate time.Time, slaTargets map[string]int64) ([]ProjectSLAStats, error)
+	GetSLAViolations(ctx context.Context, projectID *uint64, startDate, endDate time.Time, slaTargets map[string]int64) ([]SLAViolationRecord, error)
 
 	// 告警统计
 	CountAlertsByStatus(ctx context.Context, projectID *uint64) (map[string]int64, error)
@@ -56,6 +60,7 @@ type DateCount struct {
 // AlertCount 告警计数
 type AlertCount struct {
 	AlertName string `json:"alert_name"`
+	Severity  string `json:"severity"`
 	Count     int64  `json:"count"`
 }
 
@@ -74,6 +79,26 @@ type PrioritySLAStats struct {
 	Resolved int64
 	MTTA     float64
 	MTTR     float64
+	SLAMet   int64
+}
+
+// ProjectSLAStats 按项目的 SLA 统计
+type ProjectSLAStats struct {
+	ProjectKey  string
+	ProjectName string
+	Total       int64
+	Resolved    int64
+	MTTR        float64
+	SLAMet      int64
+}
+
+// SLAViolationRecord SLA 违规工单记录
+type SLAViolationRecord struct {
+	IssueKey     string
+	Title        string
+	Priority     string
+	AssigneeName string
+	ActualTime   float64 // 实际耗时（分钟）
 }
 
 // UserPerformance 用户绩效数据
@@ -363,6 +388,7 @@ func (r *reportRepository) GetSLAStats(ctx context.Context, projectID *uint64, s
 	var result struct {
 		TotalIssues    int64
 		ResolvedIssues int64
+		AvgMTTA        float64
 		AvgMTTR        float64
 	}
 
@@ -370,6 +396,7 @@ func (r *reportRepository) GetSLAStats(ctx context.Context, projectID *uint64, s
 		Select(`
 			COUNT(*) as total_issues,
 			SUM(CASE WHEN resolved_at IS NOT NULL THEN 1 ELSE 0 END) as resolved_issues,
+			AVG(CASE WHEN actual_start_date IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, actual_start_date) ELSE NULL END) as avg_mtta,
 			AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at) ELSE NULL END) as avg_mttr
 		`).
 		Where("created_at BETWEEN ? AND ?", startDate, endDate)
@@ -386,26 +413,35 @@ func (r *reportRepository) GetSLAStats(ctx context.Context, projectID *uint64, s
 	return &SLAStats{
 		TotalIssues:    result.TotalIssues,
 		ResolvedIssues: result.ResolvedIssues,
+		TotalMTTA:      result.AvgMTTA,
 		TotalMTTR:      result.AvgMTTR,
 	}, nil
 }
 
-// GetSLAStatsByPriority 按优先级获取 SLA 统计
-func (r *reportRepository) GetSLAStatsByPriority(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]PrioritySLAStats, error) {
+// GetSLAStatsByPriority 按优先级获取 SLA 统计（逐条判断 SLA 达标）
+func (r *reportRepository) GetSLAStatsByPriority(ctx context.Context, projectID *uint64, startDate, endDate time.Time, slaTargets map[string]int64) ([]PrioritySLAStats, error) {
+	slaExpr, slaArgs := buildSLATargetExpr(slaTargets, "priority")
+
+	selectClause := fmt.Sprintf(`
+		priority,
+		COUNT(*) as total,
+		SUM(CASE WHEN resolved_at IS NOT NULL THEN 1 ELSE 0 END) as resolved,
+		AVG(CASE WHEN actual_start_date IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, actual_start_date) ELSE NULL END) as avg_mtta,
+		AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at) ELSE NULL END) as avg_mttr,
+		SUM(CASE WHEN resolved_at IS NOT NULL AND TIMESTAMPDIFF(MINUTE, created_at, resolved_at) <= (%s) THEN 1 ELSE 0 END) as sla_met
+	`, slaExpr)
+
 	var results []struct {
 		Priority string
 		Total    int64
 		Resolved int64
+		AvgMTTA  float64
 		AvgMTTR  float64
+		SLAMet   int64 `gorm:"column:sla_met"`
 	}
 
 	query := r.db.WithContext(ctx).Table("issues").
-		Select(`
-			priority,
-			COUNT(*) as total,
-			SUM(CASE WHEN resolved_at IS NOT NULL THEN 1 ELSE 0 END) as resolved,
-			AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at) ELSE NULL END) as avg_mttr
-		`).
+		Select(selectClause, slaArgs...).
 		Where("created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
@@ -423,7 +459,9 @@ func (r *reportRepository) GetSLAStatsByPriority(ctx context.Context, projectID 
 			Priority: res.Priority,
 			Total:    res.Total,
 			Resolved: res.Resolved,
+			MTTA:     res.AvgMTTA,
 			MTTR:     res.AvgMTTR,
+			SLAMet:   res.SLAMet,
 		}
 	}
 
@@ -490,14 +528,14 @@ func (r *reportRepository) CountAlertsByDate(ctx context.Context, projectID *uin
 	return results, err
 }
 
-// GetTopAlerts 获取告警排名
+// GetTopAlerts 获取告警排名（按告警名称+严重程度分组）
 func (r *reportRepository) GetTopAlerts(ctx context.Context, projectID *uint64, startDate, endDate time.Time, limit int) ([]AlertCount, error) {
 	var results []AlertCount
 	query := r.db.WithContext(ctx).Table("alerts").
-		Select("alert_name, COUNT(*) as count").
+		Select("alert_name, severity, COUNT(*) as count").
 		Where("starts_at BETWEEN ? AND ?", startDate, endDate)
 
-	err := query.Group("alert_name").Order("count DESC").Limit(limit).Find(&results).Error
+	err := query.Group("alert_name, severity").Order("count DESC").Limit(limit).Find(&results).Error
 	return results, err
 }
 
@@ -650,4 +688,80 @@ func (r *reportRepository) GetWorklogSummary(ctx context.Context, projectID *uin
 		return nil, err
 	}
 	return &result, nil
+}
+
+// GetSLAStatsByProject 按项目获取 SLA 统计
+func (r *reportRepository) GetSLAStatsByProject(ctx context.Context, projectID *uint64, startDate, endDate time.Time, slaTargets map[string]int64) ([]ProjectSLAStats, error) {
+	slaExpr, slaArgs := buildSLATargetExpr(slaTargets, "issues.priority")
+
+	selectClause := fmt.Sprintf(`
+		projects.project_key,
+		projects.name as project_name,
+		COUNT(*) as total,
+		SUM(CASE WHEN issues.resolved_at IS NOT NULL THEN 1 ELSE 0 END) as resolved,
+		AVG(CASE WHEN issues.resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, issues.created_at, issues.resolved_at) ELSE NULL END) as mttr,
+		SUM(CASE WHEN issues.resolved_at IS NOT NULL AND TIMESTAMPDIFF(MINUTE, issues.created_at, issues.resolved_at) <= (%s) THEN 1 ELSE 0 END) as sla_met
+	`, slaExpr)
+
+	var results []ProjectSLAStats
+	query := r.db.WithContext(ctx).Table("issues").
+		Select(selectClause, slaArgs...).
+		Joins("JOIN projects ON issues.project_id = projects.id").
+		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Where("issues.project_id = ?", *projectID)
+	}
+
+	err := query.Group("projects.id, projects.project_key, projects.name").Find(&results).Error
+	return results, err
+}
+
+// GetSLAViolations 查询 SLA 违规工单列表
+func (r *reportRepository) GetSLAViolations(ctx context.Context, projectID *uint64, startDate, endDate time.Time, slaTargets map[string]int64) ([]SLAViolationRecord, error) {
+	slaExpr, slaArgs := buildSLATargetExpr(slaTargets, "issues.priority")
+
+	actualTimeExpr := "CASE WHEN issues.resolved_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, issues.created_at, issues.resolved_at) ELSE TIMESTAMPDIFF(MINUTE, issues.created_at, NOW()) END"
+
+	selectClause := fmt.Sprintf(`
+		issues.issue_key,
+		issues.title,
+		issues.priority,
+		COALESCE(users.display_name, users.username, '未指派') as assignee_name,
+		(%s) as actual_time
+	`, actualTimeExpr)
+
+	whereClause := fmt.Sprintf("(%s) > (%s) AND (issues.resolved_at IS NOT NULL OR issues.status NOT IN ('closed', 'merged'))", actualTimeExpr, slaExpr)
+
+	var results []SLAViolationRecord
+	query := r.db.WithContext(ctx).Table("issues").
+		Select(selectClause).
+		Joins("LEFT JOIN users ON issues.assignee_id = users.id").
+		Where("issues.created_at BETWEEN ? AND ?", startDate, endDate).
+		Where(whereClause, slaArgs...)
+
+	if projectID != nil {
+		query = query.Where("issues.project_id = ?", *projectID)
+	}
+
+	err := query.Order("actual_time DESC").Limit(50).Find(&results).Error
+	return results, err
+}
+
+// buildSLATargetExpr 构建基于优先级的 SLA 目标 CASE 表达式（返回分钟数）
+func buildSLATargetExpr(slaTargets map[string]int64, priorityColumn string) (string, []interface{}) {
+	expr := "CASE " + priorityColumn
+	keys := make([]string, 0, len(slaTargets))
+	for k := range slaTargets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	args := make([]interface{}, 0, len(slaTargets)*2)
+	for _, k := range keys {
+		expr += " WHEN ? THEN ?"
+		args = append(args, k, slaTargets[k])
+	}
+	expr += " ELSE 99999 END"
+	return expr, args
 }

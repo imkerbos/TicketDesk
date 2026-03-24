@@ -234,161 +234,359 @@
 
       <el-tab-pane label="SLA 报表" name="sla">
         <div v-loading="loading.sla" class="tab-content">
-          <!-- SLA 汇总 -->
-          <el-row :gutter="20" class="summary-row">
+          <!-- SLA 汇总卡片 -->
+          <el-row :gutter="16" class="summary-row">
             <el-col :xs="12" :sm="6">
-              <div class="summary-card">
-                <div class="summary-value">{{ slaReport.summary?.total_issues || 0 }}</div>
-                <div class="summary-label">工单总数</div>
+              <div class="summary-card accent-default">
+                <div class="summary-icon-wrap default"><el-icon :size="20"><Tickets /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ slaReport.summary?.total_issues || 0 }}</div>
+                  <div class="summary-label">工单总数 / 已解决 {{ slaReport.summary?.resolved_issues || 0 }}</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card success">
-                <div class="summary-value">{{ slaReport.summary?.sla_met || 0 }}</div>
-                <div class="summary-label">SLA 达标</div>
+              <div class="summary-card accent-success">
+                <div class="summary-icon-wrap success"><el-icon :size="20"><CircleCheck /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ formatPercent(slaReport.summary?.sla_rate || 0) }}</div>
+                  <div class="summary-label">达标率（达标 {{ slaReport.summary?.sla_met || 0 }} / 违规 {{ slaReport.summary?.sla_violated || 0 }}）</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card danger">
-                <div class="summary-value">{{ slaReport.summary?.sla_violated || 0 }}</div>
-                <div class="summary-label">SLA 违规</div>
+              <div class="summary-card accent-info">
+                <div class="summary-icon-wrap info"><el-icon :size="20"><Timer /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ formatMinutes(slaReport.summary?.mtta || 0) }}</div>
+                  <div class="summary-label">MTTA 平均确认时间</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card" :class="getSLARateClass(slaReport.summary?.sla_rate)">
-                <div class="summary-value">{{ formatPercent(slaReport.summary?.sla_rate || 0) }}</div>
-                <div class="summary-label">达标率</div>
+              <div class="summary-card accent-warning">
+                <div class="summary-icon-wrap warning"><el-icon :size="20"><Clock /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ formatMinutes(slaReport.summary?.mttr || 0) }}</div>
+                  <div class="summary-label">MTTR 平均解决时间</div>
+                </div>
               </div>
             </el-col>
           </el-row>
 
-          <!-- 按优先级 SLA -->
+          <!-- 按优先级 + 按项目 SLA（等高两列） -->
+          <el-row :gutter="16" class="stretch-row">
+            <el-col :xs="24" :lg="12">
+              <el-card shadow="never" class="chart-card">
+                <template #header>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #409EFF"></span>
+                    <span class="card-title">按优先级 SLA 统计</span>
+                  </div>
+                </template>
+                <el-table :data="slaReport.by_priority || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
+                  <el-table-column prop="priority" label="优先级" width="70">
+                    <template #default="{ row }">
+                      <el-tag :type="getPriorityType(row.priority)" effect="dark" size="small">{{ row.priority }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="total" label="总数" width="55" />
+                  <el-table-column prop="resolved" label="已解决" width="55" />
+                  <el-table-column label="SLA 目标" width="80">
+                    <template #default="{ row }">{{ formatMinutes(row.sla_target) }}</template>
+                  </el-table-column>
+                  <el-table-column label="MTTR" width="80">
+                    <template #default="{ row }">{{ formatMinutes(row.mttr) }}</template>
+                  </el-table-column>
+                  <el-table-column label="达标率" width="75">
+                    <template #default="{ row }">
+                      <span :class="getSLARateClass(row.sla_rate)">{{ formatPercent(row.sla_rate) }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :lg="12">
+              <el-card shadow="never" class="chart-card">
+                <template #header>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #8b5cf6"></span>
+                    <span class="card-title">按项目 SLA 统计</span>
+                  </div>
+                </template>
+                <el-table :data="slaReport.by_project || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
+                  <el-table-column label="项目" min-width="140">
+                    <template #default="{ row }">
+                      <span class="project-key-badge">{{ row.project_key }}</span>
+                      <span class="project-name-text">{{ row.project_name }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="total" label="总数" width="55" />
+                  <el-table-column prop="resolved" label="已解决" width="55" />
+                  <el-table-column label="MTTR" width="80">
+                    <template #default="{ row }">{{ formatMinutes(row.mttr) }}</template>
+                  </el-table-column>
+                  <el-table-column label="达标率" width="75">
+                    <template #default="{ row }">
+                      <span :class="getSLARateClass(row.sla_rate)">{{ formatPercent(row.sla_rate) }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-if="!slaReport.by_project?.length" description="暂无数据" :image-size="60" />
+              </el-card>
+            </el-col>
+          </el-row>
+
+          <!-- SLA 超时工单列表 -->
           <el-card shadow="never" class="chart-card">
             <template #header>
-              <span class="card-title">按优先级 SLA 统计</span>
+              <div class="card-header">
+                <span class="card-dot" style="background: #ef4444"></span>
+                <span class="card-title">SLA 超时工单</span>
+                <span v-if="slaReport.violations?.length" class="card-count">{{ slaReport.violations.length }} 条</span>
+              </div>
             </template>
-            <el-table :data="slaReport.by_priority || []" stripe>
-              <el-table-column prop="priority" label="优先级" width="100">
+            <el-table :data="slaReport.violations || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
+              <el-table-column prop="issue_key" label="工单号" width="120">
                 <template #default="{ row }">
-                  <el-tag :type="getPriorityType(row.priority)" effect="dark">{{ row.priority }}</el-tag>
+                  <router-link :to="`/issues/${row.issue_key}`" class="issue-link">{{ row.issue_key }}</router-link>
                 </template>
               </el-table-column>
-              <el-table-column prop="total" label="总数" width="80" />
-              <el-table-column prop="resolved" label="已完成" width="80" />
-              <el-table-column prop="sla_target" label="SLA 目标" width="100">
+              <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="priority" label="优先级" width="80">
                 <template #default="{ row }">
-                  {{ formatMinutes(row.sla_target) }}
+                  <el-tag :type="getPriorityType(row.priority)" effect="dark" size="small">{{ row.priority }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="mttr" label="平均解决" width="100">
+              <el-table-column prop="assignee_name" label="经办人" width="100" />
+              <el-table-column label="SLA 目标" width="100">
+                <template #default="{ row }">{{ formatMinutes(row.sla_target) }}</template>
+              </el-table-column>
+              <el-table-column label="实际耗时" width="100">
                 <template #default="{ row }">
-                  {{ formatMinutes(row.mttr) }}
+                  <span class="text-danger">{{ formatMinutes(row.actual_time) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="sla_met" label="达标数" width="80" />
-              <el-table-column prop="sla_rate" label="达标率" width="100">
+              <el-table-column label="超时" width="100">
                 <template #default="{ row }">
-                  <span :class="getSLARateClass(row.sla_rate)">{{ formatPercent(row.sla_rate) }}</span>
+                  <span class="text-danger">+{{ formatMinutes(row.overdue_by) }}</span>
                 </template>
               </el-table-column>
             </el-table>
+            <el-empty v-if="!slaReport.violations?.length" description="暂无超时工单" :image-size="60" />
           </el-card>
         </div>
       </el-tab-pane>
 
       <el-tab-pane label="告警统计" name="alerts">
         <div v-loading="loading.alerts" class="tab-content">
-          <!-- 告警汇总 -->
-          <el-row :gutter="20" class="summary-row">
+          <!-- 告警汇总卡片 -->
+          <el-row :gutter="16" class="summary-row">
             <el-col :xs="12" :sm="6">
-              <div class="summary-card">
-                <div class="summary-value">{{ alertStats.summary?.total || 0 }}</div>
-                <div class="summary-label">告警总数</div>
+              <div class="summary-card accent-default">
+                <div class="summary-icon-wrap default"><el-icon :size="20"><Warning /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ alertStats.summary?.total || 0 }}</div>
+                  <div class="summary-label">告警总数</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card danger">
-                <div class="summary-value">{{ alertStats.summary?.firing || 0 }}</div>
-                <div class="summary-label">触发中</div>
+              <div class="summary-card accent-danger">
+                <div class="summary-icon-wrap danger"><el-icon :size="20"><Warning /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ alertStats.summary?.firing || 0 }}</div>
+                  <div class="summary-label">触发中</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card success">
-                <div class="summary-value">{{ alertStats.summary?.resolved || 0 }}</div>
-                <div class="summary-label">已恢复</div>
+              <div class="summary-card accent-warning">
+                <div class="summary-icon-wrap warning"><el-icon :size="20"><CircleCheck /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ alertStats.summary?.acked || 0 }}</div>
+                  <div class="summary-label">已确认</div>
+                </div>
               </div>
             </el-col>
             <el-col :xs="12" :sm="6">
-              <div class="summary-card info">
-                <div class="summary-value">{{ formatMinutes(alertStats.summary?.avg_ack_time || 0) }}</div>
-                <div class="summary-label">平均确认时间</div>
+              <div class="summary-card accent-success">
+                <div class="summary-icon-wrap success"><el-icon :size="20"><CircleCheck /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ alertStats.summary?.resolved || 0 }}</div>
+                  <div class="summary-label">已恢复</div>
+                </div>
               </div>
             </el-col>
           </el-row>
 
-          <el-row :gutter="20">
-            <!-- 严重程度分布 -->
+          <!-- 严重程度分布 + 告警趋势（等高两列） -->
+          <el-row :gutter="16" class="stretch-row">
             <el-col :xs="24" :lg="12">
               <el-card shadow="never" class="chart-card">
                 <template #header>
-                  <span class="card-title">严重程度分布</span>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #ef4444"></span>
+                    <span class="card-title">严重程度分布</span>
+                  </div>
                 </template>
                 <div class="distribution-list">
                   <div v-for="item in alertStats.severity_distribution" :key="item.name" class="distribution-item">
-                    <div class="dist-label">
+                    <div class="dist-header">
+                      <span class="dist-dot" :style="{ background: getSeverityColor(item.name) }"></span>
                       <span class="dist-name">{{ getSeverityLabel(item.name) }}</span>
-                      <span class="dist-value">{{ item.value }}</span>
+                      <span class="dist-value">{{ item.value }}<span class="dist-ratio">{{ item.ratio.toFixed(1) }}%</span></span>
                     </div>
-                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="8" :color="getSeverityColor(item.name)" />
+                    <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="getSeverityColor(item.name)" />
                   </div>
+                  <el-empty v-if="!alertStats.severity_distribution?.length" description="暂无数据" :image-size="60" />
                 </div>
               </el-card>
             </el-col>
-
-            <!-- Top 告警 -->
             <el-col :xs="24" :lg="12">
               <el-card shadow="never" class="chart-card">
                 <template #header>
-                  <span class="card-title">Top 10 告警</span>
-                </template>
-                <div class="top-list">
-                  <div v-for="(item, index) in alertStats.top_alerts" :key="item.alert_name" class="top-item">
-                    <span class="top-rank">{{ index + 1 }}</span>
-                    <span class="top-name">{{ item.alert_name }}</span>
-                    <span class="top-count">{{ item.count }}</span>
+                  <div class="card-header">
+                    <span class="card-dot" style="background: #6366f1"></span>
+                    <span class="card-title">告警趋势</span>
                   </div>
+                </template>
+                <div class="timeline-list">
+                  <el-table :data="alertStats.timeline || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
+                    <el-table-column label="日期" min-width="120">
+                      <template #default="{ row }">
+                        <span class="timeline-date">{{ formatDate(row.date) }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="触发" min-width="100">
+                      <template #default="{ row }">
+                        <span class="timeline-badge created">{{ row.firing }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="恢复" min-width="100">
+                      <template #default="{ row }">
+                        <span class="timeline-badge resolved">{{ row.resolved }}</span>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-empty v-if="!alertStats.timeline?.length" description="暂无趋势数据" :image-size="60" />
                 </div>
               </el-card>
             </el-col>
           </el-row>
+
+          <!-- Top 告警（全宽，含严重程度列） -->
+          <el-card shadow="never" class="chart-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-dot" style="background: #f59e0b"></span>
+                <span class="card-title">Top 告警</span>
+              </div>
+            </template>
+            <el-table :data="alertStats.top_alerts || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
+              <el-table-column label="排名" width="60" align="center">
+                <template #default="{ $index }">
+                  <span :class="['rank-badge', { 'top-3': $index < 3 }]">{{ $index + 1 }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="alert_name" label="告警名称" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="severity" label="严重程度" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getSeverityTagType(row.severity)" size="small" effect="plain">{{ getSeverityLabel(row.severity) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="count" label="次数" width="100" align="center">
+                <template #default="{ row }">
+                  <span class="alert-count-value">{{ row.count }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!alertStats.top_alerts?.length" description="暂无数据" :image-size="60" />
+          </el-card>
         </div>
       </el-tab-pane>
 
       <el-tab-pane label="用户绩效" name="performance">
         <div v-loading="loading.performance" class="tab-content">
+          <!-- 绩效汇总卡片 -->
+          <el-row :gutter="16" class="summary-row">
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-default">
+                <div class="summary-icon-wrap default"><el-icon :size="20"><User /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ performanceSummary.userCount }}</div>
+                  <div class="summary-label">参与人数</div>
+                </div>
+              </div>
+            </el-col>
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-info">
+                <div class="summary-icon-wrap info"><el-icon :size="20"><Tickets /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ performanceSummary.totalAssigned }}</div>
+                  <div class="summary-label">总指派工单</div>
+                </div>
+              </div>
+            </el-col>
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-success">
+                <div class="summary-icon-wrap success"><el-icon :size="20"><CircleCheck /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ performanceSummary.totalResolved }}</div>
+                  <div class="summary-label">总解决工单</div>
+                </div>
+              </div>
+            </el-col>
+            <el-col :xs="12" :sm="6">
+              <div class="summary-card accent-warning">
+                <div class="summary-icon-wrap warning"><el-icon :size="20"><Timer /></el-icon></div>
+                <div class="summary-body">
+                  <div class="summary-value">{{ formatPercent(performanceSummary.avgResolveRate) }}</div>
+                  <div class="summary-label">平均解决率</div>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+
+          <!-- 绩效表格 -->
           <el-card shadow="never" class="chart-card">
             <template #header>
-              <span class="card-title">用户处理工单绩效</span>
+              <div class="card-header">
+                <span class="card-dot" style="background: #8b5cf6"></span>
+                <span class="card-title">用户处理工单绩效</span>
+              </div>
             </template>
-            <el-table :data="userPerformance" stripe>
-              <el-table-column prop="display_name" label="用户" width="150">
-                <template #default="{ row }">
-                  {{ row.display_name || row.username }}
+            <el-table :data="userPerformance" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
+              <el-table-column label="排名" width="60" align="center">
+                <template #default="{ $index }">
+                  <span :class="['rank-badge', { 'top-3': $index < 3 }]">{{ $index + 1 }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="assigned" label="指派工单" width="120" />
-              <el-table-column prop="resolved" label="解决工单" width="120" />
+              <el-table-column prop="display_name" label="用户" min-width="150">
+                <template #default="{ row }">
+                  <div class="user-cell">
+                    <el-avatar :size="24" class="dist-avatar">{{ (row.display_name || row.username)?.charAt(0) }}</el-avatar>
+                    <span>{{ row.display_name || row.username }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="assigned" label="指派工单" width="100" align="center" />
+              <el-table-column prop="resolved" label="解决工单" width="100" align="center" />
               <el-table-column label="解决率" width="120">
                 <template #default="{ row }">
-                  {{ row.assigned > 0 ? formatPercent(row.resolved / row.assigned * 100) : '-' }}
+                  <el-progress
+                    :percentage="row.assigned > 0 ? Math.round(row.resolved / row.assigned * 100) : 0"
+                    :stroke-width="8"
+                    :show-text="true"
+                    :format="(p: number) => p + '%'"
+                  />
                 </template>
               </el-table-column>
-              <el-table-column prop="avg_resolve_time" label="平均解决时间" width="120">
-                <template #default="{ row }">
-                  {{ formatHours(row.avg_resolve_time) }}
-                </template>
+              <el-table-column label="平均解决时间" width="120">
+                <template #default="{ row }">{{ formatHours(row.avg_resolve_time) }}</template>
               </el-table-column>
             </el-table>
+            <el-empty v-if="!userPerformance.length" description="暂无绩效数据" :image-size="60" />
           </el-card>
         </div>
       </el-tab-pane>
@@ -435,7 +633,7 @@
             </el-col>
           </el-row>
 
-          <el-row :gutter="16">
+          <el-row :gutter="16" class="stretch-row">
             <!-- 每日工时柱状图 -->
             <el-col :xs="24" :lg="16">
               <el-card shadow="never" class="chart-card">
@@ -525,9 +723,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataAnalysis, Tickets, CircleCheck, Loading, Timer, Clock, User } from '@element-plus/icons-vue'
+import { DataAnalysis, Tickets, CircleCheck, Loading, Timer, Clock, User, Warning } from '@element-plus/icons-vue'
 import { getIssueStats, getSLAReport, getAlertStats, getUserPerformance, getWorklogStats } from '@/api/report'
 import { getAllProjects } from '@/api/project'
 import type { IssueStats, SLAReport, AlertStats, UserPerformance, WorklogStats } from '@/types/report'
@@ -774,6 +972,21 @@ const getSeverityColor = (severity: string) => {
   const map: Record<string, string> = { critical: '#F56C6C', warning: '#E6A23C', info: '#909399' }
   return map[severity] || '#909399'
 }
+
+const getSeverityTagType = (severity: string): TagType => {
+  const map: Record<string, TagType> = { critical: 'danger', warning: 'warning', info: 'info' }
+  return map[severity] || 'info'
+}
+
+// 用户绩效汇总（从数组计算）
+const performanceSummary = computed(() => {
+  const list = userPerformance.value
+  const userCount = list.length
+  const totalAssigned = list.reduce((s, u) => s + u.assigned, 0)
+  const totalResolved = list.reduce((s, u) => s + u.resolved, 0)
+  const avgResolveRate = totalAssigned > 0 ? (totalResolved / totalAssigned) * 100 : 0
+  return { userCount, totalAssigned, totalResolved, avgResolveRate }
+})
 
 const getSLARateClass = (rate?: number) => {
   if (!rate) return ''
@@ -1265,5 +1478,60 @@ onMounted(() => {
 .worklog-time-value {
   font-weight: 600;
   color: var(--td-text-primary);
+}
+
+// ========== SLA / 告警 补充样式 ==========
+.card-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--td-text-secondary);
+  background: var(--td-bg-section);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.issue-link {
+  color: var(--td-color-primary);
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.text-danger {
+  color: var(--td-color-danger);
+  font-weight: 600;
+}
+
+.project-key-badge {
+  display: inline-block;
+  background: var(--td-tag-primary-bg);
+  color: #6366f1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+}
+
+.project-name-text {
+  font-size: 13px;
+  color: var(--td-text-regular);
+}
+
+.alert-count-value {
+  font-weight: 700;
+  color: #6366f1;
+}
+
+// ========== accent-danger 补充 ==========
+.summary-card.accent-danger {
+  .summary-icon-wrap.danger {
+    background: var(--td-tag-danger-bg);
+    color: var(--td-color-danger);
+  }
 }
 </style>

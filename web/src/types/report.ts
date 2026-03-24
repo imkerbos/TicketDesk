@@ -69,6 +69,18 @@ export interface SLAReport {
   }
   by_priority: SLAPriorityStats[]
   by_project: SLAProjectStats[]
+  violations: SLAViolation[]
+}
+
+// SLA 违规工单
+export interface SLAViolation {
+  issue_key: string
+  title: string
+  priority: string
+  assignee_name: string
+  sla_target: number
+  actual_time: number
+  overdue_by: number
 }
 
 // 按优先级的 SLA 统计
@@ -117,6 +129,7 @@ export interface AlertTimelineItem {
 // 告警排名项
 export interface TopAlertItem {
   alert_name: string
+  severity: string
   count: number
 }
 
