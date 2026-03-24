@@ -141,11 +141,13 @@ type WorklogSummaryData struct {
 	ActiveUsers  int64
 }
 
-// WorklogDailyUserStat 用户每日工时明细
+// WorklogDailyUserStat 用户每日工时明细（按工单粒度）
 type WorklogDailyUserStat struct {
 	UserID       uint64
 	DisplayName  string
 	Date         string
+	IssueKey     string
+	IssueTitle   string
 	TotalTimeSec int64
 }
 
@@ -757,21 +759,26 @@ func (r *reportRepository) GetSLAViolations(ctx context.Context, projectID *uint
 	return results, err
 }
 
-// GetWorklogDailyUserStats 按用户+日期查询工时明细
+// GetWorklogDailyUserStats 按用户+日期+工单查询工时明细
 func (r *reportRepository) GetWorklogDailyUserStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogDailyUserStat, error) {
 	var results []WorklogDailyUserStat
 	query := r.db.WithContext(ctx).Table("issue_worklogs").
-		Select("issue_worklogs.user_id, COALESCE(users.display_name, users.username, '未知') as display_name, DATE_FORMAT(issue_worklogs.worked_at, '%Y-%m-%d') as date, SUM(issue_worklogs.time_spent_sec) as total_time_sec").
+		Select(`issue_worklogs.user_id,
+			COALESCE(users.display_name, users.username, '未知') as display_name,
+			DATE_FORMAT(issue_worklogs.worked_at, '%Y-%m-%d') as date,
+			issues.issue_key,
+			COALESCE(issues.title, '') as issue_title,
+			SUM(issue_worklogs.time_spent_sec) as total_time_sec`).
 		Joins("LEFT JOIN users ON issue_worklogs.user_id = users.id").
+		Joins("LEFT JOIN issues ON issue_worklogs.issue_id = issues.id").
 		Where("issue_worklogs.worked_at BETWEEN ? AND ?", startDate, endDate)
 
 	if projectID != nil {
-		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
-			Where("issues.project_id = ?", *projectID)
+		query = query.Where("issues.project_id = ?", *projectID)
 	}
 
-	err := query.Group("issue_worklogs.user_id, users.display_name, users.username, DATE_FORMAT(issue_worklogs.worked_at, '%Y-%m-%d')").
-		Order("users.display_name, date").
+	err := query.Group("issue_worklogs.user_id, users.display_name, users.username, DATE_FORMAT(issue_worklogs.worked_at, '%Y-%m-%d'), issues.issue_key, issues.title").
+		Order("users.display_name, date, total_time_sec DESC").
 		Find(&results).Error
 	return results, err
 }

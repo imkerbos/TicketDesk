@@ -624,15 +624,21 @@ func (s *reportService) GetWorklogStats(ctx context.Context, req *dto.WorklogSta
 			gr, ok := userMap[row.UserID]
 			if !ok {
 				gr = &dto.WorklogGridRow{
-					UserID:      row.UserID,
-					DisplayName: row.DisplayName,
-					Daily:       make(map[string]int64),
+					UserID:       row.UserID,
+					DisplayName:  row.DisplayName,
+					Daily:        make(map[string]int64),
+					DailyDetails: make(map[string][]dto.WorklogDetail),
 				}
 				userMap[row.UserID] = gr
 			}
-			gr.Daily[row.Date] = row.TotalTimeSec
+			gr.Daily[row.Date] += row.TotalTimeSec
 			gr.TotalSec += row.TotalTimeSec
 			resp.GridTotals[row.Date] += row.TotalTimeSec
+			gr.DailyDetails[row.Date] = append(gr.DailyDetails[row.Date], dto.WorklogDetail{
+				IssueKey: row.IssueKey,
+				Title:    row.IssueTitle,
+				TimeSec:  row.TotalTimeSec,
+			})
 		}
 
 		// 用户行按 DisplayName 排序

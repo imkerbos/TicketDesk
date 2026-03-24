@@ -761,7 +761,28 @@
                   :class-name="isWeekend(d) ? 'weekend-col' : ''"
                 >
                   <template #default="{ row }">
-                    <span v-if="row['d_' + d]" class="grid-cell-value">{{ formatGridHours(row['d_' + d]) }}</span>
+                    <el-popover
+                      v-if="row['d_' + d]"
+                      placement="top"
+                      trigger="hover"
+                      :width="260"
+                      :show-after="200"
+                    >
+                      <template #reference>
+                        <span class="grid-cell-value">{{ formatGridHours(row['d_' + d]) }}</span>
+                      </template>
+                      <div class="grid-popover">
+                        <div class="grid-popover-header">
+                          <span>{{ row.display_name }} · {{ dayjs(d).format('M月D日') }}</span>
+                          <span class="grid-popover-total">{{ formatGridHours(row['d_' + d]) }}</span>
+                        </div>
+                        <div v-for="item in row['_details_' + d]" :key="item.issue_key" class="grid-popover-item">
+                          <router-link :to="`/issues/${item.issue_key}`" class="grid-popover-key">{{ item.issue_key }}</router-link>
+                          <span class="grid-popover-title">{{ item.title }}</span>
+                          <span class="grid-popover-time">{{ formatGridHours(item.time_sec) }}</span>
+                        </div>
+                      </div>
+                    </el-popover>
                   </template>
                 </el-table-column>
                 <el-table-column prop="_total" label="合计" fixed="right" width="80" align="center">
@@ -1108,6 +1129,9 @@ const worklogGridData = computed(() => {
     }
     for (const [date, sec] of Object.entries(row.daily || {})) {
       flat['d_' + date] = sec
+    }
+    for (const [date, details] of Object.entries(row.daily_details || {})) {
+      flat['_details_' + date] = details
     }
     return flat
   })
@@ -1712,6 +1736,58 @@ onMounted(() => {
     font-size: 12px;
     font-weight: 700;
     color: #6366f1;
+  }
+}
+
+// ========== 工时明细 Popover ==========
+.grid-popover {
+  .grid-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--td-text-primary);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--td-divider-color);
+  }
+
+  .grid-popover-total {
+    color: #6366f1;
+  }
+
+  .grid-popover-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+
+    .grid-popover-key {
+      color: var(--td-color-primary);
+      text-decoration: none;
+      font-weight: 500;
+      flex-shrink: 0;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    .grid-popover-title {
+      flex: 1;
+      color: var(--td-text-regular);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .grid-popover-time {
+      font-weight: 600;
+      color: var(--td-text-primary);
+      flex-shrink: 0;
+    }
   }
 }
 </style>

@@ -160,6 +160,14 @@ export interface WorklogGridRow {
   display_name: string
   total_sec: number
   daily: Record<string, number>
+  daily_details: Record<string, WorklogDetail[]>
+}
+
+// 工单工时明细
+export interface WorklogDetail {
+  issue_key: string
+  title: string
+  time_sec: number
 }
 
 export interface WorklogSummary {
