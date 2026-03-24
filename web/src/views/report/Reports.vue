@@ -285,20 +285,20 @@
                   </div>
                 </template>
                 <el-table :data="slaReport.by_priority || []" stripe size="small" :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600 }">
-                  <el-table-column prop="priority" label="优先级" width="70">
+                  <el-table-column prop="priority" label="优先级" min-width="70">
                     <template #default="{ row }">
                       <el-tag :type="getPriorityType(row.priority)" effect="dark" size="small">{{ row.priority }}</el-tag>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="total" label="总数" width="55" />
-                  <el-table-column prop="resolved" label="已解决" width="55" />
-                  <el-table-column label="SLA 目标" width="80">
+                  <el-table-column prop="total" label="总数" min-width="55" />
+                  <el-table-column prop="resolved" label="已解决" min-width="55" />
+                  <el-table-column label="SLA 目标" min-width="80">
                     <template #default="{ row }">{{ formatMinutes(row.sla_target) }}</template>
                   </el-table-column>
-                  <el-table-column label="MTTR" width="80">
+                  <el-table-column label="MTTR" min-width="80">
                     <template #default="{ row }">{{ formatMinutes(row.mttr) }}</template>
                   </el-table-column>
-                  <el-table-column label="达标率" width="75">
+                  <el-table-column label="达标率" min-width="75">
                     <template #default="{ row }">
                       <span :class="getSLARateClass(row.sla_rate)">{{ formatPercent(row.sla_rate) }}</span>
                     </template>
