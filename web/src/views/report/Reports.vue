@@ -1152,16 +1152,8 @@ const worklogGridSummary = ({ columns }: { columns: { property: string }[] }) =>
   })
 }
 
-// 周末列灰底
-const worklogGridCellStyle = ({ column }: { column: { property: string } }) => {
-  if (column.property?.startsWith('d_')) {
-    const date = column.property.slice(2)
-    if (isWeekend(date)) {
-      return { background: 'var(--td-bg-section)' }
-    }
-  }
-  return {}
-}
+// 周末列灰底（通过 class-name 控制，不再需要 inline style）
+const worklogGridCellStyle = () => ({})
 
 // 月份切换
 const changeGridMonth = (delta: number) => {
@@ -1700,6 +1692,11 @@ onMounted(() => {
   :deep(.el-table__footer) td {
     font-weight: 700;
     color: var(--td-text-primary);
+  }
+
+  // 周末列灰底
+  :deep(.weekend-col) {
+    background: var(--td-bg-section) !important;
   }
 
   .grid-cell-value {

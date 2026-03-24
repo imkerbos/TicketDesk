@@ -761,7 +761,7 @@ func (r *reportRepository) GetSLAViolations(ctx context.Context, projectID *uint
 func (r *reportRepository) GetWorklogDailyUserStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogDailyUserStat, error) {
 	var results []WorklogDailyUserStat
 	query := r.db.WithContext(ctx).Table("issue_worklogs").
-		Select("issue_worklogs.user_id, COALESCE(users.display_name, users.username, '未知') as display_name, DATE(issue_worklogs.worked_at) as date, SUM(issue_worklogs.time_spent_sec) as total_time_sec").
+		Select("issue_worklogs.user_id, COALESCE(users.display_name, users.username, '未知') as display_name, DATE_FORMAT(issue_worklogs.worked_at, '%Y-%m-%d') as date, SUM(issue_worklogs.time_spent_sec) as total_time_sec").
 		Joins("LEFT JOIN users ON issue_worklogs.user_id = users.id").
 		Where("issue_worklogs.worked_at BETWEEN ? AND ?", startDate, endDate)
 
@@ -770,7 +770,7 @@ func (r *reportRepository) GetWorklogDailyUserStats(ctx context.Context, project
 			Where("issues.project_id = ?", *projectID)
 	}
 
-	err := query.Group("issue_worklogs.user_id, users.display_name, users.username, DATE(issue_worklogs.worked_at)").
+	err := query.Group("issue_worklogs.user_id, users.display_name, users.username, DATE_FORMAT(issue_worklogs.worked_at, '%Y-%m-%d')").
 		Order("users.display_name, date").
 		Find(&results).Error
 	return results, err
