@@ -1027,12 +1027,12 @@ const formatDate = (date: string) => {
 type TagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
 
 const getStatusLabel = (status: string) => {
-  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', resolved: '已完成', closed: '已终止' }
+  const map: Record<string, string> = { open: '待处理', in_progress: '进行中', pending_review: '待审核', resolved: '已完成', closed: '已终止', merged: '已合并' }
   return map[status] || status
 }
 
 const getStatusColor = (status: string) => {
-  const map: Record<string, string> = { open: '#909399', in_progress: '#E6A23C', resolved: '#67C23A', closed: '#409EFF', merged: '#8b5cf6' }
+  const map: Record<string, string> = { open: '#909399', in_progress: '#E6A23C', pending_review: '#6366f1', resolved: '#67C23A', closed: '#409EFF', merged: '#8b5cf6' }
   return map[status] || '#909399'
 }
 
