@@ -73,9 +73,9 @@
             </el-col>
           </el-row>
 
-          <!-- 分布图表 -->
-          <el-row :gutter="16">
-            <el-col :xs="24" :lg="8">
+          <!-- 分布图表：第一行 状态 + 优先级 -->
+          <el-row :gutter="16" class="stretch-row">
+            <el-col :xs="24" :lg="12">
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
@@ -96,7 +96,7 @@
                 </div>
               </el-card>
             </el-col>
-            <el-col :xs="24" :lg="8">
+            <el-col :xs="24" :lg="12">
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
@@ -117,7 +117,11 @@
                 </div>
               </el-card>
             </el-col>
-            <el-col :xs="24" :lg="8">
+          </el-row>
+
+          <!-- 分布图表：第二行 工单类型 + 指派人 -->
+          <el-row :gutter="16" class="stretch-row">
+            <el-col :xs="24" :lg="12">
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
@@ -138,9 +142,6 @@
                 </div>
               </el-card>
             </el-col>
-          </el-row>
-
-          <el-row :gutter="16">
             <el-col :xs="24" :lg="12">
               <el-card shadow="never" class="chart-card">
                 <template #header>
@@ -162,7 +163,11 @@
                 </div>
               </el-card>
             </el-col>
-            <el-col :xs="24" :lg="12">
+          </el-row>
+
+          <!-- 分布图表：第三行 Epic -->
+          <el-row :gutter="16">
+            <el-col :span="24">
               <el-card shadow="never" class="chart-card">
                 <template #header>
                   <div class="card-header">
@@ -170,7 +175,7 @@
                     <span class="card-title">Epic 分布</span>
                   </div>
                 </template>
-                <div class="distribution-list">
+                <div class="distribution-list distribution-list--horizontal">
                   <div v-for="(item, idx) in issueStats.epic_distribution" :key="item.name" class="distribution-item">
                     <div class="dist-header">
                       <span class="dist-dot" :style="{ background: epicColors[idx % epicColors.length] }"></span>
@@ -902,10 +907,10 @@ onMounted(() => {
   gap: 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--td-divider-color);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: box-shadow 150ms ease-out, border-color 150ms ease-out;
 
   &:hover {
-    transform: translateY(-2px);
+    border-color: var(--td-border-color);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
@@ -941,6 +946,18 @@ onMounted(() => {
     color: var(--td-text-secondary);
     margin-top: 2px;
     white-space: nowrap;
+  }
+}
+
+// ========== 等高行 ==========
+.stretch-row {
+  :deep(.el-col) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chart-card {
+    flex: 1;
   }
 }
 
@@ -981,6 +998,21 @@ onMounted(() => {
 
 // ========== 分布列表 ==========
 .distribution-list {
+  max-height: 320px;
+  overflow-y: auto;
+
+  // Epic 全宽时双列布局
+  &--horizontal {
+    max-height: none;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 24px;
+
+    .distribution-item:last-child {
+      margin-bottom: 0;
+    }
+  }
+
   .distribution-item {
     margin-bottom: 14px;
 
