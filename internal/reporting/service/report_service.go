@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"go.uber.org/zap"
@@ -587,6 +588,51 @@ func (s *reportService) GetWorklogStats(ctx context.Context, req *dto.WorklogSta
 				EntryCount:   t.EntryCount,
 			}
 		}
+	}
+
+	// 构建用户×日期工时明细网格
+	dailyUserStats, err := s.reportRepo.GetWorklogDailyUserStats(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	if err != nil {
+		logger.Warn("failed to get worklog daily user stats", zap.Error(err))
+	} else {
+		userMap := make(map[uint64]*dto.WorklogGridRow)
+		dateSet := make(map[string]struct{})
+		gridTotals := make(map[string]int64)
+
+		for _, row := range dailyUserStats {
+			gr, ok := userMap[row.UserID]
+			if !ok {
+				gr = &dto.WorklogGridRow{
+					UserID:      row.UserID,
+					DisplayName: row.DisplayName,
+					Daily:       make(map[string]int64),
+				}
+				userMap[row.UserID] = gr
+			}
+			gr.Daily[row.Date] = row.TotalTimeSec
+			gr.TotalSec += row.TotalTimeSec
+			dateSet[row.Date] = struct{}{}
+			gridTotals[row.Date] += row.TotalTimeSec
+		}
+
+		// 有序日期列表
+		dates := make([]string, 0, len(dateSet))
+		for d := range dateSet {
+			dates = append(dates, d)
+		}
+		sort.Strings(dates)
+		resp.GridDates = dates
+		resp.GridTotals = gridTotals
+
+		// 用户行按 DisplayName 排序
+		grid := make([]dto.WorklogGridRow, 0, len(userMap))
+		for _, gr := range userMap {
+			grid = append(grid, *gr)
+		}
+		sort.Slice(grid, func(i, j int) bool {
+			return grid[i].DisplayName < grid[j].DisplayName
+		})
+		resp.Grid = grid
 	}
 
 	return resp, nil

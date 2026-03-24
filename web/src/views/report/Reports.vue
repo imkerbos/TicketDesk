@@ -716,6 +716,58 @@
             </el-table>
             <el-empty v-if="!worklogStats.user_stats?.length" description="暂无工时数据" :image-size="60" />
           </el-card>
+
+          <!-- 工时明细网格（用户 × 日期） -->
+          <el-card shadow="never" class="chart-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-dot" style="background: #3b82f6"></span>
+                <span class="card-title">工时明细</span>
+              </div>
+            </template>
+            <div class="worklog-grid-wrap">
+              <el-table
+                v-if="worklogStats.grid?.length"
+                :data="worklogGridData"
+                stripe
+                size="small"
+                border
+                show-summary
+                :summary-method="worklogGridSummary"
+                :header-cell-style="{ background: 'var(--td-table-header-bg)', color: 'var(--td-text-regular)', fontWeight: 600, fontSize: '12px', padding: '6px 0' }"
+                :cell-style="worklogGridCellStyle"
+                class="worklog-grid-table"
+              >
+                <el-table-column prop="display_name" label="用户" fixed width="120">
+                  <template #default="{ row }">
+                    <div class="user-cell">
+                      <el-avatar :size="22" class="dist-avatar">{{ row.display_name?.charAt(0) }}</el-avatar>
+                      <span>{{ row.display_name }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  v-for="d in (worklogStats.grid_dates || [])"
+                  :key="d"
+                  :prop="'d_' + d"
+                  :label="formatGridDate(d)"
+                  min-width="62"
+                  align="center"
+                  :class-name="isWeekend(d) ? 'weekend-col' : ''"
+                >
+                  <template #default="{ row }">
+                    <span v-if="row['d_' + d]" class="grid-cell-value">{{ formatGridHours(row['d_' + d]) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="_total" label="合计" fixed="right" width="80" align="center">
+                  <template #default="{ row }">
+                    <span class="grid-total-value">{{ formatGridHours(row._total) }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else description="暂无工时明细" :image-size="60" />
+            </div>
+          </el-card>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -1032,6 +1084,73 @@ const getTypePercentage = (timeSec: number) => {
 const getUserPercentage = (timeSec: number) => {
   const total = worklogStats.value.summary?.total_time_sec || 1
   return Math.round((timeSec / total) * 1000) / 10
+}
+
+// ========== 工时明细网格 ==========
+
+// 将后端 grid 数据展平为 el-table 可用的行（d_YYYY-MM-DD 作为动态列 prop）
+const worklogGridData = computed(() => {
+  return (worklogStats.value.grid || []).map((row) => {
+    const flat: Record<string, unknown> = {
+      user_id: row.user_id,
+      display_name: row.display_name,
+      _total: row.total_sec,
+    }
+    for (const [date, sec] of Object.entries(row.daily || {})) {
+      flat['d_' + date] = sec
+    }
+    return flat
+  })
+})
+
+// 网格日期列头格式
+const formatGridDate = (date: string) => {
+  const d = dayjs(date)
+  const weekDay = ['日', '一', '二', '三', '四', '五', '六'][d.day()]
+  return d.format('MM/DD') + '\n' + weekDay
+}
+
+// 网格单元格显示小时数
+const formatGridHours = (sec: number) => {
+  if (!sec) return ''
+  const h = sec / 3600
+  if (h >= 1) return h % 1 === 0 ? h + 'h' : h.toFixed(1) + 'h'
+  return Math.round(sec / 60) + 'm'
+}
+
+// 判断是否周末
+const isWeekend = (date: string) => {
+  const day = dayjs(date).day()
+  return day === 0 || day === 6
+}
+
+// 合计行
+const worklogGridSummary = ({ columns }: { columns: { property: string }[] }) => {
+  return columns.map((col, idx) => {
+    if (idx === 0) return '合计'
+    const prop = col.property
+    if (prop === '_total') {
+      const total = (worklogStats.value.grid || []).reduce((s, r) => s + r.total_sec, 0)
+      return formatGridHours(total)
+    }
+    if (prop?.startsWith('d_')) {
+      const date = prop.slice(2)
+      const val = worklogStats.value.grid_totals?.[date]
+      return val ? formatGridHours(val) : ''
+    }
+    return ''
+  })
+}
+
+// 周末列灰底
+const worklogGridCellStyle = ({ column }: { column: { property: string } }) => {
+  if (column.property?.startsWith('d_')) {
+    const date = column.property.slice(2)
+    if (isWeekend(date)) {
+      return { background: 'var(--td-bg-section)' }
+    }
+  }
+  return {}
 }
 
 // 初始化
@@ -1532,6 +1651,39 @@ onMounted(() => {
   .summary-icon-wrap.danger {
     background: var(--td-tag-danger-bg);
     color: var(--td-color-danger);
+  }
+}
+
+// ========== 工时明细网格 ==========
+.worklog-grid-wrap {
+  overflow-x: auto;
+}
+
+.worklog-grid-table {
+  :deep(.el-table__header) th {
+    white-space: pre-line;
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  :deep(.el-table__footer) td {
+    font-weight: 700;
+    color: var(--td-text-primary);
+  }
+
+  .grid-cell-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--td-text-primary);
+    background: var(--td-tag-primary-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .grid-total-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6366f1;
   }
 }
 </style>

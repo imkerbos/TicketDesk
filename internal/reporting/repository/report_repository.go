@@ -49,6 +49,7 @@ type ReportRepository interface {
 	GetWorklogUserStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogUserStat, error)
 	GetWorklogTypeStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogTypeStat, error)
 	GetWorklogSummary(ctx context.Context, projectID *uint64, startDate, endDate time.Time) (*WorklogSummaryData, error)
+	GetWorklogDailyUserStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogDailyUserStat, error)
 }
 
 // DateCount 日期计数
@@ -138,6 +139,14 @@ type WorklogSummaryData struct {
 	TotalTimeSec int64
 	TotalEntries int64
 	ActiveUsers  int64
+}
+
+// WorklogDailyUserStat 用户每日工时明细
+type WorklogDailyUserStat struct {
+	UserID       uint64
+	DisplayName  string
+	Date         string
+	TotalTimeSec int64
 }
 
 // reportRepository 报表数据访问实现
@@ -745,6 +754,25 @@ func (r *reportRepository) GetSLAViolations(ctx context.Context, projectID *uint
 	}
 
 	err := query.Order("actual_time DESC").Limit(50).Find(&results).Error
+	return results, err
+}
+
+// GetWorklogDailyUserStats 按用户+日期查询工时明细
+func (r *reportRepository) GetWorklogDailyUserStats(ctx context.Context, projectID *uint64, startDate, endDate time.Time) ([]WorklogDailyUserStat, error) {
+	var results []WorklogDailyUserStat
+	query := r.db.WithContext(ctx).Table("issue_worklogs").
+		Select("issue_worklogs.user_id, COALESCE(users.display_name, users.username, '未知') as display_name, DATE(issue_worklogs.worked_at) as date, SUM(issue_worklogs.time_spent_sec) as total_time_sec").
+		Joins("LEFT JOIN users ON issue_worklogs.user_id = users.id").
+		Where("issue_worklogs.worked_at BETWEEN ? AND ?", startDate, endDate)
+
+	if projectID != nil {
+		query = query.Joins("JOIN issues ON issue_worklogs.issue_id = issues.id").
+			Where("issues.project_id = ?", *projectID)
+	}
+
+	err := query.Group("issue_worklogs.user_id, users.display_name, users.username, DATE(issue_worklogs.worked_at)").
+		Order("users.display_name, date").
+		Find(&results).Error
 	return results, err
 }
 

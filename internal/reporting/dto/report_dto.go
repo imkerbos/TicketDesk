@@ -231,6 +231,17 @@ type WorklogStatsResponse struct {
 	DailyStats []DailyWorklogStat `json:"daily_stats"`
 	UserStats  []UserWorklogStat  `json:"user_stats"`
 	TypeStats  []WorklogTypeStat  `json:"type_stats"`
+	Grid       []WorklogGridRow   `json:"grid"`        // 用户×日期工时明细
+	GridDates  []string           `json:"grid_dates"`  // 有序日期列表
+	GridTotals map[string]int64   `json:"grid_totals"` // 每日合计（秒）
+}
+
+// WorklogGridRow 工时网格行（一个用户的每日工时）
+type WorklogGridRow struct {
+	UserID      uint64           `json:"user_id"`
+	DisplayName string           `json:"display_name"`
+	TotalSec    int64            `json:"total_sec"` // 该用户总工时（秒）
+	Daily       map[string]int64 `json:"daily"`     // date -> 秒
 }
 
 // WorklogSummary 工时汇总

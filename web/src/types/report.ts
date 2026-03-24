@@ -149,6 +149,17 @@ export interface WorklogStats {
   daily_stats: DailyWorklogStat[]
   user_stats: UserWorklogStat[]
   type_stats: WorklogTypeStat[]
+  grid: WorklogGridRow[]
+  grid_dates: string[]
+  grid_totals: Record<string, number>
+}
+
+// 工时网格行
+export interface WorklogGridRow {
+  user_id: number
+  display_name: string
+  total_sec: number
+  daily: Record<string, number>
 }
 
 export interface WorklogSummary {
