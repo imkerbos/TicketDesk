@@ -68,6 +68,7 @@ export function getWorklogStats(params?: {
   project_key?: string
   start_date?: string
   end_date?: string
+  grid_month?: string
 }) {
   return request({
     url: '/reports/worklogs',

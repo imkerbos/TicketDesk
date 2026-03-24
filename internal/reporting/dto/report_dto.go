@@ -223,6 +223,7 @@ type WorklogStatsRequest struct {
 	ProjectKey string `form:"project_key" binding:"omitempty"`
 	StartDate  string `form:"start_date" binding:"omitempty"`
 	EndDate    string `form:"end_date" binding:"omitempty"`
+	GridMonth  string `form:"grid_month" binding:"omitempty"` // 工时明细月份 YYYY-MM，默认当月
 }
 
 // WorklogStatsResponse 工时统计响应

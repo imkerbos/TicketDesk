@@ -723,6 +723,11 @@
               <div class="card-header">
                 <span class="card-dot" style="background: #3b82f6"></span>
                 <span class="card-title">工时明细</span>
+                <div class="grid-month-picker">
+                  <el-button text :icon="ArrowLeft" size="small" @click="changeGridMonth(-1)" />
+                  <span class="grid-month-label">{{ gridMonthLabel }}</span>
+                  <el-button text :icon="ArrowRight" size="small" @click="changeGridMonth(1)" />
+                </div>
               </div>
             </template>
             <div class="worklog-grid-wrap">
@@ -777,7 +782,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataAnalysis, Tickets, CircleCheck, Loading, Timer, Clock, User, Warning } from '@element-plus/icons-vue'
+import { DataAnalysis, Tickets, CircleCheck, Loading, Timer, Clock, User, Warning, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getIssueStats, getSLAReport, getAlertStats, getUserPerformance, getWorklogStats } from '@/api/report'
 import { getAllProjects } from '@/api/project'
 import type { IssueStats, SLAReport, AlertStats, UserPerformance, WorklogStats } from '@/types/report'
@@ -837,6 +842,10 @@ const slaReport = ref<Partial<SLAReport>>({})
 const alertStats = ref<Partial<AlertStats>>({})
 const userPerformance = ref<UserPerformance[]>([])
 const worklogStats = ref<Partial<WorklogStats>>({})
+
+// 工时明细月份（默认当月）
+const gridMonth = ref(dayjs().format('YYYY-MM'))
+const gridMonthLabel = computed(() => dayjs(gridMonth.value + '-01').format('YYYY年M月'))
 
 // 工时统计调色板
 const worklogTypeColors = ['#f59e0b', '#6366f1', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
@@ -927,6 +936,7 @@ const loadWorklogStats = async () => {
       project_key: selectedProject.value || undefined,
       start_date: dateRange.value[0],
       end_date: dateRange.value[1],
+      grid_month: gridMonth.value,
     })
     worklogStats.value = data.data
   } catch (error) {
@@ -1151,6 +1161,12 @@ const worklogGridCellStyle = ({ column }: { column: { property: string } }) => {
     }
   }
   return {}
+}
+
+// 月份切换
+const changeGridMonth = (delta: number) => {
+  gridMonth.value = dayjs(gridMonth.value + '-01').add(delta, 'month').format('YYYY-MM')
+  loadWorklogStats()
 }
 
 // 初始化
@@ -1655,6 +1671,21 @@ onMounted(() => {
 }
 
 // ========== 工时明细网格 ==========
+.grid-month-picker {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .grid-month-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--td-text-primary);
+    min-width: 80px;
+    text-align: center;
+  }
+}
+
 .worklog-grid-wrap {
   overflow-x: auto;
 }

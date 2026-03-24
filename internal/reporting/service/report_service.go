@@ -473,6 +473,20 @@ func (s *reportService) parseDateRange(startDateStr, endDateStr string) dto.Date
 	}
 }
 
+// parseGridMonth 解析工时明细月份，返回该月第一天和最后一天
+func (s *reportService) parseGridMonth(gridMonth string) (time.Time, time.Time) {
+	now := time.Now()
+	year, month := now.Year(), now.Month()
+	if gridMonth != "" {
+		if parsed, err := time.Parse("2006-01", gridMonth); err == nil {
+			year, month = parsed.Year(), parsed.Month()
+		}
+	}
+	firstDay := time.Date(year, month, 1, 0, 0, 0, 0, now.Location())
+	lastDay := firstDay.AddDate(0, 1, -1)
+	return firstDay, lastDay
+}
+
 // mergeTimelineData 合并时间线数据
 func (s *reportService) mergeTimelineData(created, inProgress, resolved, closed []repository.DateCount) []dto.TimelineItem {
 	dateMap := make(map[string]*dto.TimelineItem)
@@ -590,14 +604,21 @@ func (s *reportService) GetWorklogStats(ctx context.Context, req *dto.WorklogSta
 		}
 	}
 
-	// 构建用户×日期工时明细网格
-	dailyUserStats, err := s.reportRepo.GetWorklogDailyUserStats(ctx, projectID, dateRange.StartDate, dateRange.EndDate)
+	// 构建用户×日期工时明细网格（按月显示完整日历）
+	gridStart, gridEnd := s.parseGridMonth(req.GridMonth)
+	totalDays := int(gridEnd.Sub(gridStart).Hours()/24) + 1
+	allDates := make([]string, 0, totalDays)
+	for d := gridStart; !d.After(gridEnd); d = d.AddDate(0, 0, 1) {
+		allDates = append(allDates, d.Format("2006-01-02"))
+	}
+	resp.GridDates = allDates
+	resp.GridTotals = make(map[string]int64)
+
+	dailyUserStats, err := s.reportRepo.GetWorklogDailyUserStats(ctx, projectID, gridStart, gridEnd)
 	if err != nil {
 		logger.Warn("failed to get worklog daily user stats", zap.Error(err))
 	} else {
 		userMap := make(map[uint64]*dto.WorklogGridRow)
-		dateSet := make(map[string]struct{})
-		gridTotals := make(map[string]int64)
 
 		for _, row := range dailyUserStats {
 			gr, ok := userMap[row.UserID]
@@ -611,18 +632,8 @@ func (s *reportService) GetWorklogStats(ctx context.Context, req *dto.WorklogSta
 			}
 			gr.Daily[row.Date] = row.TotalTimeSec
 			gr.TotalSec += row.TotalTimeSec
-			dateSet[row.Date] = struct{}{}
-			gridTotals[row.Date] += row.TotalTimeSec
+			resp.GridTotals[row.Date] += row.TotalTimeSec
 		}
-
-		// 有序日期列表
-		dates := make([]string, 0, len(dateSet))
-		for d := range dateSet {
-			dates = append(dates, d)
-		}
-		sort.Strings(dates)
-		resp.GridDates = dates
-		resp.GridTotals = gridTotals
 
 		// 用户行按 DisplayName 排序
 		grid := make([]dto.WorklogGridRow, 0, len(userMap))
