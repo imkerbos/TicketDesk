@@ -85,7 +85,7 @@
             <span>{{ getStatusText(item.status) }}</span>
           </div>
         </div>
-        <a class="card-title-link" @click.prevent.stop="router.push(`/issues/${item.issue_key}`)">{{ item.title }}</a>
+        <span class="card-title">{{ item.title }}</span>
         <div class="card-bottom">
           <div class="assignee-info">
             <div v-if="item.assignee" class="mini-avatar">{{ item.assignee.display_name?.charAt(0) || '?' }}</div>
@@ -360,7 +360,7 @@ onMounted(() => {
     }
   }
 
-  .card-title-link {
+  .card-title {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -370,12 +370,6 @@ onMounted(() => {
     color: var(--td-text-primary);
     line-height: 1.5;
     margin-bottom: 8px;
-    text-decoration: none;
-    transition: color 150ms ease-out;
-
-    &:hover {
-      color: var(--td-color-primary);
-    }
   }
 
   .card-bottom {

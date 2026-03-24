@@ -17,7 +17,8 @@
               <el-icon class="open-icon"><TopRight /></el-icon>
             </a>
           </div>
-          <h1 class="issue-title">{{ issue.title }}</h1>
+          <h1 v-if="!embedded" class="issue-title">{{ issue.title }}</h1>
+          <a v-else class="issue-title issue-title-link" @click.prevent="router.push(`/issues/${issue.issue_key}`)">{{ issue.title }}</a>
           <div class="issue-meta">
             <div v-if="issue.issue_type" class="type-badge">
               <el-icon class="type-icon"><Document /></el-icon>
@@ -2612,6 +2613,18 @@ const showWorkflowDiagram = async () => {
       font-size: 18px;
       font-weight: 600;
       margin-bottom: 10px;
+    }
+
+    .issue-title-link {
+      display: block;
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 150ms ease-out;
+
+      &:hover {
+        color: var(--td-color-primary);
+      }
     }
 
     .header-actions {

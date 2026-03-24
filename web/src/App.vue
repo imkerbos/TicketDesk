@@ -375,7 +375,7 @@ const handleMenuSelect = (index: string) => {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.35);
   line-height: 1.4;
-  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .main-container {

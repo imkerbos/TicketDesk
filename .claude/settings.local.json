@@ -6,7 +6,9 @@
       "Bash(npm run:*)",
       "Bash(npx eslint:*)",
       "Bash(ls:*)",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx:*)"
     ]
   }
 }
