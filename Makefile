@@ -1,4 +1,4 @@
-.PHONY: all build run dev test clean lint fmt swagger wire docker-dev docker-dev-d docker-dev-stop docker-dev-logs docker-dev-rebuild prod prod-d prod-stop prod-logs prod-rebuild prod-ps helm-lint helm-template helm-install helm-upgrade helm-uninstall init migrate help
+.PHONY: all build run dev test clean lint fmt swagger wire dev-docker-up dev-docker-up-d dev-docker-down dev-docker-logs dev-docker-rebuild prod prod-d prod-stop prod-logs prod-rebuild prod-ps helm-lint helm-template helm-install helm-upgrade helm-uninstall init migrate help
 
 # 变量定义
 APP_NAME := ticketdesk
@@ -40,10 +40,11 @@ help:
 	@echo "  make migrate       - 运行数据库迁移"
 	@echo ""
 	@echo "Docker Dev（开发环境）:"
-	@echo "  make docker-dev    - Docker 开发模式（前后端热更新）"
-	@echo "  make docker-dev-d  - Docker 开发模式（后台运行）"
-	@echo "  make docker-dev-stop - 停止 Docker 开发容器"
-	@echo "  make docker-dev-logs - 查看 Docker 开发日志"
+	@echo "  make dev-docker-up      - Docker 开发模式（前后端热更新）"
+	@echo "  make dev-docker-up-d    - Docker 开发模式（后台运行）"
+	@echo "  make dev-docker-down    - 停止 Docker 开发容器"
+	@echo "  make dev-docker-logs    - 查看 Docker 开发日志"
+	@echo "  make dev-docker-rebuild - 重建 Docker 开发容器"
 	@echo ""
 	@echo "Production（生产部署）:"
 	@echo "  make prod          - 生产环境启动（前台）"
@@ -145,27 +146,27 @@ migrate:
 	$(GORUN) $(MAIN_FILE) -config $(CONFIG_FILE) -migrate
 
 # Docker 开发模式（前后端热更新）
-docker-dev:
+dev-docker-up:
 	@echo ">>> Docker 开发模式启动（前后端热更新）..."
 	docker-compose -f deploy/docker-compose.dev.yaml up --build
 
 # Docker 开发模式（后台运行）
-docker-dev-d:
+dev-docker-up-d:
 	@echo ">>> Docker 开发模式启动（后台运行）..."
 	docker-compose -f deploy/docker-compose.dev.yaml up --build -d
 
 # Docker 开发模式停止
-docker-dev-stop:
+dev-docker-down:
 	@echo ">>> 停止 Docker 开发容器..."
 	docker-compose -f deploy/docker-compose.dev.yaml down
 
 # Docker 开发模式日志
-docker-dev-logs:
+dev-docker-logs:
 	@echo ">>> 查看 Docker 开发容器日志..."
 	docker-compose -f deploy/docker-compose.dev.yaml logs -f
 
 # Docker 开发模式重建
-docker-dev-rebuild:
+dev-docker-rebuild:
 	@echo ">>> 重建 Docker 开发容器..."
 	docker-compose -f deploy/docker-compose.dev.yaml up --build --force-recreate
 

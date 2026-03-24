@@ -60,6 +60,81 @@
           <el-option label="P2 - 中" value="P2" />
           <el-option label="P3 - 低" value="P3" />
         </el-select>
+        <el-popover
+          :visible="moreFilterVisible"
+          placement="bottom-end"
+          :width="280"
+          trigger="click"
+          popper-class="board-more-filter-popover"
+        >
+          <template #reference>
+            <el-button
+              size="small"
+              class="more-filter-btn"
+              :class="{ active: extraFilterCount > 0 }"
+              @click="moreFilterVisible = !moreFilterVisible"
+            >
+              <el-icon><Filter /></el-icon>
+              <span v-if="extraFilterCount > 0" class="filter-badge">{{ extraFilterCount }}</span>
+            </el-button>
+          </template>
+          <div class="more-filter-panel">
+            <div class="filter-item">
+              <label class="filter-label">工单类型</label>
+              <el-select
+                v-model="issueTypeFilter"
+                placeholder="全部"
+                size="small"
+                clearable
+                style="width: 100%"
+                @change="handleSearch"
+              >
+                <el-option
+                  v-for="t in issueTypes"
+                  :key="t.id"
+                  :label="t.display_name"
+                  :value="t.id"
+                />
+              </el-select>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label">经办人</label>
+              <el-select
+                v-model="assigneeFilter"
+                placeholder="全部"
+                size="small"
+                clearable
+                filterable
+                style="width: 100%"
+                @change="handleSearch"
+              >
+                <el-option
+                  v-for="m in members"
+                  :key="m.user_id"
+                  :label="m.user?.display_name || `用户${m.user_id}`"
+                  :value="m.user_id"
+                />
+              </el-select>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label">分类</label>
+              <el-select
+                v-model="categoryFilter"
+                placeholder="全部"
+                size="small"
+                clearable
+                style="width: 100%"
+                @change="handleSearch"
+              >
+                <el-option label="普通工单" value="normal" />
+                <el-option label="告警工单" value="alert" />
+              </el-select>
+            </div>
+            <div class="filter-actions">
+              <el-button size="small" text @click="resetExtraFilters">重置</el-button>
+            </div>
+          </div>
+        </el-popover>
       </div>
     </div>
 
@@ -113,9 +188,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Plus, Search, ArrowLeft, ArrowRight, Filter } from '@element-plus/icons-vue'
 import { getIssueList } from '@/api/issue'
+import { getProjectIssueTypes, getProjectMembers } from '@/api/project'
 import type { Issue } from '@/types/issue'
+import type { ProjectIssueType, ProjectMember } from '@/types/project'
 
 const router = useRouter()
 
@@ -138,6 +215,31 @@ const keyword = ref('')
 const statusFilter = ref<string[]>([])
 const priorityFilter = ref('')
 
+// 更多筛选
+const moreFilterVisible = ref(false)
+const issueTypeFilter = ref<number | undefined>(undefined)
+const assigneeFilter = ref<number | undefined>(undefined)
+const categoryFilter = ref('')
+const issueTypes = ref<ProjectIssueType[]>([])
+const members = ref<ProjectMember[]>([])
+
+// 额外筛选生效数量
+const extraFilterCount = computed(() => {
+  let count = 0
+  if (issueTypeFilter.value) count++
+  if (assigneeFilter.value) count++
+  if (categoryFilter.value) count++
+  return count
+})
+
+const resetExtraFilters = () => {
+  issueTypeFilter.value = undefined
+  assigneeFilter.value = undefined
+  categoryFilter.value = ''
+  moreFilterVisible.value = false
+  handleSearch()
+}
+
 // 默认排除终态工单
 const excludedStatuses = ['resolved', 'closed', 'merged']
 
@@ -152,6 +254,9 @@ const loadIssues = async () => {
       page_size: pageSize,
       keyword: keyword.value || undefined,
       priority: priorityFilter.value || undefined,
+      issue_type_id: issueTypeFilter.value || undefined,
+      assignee_id: assigneeFilter.value || undefined,
+      category: categoryFilter.value || undefined,
     }
     // 如果用户选择了状态，使用用户选择的
     if (statusFilter.value.length > 0) {
@@ -169,6 +274,20 @@ const loadIssues = async () => {
     console.error('Failed to load issues:', e)
   } finally {
     loading.value = false
+  }
+}
+
+// 加载筛选选项数据
+const loadFilterOptions = async () => {
+  try {
+    const [typesRes, membersRes] = await Promise.all([
+      getProjectIssueTypes(props.projectKey),
+      getProjectMembers(props.projectKey),
+    ])
+    issueTypes.value = typesRes.data.data || []
+    members.value = membersRes.data.data || []
+  } catch (e) {
+    console.error('Failed to load filter options:', e)
   }
 }
 
@@ -193,10 +312,12 @@ const getStatusText = (status: string) => {
 watch(() => props.projectKey, () => {
   page.value = 1
   loadIssues()
+  loadFilterOptions()
 })
 
 onMounted(() => {
   loadIssues()
+  loadFilterOptions()
 })
 </script>
 
@@ -272,6 +393,36 @@ onMounted(() => {
 
     .filter-select {
       flex: 1;
+    }
+
+    .more-filter-btn {
+      flex-shrink: 0;
+      padding: 4px 8px;
+      position: relative;
+
+      &.active {
+        color: var(--td-color-primary);
+        border-color: var(--td-color-primary);
+        background: var(--td-tag-primary-bg);
+      }
+
+      .filter-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 8px;
+        background: var(--td-color-primary);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
     }
   }
 }
@@ -466,6 +617,31 @@ onMounted(() => {
     color: var(--td-text-placeholder);
     min-width: 48px;
     text-align: center;
+  }
+}
+
+// ---- 更多筛选面板（scoped 内部分） ----
+.more-filter-panel {
+  .filter-item {
+    margin-bottom: 12px;
+
+    &:last-of-type {
+      margin-bottom: 8px;
+    }
+  }
+
+  .filter-label {
+    display: block;
+    font-size: 12px;
+    color: var(--td-text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 4px;
+    border-top: 1px solid var(--td-divider-color);
   }
 }
 
