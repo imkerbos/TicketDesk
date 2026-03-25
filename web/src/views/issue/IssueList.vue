@@ -108,6 +108,7 @@
           </el-select>
         </div>
         <div class="filter-right">
+          <el-button type="primary" :icon="Search" @click="handleQuery">查询</el-button>
           <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </div>
       </div>
