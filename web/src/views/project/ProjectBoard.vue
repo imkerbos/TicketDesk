@@ -86,28 +86,33 @@
         <el-form-item label="标题" prop="title">
           <el-input v-model="createForm.title" placeholder="请输入工单标题" maxlength="200" show-word-limit />
         </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="createForm.description" type="textarea" :rows="3" placeholder="请输入描述" />
-        </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="优先级">
-              <el-select v-model="createForm.priority" style="width: 100%">
-                <el-option label="P0 - 紧急" value="P0" />
-                <el-option label="P1 - 高" value="P1" />
-                <el-option label="P2 - 中" value="P2" />
-                <el-option label="P3 - 低" value="P3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="指派人">
-              <el-select v-model="createForm.assignee_id" placeholder="请选择" style="width: 100%" filterable clearable>
-                <el-option v-for="u in users" :key="u.id" :label="u.display_name" :value="u.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
+
+        <!-- 字段方案驱动 -->
+        <div v-if="fieldScheme.length > 0" v-loading="fieldSchemeLoading" class="custom-fields-section">
+          <el-row :gutter="20">
+            <el-col
+              v-for="item in fieldScheme"
+              :key="item.field_id"
+              :span="getFieldColSpan(item.field?.field_type)"
+            >
+              <el-form-item :required="item.is_required">
+                <template #label>
+                  <span>{{ item.field?.field_name }}</span>
+                  <el-tooltip v-if="item.field?.description" :content="item.field?.description" placement="top">
+                    <el-icon class="field-hint"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
+                <FieldRenderer
+                  v-if="item.field"
+                  v-model="customFieldValues[item.field_id]"
+                  :field="item.field"
+                  :scheme="item"
+                  :project-key="projectKey"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
@@ -124,15 +129,19 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Check, DataAnalysis, Grid, Setting, Tickets } from '@element-plus/icons-vue'
+import { Check, DataAnalysis, Grid, Setting, Tickets, QuestionFilled } from '@element-plus/icons-vue'
 import BoardIssueList from './components/BoardIssueList.vue'
 import IssueDetail from '@/views/issue/IssueDetail.vue'
 import { getProjectDetail, getProjectIssueTypes } from '@/api/project'
 import { createIssue } from '@/api/issue'
 import { getAllUsers } from '@/api/user'
+import { getFieldScheme } from '@/api/field'
 import type { Project, ProjectIssueType } from '@/types/project'
 import type { UserOption } from '@/types/user'
-import type { IssuePriority } from '@/types/issue'
+import type { CreateIssueRequest } from '@/types/issue'
+import type { FieldSchemeItem } from '@/types/field'
+import { FieldRenderer } from '@/components/field'
+import { extractBuiltinFields } from '@/utils/builtin-fields'
 
 const route = useRoute()
 const router = useRouter()
@@ -147,13 +156,13 @@ const createLoading = ref(false)
 const createFormRef = ref<FormInstance>()
 const issueTypes = ref<ProjectIssueType[]>([])
 const users = ref<UserOption[]>([])
+const fieldScheme = ref<FieldSchemeItem[]>([])
+const customFieldValues = ref<Record<number, any>>({})
+const fieldSchemeLoading = ref(false)
 
 const createForm = reactive({
   issue_type_id: undefined as number | undefined,
   title: '',
-  description: '',
-  priority: 'P2' as IssuePriority,
-  assignee_id: undefined as number | undefined,
 })
 
 const createRules: FormRules = {
@@ -209,15 +218,53 @@ const handleCreateIssue = async () => {
   Object.assign(createForm, {
     issue_type_id: undefined,
     title: '',
-    description: '',
-    priority: 'P2' as IssuePriority,
-    assignee_id: undefined,
   })
+  fieldScheme.value = []
+  customFieldValues.value = {}
   createDialogVisible.value = true
 }
 
-const handleIssueTypeChange = () => {
-  // 预留：未来可在此加载字段方案
+// 根据字段类型决定列宽
+const getFieldColSpan = (fieldType?: string): number => {
+  if (fieldType === 'textarea' || fieldType === 'epic_link') {
+    return 24
+  }
+  return 12
+}
+
+const handleIssueTypeChange = async (issueTypeId: number) => {
+  fieldScheme.value = []
+  customFieldValues.value = {}
+  if (!issueTypeId) return
+  fieldSchemeLoading.value = true
+  try {
+    const { data } = await getFieldScheme(projectKey.value, issueTypeId)
+    const schemeItems = data.data || []
+    fieldScheme.value = schemeItems.filter(item => item.is_visible_create)
+    // 初始化字段默认值
+    const arrayFieldTypes = ['multiselect', 'label', 'component']
+    fieldScheme.value.forEach(item => {
+      const fieldType = item.field?.field_type || ''
+      if (arrayFieldTypes.includes(fieldType)) {
+        if (item.default_value) {
+          try {
+            const parsed = JSON.parse(item.default_value)
+            customFieldValues.value[item.field_id] = Array.isArray(parsed) ? parsed : []
+          } catch {
+            customFieldValues.value[item.field_id] = []
+          }
+        } else {
+          customFieldValues.value[item.field_id] = []
+        }
+      } else if (item.default_value) {
+        customFieldValues.value[item.field_id] = item.default_value
+      }
+    })
+  } catch (error) {
+    console.error('Failed to load field scheme:', error)
+  } finally {
+    fieldSchemeLoading.value = false
+  }
 }
 
 const submitCreate = async () => {
@@ -226,14 +273,41 @@ const submitCreate = async () => {
     if (!valid) return
     createLoading.value = true
     try {
-      const { data } = await createIssue({
+      if (!createForm.issue_type_id) {
+        ElMessage.error('请选择工单类型')
+        createLoading.value = false
+        return
+      }
+
+      // 校验必填字段
+      for (const item of fieldScheme.value) {
+        if (item.is_required) {
+          const val = customFieldValues.value[item.field_id]
+          const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+          if (isEmpty) {
+            ElMessage.error(`请填写 ${item.field?.field_name}`)
+            createLoading.value = false
+            return
+          }
+        }
+      }
+
+      // 分离内置字段和扩展字段
+      const { builtinValues, customFields } = extractBuiltinFields(fieldScheme.value, customFieldValues.value)
+
+      const requestData: CreateIssueRequest = {
         project_key: projectKey.value,
-        issue_type_id: createForm.issue_type_id!,
+        issue_type_id: createForm.issue_type_id,
         title: createForm.title,
-        description: createForm.description,
-        priority: createForm.priority,
-        assignee_id: createForm.assignee_id,
-      })
+        description: builtinValues.description || '',
+        priority: builtinValues.priority || 'P2',
+        assignee_id: builtinValues.assignee_id || undefined,
+        planned_start_date: builtinValues.planned_start_date || undefined,
+        planned_end_date: builtinValues.planned_end_date || undefined,
+        epic_id: builtinValues.epic_id || undefined,
+        custom_fields: customFields.length > 0 ? customFields : undefined,
+      }
+      const { data } = await createIssue(requestData)
       ElMessage.success('工单创建成功')
       createDialogVisible.value = false
       // 选中新创建的工单
