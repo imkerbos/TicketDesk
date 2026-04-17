@@ -60,6 +60,8 @@ export interface AlertRule {
   id: number
   name: string
   description: string
+  datasource_id?: number
+  datasource_name?: string
   project_id: number
   project_key: string
   project_name: string
@@ -79,6 +81,7 @@ export interface AlertRule {
 export interface CreateAlertRuleRequest {
   name: string
   description?: string
+  datasource_id: number
   project_id: number
   issue_type_id: number
   label_matchers: LabelMatcher[]

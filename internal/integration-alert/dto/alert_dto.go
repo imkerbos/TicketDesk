@@ -94,6 +94,7 @@ type AlertResolveRequest struct {
 type CreateAlertRuleRequest struct {
 	Name          string         `json:"name" binding:"required,min=1,max=100"`
 	Description   string         `json:"description" binding:"max=500"`
+	DatasourceID  uint64         `json:"datasource_id" binding:"required"`
 	ProjectID     uint64         `json:"project_id" binding:"required"`
 	IssueTypeID   uint64         `json:"issue_type_id" binding:"required"`
 	LabelMatchers []LabelMatcher `json:"label_matchers" binding:"required,min=1"`
@@ -107,6 +108,7 @@ type CreateAlertRuleRequest struct {
 type UpdateAlertRuleRequest struct {
 	Name          *string        `json:"name" binding:"omitempty,min=1,max=100"`
 	Description   *string        `json:"description" binding:"omitempty,max=500"`
+	DatasourceID  *uint64        `json:"datasource_id"`
 	LabelMatchers []LabelMatcher `json:"label_matchers" binding:"omitempty,min=1"`
 	Priority      *string        `json:"priority" binding:"omitempty,oneof=P0 P1 P2 P3"`
 	AssigneeID    *uint64        `json:"assignee_id"`
@@ -124,31 +126,34 @@ type LabelMatcher struct {
 
 // AlertRuleResponse 告警规则响应
 type AlertRuleResponse struct {
-	ID            uint64         `json:"id"`
-	Name          string         `json:"name"`
-	Description   string         `json:"description"`
-	ProjectID     uint64         `json:"project_id"`
-	ProjectKey    string         `json:"project_key"`
-	ProjectName   string         `json:"project_name"`
-	IssueTypeID   uint64         `json:"issue_type_id"`
-	IssueTypeName string         `json:"issue_type_name"`
-	LabelMatchers []LabelMatcher `json:"label_matchers"`
-	Priority      string         `json:"priority"`
-	AssigneeID    *uint64        `json:"assignee_id,omitempty"`
-	AssigneeName  *string        `json:"assignee_name,omitempty"`
-	AutoResolve   bool           `json:"auto_resolve"`
-	MergeWindow   int            `json:"merge_window"`
-	Status        int8           `json:"status"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID             uint64         `json:"id"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description"`
+	DatasourceID   *uint64        `json:"datasource_id,omitempty"`
+	DatasourceName string         `json:"datasource_name,omitempty"`
+	ProjectID      uint64         `json:"project_id"`
+	ProjectKey     string         `json:"project_key"`
+	ProjectName    string         `json:"project_name"`
+	IssueTypeID    uint64         `json:"issue_type_id"`
+	IssueTypeName  string         `json:"issue_type_name"`
+	LabelMatchers  []LabelMatcher `json:"label_matchers"`
+	Priority       string         `json:"priority"`
+	AssigneeID     *uint64        `json:"assignee_id,omitempty"`
+	AssigneeName   *string        `json:"assignee_name,omitempty"`
+	AutoResolve    bool           `json:"auto_resolve"`
+	MergeWindow    int            `json:"merge_window"`
+	Status         int8           `json:"status"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 // AlertRuleListRequest 告警规则列表查询请求
 type AlertRuleListRequest struct {
-	Page      int    `form:"page" binding:"omitempty,min=1"`
-	PageSize  int    `form:"page_size" binding:"omitempty,min=1,max=100"`
-	ProjectID uint64 `form:"project_id"`
-	Status    *int8  `form:"status" binding:"omitempty,oneof=0 1"`
+	Page         int    `form:"page" binding:"omitempty,min=1"`
+	PageSize     int    `form:"page_size" binding:"omitempty,min=1,max=100"`
+	ProjectID    uint64 `form:"project_id"`
+	DatasourceID uint64 `form:"datasource_id"`
+	Status       *int8  `form:"status" binding:"omitempty,oneof=0 1"`
 }
 
 // AlertRuleListResponse 告警规则列表响应

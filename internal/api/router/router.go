@@ -206,10 +206,12 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	alertRepository := alertRepo.NewAlertRepository(db)
 	alertRuleRepository := alertRepo.NewAlertRuleRepository(db)
 	alertSilenceRepository := alertRepo.NewAlertSilenceRepository(db)
+	datasourceRepository := alertRepo.NewAlertDatasourceRepository(db)
 	alertSvc := alertService.NewAlertService(
 		alertRepository,
 		alertRuleRepository,
 		alertSilenceRepository,
+		datasourceRepository,
 		issueRepository,
 		commentRepository,
 		projectRepository,
@@ -408,9 +410,9 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	rbac := middleware.NewRBACMiddleware(userRoleRepository)
 
 	// ============ 初始化数据源服务 ============
-	datasourceRepository := alertRepo.NewAlertDatasourceRepository(db)
 	datasourceSvc := alertService.NewDatasourceService(
 		datasourceRepository,
+		alertRuleRepository,
 		alertSvc,
 		alertRepository,
 		&cfg.Nightingale,

@@ -34,27 +34,30 @@ type DatasourceService interface {
 
 // datasourceService 数据源服务实现
 type datasourceService struct {
-	repo         repository.AlertDatasourceRepository
-	alertService AlertService
-	alertRepo    repository.AlertRepository
-	legacyCfg    *config.NightingaleConfig
-	pollers      map[uint64]*N9ePoller
-	mu           sync.Mutex
+	repo          repository.AlertDatasourceRepository
+	alertRuleRepo repository.AlertRuleRepository
+	alertService  AlertService
+	alertRepo     repository.AlertRepository
+	legacyCfg     *config.NightingaleConfig
+	pollers       map[uint64]*N9ePoller
+	mu            sync.Mutex
 }
 
 // NewDatasourceService 创建数据源服务
 func NewDatasourceService(
 	repo repository.AlertDatasourceRepository,
+	alertRuleRepo repository.AlertRuleRepository,
 	alertService AlertService,
 	alertRepo repository.AlertRepository,
 	legacyCfg *config.NightingaleConfig,
 ) DatasourceService {
 	return &datasourceService{
-		repo:         repo,
-		alertService: alertService,
-		alertRepo:    alertRepo,
-		legacyCfg:    legacyCfg,
-		pollers:      make(map[uint64]*N9ePoller),
+		repo:          repo,
+		alertRuleRepo: alertRuleRepo,
+		alertService:  alertService,
+		alertRepo:     alertRepo,
+		legacyCfg:     legacyCfg,
+		pollers:       make(map[uint64]*N9ePoller),
 	}
 }
 
@@ -157,7 +160,16 @@ func (s *datasourceService) Update(ctx context.Context, id uint64, req *dto.Upda
 
 // Delete 删除数据源
 func (s *datasourceService) Delete(ctx context.Context, id uint64) error {
-	// 先停止 Poller
+	// 检查是否有关联的告警规则
+	count, err := s.alertRuleRepo.CountByDatasourceID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("检查关联规则失败: %w", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("该数据源下有 %d 条告警规则，请先删除关联规则", count)
+	}
+
+	// 停止 Poller
 	s.stopPoller(id)
 
 	return s.repo.Delete(ctx, id)
@@ -369,7 +381,7 @@ func (s *datasourceService) startPoller(ds *model.AlertDatasource) {
 	}
 
 	client := NewN9eClientFromDatasource(baseURL, token)
-	poller := NewN9ePollerWithSource(client, s.alertService, s.alertRepo, interval, ds.Name)
+	poller := NewN9ePollerWithSource(client, s.alertService, s.alertRepo, interval, ds.Name, ds.ID)
 	poller.Start()
 
 	s.pollers[ds.ID] = poller

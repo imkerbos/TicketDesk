@@ -401,6 +401,7 @@ type AlertRuleRepository interface {
 	Delete(ctx context.Context, id uint64) error
 	List(ctx context.Context, req *dto.AlertRuleListRequest) ([]*model.AlertRule, int64, error)
 	ListEnabled(ctx context.Context) ([]*model.AlertRule, error)
+	CountByDatasourceID(ctx context.Context, datasourceID uint64) (int64, error)
 }
 
 // alertRuleRepository 告警规则仓库实现
@@ -449,6 +450,9 @@ func (r *alertRuleRepository) List(ctx context.Context, req *dto.AlertRuleListRe
 	if req.ProjectID > 0 {
 		query = query.Where("project_id = ?", req.ProjectID)
 	}
+	if req.DatasourceID > 0 {
+		query = query.Where("datasource_id = ?", req.DatasourceID)
+	}
 	if req.Status != nil {
 		query = query.Where("status = ?", *req.Status)
 	}
@@ -479,6 +483,13 @@ func (r *alertRuleRepository) ListEnabled(ctx context.Context) ([]*model.AlertRu
 	var rules []*model.AlertRule
 	err := r.db.WithContext(ctx).Where("status = ?", 1).Find(&rules).Error
 	return rules, err
+}
+
+// CountByDatasourceID 统计指定数据源下的告警规则数量
+func (r *alertRuleRepository) CountByDatasourceID(ctx context.Context, datasourceID uint64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.AlertRule{}).Where("datasource_id = ?", datasourceID).Count(&count).Error
+	return count, err
 }
 
 // ============ 辅助函数 ============

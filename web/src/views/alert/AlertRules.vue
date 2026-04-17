@@ -26,6 +26,11 @@
             <el-tag size="small" effect="plain" type="info">{{ row.project_name }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="datasource_name" label="数据源" width="120">
+          <template #default="{ row }">
+            <span class="type-text">{{ row.datasource_name || '全部' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="issue_type_name" label="工单类型" width="100">
           <template #default="{ row }">
             <span class="type-text">{{ row.issue_type_name }}</span>
@@ -133,6 +138,18 @@
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
+            <el-form-item label="数据源" prop="datasource_id">
+              <el-select v-model="form.datasource_id" placeholder="请选择数据源" style="width: 100%" filterable>
+                <el-option
+                  v-for="ds in datasourceList"
+                  :key="ds.id"
+                  :label="ds.name"
+                  :value="ds.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="项目" prop="project_id">
               <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%" filterable @change="handleProjectChange">
                 <el-option
@@ -144,6 +161,8 @@
               </el-select>
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="工单类型" prop="issue_type_id">
               <el-select v-model="form.issue_type_id" placeholder="请先选择项目" style="width: 100%" :disabled="!form.project_id" filterable>
@@ -156,8 +175,6 @@
               </el-select>
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="告警等级" prop="severity">
               <el-select v-model="form.severity" placeholder="全部等级（不限）" style="width: 100%" clearable>
@@ -258,9 +275,10 @@ import {
   createAlertRule,
   updateAlertRule,
   deleteAlertRule,
+  getDatasourceList,
 } from '@/api/alert'
 import { getProjectList } from '@/api/project'
-import type { AlertRule, LabelMatcher } from '@/types/alert'
+import type { AlertRule, LabelMatcher, AlertDatasource } from '@/types/alert'
 
 const loading = ref(false)
 const ruleList = ref<AlertRule[]>([])
@@ -270,9 +288,10 @@ const queryParams = reactive({
   page_size: 20,
 })
 
-// 项目和工单类型选项
+// 项目、工单类型和数据源选项
 const projectList = ref<{ id: number; name: string; project_key: string }[]>([])
 const issueTypeList = ref<{ id: number; name: string; display_name: string }[]>([])
+const datasourceList = ref<AlertDatasource[]>([])
 
 const loadProjects = async () => {
   try {
@@ -280,6 +299,15 @@ const loadProjects = async () => {
     projectList.value = data.data.items || []
   } catch (error) {
     console.error('Failed to load projects:', error)
+  }
+}
+
+const loadDatasources = async () => {
+  try {
+    const { data } = await getDatasourceList({ page: 1, page_size: 100 })
+    datasourceList.value = data.data.items || []
+  } catch (error) {
+    console.error('Failed to load datasources:', error)
   }
 }
 
@@ -309,6 +337,7 @@ const form = reactive({
   id: 0,
   name: '',
   description: '',
+  datasource_id: undefined as number | undefined,
   project_id: undefined as number | undefined,
   issue_type_id: undefined as number | undefined,
   severity: '' as string,
@@ -321,6 +350,7 @@ const form = reactive({
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
+  datasource_id: [{ required: true, message: '请选择数据源', trigger: 'change' }],
   project_id: [{ required: true, message: '请选择项目', trigger: 'change' }],
   issue_type_id: [{ required: true, message: '请选择工单类型', trigger: 'change' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
@@ -344,6 +374,7 @@ const handleCreate = () => {
   form.id = 0
   form.name = ''
   form.description = ''
+  form.datasource_id = undefined
   form.project_id = undefined
   form.issue_type_id = undefined
   form.severity = ''
@@ -360,6 +391,7 @@ const handleEdit = async (row: AlertRule) => {
   form.id = row.id
   form.name = row.name
   form.description = row.description
+  form.datasource_id = row.datasource_id
   form.project_id = row.project_id
   form.issue_type_id = row.issue_type_id
   const matchers: LabelMatcher[] = JSON.parse(JSON.stringify(row.label_matchers))
@@ -405,12 +437,13 @@ const handleSubmit = async () => {
         await updateAlertRule(form.id, submitData)
         ElMessage.success('更新成功')
       } else {
-        if (!form.project_id || !form.issue_type_id) {
-          ElMessage.error('请选择项目和工单类型')
+        if (!form.project_id || !form.issue_type_id || !form.datasource_id) {
+          ElMessage.error('请选择数据源、项目和工单类型')
           return
         }
         await createAlertRule({
           ...submitData,
+          datasource_id: form.datasource_id!,
           project_id: form.project_id!,
           issue_type_id: form.issue_type_id!,
         })
@@ -485,6 +518,7 @@ const getSeverityTagType = (severity: string): TagType => {
 onMounted(() => {
   loadData()
   loadProjects()
+  loadDatasources()
 })
 </script>
 

@@ -38,8 +38,8 @@ type AlertService interface {
 	// Webhook 处理
 	HandleWebhook(ctx context.Context, req *dto.AlertWebhookRequest) error
 	HandleNightingaleWebhook(ctx context.Context, events []dto.N9eAlertEvent) error
-	HandleWebhookWithSource(ctx context.Context, req *dto.AlertWebhookRequest, sourceName string) error
-	HandleNightingaleWebhookWithSource(ctx context.Context, events []dto.N9eAlertEvent, sourceName string) error
+	HandleWebhookWithSource(ctx context.Context, req *dto.AlertWebhookRequest, sourceName string, datasourceID uint64) error
+	HandleNightingaleWebhookWithSource(ctx context.Context, events []dto.N9eAlertEvent, sourceName string, datasourceID uint64) error
 
 	// 告警查询
 	GetAlert(ctx context.Context, id uint64) (*dto.AlertResponse, error)
@@ -115,6 +115,7 @@ type alertService struct {
 	alertRepo        repository.AlertRepository
 	alertRuleRepo    repository.AlertRuleRepository
 	alertSilenceRepo repository.AlertSilenceRepository
+	datasourceRepo   repository.AlertDatasourceRepository
 	issueRepo        issueRepo.IssueRepository
 	commentRepo      issueRepo.CommentRepository
 	projectRepo      projectRepo.ProjectRepository
@@ -152,6 +153,7 @@ func NewAlertService(
 	alertRepo repository.AlertRepository,
 	alertRuleRepo repository.AlertRuleRepository,
 	alertSilenceRepo repository.AlertSilenceRepository,
+	datasourceRepo repository.AlertDatasourceRepository,
 	issueRepo issueRepo.IssueRepository,
 	commentRepo issueRepo.CommentRepository,
 	projectRepo projectRepo.ProjectRepository,
@@ -163,6 +165,7 @@ func NewAlertService(
 		alertRepo:        alertRepo,
 		alertRuleRepo:    alertRuleRepo,
 		alertSilenceRepo: alertSilenceRepo,
+		datasourceRepo:   datasourceRepo,
 		issueRepo:        issueRepo,
 		commentRepo:      commentRepo,
 		projectRepo:      projectRepo,
@@ -180,7 +183,7 @@ func (s *alertService) HandleWebhook(ctx context.Context, req *dto.AlertWebhookR
 	)
 
 	for _, alertItem := range req.Alerts {
-		if err := s.processAlertWithSource(ctx, &alertItem, "prometheus"); err != nil {
+		if err := s.processAlertWithSource(ctx, &alertItem, "prometheus", 0); err != nil {
 			logger.Error("failed to process alert",
 				zap.String("fingerprint", alertItem.Fingerprint),
 				zap.Error(err),
@@ -201,7 +204,7 @@ func (s *alertService) HandleNightingaleWebhook(ctx context.Context, events []dt
 
 	for _, event := range events {
 		alertItem := event.ToAlertWebhookItem()
-		if err := s.processAlertWithSource(ctx, alertItem, "nightingale"); err != nil {
+		if err := s.processAlertWithSource(ctx, alertItem, "nightingale", 0); err != nil {
 			logger.Error("failed to process nightingale alert",
 				zap.String("hash", event.Hash),
 				zap.String("rule_name", event.RuleName),
@@ -215,7 +218,7 @@ func (s *alertService) HandleNightingaleWebhook(ctx context.Context, events []dt
 }
 
 // HandleWebhookWithSource 处理 Webhook 告警（带数据源名称）
-func (s *alertService) HandleWebhookWithSource(ctx context.Context, req *dto.AlertWebhookRequest, sourceName string) error {
+func (s *alertService) HandleWebhookWithSource(ctx context.Context, req *dto.AlertWebhookRequest, sourceName string, datasourceID uint64) error {
 	logger.Info("received alert webhook",
 		zap.String("source", sourceName),
 		zap.String("status", req.Status),
@@ -223,7 +226,7 @@ func (s *alertService) HandleWebhookWithSource(ctx context.Context, req *dto.Ale
 	)
 
 	for _, alertItem := range req.Alerts {
-		if err := s.processAlertWithSource(ctx, &alertItem, sourceName); err != nil {
+		if err := s.processAlertWithSource(ctx, &alertItem, sourceName, datasourceID); err != nil {
 			logger.Error("failed to process alert",
 				zap.String("source", sourceName),
 				zap.String("fingerprint", alertItem.Fingerprint),
@@ -237,7 +240,7 @@ func (s *alertService) HandleWebhookWithSource(ctx context.Context, req *dto.Ale
 }
 
 // HandleNightingaleWebhookWithSource 处理夜莺 Webhook 告警（带数据源名称）
-func (s *alertService) HandleNightingaleWebhookWithSource(ctx context.Context, events []dto.N9eAlertEvent, sourceName string) error {
+func (s *alertService) HandleNightingaleWebhookWithSource(ctx context.Context, events []dto.N9eAlertEvent, sourceName string, datasourceID uint64) error {
 	logger.Info("received nightingale webhook",
 		zap.String("source", sourceName),
 		zap.Int("event_count", len(events)),
@@ -245,7 +248,7 @@ func (s *alertService) HandleNightingaleWebhookWithSource(ctx context.Context, e
 
 	for _, event := range events {
 		alertItem := event.ToAlertWebhookItem()
-		if err := s.processAlertWithSource(ctx, alertItem, sourceName); err != nil {
+		if err := s.processAlertWithSource(ctx, alertItem, sourceName, datasourceID); err != nil {
 			logger.Error("failed to process nightingale alert",
 				zap.String("source", sourceName),
 				zap.String("hash", event.Hash),
@@ -309,7 +312,7 @@ func (s *alertService) invalidateFingerprintCache(ctx context.Context, fingerpri
 }
 
 // processAlertWithSource 处理单个告警（带来源参数）
-func (s *alertService) processAlertWithSource(ctx context.Context, alertItem *dto.AlertWebhookAlertItem, source string) error {
+func (s *alertService) processAlertWithSource(ctx context.Context, alertItem *dto.AlertWebhookAlertItem, source string, datasourceID uint64) error {
 	// 1. 检查告警是否被静默
 	if silenced, err := s.isAlertSilenced(ctx, alertItem.Labels); err != nil {
 		logger.Error("failed to check alert silence", zap.Error(err))
@@ -338,7 +341,7 @@ func (s *alertService) processAlertWithSource(ctx context.Context, alertItem *dt
 	}
 
 	// 5. 创建新告警
-	return s.createNewAlert(ctx, fingerprint, alertItem, source)
+	return s.createNewAlert(ctx, fingerprint, alertItem, source, datasourceID)
 }
 
 // calculateFingerprint 计算告警指纹
@@ -425,7 +428,7 @@ func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Ale
 }
 
 // createNewAlert 创建新告警
-func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, alertItem *dto.AlertWebhookAlertItem, source string) error {
+func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, alertItem *dto.AlertWebhookAlertItem, source string, datasourceID uint64) error {
 	// 提取告警名称和严重程度
 	alertName := alertItem.Labels["alertname"]
 	severity := alertItem.Labels["severity"]
@@ -448,6 +451,9 @@ func (s *alertService) createNewAlert(ctx context.Context, fingerprint string, a
 		Annotations: annotationsJSON,
 		StartsAt:    alertItem.StartsAt,
 		EndsAt:      alertItem.EndsAt,
+	}
+	if datasourceID > 0 {
+		alert.DatasourceID = &datasourceID
 	}
 
 	if err := s.alertRepo.Create(ctx, alert); err != nil {
@@ -486,6 +492,13 @@ func (s *alertService) tryAutoCreateIssue(ctx context.Context, alert *model.Aler
 
 	// 匹配规则
 	for _, rule := range rules {
+		// 规则有绑定数据源时，只匹配对应数据源的告警
+		if rule.DatasourceID != nil && *rule.DatasourceID > 0 {
+			if alert.DatasourceID == nil || *alert.DatasourceID != *rule.DatasourceID {
+				continue
+			}
+		}
+
 		if s.matchRule(rule, labels) {
 			logger.Info("matched alert rule",
 				zap.Uint64("alert_id", alert.ID),
@@ -1495,6 +1508,7 @@ func (s *alertService) CreateAlertRule(ctx context.Context, req *dto.CreateAlert
 	rule := &model.AlertRule{
 		Name:          req.Name,
 		Description:   req.Description,
+		DatasourceID:  &req.DatasourceID,
 		ProjectID:     req.ProjectID,
 		IssueTypeID:   req.IssueTypeID,
 		LabelMatchers: string(matchersJSON),
@@ -1536,6 +1550,9 @@ func (s *alertService) UpdateAlertRule(ctx context.Context, id uint64, req *dto.
 	}
 	if req.Description != nil {
 		rule.Description = *req.Description
+	}
+	if req.DatasourceID != nil {
+		rule.DatasourceID = req.DatasourceID
 	}
 	if req.LabelMatchers != nil {
 		matchersJSON, err := json.Marshal(req.LabelMatchers)
@@ -1615,6 +1632,7 @@ func (s *alertService) toAlertRuleResponse(rule *model.AlertRule) *dto.AlertRule
 		ID:            rule.ID,
 		Name:          rule.Name,
 		Description:   rule.Description,
+		DatasourceID:  rule.DatasourceID,
 		ProjectID:     rule.ProjectID,
 		IssueTypeID:   rule.IssueTypeID,
 		LabelMatchers: matchers,
@@ -1625,6 +1643,13 @@ func (s *alertService) toAlertRuleResponse(rule *model.AlertRule) *dto.AlertRule
 		Status:        rule.Status,
 		CreatedAt:     rule.CreatedAt,
 		UpdatedAt:     rule.UpdatedAt,
+	}
+
+	// 填充数据源名称
+	if rule.DatasourceID != nil && *rule.DatasourceID > 0 {
+		if ds, err := s.datasourceRepo.GetByID(context.Background(), *rule.DatasourceID); err == nil && ds != nil {
+			resp.DatasourceName = ds.Name
+		}
 	}
 
 	// 填充项目名称

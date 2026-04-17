@@ -240,20 +240,21 @@ func (WorkflowEdge) TableName() string {
 // Alert 告警模型
 type Alert struct {
 	BaseModel
-	Fingerprint string     `gorm:"size:64;uniqueIndex;not null" json:"fingerprint"`
-	Source      string     `gorm:"size:50;index;not null" json:"source"`
-	AlertName   string     `gorm:"size:200;not null" json:"alert_name"`
-	Severity    string     `gorm:"size:20;default:warning;index" json:"severity"`
-	Status      string     `gorm:"size:20;default:firing;index;index:idx_alert_issue_status,priority:2" json:"status"`
-	Labels      string     `gorm:"type:json" json:"labels"`
-	Annotations string     `gorm:"type:json" json:"annotations"`
-	StartsAt    time.Time  `gorm:"index;not null" json:"starts_at"`
-	EndsAt      *time.Time `json:"ends_at"`
-	IssueID     *uint64    `gorm:"index:idx_alert_issue_status,priority:1" json:"issue_id"`
-	AckAt       *time.Time `json:"ack_at"`                   // 确认时间
-	AckBy       *uint64    `gorm:"index" json:"ack_by"`      // 确认人
-	ResolvedAt  *time.Time `json:"resolved_at"`              // 解决时间
-	ResolvedBy  *uint64    `gorm:"index" json:"resolved_by"` // 解决人
+	Fingerprint  string     `gorm:"size:64;uniqueIndex;not null" json:"fingerprint"`
+	Source       string     `gorm:"size:50;index;not null" json:"source"`
+	AlertName    string     `gorm:"size:200;not null" json:"alert_name"`
+	Severity     string     `gorm:"size:20;default:warning;index" json:"severity"`
+	Status       string     `gorm:"size:20;default:firing;index;index:idx_alert_issue_status,priority:2" json:"status"`
+	Labels       string     `gorm:"type:json" json:"labels"`
+	Annotations  string     `gorm:"type:json" json:"annotations"`
+	StartsAt     time.Time  `gorm:"index;not null" json:"starts_at"`
+	EndsAt       *time.Time `json:"ends_at"`
+	IssueID      *uint64    `gorm:"index:idx_alert_issue_status,priority:1" json:"issue_id"`
+	DatasourceID *uint64    `gorm:"index" json:"datasource_id"` // 关联数据源 ID
+	AckAt        *time.Time `json:"ack_at"`                     // 确认时间
+	AckBy        *uint64    `gorm:"index" json:"ack_by"`        // 确认人
+	ResolvedAt   *time.Time `json:"resolved_at"`                // 解决时间
+	ResolvedBy   *uint64    `gorm:"index" json:"resolved_by"`   // 解决人
 }
 
 // TableName 指定表名
@@ -266,6 +267,7 @@ type AlertRule struct {
 	BaseModel
 	Name          string  `gorm:"size:100;not null" json:"name"`
 	Description   string  `gorm:"type:text" json:"description"`
+	DatasourceID  *uint64 `gorm:"index" json:"datasource_id"` // 绑定的数据源 ID
 	ProjectID     uint64  `gorm:"index;not null" json:"project_id"`
 	IssueTypeID   uint64  `gorm:"index;not null" json:"issue_type_id"`
 	LabelMatchers string  `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则

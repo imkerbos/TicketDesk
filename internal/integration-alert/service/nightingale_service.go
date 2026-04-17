@@ -125,6 +125,7 @@ type N9ePoller struct {
 	alertRepo    repository.AlertRepository
 	interval     time.Duration
 	sourceName   string
+	datasourceID uint64
 	stopCh       chan struct{}
 	doneCh       chan struct{}
 }
@@ -154,6 +155,7 @@ func NewN9ePollerWithSource(
 	alertRepo repository.AlertRepository,
 	interval time.Duration,
 	sourceName string,
+	datasourceID uint64,
 ) *N9ePoller {
 	return &N9ePoller{
 		client:       client,
@@ -161,6 +163,7 @@ func NewN9ePollerWithSource(
 		alertRepo:    alertRepo,
 		interval:     interval,
 		sourceName:   sourceName,
+		datasourceID: datasourceID,
 		stopCh:       make(chan struct{}),
 		doneCh:       make(chan struct{}),
 	}
@@ -234,7 +237,7 @@ func (p *N9ePoller) poll() {
 
 	// 3. 处理每条活跃告警
 	for _, event := range events {
-		if err := p.alertService.HandleNightingaleWebhookWithSource(ctx, []dto.N9eAlertEvent{event}, p.sourceName); err != nil {
+		if err := p.alertService.HandleNightingaleWebhookWithSource(ctx, []dto.N9eAlertEvent{event}, p.sourceName, p.datasourceID); err != nil {
 			logger.Error("nightingale poller: failed to process alert",
 				zap.String("source", p.sourceName),
 				zap.String("hash", event.Hash),

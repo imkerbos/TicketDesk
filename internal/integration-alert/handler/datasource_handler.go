@@ -125,7 +125,7 @@ func (h *DatasourceHandler) HandleDeleteDatasource(c *gin.Context) {
 
 	if err := h.datasourceService.Delete(c.Request.Context(), id); err != nil {
 		logger.Error("failed to delete datasource", zap.Uint64("id", id), zap.Error(err))
-		response.InternalError(c, "删除数据源失败")
+		response.BadRequest(c, err.Error())
 		return
 	}
 
@@ -192,7 +192,7 @@ func (h *DatasourceHandler) HandleDatasourceWebhook(c *gin.Context) {
 			response.BadRequest(c, "参数错误: "+err.Error())
 			return
 		}
-		if err := h.alertService.HandleWebhookWithSource(c.Request.Context(), &req, ds.Name); err != nil {
+		if err := h.alertService.HandleWebhookWithSource(c.Request.Context(), &req, ds.Name, ds.ID); err != nil {
 			logger.Error("failed to handle prometheus webhook", zap.String("source", ds.Name), zap.Error(err))
 			response.InternalError(c, "处理 Webhook 失败")
 			return
@@ -213,7 +213,7 @@ func (h *DatasourceHandler) HandleDatasourceWebhook(c *gin.Context) {
 			}
 			events = []dto.N9eAlertEvent{single}
 		}
-		if err := h.alertService.HandleNightingaleWebhookWithSource(c.Request.Context(), events, ds.Name); err != nil {
+		if err := h.alertService.HandleNightingaleWebhookWithSource(c.Request.Context(), events, ds.Name, ds.ID); err != nil {
 			logger.Error("failed to handle nightingale webhook", zap.String("source", ds.Name), zap.Error(err))
 			response.InternalError(c, "处理夜莺 Webhook 失败")
 			return

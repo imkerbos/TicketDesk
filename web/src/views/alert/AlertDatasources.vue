@@ -121,7 +121,7 @@
                 编辑
               </el-button>
               <el-popconfirm
-                title="确定要删除此数据源吗？关联的轮询器将被停止。"
+                title="确定要删除此数据源吗？如有关联的告警规则，需先删除规则。"
                 confirm-button-text="删除"
                 cancel-button-text="取消"
                 @confirm="handleDelete(ds.id)"
@@ -398,8 +398,9 @@ const handleDelete = async (id: number) => {
     await deleteDatasource(id)
     ElMessage.success('数据源已删除')
     fetchDatasources()
-  } catch {
-    ElMessage.error('删除失败')
+  } catch (error: any) {
+    const msg = error?.response?.data?.message || '删除失败'
+    ElMessage.error(msg)
   }
 }
 
