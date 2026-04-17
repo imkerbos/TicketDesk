@@ -699,6 +699,7 @@ func (r *Router) registerIssueRoutes(rg *gin.RouterGroup) {
 	// Dashboard 专用（必须放在 /:key 路由之前，避免被匹配为 key）
 	issues.GET("/my-todo", r.requireIssueListPerm(), r.issueHandler.HandleListMyTodoIssues)
 	issues.GET("/my-created", r.requireIssueListPerm(), r.issueHandler.HandleListMyCreatedIssues)
+	issues.GET("/stats", r.requireIssueListPerm(), r.issueHandler.HandleGetIssueListStats)
 
 	// 工单列表（通过 query 参数 project_key 检查权限）
 	issues.GET("", r.requireIssueListPerm(), r.issueHandler.HandleListIssues)

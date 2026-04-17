@@ -106,6 +106,16 @@
           <el-select v-model="queryParams.epic_id" placeholder="Epic" clearable filterable class="filter-select" @change="handleQuery">
             <el-option v-for="e in filterEpics" :key="e.id" :label="`${e.issue_key}: ${e.title}`" :value="e.id" />
           </el-select>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            class="date-range-picker"
+            @change="handleDateRangeChange"
+          />
         </div>
         <div class="filter-right">
           <el-button type="primary" :icon="Search" @click="handleQuery">查询</el-button>
@@ -113,6 +123,26 @@
         </div>
       </div>
     </el-card>
+
+    <!-- KPI 统计卡片 -->
+    <div class="stats-row">
+      <div class="stat-card stat-total">
+        <div class="stat-value">{{ issueStats.total }}</div>
+        <div class="stat-label">工单总数</div>
+      </div>
+      <div class="stat-card stat-resolved">
+        <div class="stat-value">{{ issueStats.resolved }}</div>
+        <div class="stat-label">已完成</div>
+      </div>
+      <div class="stat-card stat-rate">
+        <div class="stat-value">{{ issueStats.completion_rate }}%</div>
+        <div class="stat-label">完成率</div>
+      </div>
+      <div class="stat-card stat-hours">
+        <div class="stat-value">{{ issueStats.avg_resolve_hours }}h</div>
+        <div class="stat-label">平均解决时长</div>
+      </div>
+    </div>
 
     <!-- 工具栏 + 内容 -->
     <el-card shadow="never" class="table-card">
@@ -346,11 +376,11 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Check, QuestionFilled, Delete } from '@element-plus/icons-vue'
-import { getIssueList, createIssue, deleteIssue } from '@/api/issue'
+import { getIssueList, getIssueListStats, createIssue, deleteIssue } from '@/api/issue'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import { getFieldScheme } from '@/api/field'
-import type { Issue, IssueStatus, IssuePriority, CreateIssueRequest, KanbanColumn } from '@/types/issue'
+import type { Issue, IssueStatus, IssuePriority, CreateIssueRequest, KanbanColumn, IssueListStats } from '@/types/issue'
 import type { Project, ProjectIssueType } from '@/types/project'
 import type { UserOption } from '@/types/user'
 import type { FieldSchemeItem } from '@/types/field'
@@ -379,6 +409,19 @@ const fieldSchemeLoading = ref(false)
 
 // 从 URL query 初始化筛选条件
 const initQuery = route.query
+
+const dateRange = ref<[string, string] | null>(
+  initQuery.start_date && initQuery.end_date
+    ? [initQuery.start_date as string, initQuery.end_date as string]
+    : null,
+)
+const issueStats = reactive<IssueListStats>({
+  total: 0,
+  resolved: 0,
+  completion_rate: 0,
+  avg_resolve_hours: 0,
+})
+
 type QuickFilterKey = '' | 'my-todo' | 'my-created'
 interface SavedViewSnapshot {
   quick_filter: QuickFilterKey
@@ -424,6 +467,8 @@ const queryParams = reactive({
   category: ((initQuery.category as string) || '') as '' | 'normal' | 'alert',
   sort_by: (initQuery.sort_by as string) || undefined,
   order: (initQuery.order as 'asc' | 'desc' | undefined) || undefined,
+  start_date: (initQuery.start_date as string) || undefined,
+  end_date: (initQuery.end_date as string) || undefined,
 })
 
 const activeQuickFilter = ref<QuickFilterKey>(dashboardFilter)
@@ -495,6 +540,8 @@ const syncQueryToUrl = () => {
   if (queryParams.category) query.category = queryParams.category
   if (queryParams.sort_by) query.sort_by = queryParams.sort_by
   if (queryParams.order) query.order = queryParams.order
+  if (queryParams.start_date) query.start_date = queryParams.start_date
+  if (queryParams.end_date) query.end_date = queryParams.end_date
   if (selectedSavedViewId.value) query.view = selectedSavedViewId.value
   if (queryParams.page > 1) query.page = String(queryParams.page)
   router.replace({ query })
@@ -541,10 +588,14 @@ const loadData = async () => {
   try {
     const params = { ...queryParams }
     if (viewMode.value === 'kanban') params.page_size = 100
-    const { data } = await getIssueList(params)
-    issueList.value = data.data.items
-    total.value = data.data.total
-    hasMore.value = data.data.has_more || false
+    const [listRes, statsRes] = await Promise.all([
+      getIssueList(params),
+      getIssueListStats(params),
+    ])
+    issueList.value = listRes.data.data.items
+    total.value = listRes.data.data.total
+    hasMore.value = listRes.data.data.has_more || false
+    Object.assign(issueStats, statsRes.data.data)
   } catch (error) {
     console.error('Failed to load issues:', error)
   } finally {
@@ -725,6 +776,15 @@ const handleReporterFilterChange = () => {
   loadData()
 }
 
+const handleDateRangeChange = (val: [string, string] | null) => {
+  clearSelectedSavedView()
+  queryParams.start_date = val ? val[0] : undefined
+  queryParams.end_date = val ? val[1] : undefined
+  queryParams.page = 1
+  syncQueryToUrl()
+  loadData()
+}
+
 // 排序：prop 到后端字段的映射
 const sortFieldMap: Record<string, string> = {
   issue_key: 'id',
@@ -784,6 +844,9 @@ const handleReset = () => {
   queryParams.category = ''
   queryParams.sort_by = undefined
   queryParams.order = undefined
+  queryParams.start_date = undefined
+  queryParams.end_date = undefined
+  dateRange.value = null
   filterIssueTypes.value = []
   filterEpics.value = []
   syncQueryToUrl()
@@ -1532,6 +1595,58 @@ onMounted(async () => {
   }
 }
 
+// 日期范围选择器
+.date-range-picker {
+  width: 240px;
+}
+
+// KPI 统计卡片
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: var(--td-bg-card);
+  border: 1px solid var(--td-border-color);
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: var(--td-text-secondary);
+  }
+
+  &.stat-total {
+    border-left: 3px solid #3b82f6;
+    .stat-value { color: #3b82f6; }
+  }
+
+  &.stat-resolved {
+    border-left: 3px solid #10b981;
+    .stat-value { color: #10b981; }
+  }
+
+  &.stat-rate {
+    border-left: 3px solid #f59e0b;
+    .stat-value { color: #f59e0b; }
+  }
+
+  &.stat-hours {
+    border-left: 3px solid #6b7280;
+    .stat-value { color: #6b7280; }
+  }
+}
+
 // 响应式
 @media (max-width: 768px) {
   .page-header {
@@ -1564,6 +1679,14 @@ onMounted(async () => {
 
   .search-input, .filter-select, .filter-select-sm {
     width: 100% !important;
+  }
+
+  .date-range-picker {
+    width: 100% !important;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>

@@ -159,6 +159,34 @@ func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 	response.SuccessWithPageHasMore(c, issues, total, req.GetDefaultPage(), req.GetDefaultPageSize(), hasMore)
 }
 
+// HandleGetIssueListStats 获取工单列表统计数据
+func (h *IssueHandler) HandleGetIssueListStats(c *gin.Context) {
+	var req dto.ListIssuesRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	// 从中间件注入的项目 ID 列表（非管理员且未指定 project_key 时）
+	if projectIDs, exists := c.Get("user_project_ids"); exists {
+		if ids, ok := projectIDs.([]uint64); ok {
+			req.ProjectIDs = ids
+		}
+	}
+
+	stats, err := h.issueService.GetIssueListStats(c.Request.Context(), &req)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取工单统计失败")
+		return
+	}
+
+	response.Success(c, stats)
+}
+
 // HandleListIssuesInEpic 获取 Epic 下的所有 Issues
 func (h *IssueHandler) HandleListIssuesInEpic(c *gin.Context) {
 	epicKey := c.Param("key")

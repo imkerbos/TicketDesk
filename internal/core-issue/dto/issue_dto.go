@@ -57,7 +57,9 @@ type ListIssuesRequest struct {
 	Category    string   `form:"category" binding:"omitempty,oneof=normal alert"`
 	SortBy      string   `form:"sort_by" binding:"omitempty,oneof=id priority status issue_type_id created_at updated_at"`
 	Order       string   `form:"order" binding:"omitempty,oneof=asc desc"`
-	ProjectIDs  []uint64 `form:"-" json:"-"` // 内部使用：限定可访问的项目范围
+	StartDate   string   `form:"start_date" binding:"omitempty"` // 开始日期 YYYY-MM-DD
+	EndDate     string   `form:"end_date" binding:"omitempty"`   // 结束日期 YYYY-MM-DD
+	ProjectIDs  []uint64 `form:"-" json:"-"`                     // 内部使用：限定可访问的项目范围
 }
 
 // GetDefaultPage 获取默认页码
@@ -233,4 +235,12 @@ type WorklogResponse struct {
 	WorkType     string     `json:"work_type"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+// IssueListStatsResponse 工单列表统计响应
+type IssueListStatsResponse struct {
+	Total           int64   `json:"total"`
+	Resolved        int64   `json:"resolved"`
+	CompletionRate  float64 `json:"completion_rate"`
+	AvgResolveHours float64 `json:"avg_resolve_hours"`
 }

@@ -10,6 +10,7 @@ import type {
   IssueActivity,
   IssueWatcher,
   IssueStats,
+  IssueListStats,
   Worklog,
   CreateWorklogRequest,
   UpdateWorklogRequest,
@@ -90,6 +91,11 @@ export const removeIssueWatcher = (key: string, userId: number) => {
 // 工单统计（用于 Dashboard）
 export const getIssueStats = (params?: { project_id?: number; assignee_id?: number }) => {
   return request.get<ApiResponse<IssueStats>>('/issues/stats', { params })
+}
+
+// 工单列表统计（用于全局工单列表 KPI 卡片）
+export const getIssueListStats = (params: Record<string, any>) => {
+  return request.get<ApiResponse<IssueListStats>>('/issues/stats', { params })
 }
 
 // 我的待办工单

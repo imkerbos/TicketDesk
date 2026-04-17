@@ -73,6 +73,9 @@ type IssueService interface {
 	UpdateWorklog(ctx context.Context, worklogID uint64, req *dto.UpdateWorklogRequest, userID uint64) (*dto.WorklogResponse, error)
 	DeleteWorklog(ctx context.Context, worklogID, userID uint64) error
 	ListWorklogs(ctx context.Context, issueKey string) ([]*dto.WorklogResponse, error)
+
+	// 统计
+	GetIssueListStats(ctx context.Context, req *dto.ListIssuesRequest) (*dto.IssueListStatsResponse, error)
 }
 
 // issueService 工单服务实现
@@ -834,6 +837,22 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 	pageSize := req.GetDefaultPageSize()
 	offset := (page - 1) * pageSize
 
+	filter, err := s.buildIssueFilter(ctx, req)
+	if err != nil {
+		return nil, 0, false, err
+	}
+
+	result, err := s.issueRepo.List(ctx, filter, offset, pageSize)
+	if err != nil {
+		logger.Error("failed to list issues", zap.Error(err))
+		return nil, 0, false, fmt.Errorf("查询工单列表失败: %w", err)
+	}
+
+	return s.batchToIssueResponses(ctx, result.Issues), result.Total, result.HasMore, nil
+}
+
+// buildIssueFilter 根据 ListIssuesRequest 构建 IssueFilter（ListIssues 和 GetIssueListStats 共用）
+func (s *issueService) buildIssueFilter(ctx context.Context, req *dto.ListIssuesRequest) (*repository.IssueFilter, error) {
 	filter := &repository.IssueFilter{
 		Status:          req.Status,
 		Priority:        req.Priority,
@@ -849,25 +868,37 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 		Order:           req.Order,
 	}
 
+	// 解析日期范围
+	if req.StartDate != "" {
+		t, err := time.ParseInLocation("2006-01-02", req.StartDate, time.Local)
+		if err != nil {
+			return nil, fmt.Errorf("start_date 格式错误: %w", err)
+		}
+		filter.StartDate = &t
+	}
+	if req.EndDate != "" {
+		t, err := time.ParseInLocation("2006-01-02", req.EndDate, time.Local)
+		if err != nil {
+			return nil, fmt.Errorf("end_date 格式错误: %w", err)
+		}
+		// 结束日期取当天 23:59:59
+		endOfDay := t.Add(24*time.Hour - time.Second)
+		filter.EndDate = &endOfDay
+	}
+
 	// 如果指定了项目 Key，获取项目 ID
 	if req.ProjectKey != "" {
 		project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(req.ProjectKey))
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, 0, false, ErrProjectNotFound
+				return nil, ErrProjectNotFound
 			}
-			return nil, 0, false, fmt.Errorf("查询项目失败: %w", err)
+			return nil, fmt.Errorf("查询项目失败: %w", err)
 		}
 		filter.ProjectID = &project.ID
 	}
 
-	result, err := s.issueRepo.List(ctx, filter, offset, pageSize)
-	if err != nil {
-		logger.Error("failed to list issues", zap.Error(err))
-		return nil, 0, false, fmt.Errorf("查询工单列表失败: %w", err)
-	}
-
-	return s.batchToIssueResponses(ctx, result.Issues), result.Total, result.HasMore, nil
+	return filter, nil
 }
 
 // ListMyTodoIssues 获取我的待办工单（指派给我的待处理/进行中工单）
@@ -919,6 +950,34 @@ func (s *issueService) ListMyCreatedIssues(ctx context.Context, userID uint64, p
 	}
 
 	return s.batchToIssueResponses(ctx, result.Issues), result.Total, result.HasMore, nil
+}
+
+// GetIssueListStats 获取工单列表统计数据
+func (s *issueService) GetIssueListStats(ctx context.Context, req *dto.ListIssuesRequest) (*dto.IssueListStatsResponse, error) {
+	filter, err := s.buildIssueFilter(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := s.issueRepo.GetListStats(ctx, filter)
+	if err != nil {
+		logger.Error("failed to get issue list stats", zap.Error(err))
+		return nil, fmt.Errorf("查询工单统计失败: %w", err)
+	}
+
+	var completionRate float64
+	if stats.Total > 0 {
+		completionRate = float64(stats.Resolved) / float64(stats.Total) * 100
+		// 保留一位小数
+		completionRate = float64(int(completionRate*10)) / 10
+	}
+
+	return &dto.IssueListStatsResponse{
+		Total:           stats.Total,
+		Resolved:        stats.Resolved,
+		CompletionRate:  completionRate,
+		AvgResolveHours: float64(int(stats.AvgResolveHours*10)) / 10,
+	}, nil
 }
 
 // ListIssuesInEpic 获取 Epic 下的所有 Issues

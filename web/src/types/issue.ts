@@ -184,6 +184,14 @@ export interface IssueStats {
   by_priority: Record<IssuePriority, number>
 }
 
+// 工单列表 KPI 统计
+export interface IssueListStats {
+  total: number
+  resolved: number
+  completion_rate: number
+  avg_resolve_hours: number
+}
+
 // 看板列
 export interface KanbanColumn {
   status: IssueStatus

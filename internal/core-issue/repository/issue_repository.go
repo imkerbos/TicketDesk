@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -31,6 +32,14 @@ type IssueRepository interface {
 	ListByParentID(ctx context.Context, parentID uint64) ([]*model.Issue, error)
 	ListByEpicID(ctx context.Context, epicID uint64) ([]*model.Issue, error)
 	ListByMergedIntoIssueID(ctx context.Context, issueID uint64, result *[]model.Issue) error
+	GetListStats(ctx context.Context, filter *IssueFilter) (*ListStats, error)
+}
+
+// ListStats 工单列表聚合统计
+type ListStats struct {
+	Total           int64
+	Resolved        int64
+	AvgResolveHours float64
 }
 
 // IssueFilter 工单过滤条件
@@ -46,9 +55,11 @@ type IssueFilter struct {
 	IssueTypeID     *uint64
 	EpicID          *uint64
 	Keyword         string
-	Category        string // "normal" = 排除告警工单, "alert" = 仅告警工单
-	SortBy          string // 排序字段
-	Order           string // asc / desc
+	Category        string     // "normal" = 排除告警工单, "alert" = 仅告警工单
+	SortBy          string     // 排序字段
+	Order           string     // asc / desc
+	StartDate       *time.Time // 创建时间起始
+	EndDate         *time.Time // 创建时间截止
 }
 
 // issueRepository 工单数据访问实现
@@ -100,55 +111,71 @@ func (r *issueRepository) Delete(ctx context.Context, id uint64) error {
 // 避免 COUNT(*) 全表扫描，保证任意数据量下计数查询 <2ms
 const maxCountLimit = 10001
 
+// buildFilterQuery 构建公共过滤条件查询（List 和 GetListStats 共用）
+// 返回 nil 表示用户无项目权限，应直接返回空结果
+func (r *issueRepository) buildFilterQuery(ctx context.Context, filter *IssueFilter) *gorm.DB {
+	query := r.db.WithContext(ctx).Model(&model.Issue{})
+	if filter == nil {
+		return query
+	}
+
+	if filter.ProjectID != nil {
+		query = query.Where("project_id = ?", *filter.ProjectID)
+	}
+	if filter.LimitByProjects {
+		if len(filter.ProjectIDs) == 0 {
+			return nil // ��户没有任何项目权限
+		}
+		query = query.Where("project_id IN ?", filter.ProjectIDs)
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+	if len(filter.StatusNotIn) > 0 {
+		query = query.Where("status NOT IN ?", filter.StatusNotIn)
+	}
+	if filter.Priority != "" {
+		query = query.Where("priority = ?", filter.Priority)
+	}
+	if filter.AssigneeID != nil {
+		query = query.Where("assignee_id = ?", *filter.AssigneeID)
+	}
+	if filter.ReporterID != nil {
+		query = query.Where("reporter_id = ?", *filter.ReporterID)
+	}
+	if filter.IssueTypeID != nil {
+		query = query.Where("issue_type_id = ?", *filter.IssueTypeID)
+	}
+	if filter.EpicID != nil {
+		query = query.Where("epic_id = ?", *filter.EpicID)
+	}
+	if filter.Keyword != "" {
+		keyword := "%" + filter.Keyword + "%"
+		query = query.Where("issue_key LIKE ? OR title LIKE ?", keyword, keyword)
+	}
+	if filter.Category == "alert" {
+		query = query.Where("issue_type_id IN (SELECT id FROM issue_types WHERE name = 'Alert')")
+	} else if filter.Category == "normal" {
+		query = query.Where("issue_type_id NOT IN (SELECT id FROM issue_types WHERE name = 'Alert')")
+	}
+	if filter.StartDate != nil {
+		query = query.Where("created_at >= ?", *filter.StartDate)
+	}
+	if filter.EndDate != nil {
+		query = query.Where("created_at <= ?", *filter.EndDate)
+	}
+
+	return query
+}
+
 // List 分页查询工单列表
 func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset, limit int) (*ListResult, error) {
 	var issues []*model.Issue
 	result := &ListResult{}
 
-	query := r.db.WithContext(ctx).Model(&model.Issue{})
-
-	// 应用过滤条件
-	if filter != nil {
-		if filter.ProjectID != nil {
-			query = query.Where("project_id = ?", *filter.ProjectID)
-		}
-		if filter.LimitByProjects {
-			if len(filter.ProjectIDs) == 0 {
-				// 用户没有任何项目权限，直接返回空结果
-				return result, nil
-			}
-			query = query.Where("project_id IN ?", filter.ProjectIDs)
-		}
-		if filter.Status != "" {
-			query = query.Where("status = ?", filter.Status)
-		}
-		if len(filter.StatusNotIn) > 0 {
-			query = query.Where("status NOT IN ?", filter.StatusNotIn)
-		}
-		if filter.Priority != "" {
-			query = query.Where("priority = ?", filter.Priority)
-		}
-		if filter.AssigneeID != nil {
-			query = query.Where("assignee_id = ?", *filter.AssigneeID)
-		}
-		if filter.ReporterID != nil {
-			query = query.Where("reporter_id = ?", *filter.ReporterID)
-		}
-		if filter.IssueTypeID != nil {
-			query = query.Where("issue_type_id = ?", *filter.IssueTypeID)
-		}
-		if filter.EpicID != nil {
-			query = query.Where("epic_id = ?", *filter.EpicID)
-		}
-		if filter.Keyword != "" {
-			keyword := "%" + filter.Keyword + "%"
-			query = query.Where("issue_key LIKE ? OR title LIKE ?", keyword, keyword)
-		}
-		if filter.Category == "alert" {
-			query = query.Where("issue_type_id IN (SELECT id FROM issue_types WHERE name = 'Alert')")
-		} else if filter.Category == "normal" {
-			query = query.Where("issue_type_id NOT IN (SELECT id FROM issue_types WHERE name = 'Alert')")
-		}
+	query := r.buildFilterQuery(ctx, filter)
+	if query == nil {
+		return result, nil
 	}
 
 	// 封顶计数：最多扫描 maxCountLimit 行，避免百万级 COUNT 全扫描
@@ -193,6 +220,25 @@ func (r *issueRepository) List(ctx context.Context, filter *IssueFilter, offset,
 	result.Issues = issues
 
 	return result, nil
+}
+
+// GetListStats 根据过滤条件聚合统计工单数据
+func (r *issueRepository) GetListStats(ctx context.Context, filter *IssueFilter) (*ListStats, error) {
+	query := r.buildFilterQuery(ctx, filter)
+	if query == nil {
+		return &ListStats{}, nil
+	}
+
+	var stats ListStats
+	err := query.Select(
+		"COUNT(*) AS total",
+		"SUM(CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END) AS resolved",
+		"COALESCE(AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(SECOND, created_at, resolved_at) END) / 3600, 0) AS avg_resolve_hours",
+	).Scan(&stats).Error
+	if err != nil {
+		return nil, err
+	}
+	return &stats, nil
 }
 
 // GetNextIssueNumber 获取项目下一个工单编号（包含软删除记录，避免唯一键冲突）
