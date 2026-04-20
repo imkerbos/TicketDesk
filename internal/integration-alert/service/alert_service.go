@@ -337,7 +337,7 @@ func (s *alertService) processAlertWithSource(ctx context.Context, alertItem *dt
 
 	// 4. 如果告警已存在，更新状态
 	if existingAlert != nil {
-		return s.updateExistingAlert(ctx, existingAlert, alertItem)
+		return s.updateExistingAlert(ctx, existingAlert, alertItem, datasourceID)
 	}
 
 	// 5. 创建新告警
@@ -366,7 +366,7 @@ func (s *alertService) calculateFingerprint(labels map[string]string) string {
 }
 
 // updateExistingAlert 更新已存在的告警
-func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Alert, alertItem *dto.AlertWebhookAlertItem) error {
+func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Alert, alertItem *dto.AlertWebhookAlertItem, datasourceID uint64) error {
 	// 失效指纹缓存（状态变更后下次查询需从 DB 获取最新数据）
 	s.invalidateFingerprintCache(ctx, alert.Fingerprint)
 
@@ -374,6 +374,11 @@ func (s *alertService) updateExistingAlert(ctx context.Context, alert *model.Ale
 	oldStatus := alert.Status
 	alert.Status = alertItem.Status
 	alert.EndsAt = alertItem.EndsAt
+
+	// 更新数据源 ID（数据源重建后 ID 会变化）
+	if datasourceID > 0 {
+		alert.DatasourceID = &datasourceID
+	}
 
 	// 如果告警恢复，检查是否所有关联告警都已恢复，若是则自动解决工单
 	if alertItem.Status == "resolved" && oldStatus != "resolved" && alert.IssueID != nil {
