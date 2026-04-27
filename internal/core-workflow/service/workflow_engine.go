@@ -261,15 +261,28 @@ func (e *workflowEngine) Approve(ctx context.Context, instanceID, userID uint64,
 		return fmt.Errorf("当前节点不是审批节点")
 	}
 
+	// 解析节点配置（提前解析，用于判断是否配置了指定审批人）
+	var config dto.NodeConfig
+	if currentNode.Config != "" {
+		if unmarshalErr := json.Unmarshal([]byte(currentNode.Config), &config); unmarshalErr != nil {
+			logger.Error("failed to parse node config", zap.Error(unmarshalErr))
+			return fmt.Errorf("解析节点配置失败: %w", unmarshalErr)
+		}
+	}
+
 	// 获取审批记录
 	record, err := e.approvalRepo.GetByInstanceNodeAndApprover(ctx, instanceID, currentNode.ID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 如果用户不是指定审批人，检查是否为系统管理员或项目管理员
-			if !e.isAdminOrProjectLead(ctx, userID, instance.IssueID) {
+			// 配置了指定审批人时，严格按配置执行，任何人（包括管理员和 Owner）都不能绕过
+			if len(config.Approvers) > 0 {
 				return ErrNotApprover
 			}
-			// 管理员：自动创建审批记录以便流程正常推进
+			// 未配置审批人时，仅允许系统管理员或项目 Owner 审批
+			if !e.isAdminOrProjectOwner(ctx, userID, instance.IssueID) {
+				return ErrNotApprover
+			}
+			// 管理员/Owner：自动创建审批记录以便流程正常推进
 			record = &model.ApprovalRecord{
 				InstanceID: instanceID,
 				NodeID:     currentNode.ID,
@@ -315,15 +328,6 @@ func (e *workflowEngine) Approve(ctx context.Context, instanceID, userID uint64,
 		logger.Warn("failed to create workflow history", zap.Error(historyErr))
 	}
 
-	// 解析节点配置
-	var config dto.NodeConfig
-	if currentNode.Config != "" {
-		if unmarshalErr := json.Unmarshal([]byte(currentNode.Config), &config); unmarshalErr != nil {
-			logger.Error("failed to parse node config", zap.Error(unmarshalErr))
-			return fmt.Errorf("解析节点配置失败: %w", unmarshalErr)
-		}
-	}
-
 	// 检查审批是否完成
 	complete, err := e.checkApprovalComplete(ctx, instanceID, currentNode.ID, config.ApprovalType)
 	if err != nil {
@@ -367,15 +371,28 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 		return fmt.Errorf("当前节点不是审批节点")
 	}
 
+	// 解析节点配置（提前解析，用于判断是否配置了指定审批人）
+	var config dto.NodeConfig
+	if currentNode.Config != "" {
+		if unmarshalErr := json.Unmarshal([]byte(currentNode.Config), &config); unmarshalErr != nil {
+			logger.Error("failed to parse node config", zap.Error(unmarshalErr))
+			return fmt.Errorf("解析节点配置失败: %w", unmarshalErr)
+		}
+	}
+
 	// 获取审批记录
 	record, err := e.approvalRepo.GetByInstanceNodeAndApprover(ctx, instanceID, currentNode.ID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 如果用户不是指定审批人，检查是否为系统管理员或项目管理员
-			if !e.isAdminOrProjectLead(ctx, userID, instance.IssueID) {
+			// 配置了指定审批人时，严格按配置执行，任何人（包括管理员和 Owner）都不能绕过
+			if len(config.Approvers) > 0 {
 				return ErrNotApprover
 			}
-			// 管理员：自动创建审批记录以便流程正常推进
+			// 未配置审批人时，仅允许系统管理员或项目 Owner 审批
+			if !e.isAdminOrProjectOwner(ctx, userID, instance.IssueID) {
+				return ErrNotApprover
+			}
+			// 管理员/Owner：自动创建审批记录以便流程正常推进
 			record = &model.ApprovalRecord{
 				InstanceID: instanceID,
 				NodeID:     currentNode.ID,
@@ -1273,9 +1290,9 @@ func (e *workflowEngine) TryCreateInstanceForIssue(ctx context.Context, issueID,
 	return e.CreateInstance(ctx, issueID, scheme.WorkflowID)
 }
 
-// isAdminOrProjectLead 检查用户是否为系统管理员或项目管理员/负责人
-// 系统管理员和项目管理员可以审批/完成任何工作流节点
-func (e *workflowEngine) isAdminOrProjectLead(ctx context.Context, userID, issueID uint64) bool {
+// isAdminOrProjectOwner 检查用户是否为系统管理员或项目 Owner
+// 仅在未配置指定审批人时作为兜底权限，不包含项目 administrators
+func (e *workflowEngine) isAdminOrProjectOwner(ctx context.Context, userID, issueID uint64) bool {
 	// 1. 检查是否为系统管理员（通过 user_roles 表关联的 roles 表）
 	var adminCount int64
 	e.db.WithContext(ctx).
@@ -1287,7 +1304,7 @@ func (e *workflowEngine) isAdminOrProjectLead(ctx context.Context, userID, issue
 		return true
 	}
 
-	// 2. 检查是否为项目管理员/负责人（通过 project_members 表）
+	// 2. 检查是否为项目 Owner（通过 project_members 表，仅 owner 角色）
 	var issue model.Issue
 	if err := e.db.WithContext(ctx).Select("project_id").First(&issue, issueID).Error; err != nil {
 		return false
@@ -1296,7 +1313,7 @@ func (e *workflowEngine) isAdminOrProjectLead(ctx context.Context, userID, issue
 	var memberCount int64
 	e.db.WithContext(ctx).
 		Table("project_members").
-		Where("user_id = ? AND project_id = ? AND role IN ?", userID, issue.ProjectID, []string{"owner", "administrators"}).
+		Where("user_id = ? AND project_id = ? AND role = ?", userID, issue.ProjectID, "owner").
 		Count(&memberCount)
 
 	return memberCount > 0

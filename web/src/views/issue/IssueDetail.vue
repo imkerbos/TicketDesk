@@ -1364,16 +1364,21 @@ const loadWorkflowData = async (key: string) => {
   }
 }
 
-// 判断当前用户是否是审批人（包括系统管理员和项目管理员）
+// 判断当前用户是否是审批人（与后端 isAdminOrProjectOwner 对齐）
 const isCurrentUserApprover = computed(() => {
   if (!workflowInstance.value || !userStore.user) return false
-  // 系统管理员或项目管理员可以审批任何节点（与后端 isAdminOrProjectLead 对齐）
-  if (userStore.isAdmin || userStore.isProjectAdmin) return true
-  // 检查是否在审批人列表中
-  const approvals = workflowInstance.value.approvals || []
-  return approvals.some(
+  const allApprovals = workflowInstance.value.approvals || []
+  const currentNodeId = workflowInstance.value.current_node_id
+  // 过滤出当前节点的审批记录
+  const currentNodeApprovals = allApprovals.filter(a => a.node_id === currentNodeId)
+  // 检查用户是否在当前节点的待审批记录中
+  const hasPendingRecord = currentNodeApprovals.some(
     a => a.approver_id === userStore.user!.id && a.status === 'pending'
   )
+  if (hasPendingRecord) return true
+  // 未配置审批人时（当前节点无审批记录），允许系统管理员或项目管理员审批
+  if (currentNodeApprovals.length === 0 && (userStore.isAdmin || userStore.isProjectAdmin)) return true
+  return false
 })
 
 // 判断当前节点是否是工作节点（可完成）
