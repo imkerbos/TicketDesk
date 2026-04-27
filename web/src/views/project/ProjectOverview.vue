@@ -40,7 +40,7 @@
       <!-- 统计卡片 -->
       <el-row :gutter="16" class="stat-row">
         <el-col :xs="12" :sm="6">
-          <div class="stat-card" @click="goBoard('open')">
+          <div class="stat-card" @click="goBoard('open,reopened')">
             <div class="stat-icon-wrapper todo">
               <el-icon :size="20"><Tickets /></el-icon>
             </div>
@@ -73,7 +73,7 @@
           </div>
         </el-col>
         <el-col :xs="12" :sm="6">
-          <div class="stat-card" @click="goBoard('resolved')">
+          <div class="stat-card" @click="goBoard('resolved,closed')">
             <div class="stat-icon-wrapper done">
               <el-icon :size="20"><CircleCheck /></el-icon>
             </div>
@@ -168,7 +168,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Tickets, User, Setting, ArrowRight, View, CircleCheck, Loading, DataAnalysis, Grid } from '@element-plus/icons-vue'
 import { getProjectDetail, getProjectMembers } from '@/api/project'
-import { getIssueList } from '@/api/issue'
+import { getIssueList, getProjectOverviewStats } from '@/api/issue'
 import type { Project, ProjectMember } from '@/types/project'
 import type { Issue } from '@/types/issue'
 
@@ -226,23 +226,19 @@ const loadData = async () => {
 
 const loadStats = async () => {
   try {
-    const [openRes, progressRes, reviewRes, resolvedRes] = await Promise.all([
-      getIssueList({ project_key: projectKey.value, status: 'open' as any, page: 1, page_size: 1 }),
-      getIssueList({ project_key: projectKey.value, status: 'in_progress' as any, page: 1, page_size: 1 }),
-      getIssueList({ project_key: projectKey.value, status: 'pending_review' as any, page: 1, page_size: 1 }),
-      getIssueList({ project_key: projectKey.value, status: 'resolved' as any, page: 1, page_size: 1 }),
-    ])
-    stats.open = openRes.data.data.total
-    stats.inProgress = progressRes.data.data.total
-    stats.pendingReview = reviewRes.data.data.total
-    stats.resolved = resolvedRes.data.data.total
+    const { data } = await getProjectOverviewStats(projectKey.value)
+    stats.open = data.data.pending
+    stats.inProgress = data.data.in_progress
+    stats.pendingReview = data.data.pending_review
+    stats.resolved = data.data.completed
   } catch (e) {
     console.error('Failed to load stats:', e)
   }
 }
 
-const goBoard = (_status?: string) => {
-  router.push(`/projects/${projectKey.value}/board`)
+const goBoard = (status?: string) => {
+  const query = status ? { status } : {}
+  router.push({ path: `/projects/${projectKey.value}/board`, query })
 }
 
 const goIssue = (issueKey: string) => {

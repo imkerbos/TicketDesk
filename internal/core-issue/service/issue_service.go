@@ -76,6 +76,7 @@ type IssueService interface {
 
 	// 统计
 	GetIssueListStats(ctx context.Context, req *dto.ListIssuesRequest) (*dto.IssueListStatsResponse, error)
+	GetProjectOverviewStats(ctx context.Context, projectKey string) (*dto.ProjectOverviewStatsResponse, error)
 }
 
 // issueService 工单服务实现
@@ -853,8 +854,19 @@ func (s *issueService) ListIssues(ctx context.Context, req *dto.ListIssuesReques
 
 // buildIssueFilter 根据 ListIssuesRequest 构建 IssueFilter（ListIssues 和 GetIssueListStats 共用）
 func (s *issueService) buildIssueFilter(ctx context.Context, req *dto.ListIssuesRequest) (*repository.IssueFilter, error) {
+	// 解析逗号分隔的状态值
+	var statuses []string
+	if req.Status != "" {
+		for _, s := range strings.Split(req.Status, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				statuses = append(statuses, s)
+			}
+		}
+	}
+
 	filter := &repository.IssueFilter{
-		Status:          req.Status,
+		Status:          statuses,
 		Priority:        req.Priority,
 		AssigneeID:      req.AssigneeID,
 		ReporterID:      req.ReporterID,
@@ -977,6 +989,31 @@ func (s *issueService) GetIssueListStats(ctx context.Context, req *dto.ListIssue
 		Resolved:        stats.Resolved,
 		CompletionRate:  completionRate,
 		AvgResolveHours: float64(int(stats.AvgResolveHours*10)) / 10,
+	}, nil
+}
+
+// GetProjectOverviewStats 获取项目概述统计（按状态分组聚合）
+func (s *issueService) GetProjectOverviewStats(ctx context.Context, projectKey string) (*dto.ProjectOverviewStatsResponse, error) {
+	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(projectKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	stats, err := s.issueRepo.GetProjectOverviewStats(ctx, project.ID)
+	if err != nil {
+		logger.Error("failed to get project overview stats", zap.Uint64("project_id", project.ID), zap.Error(err))
+		return nil, fmt.Errorf("查询项目概述统计失败: %w", err)
+	}
+
+	return &dto.ProjectOverviewStatsResponse{
+		Pending:       stats.Pending,
+		InProgress:    stats.InProgress,
+		PendingReview: stats.PendingReview,
+		Completed:     stats.Completed,
+		Total:         stats.Total,
 	}, nil
 }
 

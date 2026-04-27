@@ -39,6 +39,7 @@
         <BoardIssueList
           :project-key="projectKey"
           :selected-key="selectedIssueKey"
+          :initial-status="initialStatus"
           @select="handleSelectIssue"
           @create="handleCreateIssue"
         />
@@ -147,6 +148,7 @@ const route = useRoute()
 const router = useRouter()
 
 const projectKey = computed(() => route.params.key as string)
+const initialStatus = computed(() => (route.query.status as string) || '')
 const selectedIssueKey = ref('')
 const project = ref<Project | null>(null)
 

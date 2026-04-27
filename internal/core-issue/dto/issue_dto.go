@@ -47,7 +47,7 @@ type ListIssuesRequest struct {
 	Page        int      `form:"page" binding:"omitempty,min=1"`
 	PageSize    int      `form:"page_size" binding:"omitempty,min=1,max=100"`
 	ProjectKey  string   `form:"project_key" binding:"omitempty,max=20"`
-	Status      string   `form:"status" binding:"omitempty"`
+	Status      string   `form:"status" binding:"omitempty"` // 支持逗号分隔多值，如 "open,in_progress"
 	Priority    string   `form:"priority" binding:"omitempty"`
 	AssigneeID  *uint64  `form:"assignee_id"`
 	ReporterID  *uint64  `form:"reporter_id"`
@@ -243,4 +243,18 @@ type IssueListStatsResponse struct {
 	Resolved        int64   `json:"resolved"`
 	CompletionRate  float64 `json:"completion_rate"`
 	AvgResolveHours float64 `json:"avg_resolve_hours"`
+}
+
+// ProjectOverviewStatsRequest 项目概述统计请求
+type ProjectOverviewStatsRequest struct {
+	ProjectKey string `form:"project_key" binding:"required,max=20"`
+}
+
+// ProjectOverviewStatsResponse 项目概述统计响应（按状态分组聚合）
+type ProjectOverviewStatsResponse struct {
+	Pending       int64 `json:"pending"`        // 待处理（open + reopened）
+	InProgress    int64 `json:"in_progress"`    // 进行中
+	PendingReview int64 `json:"pending_review"` // 待确认
+	Completed     int64 `json:"completed"`      // 已完成（resolved + closed）
+	Total         int64 `json:"total"`          // 总数
 }

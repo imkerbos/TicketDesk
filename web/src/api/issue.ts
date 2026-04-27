@@ -11,6 +11,7 @@ import type {
   IssueWatcher,
   IssueStats,
   IssueListStats,
+  ProjectOverviewStats,
   Worklog,
   CreateWorklogRequest,
   UpdateWorklogRequest,
@@ -96,6 +97,13 @@ export const getIssueStats = (params?: { project_id?: number; assignee_id?: numb
 // 工单列表统计（用于全局工单列表 KPI 卡片）
 export const getIssueListStats = (params: Record<string, any>) => {
   return request.get<ApiResponse<IssueListStats>>('/issues/stats', { params })
+}
+
+// 项目概述统计（按状态分组聚合，1 次请求替代 4 次列表请求）
+export const getProjectOverviewStats = (projectKey: string) => {
+  return request.get<ApiResponse<ProjectOverviewStats>>('/issues/project-overview-stats', {
+    params: { project_key: projectKey },
+  })
 }
 
 // 我的待办工单

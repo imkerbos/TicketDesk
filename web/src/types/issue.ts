@@ -192,6 +192,15 @@ export interface IssueListStats {
   avg_resolve_hours: number
 }
 
+// 项目概述统计（按状态分组）
+export interface ProjectOverviewStats {
+  pending: number       // 待处理（open + reopened）
+  in_progress: number   // 进行中
+  pending_review: number // 待确认
+  completed: number     // 已完成（resolved + closed）
+  total: number
+}
+
 // 看板列
 export interface KanbanColumn {
   status: IssueStatus

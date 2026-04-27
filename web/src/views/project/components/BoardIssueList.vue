@@ -199,6 +199,7 @@ const router = useRouter()
 const props = defineProps<{
   projectKey: string
   selectedKey: string
+  initialStatus?: string // 逗号分隔的初始状态，如 "open,reopened"
 }>()
 
 defineEmits<{
@@ -240,8 +241,8 @@ const resetExtraFilters = () => {
   handleSearch()
 }
 
-// 默认排除终态工单
-const excludedStatuses = ['resolved', 'closed', 'merged']
+// 默认显示的活跃状态（未手动选择时使用）
+const defaultActiveStatuses = ['open', 'in_progress', 'pending_review', 'reopened']
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
 
@@ -258,17 +259,14 @@ const loadIssues = async () => {
       assignee_id: assigneeFilter.value || undefined,
       category: categoryFilter.value || undefined,
     }
-    // 如果用户选择了状态，使用用户选择的
+    // 状态筛选：用户选择 > 默认活跃状态（后端过滤，保证 total 和分页准确）
     if (statusFilter.value.length > 0) {
       params.status = statusFilter.value.join(',')
+    } else {
+      params.status = defaultActiveStatuses.join(',')
     }
     const { data } = await getIssueList(params)
-    let items = data.data.items || []
-    // 前端排除终态（仅在未手动选择状态时）
-    if (statusFilter.value.length === 0) {
-      items = items.filter((i: Issue) => !excludedStatuses.includes(i.status))
-    }
-    issueList.value = items
+    issueList.value = data.data.items || []
     total.value = data.data.total
   } catch (e) {
     console.error('Failed to load issues:', e)
@@ -316,6 +314,10 @@ watch(() => props.projectKey, () => {
 })
 
 onMounted(() => {
+  // 从 initialStatus prop 初始化状态筛选
+  if (props.initialStatus) {
+    statusFilter.value = props.initialStatus.split(',').filter(Boolean)
+  }
   loadIssues()
   loadFilterOptions()
 })

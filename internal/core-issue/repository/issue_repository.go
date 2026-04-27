@@ -33,6 +33,7 @@ type IssueRepository interface {
 	ListByEpicID(ctx context.Context, epicID uint64) ([]*model.Issue, error)
 	ListByMergedIntoIssueID(ctx context.Context, issueID uint64, result *[]model.Issue) error
 	GetListStats(ctx context.Context, filter *IssueFilter) (*ListStats, error)
+	GetProjectOverviewStats(ctx context.Context, projectID uint64) (*ProjectOverviewStats, error)
 }
 
 // ListStats 工单列表聚合统计
@@ -42,12 +43,21 @@ type ListStats struct {
 	AvgResolveHours float64
 }
 
+// ProjectOverviewStats 项目概述统计（按状态分组）
+type ProjectOverviewStats struct {
+	Pending       int64
+	InProgress    int64
+	PendingReview int64
+	Completed     int64
+	Total         int64
+}
+
 // IssueFilter 工单过滤条件
 type IssueFilter struct {
 	ProjectID       *uint64
 	ProjectIDs      []uint64 // 限定项目范围（非管理员用户可访问的项目列表）
 	LimitByProjects bool     // 是否启用 ProjectIDs 过滤（区分 nil 和空切片）
-	Status          string
+	Status          []string // 支持多状态过滤
 	StatusNotIn     []string // 排除的状态列表
 	Priority        string
 	AssigneeID      *uint64
@@ -128,8 +138,10 @@ func (r *issueRepository) buildFilterQuery(ctx context.Context, filter *IssueFil
 		}
 		query = query.Where("project_id IN ?", filter.ProjectIDs)
 	}
-	if filter.Status != "" {
-		query = query.Where("status = ?", filter.Status)
+	if len(filter.Status) == 1 {
+		query = query.Where("status = ?", filter.Status[0])
+	} else if len(filter.Status) > 1 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 	if len(filter.StatusNotIn) > 0 {
 		query = query.Where("status NOT IN ?", filter.StatusNotIn)
@@ -285,6 +297,24 @@ func (r *issueRepository) ListByMergedIntoIssueID(ctx context.Context, issueID u
 		Where("merged_into_issue_id = ?", issueID).
 		Order("created_at ASC").
 		Find(result).Error
+}
+
+// GetProjectOverviewStats 获取项目概述统计（单条 SQL 条件聚合，按状态分组）
+func (r *issueRepository) GetProjectOverviewStats(ctx context.Context, projectID uint64) (*ProjectOverviewStats, error) {
+	var stats ProjectOverviewStats
+	err := r.db.WithContext(ctx).Model(&model.Issue{}).
+		Where("project_id = ?", projectID).
+		Select(
+			"COUNT(*) AS total",
+			"SUM(CASE WHEN status IN ('open','reopened') THEN 1 ELSE 0 END) AS pending",
+			"SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress",
+			"SUM(CASE WHEN status = 'pending_review' THEN 1 ELSE 0 END) AS pending_review",
+			"SUM(CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END) AS completed",
+		).Scan(&stats).Error
+	if err != nil {
+		return nil, err
+	}
+	return &stats, nil
 }
 
 // CommentRepository 评论数据访问接口

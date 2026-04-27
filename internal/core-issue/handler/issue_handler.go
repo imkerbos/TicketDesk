@@ -187,6 +187,27 @@ func (h *IssueHandler) HandleGetIssueListStats(c *gin.Context) {
 	response.Success(c, stats)
 }
 
+// HandleGetProjectOverviewStats 获取项目概述统计（按状态分组聚合，替代 4 次列表请求）
+func (h *IssueHandler) HandleGetProjectOverviewStats(c *gin.Context) {
+	var req dto.ProjectOverviewStatsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.BadRequest(c, "请求参数错误: "+err.Error())
+		return
+	}
+
+	stats, err := h.issueService.GetProjectOverviewStats(c.Request.Context(), req.ProjectKey)
+	if err != nil {
+		if errors.Is(err, service.ErrProjectNotFound) {
+			response.NotFound(c, err.Error())
+			return
+		}
+		response.InternalError(c, "获取项目概述统计失败")
+		return
+	}
+
+	response.Success(c, stats)
+}
+
 // HandleListIssuesInEpic 获取 Epic 下的所有 Issues
 func (h *IssueHandler) HandleListIssuesInEpic(c *gin.Context) {
 	epicKey := c.Param("key")
