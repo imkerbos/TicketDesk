@@ -1111,7 +1111,7 @@ onMounted(() => {
   }
 
   .el-input, .el-select, .el-textarea {
-    --el-input-bg-color: var(--td-text-white);
+    --el-input-bg-color: var(--td-input-bg);
   }
 
   .el-input__inner, .el-textarea__inner {
