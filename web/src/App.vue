@@ -8,7 +8,6 @@
       <el-aside width="220px" class="sidebar">
         <div class="logo">
           <img v-if="brandStore.logoUrl" :src="brandStore.logoUrl" :alt="brandStore.systemName" class="logo-custom" />
-          <img v-else src="@/assets/logo.svg" alt="TicketDesk" class="logo-default" />
           <span class="logo-text">{{ brandStore.systemName }}</span>
         </div>
         <el-menu
@@ -282,7 +281,6 @@ const handleMenuSelect = (index: string) => {
   border-bottom: 1px solid var(--td-sidebar-border);
 }
 
-.logo-default,
 .logo-custom {
   width: 36px;
   height: 36px;

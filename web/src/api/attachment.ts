@@ -7,11 +7,7 @@ import type { Attachment } from '@/types/attachment'
 export const uploadAttachment = (issueKey: string, file: File) => {
   const formData = new FormData()
   formData.append('file', file)
-  return request.post<Attachment>(`/issues/${issueKey}/attachments`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  })
+  return request.post<Attachment>(`/issues/${issueKey}/attachments`, formData)
 }
 
 /**

@@ -1,5 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="6" fill="#3b82f6"/>
-  <path d="M6 10h20v3H18v12h-3V13H6v-3z" fill="#fff"/>
-  <path d="M18 13h3c2.8 0 5 2.2 5 5s-2.2 5-5 5h-3V13zm3 7.5c1.4 0 2.5-1.1 2.5-2.5s-1.1-2.5-2.5-2.5h0v5z" fill="#fff"/>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
+
+  <!-- T letter -->
+  <path d="M92 166C92 157.163 99.1634 150 108 150H250C258.837 150 266 157.163 266 166V188C266 196.837 258.837 204 250 204H201V307C201 315.837 193.837 323 185 323H161C152.163 323 145 315.837 145 307V204H108C99.1634 204 92 196.837 92 188V166Z" fill="#1677FF"/>
+
+  <!-- D letter -->
+  <path d="M278 150H337C388.915 150 431 192.085 431 244C431 295.915 388.915 338 337 338H278C269.163 338 262 330.837 262 322V166C262 157.163 269.163 150 278 150ZM318 204V284H337C359.091 284 377 266.091 377 244C377 221.909 359.091 204 337 204H318Z" fill="#17233A"/>
+
+  <!-- workflow line left -->
+  <path d="M83 285H147C163 285 171 294 181 305L201 327C209 336 219 340 232 340H260" stroke="#1677FF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- workflow line right -->
+  <path d="M270 285H435" stroke="#17233A" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- workflow nodes -->
+  <circle cx="83" cy="285" r="26" fill="#1677FF"/>
+  <circle cx="83" cy="285" r="12" fill="#FFFFFF"/>
+
+  <circle cx="270" cy="285" r="26" fill="#17233A"/>
+  <circle cx="270" cy="285" r="12" fill="#FFFFFF"/>
+
+  <circle cx="435" cy="285" r="26" fill="#17233A"/>
+  <circle cx="435" cy="285" r="12" fill="#FFFFFF"/>
 </svg>

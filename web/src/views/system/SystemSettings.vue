@@ -161,7 +161,7 @@
                         alt="Logo"
                         class="preview-logo-img"
                       />
-                      <img v-else src="@/assets/logo.svg" alt="Logo" class="preview-logo-img" />
+                      <span v-else class="preview-logo-placeholder">{{ (brandForm.system_name || 'TicketDesk').charAt(0) }}</span>
                       <span class="preview-logo-text">{{ brandForm.system_name || 'TicketDesk' }}</span>
                     </div>
                     <div class="preview-menu-item active">首页</div>
@@ -1802,6 +1802,20 @@ onMounted(() => {
   height: 28px;
   border-radius: 6px;
   object-fit: contain;
+}
+
+.preview-logo-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .preview-logo-text {

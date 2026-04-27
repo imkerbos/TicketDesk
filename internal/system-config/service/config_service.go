@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -270,6 +271,10 @@ func (s *configService) UpdateConfig(ctx context.Context, key, value string, use
 		ConfigKey:   key,
 		ConfigValue: value,
 		UpdatedBy:   &userID,
+	}
+	// 从 key 前缀推断 category（如 "brand.logo_url" → "brand"），确保新建记录有正确的分类
+	if parts := strings.SplitN(key, ".", 2); len(parts) == 2 {
+		config.Category = parts[0]
 	}
 
 	if err := s.configRepo.Upsert(ctx, config); err != nil {

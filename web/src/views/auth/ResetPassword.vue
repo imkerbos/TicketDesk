@@ -5,7 +5,6 @@
       <div class="brand-content">
         <div class="brand-logo">
           <img v-if="brandStore.logoUrl" :src="brandStore.logoUrl" :alt="brandStore.systemName" class="logo-custom" />
-          <img v-else src="@/assets/logo.svg" alt="TicketDesk" class="logo-default" />
           <span class="logo-text">{{ brandStore.systemName }}</span>
         </div>
         <h1 class="brand-title">重置密码</h1>
@@ -219,7 +218,6 @@ onMounted(() => {
   margin-bottom: 48px;
 }
 
-.logo-default,
 .logo-custom {
   width: 48px;
   height: 48px;

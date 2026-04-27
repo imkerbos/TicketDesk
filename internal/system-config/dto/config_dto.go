@@ -20,7 +20,7 @@ type ConfigResponse struct {
 
 // UpdateConfigRequest 更新配置请求
 type UpdateConfigRequest struct {
-	ConfigValue string `json:"config_value" binding:"required"`
+	ConfigValue string `json:"config_value"`
 }
 
 // BatchUpdateConfigRequest 批量更新配置请求

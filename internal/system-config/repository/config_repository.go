@@ -55,16 +55,27 @@ func (r *configRepository) GetAll(ctx context.Context) ([]*model.SystemConfig, e
 
 // Upsert 创建或更新配置
 func (r *configRepository) Upsert(ctx context.Context, config *model.SystemConfig) error {
+	// 只更新有值的字段，避免用空值覆盖已有的 category/config_type/description
+	assigns := map[string]any{
+		"config_value": config.ConfigValue,
+		"updated_by":   config.UpdatedBy,
+	}
+	if config.ConfigType != "" {
+		assigns["config_type"] = config.ConfigType
+	}
+	if config.Category != "" {
+		assigns["category"] = config.Category
+	}
+	if config.Description != "" {
+		assigns["description"] = config.Description
+	}
+	if config.IsSecret {
+		assigns["is_secret"] = config.IsSecret
+	}
+
 	return r.db.WithContext(ctx).
 		Where("config_key = ?", config.ConfigKey).
-		Assign(model.SystemConfig{
-			ConfigValue: config.ConfigValue,
-			ConfigType:  config.ConfigType,
-			Category:    config.Category,
-			Description: config.Description,
-			IsSecret:    config.IsSecret,
-			UpdatedBy:   config.UpdatedBy,
-		}).
+		Assign(assigns).
 		FirstOrCreate(config).Error
 }
 
