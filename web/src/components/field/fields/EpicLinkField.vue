@@ -30,6 +30,7 @@
 import { ref, watch, onMounted } from 'vue'
 import type { FieldDefinition, FieldSchemeItem } from '@/types/field'
 import { getIssueList } from '@/api/issue'
+import { getProjectIssueTypes } from '@/api/project'
 
 interface Epic {
   id: number
@@ -54,26 +55,37 @@ const emit = defineEmits<{
 const internalValue = ref(props.modelValue)
 const epics = ref<Epic[]>([])
 const loading = ref(false)
+const epicTypeId = ref<number>()
+
+// 获取 Epic 工单类型 ID
+const loadEpicTypeId = async () => {
+  if (!props.projectKey) return
+  try {
+    const { data } = await getProjectIssueTypes(props.projectKey)
+    const epicType = (data.data || []).find((t: any) => t.name.toLowerCase() === 'epic')
+    epicTypeId.value = epicType?.id
+  } catch (error) {
+    console.error('Failed to load issue types:', error)
+  }
+}
 
 const loadEpics = async (keyword = '') => {
-  if (!props.projectKey) return
+  if (!props.projectKey || !epicTypeId.value) return
   loading.value = true
   try {
-    // 查询 Epic 类型的工单
+    // 通过 issue_type_id 在后端过滤 Epic 类型工单
     const { data } = await getIssueList({
       project_key: props.projectKey,
+      issue_type_id: epicTypeId.value,
       keyword,
       page: 1,
       page_size: 50,
     })
-    // 过滤出 Epic 类型（名称为 Epic）
-    epics.value = (data.data?.items || [])
-      .filter((item: any) => item.issue_type?.name === 'Epic')
-      .map((item: any) => ({
-        id: item.id,
-        issue_key: item.issue_key,
-        title: item.title,
-      }))
+    epics.value = (data.data?.items || []).map((item: any) => ({
+      id: item.id,
+      issue_key: item.issue_key,
+      title: item.title,
+    }))
   } catch (error) {
     console.error('Failed to load epics:', error)
   } finally {
@@ -85,11 +97,13 @@ const searchEpics = (query: string) => {
   loadEpics(query)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadEpicTypeId()
   loadEpics()
 })
 
-watch(() => props.projectKey, () => {
+watch(() => props.projectKey, async () => {
+  await loadEpicTypeId()
   loadEpics()
 })
 
