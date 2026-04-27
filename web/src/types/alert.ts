@@ -96,12 +96,13 @@ export interface AlertSilence {
   name: string
   description: string
   label_matchers: LabelMatcher[]
+  silence_type: number // 1-即时静默, 2-预约静默
   starts_at: string
-  ends_at: string
+  ends_at?: string
   created_by: number
   created_by_name: string
   comment: string
-  status: number // 0-已取消, 1-生效中, 2-已过期
+  status: number // 0-已关闭, 1-生效中, 2-已过期
   created_at: string
   updated_at: string
 }
@@ -110,8 +111,9 @@ export interface CreateAlertSilenceRequest {
   name: string
   description?: string
   label_matchers: LabelMatcher[]
-  starts_at: string
-  ends_at: string
+  silence_type: number // 1-即时静默, 2-预约静默
+  starts_at?: string   // 预约静默必填
+  ends_at?: string     // 预约静默必填
   comment?: string
 }
 

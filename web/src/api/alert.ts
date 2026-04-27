@@ -7,7 +7,6 @@ import type {
   AlertRule,
   CreateAlertRuleRequest,
   AlertSilence,
-  CreateAlertSilenceRequest,
   AlertGroupResponse,
   AlertDatasource,
   CreateDatasourceRequest,
@@ -85,7 +84,7 @@ export const getAlertSilenceList = (params?: { page?: number; page_size?: number
 }
 
 // 创建告警静默
-export const createAlertSilence = (data: CreateAlertSilenceRequest) => {
+export const createAlertSilence = (data: Record<string, unknown>) => {
   return request.post<ApiResponse<AlertSilence>>('/alert-silences', data)
 }
 
@@ -95,7 +94,7 @@ export const getAlertSilenceDetail = (id: number) => {
 }
 
 // 更新告警静默
-export const updateAlertSilence = (id: number, data: Partial<CreateAlertSilenceRequest>) => {
+export const updateAlertSilence = (id: number, data: Record<string, unknown>) => {
   return request.put<ApiResponse<AlertSilence>>(`/alert-silences/${id}`, data)
 }
 

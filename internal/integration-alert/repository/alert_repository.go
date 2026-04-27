@@ -381,7 +381,7 @@ func (r *alertSilenceRepository) ListActive(ctx context.Context) ([]*model.Alert
 	err := r.db.WithContext(ctx).
 		Where("status = ?", 1).
 		Where("starts_at <= ?", now).
-		Where("ends_at > ?", now).
+		Where("ends_at IS NULL OR ends_at > ?", now).
 		Find(&silences).Error
 	return silences, err
 }

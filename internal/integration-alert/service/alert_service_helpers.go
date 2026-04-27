@@ -371,11 +371,24 @@ func (s *alertService) CreateAlertSilence(ctx context.Context, req *dto.CreateAl
 		Name:          req.Name,
 		Description:   req.Description,
 		LabelMatchers: string(matchersJSON),
-		StartsAt:      req.StartsAt,
-		EndsAt:        req.EndsAt,
+		SilenceType:   req.SilenceType,
 		CreatedBy:     userID,
 		Comment:       req.Comment,
 		Status:        1, // 默认生效中
+	}
+
+	// 根据静默类型设置时间
+	if req.SilenceType == 1 {
+		// 即时静默：立即生效，无结束时间
+		silence.StartsAt = time.Now()
+		silence.EndsAt = nil
+	} else {
+		// 预约静默：必须提供开始和结束时间
+		if req.StartsAt == nil || req.EndsAt == nil {
+			return nil, fmt.Errorf("预约静默必须指定开始时间和结束时间")
+		}
+		silence.StartsAt = *req.StartsAt
+		silence.EndsAt = req.EndsAt
 	}
 
 	if err := s.alertSilenceRepo.Create(ctx, silence); err != nil {
@@ -417,17 +430,25 @@ func (s *alertService) UpdateAlertSilence(ctx context.Context, id uint64, req *d
 		}
 		silence.LabelMatchers = string(matchersJSON)
 	}
+	if req.SilenceType != nil {
+		silence.SilenceType = *req.SilenceType
+	}
 	if req.StartsAt != nil {
 		silence.StartsAt = *req.StartsAt
 	}
 	if req.EndsAt != nil {
-		silence.EndsAt = *req.EndsAt
+		silence.EndsAt = req.EndsAt
 	}
 	if req.Comment != nil {
 		silence.Comment = *req.Comment
 	}
 	if req.Status != nil {
 		silence.Status = *req.Status
+		// 即时静默重新启用时，刷新 StartsAt
+		if *req.Status == 1 && silence.SilenceType == 1 {
+			silence.StartsAt = time.Now()
+			silence.EndsAt = nil
+		}
 	}
 
 	if err := s.alertSilenceRepo.Update(ctx, silence); err != nil {
@@ -490,17 +511,24 @@ func (s *alertService) toAlertSilenceResponse(silence *model.AlertSilence) *dto.
 	var matchers []dto.LabelMatcher
 	_ = json.Unmarshal([]byte(silence.LabelMatchers), &matchers)
 
+	// 计算实际生效状态：预约静默如果 DB 状态为 1 但时间已过期，返回 2（已过期）
+	effectiveStatus := silence.Status
+	if silence.Status == 1 && silence.EndsAt != nil && !silence.EndsAt.After(time.Now()) {
+		effectiveStatus = 2
+	}
+
 	return &dto.AlertSilenceResponse{
 		ID:            silence.ID,
 		Name:          silence.Name,
 		Description:   silence.Description,
 		LabelMatchers: matchers,
+		SilenceType:   silence.SilenceType,
 		StartsAt:      silence.StartsAt,
 		EndsAt:        silence.EndsAt,
 		CreatedBy:     silence.CreatedBy,
 		CreatedByName: "", // TODO: 从用户服务获取用户名
 		Comment:       silence.Comment,
-		Status:        silence.Status,
+		Status:        effectiveStatus,
 		CreatedAt:     silence.CreatedAt,
 		UpdatedAt:     silence.UpdatedAt,
 	}

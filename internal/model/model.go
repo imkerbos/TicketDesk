@@ -286,14 +286,15 @@ func (AlertRule) TableName() string {
 // AlertSilence 告警静默模型
 type AlertSilence struct {
 	BaseModel
-	Name          string    `gorm:"size:100;not null" json:"name"`
-	Description   string    `gorm:"type:text" json:"description"`
-	LabelMatchers string    `gorm:"type:json;not null" json:"label_matchers"` // 标签匹配规则
-	StartsAt      time.Time `gorm:"index;not null" json:"starts_at"`          // 静默开始时间
-	EndsAt        time.Time `gorm:"index;not null" json:"ends_at"`            // 静默结束时间
-	CreatedBy     uint64    `gorm:"index;not null" json:"created_by"`         // 创建人
-	Comment       string    `gorm:"type:text" json:"comment"`                 // 静默原因
-	Status        int8      `gorm:"default:1;index" json:"status"`            // 0-已取消, 1-生效中, 2-已过期
+	Name          string     `gorm:"size:100;not null" json:"name"`
+	Description   string     `gorm:"type:text" json:"description"`
+	LabelMatchers string     `gorm:"type:json;not null" json:"label_matchers"`     // 标签匹配规则
+	SilenceType   int8       `gorm:"default:1;index;not null" json:"silence_type"` // 1-即时静默, 2-预约静默
+	StartsAt      time.Time  `gorm:"index;not null" json:"starts_at"`              // 静默开始时间
+	EndsAt        *time.Time `gorm:"index" json:"ends_at"`                         // 静默结束时间，即时静默为 NULL
+	CreatedBy     uint64     `gorm:"index;not null" json:"created_by"`             // 创建人
+	Comment       string     `gorm:"type:text" json:"comment"`                     // 静默原因
+	Status        int8       `gorm:"default:1;index" json:"status"`                // 0-已关闭, 1-生效中, 2-已过期
 }
 
 // TableName 指定表名

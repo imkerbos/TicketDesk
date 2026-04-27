@@ -25,6 +25,13 @@
         style="width: 100%"
       >
         <el-table-column prop="name" label="静默名称" min-width="150" />
+        <el-table-column label="类型" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.silence_type === 1 ? 'warning' : 'info'" size="small">
+              {{ row.silence_type === 1 ? '即时静默' : '预约静默' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
         <el-table-column label="标签匹配器" min-width="200">
           <template #default="{ row }">
@@ -43,12 +50,22 @@
         </el-table-column>
         <el-table-column label="生效时间" width="160">
           <template #default="{ row }">
-            {{ formatTime(row.starts_at) }}
+            <template v-if="row.silence_type === 1">
+              {{ formatTime(row.starts_at) }} 起
+            </template>
+            <template v-else>
+              {{ formatTime(row.starts_at) }}
+            </template>
           </template>
         </el-table-column>
         <el-table-column label="结束时间" width="160">
           <template #default="{ row }">
-            {{ formatTime(row.ends_at) }}
+            <template v-if="row.silence_type === 1">
+              <span class="text-secondary">手动关闭</span>
+            </template>
+            <template v-else>
+              {{ formatTime(row.ends_at) }}
+            </template>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
@@ -112,6 +129,12 @@
         <el-form-item label="描述" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="2" placeholder="请输入描述" />
         </el-form-item>
+        <el-form-item label="静默类型" prop="silence_type">
+          <el-radio-group v-model="form.silence_type">
+            <el-radio :value="1">即时静默 <span class="type-hint">启用即生效，手动关闭</span></el-radio>
+            <el-radio :value="2">预约静默 <span class="type-hint">指定时间范围自动生效/过期</span></el-radio>
+          </el-radio-group>
+        </el-form-item>
         <el-form-item label="标签匹配器" prop="label_matchers">
           <div style="width: 100%">
             <div
@@ -140,7 +163,7 @@
             </el-button>
           </div>
         </el-form-item>
-        <el-row :gutter="16">
+        <el-row v-if="form.silence_type === 2" :gutter="16">
           <el-col :span="12">
             <el-form-item label="生效时间" prop="starts_at">
               <el-date-picker
@@ -163,7 +186,7 @@
           </el-col>
         </el-row>
         <el-form-item label="备注" prop="comment">
-          <el-input v-model="form.comment" type="textarea" :rows="2" placeholder="请输入静默原因" />
+          <el-input v-model="form.comment" type="textarea" :rows="2" placeholder="��输入静默原因" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -203,6 +226,7 @@ const form = reactive({
   id: 0,
   name: '',
   description: '',
+  silence_type: 1 as number,
   label_matchers: [] as LabelMatcher[],
   starts_at: '',
   ends_at: '',
@@ -210,10 +234,29 @@ const form = reactive({
 })
 
 const rules: FormRules = {
-  name: [{ required: true, message: '请输入静默名称', trigger: 'blur' }],
+  name: [{ required: true, message: '请输入静默���称', trigger: 'blur' }],
+  silence_type: [{ required: true, message: '请选择静默类型', trigger: 'change' }],
   label_matchers: [{ required: true, message: '请添加至少一个标签匹配器', trigger: 'change' }],
-  starts_at: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
-  ends_at: [{ required: true, message: '请选择结束时间', trigger: 'change' }],
+  starts_at: [{
+    validator: (_rule, _value, callback) => {
+      if (form.silence_type === 2 && !form.starts_at) {
+        callback(new Error('请选择开始时间'))
+      } else {
+        callback()
+      }
+    },
+    trigger: 'change',
+  }],
+  ends_at: [{
+    validator: (_rule, _value, callback) => {
+      if (form.silence_type === 2 && !form.ends_at) {
+        callback(new Error('请选择结束时间'))
+      } else {
+        callback()
+      }
+    },
+    trigger: 'change',
+  }],
 }
 
 const loadData = async () => {
@@ -234,6 +277,7 @@ const handleCreate = () => {
   form.id = 0
   form.name = ''
   form.description = ''
+  form.silence_type = 1
   form.label_matchers = [{ key: '', operator: '==', value: '' }]
   form.starts_at = ''
   form.ends_at = ''
@@ -246,9 +290,10 @@ const handleEdit = (row: AlertSilence) => {
   form.id = row.id
   form.name = row.name
   form.description = row.description
+  form.silence_type = row.silence_type
   form.label_matchers = JSON.parse(JSON.stringify(row.label_matchers))
   form.starts_at = row.starts_at
-  form.ends_at = row.ends_at
+  form.ends_at = row.ends_at || ''
   form.comment = row.comment
   dialogVisible.value = true
 }
@@ -259,11 +304,25 @@ const handleSubmit = async () => {
     if (!valid) return
 
     try {
+      const payload: Record<string, unknown> = {
+        name: form.name,
+        description: form.description,
+        silence_type: form.silence_type,
+        label_matchers: form.label_matchers,
+        comment: form.comment,
+      }
+
+      // 预约静默才传时间
+      if (form.silence_type === 2) {
+        payload.starts_at = form.starts_at
+        payload.ends_at = form.ends_at
+      }
+
       if (form.id) {
-        await updateAlertSilence(form.id, form)
+        await updateAlertSilence(form.id, payload)
         ElMessage.success('更新成功')
       } else {
-        await createAlertSilence(form)
+        await createAlertSilence(payload)
         ElMessage.success('创建成功')
       }
       dialogVisible.value = false
@@ -277,12 +336,23 @@ const handleSubmit = async () => {
 // 启用静默规则
 const handleEnable = async (row: AlertSilence) => {
   try {
+    // 预约静默：如果时间已过期，弹出编辑框让用户更新时间
+    if (row.silence_type === 2 && row.ends_at && dayjs(row.ends_at).isBefore(dayjs())) {
+      await ElMessageBox.confirm(
+        '该预约静默的时间范围已过期，需要重新设置时间后才能启用。是否打开编辑？',
+        '时间已过期',
+        { type: 'warning', confirmButtonText: '去编辑', cancelButtonText: '取消' }
+      )
+      handleEdit(row)
+      return
+    }
+
     await ElMessageBox.confirm(
       '启用后，匹配的告警将不会自动创建工单。确定要启用此静默规则吗？',
       '启用静默',
       { type: 'info', confirmButtonText: '启用', cancelButtonText: '取消' }
     )
-    await updateAlertSilence(row.id, { status: 1 } as any)
+    await updateAlertSilence(row.id, { status: 1 })
     ElMessage.success('已启用')
     loadData()
   } catch (error) {
@@ -356,6 +426,7 @@ const getStatusText = (status: number) => {
 }
 
 const formatTime = (time: string) => {
+  if (!time) return '-'
   return dayjs(time).format('YYYY-MM-DD HH:mm')
 }
 
@@ -514,6 +585,19 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+// 类型提示
+.type-hint {
+  color: var(--td-text-placeholder);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+// 辅助文字
+.text-secondary {
+  color: var(--td-text-secondary);
+  font-size: 13px;
 }
 
 // 响应式

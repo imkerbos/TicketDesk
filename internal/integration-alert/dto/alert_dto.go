@@ -171,8 +171,9 @@ type CreateAlertSilenceRequest struct {
 	Name          string         `json:"name" binding:"required,min=1,max=100"`
 	Description   string         `json:"description" binding:"max=500"`
 	LabelMatchers []LabelMatcher `json:"label_matchers" binding:"required,min=1"`
-	StartsAt      time.Time      `json:"starts_at" binding:"required"`
-	EndsAt        time.Time      `json:"ends_at" binding:"required,gtfield=StartsAt"`
+	SilenceType   int8           `json:"silence_type" binding:"required,oneof=1 2"` // 1-即时静默, 2-预约静默
+	StartsAt      *time.Time     `json:"starts_at"`                                 // 预约静默必填
+	EndsAt        *time.Time     `json:"ends_at"`                                   // 预约静默必填
 	Comment       string         `json:"comment" binding:"max=500"`
 }
 
@@ -181,6 +182,7 @@ type UpdateAlertSilenceRequest struct {
 	Name          *string        `json:"name" binding:"omitempty,min=1,max=100"`
 	Description   *string        `json:"description" binding:"omitempty,max=500"`
 	LabelMatchers []LabelMatcher `json:"label_matchers" binding:"omitempty,min=1"`
+	SilenceType   *int8          `json:"silence_type" binding:"omitempty,oneof=1 2"`
 	StartsAt      *time.Time     `json:"starts_at"`
 	EndsAt        *time.Time     `json:"ends_at"`
 	Comment       *string        `json:"comment" binding:"omitempty,max=500"`
@@ -193,8 +195,9 @@ type AlertSilenceResponse struct {
 	Name          string         `json:"name"`
 	Description   string         `json:"description"`
 	LabelMatchers []LabelMatcher `json:"label_matchers"`
+	SilenceType   int8           `json:"silence_type"`
 	StartsAt      time.Time      `json:"starts_at"`
-	EndsAt        time.Time      `json:"ends_at"`
+	EndsAt        *time.Time     `json:"ends_at,omitempty"`
 	CreatedBy     uint64         `json:"created_by"`
 	CreatedByName string         `json:"created_by_name"`
 	Comment       string         `json:"comment"`
