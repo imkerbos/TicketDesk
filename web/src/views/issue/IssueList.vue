@@ -309,84 +309,28 @@
     </el-card>
 
     <!-- 创建工单对话框 -->
-    <el-dialog v-model="createDialogVisible" title="创建工单" width="640px" destroy-on-close class="create-dialog">
-      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-position="top" class="create-form">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="项目" prop="project_key">
-              <el-select v-model="createForm.project_key" placeholder="请选择项目" style="width: 100%" @change="handleProjectChange">
-                <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="类型" prop="issue_type_id">
-              <el-select v-model="createForm.issue_type_id" placeholder="请选择类型" style="width: 100%" :disabled="!createForm.project_key" @change="handleIssueTypeChange">
-                <el-option v-for="t in issueTypes" :key="t.id" :label="t.display_name" :value="t.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="createForm.title" placeholder="请输入工单标题" maxlength="200" show-word-limit />
-        </el-form-item>
-
-        <!-- 所有字段由字段方案驱动 -->
-        <div v-if="fieldScheme.length > 0" v-loading="fieldSchemeLoading" class="custom-fields-section">
-          <el-row :gutter="20">
-            <el-col
-              v-for="item in fieldScheme"
-              :key="item.field_id"
-              :span="getFieldColSpan(item.field?.field_type)"
-            >
-              <el-form-item
-                :required="item.is_required"
-              >
-                <template #label>
-                  <span>{{ item.field?.field_name }}</span>
-                  <el-tooltip v-if="item.field?.description" :content="item.field?.description" placement="top">
-                    <el-icon class="field-hint"><QuestionFilled /></el-icon>
-                  </el-tooltip>
-                </template>
-                <FieldRenderer
-                  v-if="item.field"
-                  v-model="customFieldValues[item.field_id]"
-                  :field="item.field"
-                  :scheme="item"
-                  :project-key="createForm.project_key"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="createLoading" @click="submitCreate">
-          <el-icon><Check /></el-icon>
-          创建工单
-        </el-button>
-      </template>
-    </el-dialog>
+    <CreateIssueDialog
+      v-model="createDialogVisible"
+      :default-project-key="queryParams.project_key || ''"
+      :projects="projects"
+      @created="(key: string) => router.push(`/issues/${key}`)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Check, QuestionFilled, Delete } from '@element-plus/icons-vue'
-import { getIssueList, getIssueListStats, createIssue, deleteIssue } from '@/api/issue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Delete } from '@element-plus/icons-vue'
+import { getIssueList, getIssueListStats, deleteIssue } from '@/api/issue'
 import { getAllProjects, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
-import { getFieldScheme } from '@/api/field'
-import type { Issue, IssueStatus, IssuePriority, CreateIssueRequest, KanbanColumn, IssueListStats } from '@/types/issue'
+import type { Issue, IssueStatus, IssuePriority, KanbanColumn, IssueListStats } from '@/types/issue'
 import type { Project, ProjectIssueType } from '@/types/project'
 import type { UserOption } from '@/types/user'
-import type { FieldSchemeItem } from '@/types/field'
 import { useUserStore } from '@/stores/user'
-import { FieldRenderer } from '@/components/field'
-import { extractBuiltinFields } from '@/utils/builtin-fields'
+import CreateIssueDialog from '@/components/CreateIssueDialog.vue'
 import dayjs from 'dayjs'
 
 const route = useRoute()
@@ -400,12 +344,8 @@ const hasMore = ref(false)
 const viewMode = ref<'table' | 'kanban'>('table')
 const projects = ref<Project[]>([])
 const users = ref<UserOption[]>([])
-const issueTypes = ref<ProjectIssueType[]>([])
 const filterIssueTypes = ref<ProjectIssueType[]>([])
 const filterEpics = ref<Issue[]>([])
-const fieldScheme = ref<FieldSchemeItem[]>([])
-const customFieldValues = ref<Record<number, any>>({})
-const fieldSchemeLoading = ref(false)
 
 // 从 URL query 初始化筛选条件
 const initQuery = route.query
@@ -562,26 +502,6 @@ const kanbanColumns = computed<KanbanColumn[]>(() => {
 })
 
 const createDialogVisible = ref(false)
-const createLoading = ref(false)
-const createFormRef = ref<FormInstance>()
-
-interface CreateFormData {
-  project_key: string
-  issue_type_id: number | undefined
-  title: string
-}
-
-const createForm = reactive<CreateFormData>({
-  project_key: '',
-  issue_type_id: undefined,
-  title: '',
-})
-
-const createRules: FormRules = {
-  project_key: [{ required: true, message: '请选择项目', trigger: 'change' }],
-  issue_type_id: [{ required: true, message: '请选择类型', trigger: 'change' }],
-  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-}
 
 const loadData = async () => {
   loading.value = true
@@ -872,125 +792,7 @@ const navigateTo = (path: string, event: MouseEvent) => {
 }
 
 const handleCreate = () => {
-  Object.assign(createForm, {
-    project_key: queryParams.project_key || '',
-    issue_type_id: undefined, title: '',
-  })
-  fieldScheme.value = []
-  customFieldValues.value = {}
-  if (createForm.project_key) handleProjectChange(createForm.project_key)
   createDialogVisible.value = true
-}
-
-const handleProjectChange = async (projectKey: string) => {
-  createForm.issue_type_id = undefined
-  fieldScheme.value = []
-  customFieldValues.value = {}
-  if (!projectKey) { issueTypes.value = []; return }
-  try {
-    const { data } = await getProjectIssueTypes(projectKey)
-    issueTypes.value = data.data
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
-  }
-}
-
-// 根据字段类型决定列宽
-const getFieldColSpan = (fieldType?: string): number => {
-  // textarea 和 epic_link 类型占满整行
-  if (fieldType === 'textarea' || fieldType === 'epic_link') {
-    return 24
-  }
-  // user、select、date、number 等类型占半行
-  return 12
-}
-
-const handleIssueTypeChange = async (issueTypeId: number) => {
-  fieldScheme.value = []
-  customFieldValues.value = {}
-  if (!issueTypeId || !createForm.project_key) return
-  fieldSchemeLoading.value = true
-  try {
-    const { data } = await getFieldScheme(createForm.project_key, issueTypeId)
-    const schemeItems = data.data || []
-    fieldScheme.value = schemeItems.filter(item => item.is_visible_create)
-    // Initialize custom field values with default values (multiselect 等数组类型需要解析 JSON)
-    const arrayFieldTypes = ['multiselect', 'label', 'component']
-    fieldScheme.value.forEach(item => {
-      const fieldType = item.field?.field_type || ''
-      if (arrayFieldTypes.includes(fieldType)) {
-        // 数组类型字段：初始化为空数组或解析默认值
-        if (item.default_value) {
-          try {
-            const parsed = JSON.parse(item.default_value)
-            customFieldValues.value[item.field_id] = Array.isArray(parsed) ? parsed : []
-          } catch {
-            customFieldValues.value[item.field_id] = []
-          }
-        } else {
-          customFieldValues.value[item.field_id] = []
-        }
-      } else if (item.default_value) {
-        customFieldValues.value[item.field_id] = item.default_value
-      }
-    })
-  } catch (error) {
-    console.error('Failed to load field scheme:', error)
-  } finally {
-    fieldSchemeLoading.value = false
-  }
-}
-
-const submitCreate = async () => {
-  if (!createFormRef.value) return
-  await createFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    createLoading.value = true
-    try {
-      if (!createForm.issue_type_id) {
-        ElMessage.error('请选择工单类型')
-        createLoading.value = false
-        return
-      }
-
-      // 校验必填字段（支持数组类型的空值校验）
-      for (const item of fieldScheme.value) {
-        if (item.is_required) {
-          const val = customFieldValues.value[item.field_id]
-          const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
-          if (isEmpty) {
-            ElMessage.error(`请填写 ${item.field?.field_name}`)
-            createLoading.value = false
-            return
-          }
-        }
-      }
-
-      // 分离内置字段和扩展字段
-      const { builtinValues, customFields } = extractBuiltinFields(fieldScheme.value, customFieldValues.value)
-
-      const requestData: CreateIssueRequest = {
-        project_key: createForm.project_key,
-        issue_type_id: createForm.issue_type_id,
-        title: createForm.title,
-        description: builtinValues.description || '',
-        priority: builtinValues.priority || 'P2',
-        assignee_id: builtinValues.assignee_id || undefined,
-        planned_start_date: builtinValues.planned_start_date || undefined,
-        planned_end_date: builtinValues.planned_end_date || undefined,
-        epic_id: builtinValues.epic_id || undefined,
-        custom_fields: customFields.length > 0 ? customFields : undefined,
-      }
-      const { data } = await createIssue(requestData)
-      ElMessage.success('创建成功')
-      createDialogVisible.value = false
-      router.push(`/issues/${data.data.issue_key}`)
-    } catch (error) {
-      console.error('Failed to create issue:', error)
-    } finally {
-      createLoading.value = false
-    }
-  })
 }
 
 const handleDeleteIssue = async (issue: Issue) => {
@@ -1499,99 +1301,6 @@ onMounted(async () => {
     padding: 24px;
     color: var(--td-text-placeholder);
     font-size: 14px;
-  }
-}
-
-// 创建工单表单 - 扁平化设计
-.create-form {
-  .el-form-item {
-    margin-bottom: 20px;
-  }
-
-  // 自定义字段区域
-  .custom-fields-section {
-    margin-top: 8px;
-
-    .section-divider {
-      display: flex;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-top: 8px;
-      border-top: 1px dashed var(--td-border-color);
-
-      .divider-text {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--td-text-secondary);
-      }
-
-      .field-count {
-        margin-left: 8px;
-        font-size: 12px;
-        color: var(--td-color-info);
-      }
-    }
-
-    .field-hint {
-      margin-left: 4px;
-      font-size: 14px;
-      color: var(--td-text-disabled);
-      cursor: help;
-      vertical-align: middle;
-
-      &:hover {
-        color: var(--td-color-primary);
-      }
-    }
-  }
-}
-
-// 创建工单对话框全局样式
-:deep(.create-dialog) {
-  .el-dialog__header {
-    padding: 16px 20px;
-    margin-right: 0;
-  }
-
-  .el-dialog__body {
-    padding: 20px;
-    max-height: 70vh;
-    overflow-y: auto;
-
-    &::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: var(--td-border-color);
-      border-radius: 3px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-  }
-
-  .el-dialog__footer {
-    padding: 12px 20px 16px;
-  }
-
-  .el-form-item__label {
-    font-weight: 500;
-    color: var(--td-text-secondary);
-    font-size: 13px;
-    padding-bottom: 4px;
-  }
-
-  .el-input, .el-select, .el-textarea {
-    --el-input-bg-color: var(--td-text-white);
-  }
-
-  .el-input__inner, .el-textarea__inner {
-    &:focus {
-      border-color: var(--td-color-primary);
-      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
-    }
   }
 }
 

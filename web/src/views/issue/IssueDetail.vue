@@ -995,63 +995,13 @@
     </el-dialog>
 
     <!-- 创建子任务对话框 -->
-    <el-dialog v-model="createSubtaskDialogVisible" title="创建子任务" width="640px" destroy-on-close class="create-dialog">
-      <el-form ref="createSubtaskFormRef" :model="createSubtaskForm" :rules="createSubtaskRules" label-position="top">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="项目" prop="project_key">
-              <el-select v-model="createSubtaskForm.project_key" placeholder="请选择项目" style="width: 100%" @change="handleSubtaskProjectChange">
-                <el-option v-for="p in projects" :key="p.project_key" :label="p.name" :value="p.project_key" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="类型" prop="issue_type_id">
-              <el-select v-model="createSubtaskForm.issue_type_id" placeholder="请选择类型" style="width: 100%" :disabled="!createSubtaskForm.project_key" @change="handleSubtaskIssueTypeChange">
-                <el-option v-for="t in issueTypes" :key="t.id" :label="t.display_name" :value="t.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="createSubtaskForm.title" placeholder="请输入子任务标题" maxlength="200" show-word-limit />
-        </el-form-item>
-
-        <!-- 所有字段由字段方案驱动 -->
-        <div v-if="createSubtaskFieldScheme.length > 0" class="custom-fields-section">
-          <el-row :gutter="20">
-            <el-col
-              v-for="item in createSubtaskFieldScheme"
-              :key="item.field_id"
-              :span="getEditFieldColSpan(item)"
-            >
-              <el-form-item :required="item.is_required">
-                <template #label>
-                  <span>{{ item.field?.field_name }}</span>
-                  <el-tooltip v-if="item.field?.description" :content="item.field?.description" placement="top">
-                    <el-icon class="field-hint" style="margin-left: 4px; font-size: 14px; color: var(--td-text-disabled); cursor: help;"><QuestionFilled /></el-icon>
-                  </el-tooltip>
-                </template>
-                <FieldRenderer
-                  v-if="item.field"
-                  v-model="createSubtaskFieldValues[item.field_id]"
-                  :field="item.field"
-                  :scheme="item"
-                  :project-key="createSubtaskForm.project_key"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="createSubtaskDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="createSubtaskLoading" @click="submitCreateSubtask">
-          <el-icon><Check /></el-icon>
-          创建子任务
-        </el-button>
-      </template>
-    </el-dialog>
+    <CreateIssueDialog
+      v-model="createSubtaskDialogVisible"
+      title="创建子任务"
+      :default-project-key="issue?.project_key || ''"
+      :parent-id="issue?.id"
+      @created="() => issue && loadSubtasks(issue.issue_key)"
+    />
 
     <!-- 工作流流程图对话框 -->
     <el-dialog v-model="diagramVisible" title="工单流程" width="860px" destroy-on-close>
@@ -1121,7 +1071,7 @@ import {
   ChatLineRound, InfoFilled, View, Check, Link, Delete, Paperclip, Promotion, QuestionFilled, Timer, TopRight
 } from '@element-plus/icons-vue'
 import {
-  getIssueDetail, updateIssue, deleteIssue, createIssue,
+  getIssueDetail, updateIssue, deleteIssue,
   getIssueComments, addIssueComment, getIssueActivities, getIssueWatchers,
   getWorklogs, addWorklog, deleteWorklog,
   addIssueWatcher, removeIssueWatcher, getEpicIssues, getSubtasks,
@@ -1137,12 +1087,11 @@ import AttachmentList from '@/components/attachment/AttachmentList.vue'
 import { getAllUsers } from '@/api/user'
 import { getPublicConfig } from '@/api/system'
 import { getIssueFieldValues, getFieldScheme } from '@/api/field'
-import { getAllProjects, getProjectIssueTypes } from '@/api/project'
+import CreateIssueDialog from '@/components/CreateIssueDialog.vue'
 import { useUserStore } from '@/stores/user'
-import type { Issue, IssueComment, IssueActivity, IssueWatcher, IssueResolution, UpdateIssueRequest, Worklog, CreateWorklogRequest, CreateIssueRequest } from '@/types/issue'
+import type { Issue, IssueComment, IssueActivity, IssueWatcher, IssueResolution, UpdateIssueRequest, Worklog, CreateWorklogRequest } from '@/types/issue'
 import type { UserOption } from '@/types/user'
 import type { FieldValue, FieldSchemeItem, FieldTypeValue } from '@/types/field'
-import type { Project, ProjectIssueType } from '@/types/project'
 import FieldRenderer from '@/components/field/FieldRenderer.vue'
 import { isBuiltinField } from '@/types/field'
 import { extractBuiltinFields, backfillBuiltinFields } from '@/utils/builtin-fields'
@@ -1190,32 +1139,8 @@ const approveLoading = ref(false)
 const rejectLoading = ref(false)
 const rejectDialogVisible = ref(false)
 
-// 创建子任务相关
+// 创建子任务
 const createSubtaskDialogVisible = ref(false)
-const createSubtaskLoading = ref(false)
-const createSubtaskFormRef = ref<FormInstance>()
-const projects = ref<Project[]>([])
-const issueTypes = ref<ProjectIssueType[]>([])
-const createSubtaskFieldScheme = ref<FieldSchemeItem[]>([])
-const createSubtaskFieldValues = ref<Record<number, any>>({})
-
-interface CreateSubtaskFormData {
-  project_key: string
-  issue_type_id: number | undefined
-  title: string
-}
-
-const createSubtaskForm = reactive<CreateSubtaskFormData>({
-  project_key: '',
-  issue_type_id: undefined,
-  title: '',
-})
-
-const createSubtaskRules: FormRules = {
-  project_key: [{ required: true, message: '请选择项目', trigger: 'change' }],
-  issue_type_id: [{ required: true, message: '请选择类型', trigger: 'change' }],
-  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-}
 
 const newComment = ref('')
 const commentLoading = ref(false)
@@ -1815,129 +1740,9 @@ const handleDelete = async () => {
   }
 }
 
-const handleCreateSubtask = async () => {
+const handleCreateSubtask = () => {
   if (!issue.value) return
-
-  // 加载项目列表和用户列表
-  try {
-    const [projectsRes, usersRes] = await Promise.all([getAllProjects(), getAllUsers()])
-    projects.value = projectsRes.data.data
-    users.value = usersRes.data.data
-  } catch (error) {
-    console.error('Failed to load options:', error)
-    ElMessage.error('加载选项失败')
-    return
-  }
-
-  // 初始化表单，自动填充父工单的项目
-  Object.assign(createSubtaskForm, {
-    project_key: issue.value.project_key,
-    issue_type_id: undefined,
-    title: '',
-  })
-  createSubtaskFieldScheme.value = []
-  createSubtaskFieldValues.value = {}
-
-  // 加载项目的工单类型
-  await handleSubtaskProjectChange(issue.value.project_key)
-
   createSubtaskDialogVisible.value = true
-}
-
-const handleSubtaskProjectChange = async (projectKey: string) => {
-  createSubtaskForm.issue_type_id = undefined
-  createSubtaskFieldScheme.value = []
-  createSubtaskFieldValues.value = {}
-  if (!projectKey) {
-    issueTypes.value = []
-    return
-  }
-  try {
-    const { data } = await getProjectIssueTypes(projectKey)
-    issueTypes.value = data.data
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
-  }
-}
-
-const handleSubtaskIssueTypeChange = async (issueTypeId: number) => {
-  createSubtaskFieldScheme.value = []
-  createSubtaskFieldValues.value = {}
-  if (!issueTypeId || !createSubtaskForm.project_key) return
-  try {
-    const { data } = await getFieldScheme(createSubtaskForm.project_key, issueTypeId)
-    const schemeItems = data.data || []
-    createSubtaskFieldScheme.value = schemeItems.filter(item => item.is_visible_create)
-    const arrayFieldTypes = ['multiselect', 'label', 'component']
-    createSubtaskFieldScheme.value.forEach(item => {
-      const fieldType = item.field?.field_type || ''
-      if (arrayFieldTypes.includes(fieldType)) {
-        if (item.default_value) {
-          try {
-            const parsed = JSON.parse(item.default_value)
-            createSubtaskFieldValues.value[item.field_id] = Array.isArray(parsed) ? parsed : []
-          } catch {
-            createSubtaskFieldValues.value[item.field_id] = []
-          }
-        } else {
-          createSubtaskFieldValues.value[item.field_id] = []
-        }
-      } else if (item.default_value) {
-        createSubtaskFieldValues.value[item.field_id] = item.default_value
-      }
-    })
-  } catch (error) {
-    console.error('Failed to load field scheme:', error)
-  }
-}
-
-const submitCreateSubtask = async () => {
-  if (!createSubtaskFormRef.value || !issue.value) return
-  await createSubtaskFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    createSubtaskLoading.value = true
-    try {
-      // 校验必填字段
-      for (const item of createSubtaskFieldScheme.value) {
-        if (item.is_required) {
-          const val = createSubtaskFieldValues.value[item.field_id]
-          const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
-          if (isEmpty) {
-            ElMessage.error(`请填写 ${item.field?.field_name}`)
-            createSubtaskLoading.value = false
-            return
-          }
-        }
-      }
-
-      // 分离内置字段和扩展字段
-      const { builtinValues, customFields } = extractBuiltinFields(createSubtaskFieldScheme.value, createSubtaskFieldValues.value)
-
-      const requestData: CreateIssueRequest = {
-        project_key: createSubtaskForm.project_key,
-        issue_type_id: createSubtaskForm.issue_type_id!,
-        title: createSubtaskForm.title,
-        description: builtinValues.description || '',
-        priority: builtinValues.priority || 'P2',
-        assignee_id: builtinValues.assignee_id || undefined,
-        planned_start_date: builtinValues.planned_start_date || undefined,
-        planned_end_date: builtinValues.planned_end_date || undefined,
-        epic_id: builtinValues.epic_id || undefined,
-        parent_id: issue.value!.id,
-        custom_fields: customFields.length > 0 ? customFields : undefined,
-      }
-
-      await createIssue(requestData)
-      ElMessage.success('子任务创建成功')
-      createSubtaskDialogVisible.value = false
-      await loadSubtasks(issue.value!.issue_key)
-    } catch (error) {
-      console.error('Failed to create subtask:', error)
-      ElMessage.error('创建子任务失败')
-    } finally {
-      createSubtaskLoading.value = false
-    }
-  })
 }
 
 const handleEdit = async () => {
@@ -3363,26 +3168,6 @@ const showWorkflowDiagram = async () => {
   .el-dialog__body {
     max-height: 70vh;
     overflow-y: auto;
-  }
-}
-
-:deep(.create-dialog) {
-  .el-dialog__body {
-    max-height: 70vh;
-    overflow-y: auto;
-  }
-
-  .custom-fields-section {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px dashed var(--td-border-color);
-
-    .section-divider {
-      margin-bottom: 16px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--td-text-secondary);
-    }
   }
 }
 
