@@ -65,6 +65,11 @@ export const updateProjectMemberRole = (key: string, userId: number, role: strin
   return request.put(`/projects/${key}/members/${userId}`, { role })
 }
 
+// 所有工单类型（用于筛选器）
+export const getAllIssueTypes = () => {
+  return request.get<ApiResponse<ProjectIssueType[]>>('/issue-types')
+}
+
 // 项目工单类型列表
 export const getProjectIssueTypes = (key: string) => {
   return request.get<ApiResponse<ProjectIssueType[]>>(`/projects/${key}/issue-types`)

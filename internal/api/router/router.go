@@ -637,6 +637,9 @@ func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 
 // registerProjectRoutes 注册项目路由
 func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
+	// 获取所有工单类型（用于筛选器，独立于项目）
+	rg.GET("/issue-types", r.projectHandler.HandleListAllIssueTypes)
+
 	projects := rg.Group("/projects")
 	{
 		// 获取所有项目（用于选择器，必须在 /:key 之前）

@@ -229,6 +229,7 @@ type IssueTypeRepository interface {
 	Delete(ctx context.Context, id uint64) error
 	ListByProject(ctx context.Context, projectID *uint64) ([]*model.IssueType, error)
 	ListGlobal(ctx context.Context) ([]*model.IssueType, error)
+	ListAll(ctx context.Context) ([]*model.IssueType, error)
 	ListAvailableForProject(ctx context.Context, projectID uint64) ([]*model.IssueType, error)
 }
 
@@ -293,6 +294,15 @@ func (r *issueTypeRepository) ListByProject(ctx context.Context, projectID *uint
 // ListGlobal 获取全局工单类型
 func (r *issueTypeRepository) ListGlobal(ctx context.Context) ([]*model.IssueType, error) {
 	return r.ListByProject(ctx, nil)
+}
+
+// ListAll 获取所有工单类型（全局 + 所有项目自定义）
+func (r *issueTypeRepository) ListAll(ctx context.Context) ([]*model.IssueType, error) {
+	var issueTypes []*model.IssueType
+	err := r.db.WithContext(ctx).
+		Order("project_id ASC, id ASC").
+		Find(&issueTypes).Error
+	return issueTypes, err
 }
 
 // ListAvailableForProject 获取项目可用的工单类型（全局 + 项目自定义）

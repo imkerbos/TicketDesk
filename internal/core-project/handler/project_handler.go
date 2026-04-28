@@ -452,6 +452,24 @@ func (h *ProjectHandler) HandleListIssueTypes(c *gin.Context) {
 	response.Success(c, issueTypes)
 }
 
+// HandleListAllIssueTypes 获取所有工单类型（用于筛选器）
+// @Summary 获取所有工单类型
+// @Description 获取所有工单类型列表（全局 + 项目自定义，用于筛选器）
+// @Tags IssueType
+// @Produce json
+// @Success 200 {array} dto.IssueTypeResponse
+// @Router /api/v1/issue-types [get]
+// @Security BearerAuth
+func (h *ProjectHandler) HandleListAllIssueTypes(c *gin.Context) {
+	issueTypes, err := h.projectService.ListAllIssueTypes(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "获取工单类型列表失败")
+		return
+	}
+
+	response.Success(c, issueTypes)
+}
+
 // HandleListAllProjects 获取所有项目（用于选择器）
 // @Summary 获取所有项目
 // @Description 获取所有项目列表（不分页，用于选择器）

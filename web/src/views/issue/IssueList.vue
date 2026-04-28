@@ -324,7 +324,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Delete } from '@element-plus/icons-vue'
 import { getIssueList, getIssueListStats, deleteIssue } from '@/api/issue'
-import { getAllProjects, getProjectIssueTypes } from '@/api/project'
+import { getAllProjects, getAllIssueTypes, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import type { Issue, IssueStatus, IssuePriority, KanbanColumn, IssueListStats } from '@/types/issue'
 import type { Project, ProjectIssueType } from '@/types/project'
@@ -534,31 +534,31 @@ const loadFilterOptions = async () => {
 }
 
 const loadFilterIssueTypes = async () => {
-  if (!queryParams.project_key) {
-    filterIssueTypes.value = []
-    return
-  }
   try {
-    const { data } = await getProjectIssueTypes(queryParams.project_key)
-    filterIssueTypes.value = data.data || []
+    if (queryParams.project_key) {
+      const { data } = await getProjectIssueTypes(queryParams.project_key)
+      filterIssueTypes.value = data.data || []
+    } else {
+      const { data } = await getAllIssueTypes()
+      filterIssueTypes.value = data.data || []
+    }
   } catch (error) {
     console.error('Failed to load issue types:', error)
   }
 }
 
 const loadFilterEpics = async () => {
-  if (!queryParams.project_key) {
-    filterEpics.value = []
-    return
-  }
   try {
-    // 查询该项目下所有 Epic 类型的工单
     const epicType = filterIssueTypes.value.find(t => t.name.toLowerCase() === 'epic')
     if (!epicType) {
       filterEpics.value = []
       return
     }
-    const { data } = await getIssueList({ project_key: queryParams.project_key, issue_type_id: epicType.id, page_size: 100 })
+    const params: Record<string, any> = { issue_type_id: epicType.id, page_size: 100 }
+    if (queryParams.project_key) {
+      params.project_key = queryParams.project_key
+    }
+    const { data } = await getIssueList(params)
     filterEpics.value = data.data.items || []
   } catch (error) {
     console.error('Failed to load epics:', error)
@@ -744,11 +744,11 @@ const handleProjectFilterChange = async () => {
   queryParams.page = 1
   syncQueryToUrl()
   await loadFilterIssueTypes()
-  loadFilterEpics()
+  await loadFilterEpics()
   loadData()
 }
 
-const handleReset = () => {
+const handleReset = async () => {
   clearSelectedSavedView()
   activeQuickFilter.value = ''
   queryParams.page = 1
@@ -767,9 +767,9 @@ const handleReset = () => {
   queryParams.start_date = undefined
   queryParams.end_date = undefined
   dateRange.value = null
-  filterIssueTypes.value = []
-  filterEpics.value = []
   syncQueryToUrl()
+  await loadFilterIssueTypes()
+  await loadFilterEpics()
   loadData()
 }
 
@@ -860,11 +860,8 @@ onMounted(async () => {
     }
   }
   await loadFilterOptions()
-  // 如果 URL 中有 project_key，加载对应的工单类型和 Epic 选项
-  if (queryParams.project_key) {
-    await loadFilterIssueTypes()
-    await loadFilterEpics()
-  }
+  await loadFilterIssueTypes()
+  await loadFilterEpics()
   loadData()
 })
 </script>

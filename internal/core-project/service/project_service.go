@@ -55,6 +55,7 @@ type ProjectService interface {
 	UpdateIssueType(ctx context.Context, id uint64, req *dto.UpdateIssueTypeRequest) (*dto.IssueTypeResponse, error)
 	DeleteIssueType(ctx context.Context, id uint64) error
 	ListIssueTypes(ctx context.Context, projectKey string) ([]*dto.IssueTypeResponse, error)
+	ListAllIssueTypes(ctx context.Context) ([]*dto.IssueTypeResponse, error)
 
 	// 项目角色管理
 	CreateRole(ctx context.Context, projectKey string, req *dto.CreateProjectRoleRequest) (*dto.ProjectRoleResponse, error)
@@ -848,6 +849,21 @@ func (s *projectService) ListIssueTypes(ctx context.Context, projectKey string) 
 	issueTypes, err := s.issueTypeRepo.ListAvailableForProject(ctx, project.ID)
 	if err != nil {
 		return nil, fmt.Errorf("查询工单类型失败: %w", err)
+	}
+
+	responses := make([]*dto.IssueTypeResponse, len(issueTypes))
+	for i, it := range issueTypes {
+		responses[i] = s.toIssueTypeResponse(it)
+	}
+
+	return responses, nil
+}
+
+// ListAllIssueTypes 获取所有工单类型（用于筛选器）
+func (s *projectService) ListAllIssueTypes(ctx context.Context) ([]*dto.IssueTypeResponse, error) {
+	issueTypes, err := s.issueTypeRepo.ListAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("查询所有工单类型失败: %w", err)
 	}
 
 	responses := make([]*dto.IssueTypeResponse, len(issueTypes))
