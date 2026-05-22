@@ -11,6 +11,27 @@ spec:
   gateways:
     - {{ .Values.ingress.istio.gateway }}
   http:
+    # WebSocket 直连后端（exact match 优先于 prefix）
+    - match:
+        - uri:
+            exact: /ws
+      route:
+        - destination:
+            host: {{ .Release.Name }}-backend
+            port:
+              number: {{ .Values.backend.port }}
+      timeout: 0s
+    # 健康检查直连后端
+    - match:
+        - uri:
+            exact: /health
+      route:
+        - destination:
+            host: {{ .Release.Name }}-backend
+            port:
+              number: {{ .Values.backend.port }}
+      timeout: 10s
+    # API
     - match:
         - uri:
             prefix: /api
@@ -20,6 +41,7 @@ spec:
             port:
               number: {{ .Values.backend.port }}
       timeout: 120s
+    # 前端静态资源（catch-all）
     - route:
         - destination:
             host: {{ .Release.Name }}-frontend

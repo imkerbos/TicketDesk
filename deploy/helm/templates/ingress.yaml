@@ -45,6 +45,23 @@ spec:
   hostnames:
     - {{ .Values.ingress.host }}
   rules:
+    # WebSocket 直连后端
+    - matches:
+        - path:
+            type: Exact
+            value: /ws
+      backendRefs:
+        - name: {{ .Release.Name }}-backend
+          port: {{ .Values.backend.port }}
+    # 健康检查直连后端
+    - matches:
+        - path:
+            type: Exact
+            value: /health
+      backendRefs:
+        - name: {{ .Release.Name }}-backend
+          port: {{ .Values.backend.port }}
+    # API
     - matches:
         - path:
             type: PathPrefix
@@ -54,6 +71,7 @@ spec:
           port: {{ .Values.backend.port }}
       timeouts:
         request: 120s
+    # 前端静态资源（catch-all）
     - matches:
         - path:
             type: PathPrefix
