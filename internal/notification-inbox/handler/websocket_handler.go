@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
+	"github.com/kerbos/ticketdesk/internal/api/response"
 	ws "github.com/kerbos/ticketdesk/internal/notification-inbox/websocket"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 	"github.com/kerbos/ticketdesk/pkg/logger"
@@ -40,7 +41,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// 从查询参数获取 token
 	token := c.Query("token")
 	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "缺少认证信息"})
+		response.Unauthorized(c, "缺少认证信息")
 		return
 	}
 
@@ -48,7 +49,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	claims, err := h.jwtManager.ParseToken(token)
 	if err != nil {
 		logger.Warn("ws auth failed", zap.Error(err))
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token 无效"})
+		response.Unauthorized(c, "Token 无效")
 		return
 	}
 

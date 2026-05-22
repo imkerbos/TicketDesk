@@ -271,15 +271,15 @@ const loadProjects = async () => {
     })
     projectList.value = data.data.items
     total.value = data.data.total
-  } catch (error) {
-    console.error('Failed to load projects:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
 }
 
 const loadUsers = async () => {
-  try { const { data } = await getAllUsers(); users.value = data.data } catch (e) { console.error(e) }
+  try { const { data } = await getAllUsers(); users.value = data.data } catch { /* ignored */ }
 }
 
 const handleSearch = () => { page.value = 1; loadProjects() }
@@ -312,8 +312,8 @@ const submitForm = async () => {
       }
       dialogVisible.value = false
       loadProjects()
-    } catch (error) {
-      console.error('Failed to submit:', error)
+    } catch {
+      // ignored
     } finally {
       submitLoading.value = false
     }
@@ -349,7 +349,7 @@ onMounted(() => { loadProjects(); loadUsers() })
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -397,11 +397,10 @@ onMounted(() => { loadProjects(); loadUsers() })
   border: 1px solid var(--td-divider-color);
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s, box-shadow 0.3s;
+  transition: box-shadow 150ms ease-out;
   overflow: hidden;
 
   &:hover {
-    transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   }
 
@@ -532,7 +531,7 @@ onMounted(() => { loadProjects(); loadUsers() })
   border: 1.5px solid var(--td-border-color);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 
   &:hover {
     border-color: var(--td-color-primary);

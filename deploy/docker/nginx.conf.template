@@ -45,7 +45,23 @@ server {
     proxy_send_timeout 120s;
     proxy_read_timeout 120s;
 
-    # API 反向代理
+    # WebSocket 端点（独立于 API，方便独立配置超时/限流/代理）
+    location = /ws {
+        proxy_pass http://backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # WebSocket 长连接超时
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # API 反向代理（常规 HTTP 请求，Connection 保持 keepalive）
     location /api/ {
         proxy_pass http://backend_upstream;
         proxy_http_version 1.1;
@@ -54,10 +70,6 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Connection "";
-
-        # WebSocket 支持
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
 
         # 禁用缓冲（适合流式响应）
         proxy_buffering off;

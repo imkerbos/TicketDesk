@@ -28,7 +28,7 @@ func NewRequirementPoolHandler(
 	}
 }
 
-// Create 创建需求池
+// HandleCreate 创建需求池
 // @Summary 创建需求池
 // @Description 创建一个新的需求池
 // @Tags RequirementPool
@@ -40,7 +40,7 @@ func NewRequirementPoolHandler(
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-pools [post]
 // @Security BearerAuth
-func (h *RequirementPoolHandler) Create(c *gin.Context) {
+func (h *RequirementPoolHandler) HandleCreate(c *gin.Context) {
 	var req dto.CreateRequirementPoolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())
@@ -63,7 +63,7 @@ func (h *RequirementPoolHandler) Create(c *gin.Context) {
 	response.Created(c, pool)
 }
 
-// GetByID 根据ID获取需求池
+// HandleGetByID 根据ID获取需求池
 // @Summary 获取需求池详情
 // @Description 根据ID获取需求池详情
 // @Tags RequirementPool
@@ -75,7 +75,7 @@ func (h *RequirementPoolHandler) Create(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-pools/{id} [get]
 // @Security BearerAuth
-func (h *RequirementPoolHandler) GetByID(c *gin.Context) {
+func (h *RequirementPoolHandler) HandleGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求池ID")
@@ -99,7 +99,7 @@ func (h *RequirementPoolHandler) GetByID(c *gin.Context) {
 	response.Success(c, pool)
 }
 
-// Update 更新需求池
+// HandleUpdate 更新需求池
 // @Summary 更新需求池
 // @Description 更新需求池信息
 // @Tags RequirementPool
@@ -113,7 +113,7 @@ func (h *RequirementPoolHandler) GetByID(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-pools/{id} [put]
 // @Security BearerAuth
-func (h *RequirementPoolHandler) Update(c *gin.Context) {
+func (h *RequirementPoolHandler) HandleUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求池ID")
@@ -145,7 +145,7 @@ func (h *RequirementPoolHandler) Update(c *gin.Context) {
 	response.Success(c, gin.H{"message": "更新成功"})
 }
 
-// Delete 删除需求池
+// HandleDelete 删除需求池
 // @Summary 删除需求池
 // @Description 删除需求池（软删除）
 // @Tags RequirementPool
@@ -158,7 +158,7 @@ func (h *RequirementPoolHandler) Update(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-pools/{id} [delete]
 // @Security BearerAuth
-func (h *RequirementPoolHandler) Delete(c *gin.Context) {
+func (h *RequirementPoolHandler) HandleDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求池ID")
@@ -184,7 +184,7 @@ func (h *RequirementPoolHandler) Delete(c *gin.Context) {
 	response.Success(c, gin.H{"message": "删除成功"})
 }
 
-// List 获取需求池列表
+// HandleList 获取需求池列表
 // @Summary 获取需求池列表
 // @Description 获取需求池列表（支持分页和筛选）
 // @Tags RequirementPool
@@ -201,7 +201,7 @@ func (h *RequirementPoolHandler) Delete(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-pools [get]
 // @Security BearerAuth
-func (h *RequirementPoolHandler) List(c *gin.Context) {
+func (h *RequirementPoolHandler) HandleList(c *gin.Context) {
 	var req dto.RequirementPoolListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())

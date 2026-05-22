@@ -459,8 +459,8 @@ const loadCategories = async () => {
   try {
     const { data } = await getRequirementCategories()
     categories.value = data.data
-  } catch (error) {
-    console.error('加载需求分类失败', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -469,8 +469,8 @@ const loadPools = async () => {
   try {
     const { data } = await getRequirementPoolList({ status: 'active', page_size: 100 })
     pools.value = data.data.items
-  } catch (error) {
-    console.error('加载需求池列表失败', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -479,8 +479,8 @@ const loadUsers = async () => {
   try {
     const { data } = await getAllUsers()
     users.value = data.data
-  } catch (error) {
-    console.error('加载用户列表失败', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -625,11 +625,10 @@ onMounted(() => {
         border: 1px solid rgba(255, 255, 255, 0.3);
         color: var(--td-text-white);
         backdrop-filter: blur(10px);
-        transition: all 0.3s ease;
+        transition: all 150ms ease-out;
 
         &:hover {
           background: rgba(255, 255, 255, 0.3);
-          transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
@@ -653,7 +652,7 @@ onMounted(() => {
     border-radius: 12px;
     border: none;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 150ms ease-out;
 
     &:hover {
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
@@ -687,7 +686,7 @@ onMounted(() => {
         flex-direction: column;
         max-height: 100%;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s ease;
+        transition: all 150ms ease-out;
 
         &:hover {
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
@@ -749,11 +748,10 @@ onMounted(() => {
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             border: 1px solid var(--td-border-color);
-            transition: all 0.3s ease;
+            transition: all 150ms ease-out;
 
             &:hover {
               box-shadow: 0 6px 20px rgba(59, 130, 246, 0.2);
-              transform: translateY(-4px);
               border-color: var(--td-color-primary);
             }
 
@@ -948,10 +946,9 @@ onMounted(() => {
         .el-button {
           border-radius: 8px;
           font-weight: 500;
-          transition: all 0.3s ease;
+          transition: all 150ms ease-out;
 
           &:hover {
-            transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
           }
         }
@@ -996,10 +993,9 @@ onMounted(() => {
         background: var(--td-color-primary);
         border: none;
         padding: 10px 24px;
-        transition: all 0.3s ease;
+        transition: all 150ms ease-out;
 
         &:hover {
-          transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
       }

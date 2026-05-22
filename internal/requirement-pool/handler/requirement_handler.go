@@ -28,7 +28,7 @@ func NewRequirementHandler(
 	}
 }
 
-// Create 创建需求
+// HandleCreate 创建需求
 // @Summary 创建需求
 // @Description 创建一个新的需求
 // @Tags Requirement
@@ -40,7 +40,7 @@ func NewRequirementHandler(
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements [post]
 // @Security BearerAuth
-func (h *RequirementHandler) Create(c *gin.Context) {
+func (h *RequirementHandler) HandleCreate(c *gin.Context) {
 	var req dto.CreateRequirementRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())
@@ -62,7 +62,7 @@ func (h *RequirementHandler) Create(c *gin.Context) {
 	response.Created(c, requirement)
 }
 
-// GetByID 根据ID获取需求
+// HandleGetByID 根据ID获取需求
 // @Summary 获取需求详情
 // @Description 根据ID获取需求详情
 // @Tags Requirement
@@ -74,7 +74,7 @@ func (h *RequirementHandler) Create(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements/{id} [get]
 // @Security BearerAuth
-func (h *RequirementHandler) GetByID(c *gin.Context) {
+func (h *RequirementHandler) HandleGetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求ID")
@@ -98,7 +98,7 @@ func (h *RequirementHandler) GetByID(c *gin.Context) {
 	response.Success(c, requirement)
 }
 
-// Update 更新需求
+// HandleUpdate 更新需求
 // @Summary 更新需求
 // @Description 更新需求信息
 // @Tags Requirement
@@ -112,7 +112,7 @@ func (h *RequirementHandler) GetByID(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements/{id} [put]
 // @Security BearerAuth
-func (h *RequirementHandler) Update(c *gin.Context) {
+func (h *RequirementHandler) HandleUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求ID")
@@ -144,7 +144,7 @@ func (h *RequirementHandler) Update(c *gin.Context) {
 	response.Success(c, gin.H{"message": "更新成功"})
 }
 
-// Delete 删除需求
+// HandleDelete 删除需求
 // @Summary 删除需求
 // @Description 删除需求（软删除）
 // @Tags Requirement
@@ -157,7 +157,7 @@ func (h *RequirementHandler) Update(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements/{id} [delete]
 // @Security BearerAuth
-func (h *RequirementHandler) Delete(c *gin.Context) {
+func (h *RequirementHandler) HandleDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求ID")
@@ -183,7 +183,7 @@ func (h *RequirementHandler) Delete(c *gin.Context) {
 	response.Success(c, gin.H{"message": "删除成功"})
 }
 
-// List 获取需求列表
+// HandleList 获取需求列表
 // @Summary 获取需求列表
 // @Description 获取需求列表（支持分页和筛选）
 // @Tags Requirement
@@ -204,7 +204,7 @@ func (h *RequirementHandler) Delete(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements [get]
 // @Security BearerAuth
-func (h *RequirementHandler) List(c *gin.Context) {
+func (h *RequirementHandler) HandleList(c *gin.Context) {
 	var req dto.RequirementListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())
@@ -232,7 +232,7 @@ func (h *RequirementHandler) List(c *gin.Context) {
 	response.SuccessWithPage(c, requirements, total, page, pageSize)
 }
 
-// ConvertToIssue 转化为工单
+// HandleConvertToIssue 转化为工单
 // @Summary 转化为工单
 // @Description 将需求转化为项目工单
 // @Tags Requirement
@@ -246,7 +246,7 @@ func (h *RequirementHandler) List(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements/{id}/convert [post]
 // @Security BearerAuth
-func (h *RequirementHandler) ConvertToIssue(c *gin.Context) {
+func (h *RequirementHandler) HandleConvertToIssue(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求ID")
@@ -290,7 +290,7 @@ func (h *RequirementHandler) ConvertToIssue(c *gin.Context) {
 	})
 }
 
-// AddComment 添加评论
+// HandleAddComment 添加评论
 // @Summary 添加评论
 // @Description 为需求添加评论
 // @Tags Requirement
@@ -304,7 +304,7 @@ func (h *RequirementHandler) ConvertToIssue(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements/{id}/comments [post]
 // @Security BearerAuth
-func (h *RequirementHandler) AddComment(c *gin.Context) {
+func (h *RequirementHandler) HandleAddComment(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的需求ID")
@@ -337,7 +337,7 @@ func (h *RequirementHandler) AddComment(c *gin.Context) {
 	response.Created(c, comment)
 }
 
-// GetKanban 获取看板数据
+// HandleGetKanban 获取看板数据
 // @Summary 获取看板数据
 // @Description 获取需求看板数据（支持多维度分组）
 // @Tags Requirement
@@ -352,7 +352,7 @@ func (h *RequirementHandler) AddComment(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements/kanban [get]
 // @Security BearerAuth
-func (h *RequirementHandler) GetKanban(c *gin.Context) {
+func (h *RequirementHandler) HandleGetKanban(c *gin.Context) {
 	var req dto.KanbanRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())
@@ -371,7 +371,7 @@ func (h *RequirementHandler) GetKanban(c *gin.Context) {
 	response.Success(c, kanban)
 }
 
-// GetReport 获取报告数据
+// HandleGetReport 获取报告数据
 // @Summary 获取报告数据
 // @Description 获取需求统计报告
 // @Tags Requirement
@@ -386,7 +386,7 @@ func (h *RequirementHandler) GetKanban(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirements/report [get]
 // @Security BearerAuth
-func (h *RequirementHandler) GetReport(c *gin.Context) {
+func (h *RequirementHandler) HandleGetReport(c *gin.Context) {
 	var req dto.ReportRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())

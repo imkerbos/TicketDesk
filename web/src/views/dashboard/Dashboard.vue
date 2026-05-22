@@ -370,8 +370,8 @@ const loadTodoIssues = async () => {
     const { data } = await getMyTodoIssues({ page: 1, page_size: 5 })
     todoIssues.value = data.data.items
     stats.myTodo = data.data.total
-  } catch (error) {
-    console.error('Failed to load todo issues:', error)
+  } catch {
+    // ignored
   } finally {
     loadingTodo.value = false
   }
@@ -384,8 +384,8 @@ const loadCreatedIssues = async () => {
     const { data } = await getMyCreatedIssues({ page: 1, page_size: 5 })
     createdIssues.value = data.data.items
     stats.myCreated = data.data.total
-  } catch (error) {
-    console.error('Failed to load created issues:', error)
+  } catch {
+    // ignored
   } finally {
     loadingCreated.value = false
   }
@@ -398,8 +398,8 @@ const loadPendingAlerts = async () => {
     const { data } = await getAlertList({ status: 'firing', page: 1, page_size: 5 })
     pendingAlerts.value = data.data.items
     stats.pendingAlerts = data.data.total
-  } catch (error) {
-    console.error('Failed to load alerts:', error)
+  } catch {
+    // ignored
   } finally {
     loadingAlerts.value = false
   }
@@ -411,8 +411,8 @@ const loadRecentActivities = async () => {
   try {
     const { data } = await getRecentActivities(10)
     recentActivities.value = data.data
-  } catch (error) {
-    console.error('Failed to load activities:', error)
+  } catch {
+    // ignored
   } finally {
     loadingActivities.value = false
   }

@@ -61,8 +61,8 @@ const loadLabels = async () => {
   try {
     const res = await getLabels(props.projectKey)
     labels.value = res.data.data || []
-  } catch (error) {
-    console.error('Failed to load labels:', error)
+  } catch {
+    // ignored
   }
 }
 

@@ -81,12 +81,11 @@ const onDragStart = (event: DragEvent, nodeType: NodeType) => {
   padding: 10px 12px;
   border-radius: 10px;
   cursor: grab;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
   border: 1px solid var(--td-border-color);
   background: var(--td-bg-page);
 
   &:hover {
-    transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 

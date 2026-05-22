@@ -297,8 +297,8 @@ const loadProjects = async () => {
   try {
     const { data } = await getProjectList({ page: 1, page_size: 100 })
     projectList.value = data.data.items || []
-  } catch (error) {
-    console.error('Failed to load projects:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -306,8 +306,8 @@ const loadDatasources = async () => {
   try {
     const { data } = await getDatasourceList({ page: 1, page_size: 100 })
     datasourceList.value = data.data.items || []
-  } catch (error) {
-    console.error('Failed to load datasources:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -316,8 +316,8 @@ const loadIssueTypes = async (projectKey: string) => {
     const { getProjectIssueTypes } = await import('@/api/project')
     const { data } = await getProjectIssueTypes(projectKey)
     issueTypeList.value = data.data || []
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -362,8 +362,8 @@ const loadData = async () => {
     const { data } = await getAlertRuleList(queryParams)
     ruleList.value = data.data.items
     total.value = data.data.total
-  } catch (error) {
-    console.error('Failed to load rules:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -451,8 +451,8 @@ const handleSubmit = async () => {
       }
       dialogVisible.value = false
       loadData()
-    } catch (error) {
-      console.error('Failed to submit:', error)
+    } catch {
+      // ignored
     }
   })
 }
@@ -467,7 +467,7 @@ const handleDelete = async (row: AlertRule) => {
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete:', error)
+      // ignored
     }
   }
 }
@@ -548,7 +548,7 @@ onMounted(() => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -594,7 +594,7 @@ onMounted(() => {
     align-items: center;
     gap: 5px;
     padding: 3px 10px;
-    border-radius: 20px;
+    border-radius: 12px;
     font-size: 12px;
     font-weight: 500;
 
@@ -631,7 +631,7 @@ onMounted(() => {
     align-items: center;
     gap: 5px;
     padding: 3px 10px;
-    border-radius: 20px;
+    border-radius: 12px;
     font-size: 12px;
 
     .status-dot {

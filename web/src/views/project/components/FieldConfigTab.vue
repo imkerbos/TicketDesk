@@ -334,8 +334,8 @@ const loadFields = async () => {
   try {
     const { data } = await getFields(props.projectKey)
     allFields.value = data.data || []
-  } catch (error) {
-    console.error('Failed to load fields:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -347,8 +347,8 @@ const loadIssueTypes = async () => {
     if (issueTypes.value.length > 0 && !selectedIssueTypeId.value) {
       selectedIssueTypeId.value = issueTypes.value[0].id
     }
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -359,8 +359,8 @@ const loadFieldScheme = async () => {
   try {
     const { data } = await getFieldScheme(props.projectKey, selectedIssueTypeId.value)
     currentScheme.value = data.data || []
-  } catch (error) {
-    console.error('Failed to load field scheme:', error)
+  } catch {
+    // ignored
   } finally {
     schemesLoading.value = false
   }
@@ -457,8 +457,7 @@ const addFieldsToScheme = async () => {
     ElMessage.success('添加成功')
     schemeFieldDialogVisible.value = false
     await loadFieldScheme()
-  } catch (error) {
-    console.error('Failed to add fields to scheme:', error)
+  } catch {
     ElMessage.error('添加失败')
   } finally {
     addToSchemeLoading.value = false
@@ -480,8 +479,7 @@ const handleSchemeChange = async (_item: FieldSchemeItem) => {
     }))
     await updateFieldScheme(props.projectKey, selectedIssueTypeId.value, { items: allItems })
     ElMessage.success('已保存')
-  } catch (error) {
-    console.error('Failed to update scheme:', error)
+  } catch {
     ElMessage.error('保存失败')
     // 回滚：重新加载后端数据
     await loadFieldScheme()
@@ -511,7 +509,6 @@ const handleRemoveSchemeField = async (item: FieldSchemeItem) => {
     await loadFieldScheme()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to remove field from scheme:', error)
       ElMessage.error('移除失败')
     }
   }
@@ -526,8 +523,8 @@ const openApplyTemplateDialog = async () => {
   try {
     const { data } = await getTemplates()
     templates.value = (data.data || []).filter((t: FieldSchemeTemplate) => t.is_active)
-  } catch (error) {
-    console.error('Failed to load templates:', error)
+  } catch {
+    // ignored
   }
   selectedTemplateId.value = undefined
   applyMode.value = 'merge'
@@ -557,8 +554,7 @@ const handleApplyTemplate = async () => {
     ElMessage.success('模板套用成功')
     applyTemplateDialogVisible.value = false
     await loadFieldScheme()
-  } catch (error) {
-    console.error('Failed to apply template:', error)
+  } catch {
     ElMessage.error('套用失败')
   } finally {
     applyTemplateLoading.value = false
@@ -757,7 +753,7 @@ onMounted(async () => {
   border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 
   &:hover {
     background: var(--td-bg-page);
@@ -810,7 +806,7 @@ onMounted(async () => {
   border: 2px solid var(--td-border-color);
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 
   &:hover {
     border-color: var(--td-tag-primary-border);
@@ -833,7 +829,7 @@ onMounted(async () => {
   height: 18px;
   border-radius: 50%;
   border: 2px solid #d1d5db;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
   position: relative;
 
   &.checked {

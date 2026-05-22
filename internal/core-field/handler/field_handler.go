@@ -27,7 +27,7 @@ func NewFieldHandler(fieldService service.FieldService) *FieldHandler {
 
 // ============ 字段定义 ============
 
-// CreateField 创建自定义字段
+// HandleCreateField 创建自定义字段
 // @Summary 创建自定义字段
 // @Description 为项目创建自定义字段
 // @Tags Field
@@ -39,7 +39,7 @@ func NewFieldHandler(fieldService service.FieldService) *FieldHandler {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/fields [post]
 // @Security BearerAuth
-func (h *FieldHandler) CreateField(c *gin.Context) {
+func (h *FieldHandler) HandleCreateField(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	var req dto.CreateFieldRequest
@@ -57,7 +57,7 @@ func (h *FieldHandler) CreateField(c *gin.Context) {
 	response.Created(c, result)
 }
 
-// UpdateField 更新字段定义
+// HandleUpdateField 更新字段定义
 // @Summary 更新字段定义
 // @Description 更新项目的字段定义
 // @Tags Field
@@ -70,7 +70,7 @@ func (h *FieldHandler) CreateField(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/fields/{id} [put]
 // @Security BearerAuth
-func (h *FieldHandler) UpdateField(c *gin.Context) {
+func (h *FieldHandler) HandleUpdateField(c *gin.Context) {
 	projectKey := c.Param("key")
 	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -93,7 +93,7 @@ func (h *FieldHandler) UpdateField(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// DeleteField 删除字段定义
+// HandleDeleteField 删除字段定义
 // @Summary 删除字段定义
 // @Description 删除项目的自定义字段
 // @Tags Field
@@ -104,7 +104,7 @@ func (h *FieldHandler) UpdateField(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/fields/{id} [delete]
 // @Security BearerAuth
-func (h *FieldHandler) DeleteField(c *gin.Context) {
+func (h *FieldHandler) HandleDeleteField(c *gin.Context) {
 	projectKey := c.Param("key")
 	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -120,7 +120,7 @@ func (h *FieldHandler) DeleteField(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// ListFields 获取字段列表
+// HandleListFields 获取字段列表
 // @Summary 获取字段列表
 // @Description 获取项目可用的所有字段（系统字段+自定义字段）
 // @Tags Field
@@ -130,7 +130,7 @@ func (h *FieldHandler) DeleteField(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/fields [get]
 // @Security BearerAuth
-func (h *FieldHandler) ListFields(c *gin.Context) {
+func (h *FieldHandler) HandleListFields(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	result, err := h.fieldService.ListFields(c.Request.Context(), projectKey)
@@ -144,7 +144,7 @@ func (h *FieldHandler) ListFields(c *gin.Context) {
 
 // ============ 字段方案 ============
 
-// GetFieldScheme 获取工单类型的字段方案
+// HandleGetFieldScheme 获取工单类型的字段方案
 // @Summary 获取字段方案
 // @Description 获取工单类型的字段配置方案
 // @Tags Field
@@ -155,7 +155,7 @@ func (h *FieldHandler) ListFields(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/issue-types/{id}/field-scheme [get]
 // @Security BearerAuth
-func (h *FieldHandler) GetFieldScheme(c *gin.Context) {
+func (h *FieldHandler) HandleGetFieldScheme(c *gin.Context) {
 	projectKey := c.Param("key")
 	issueTypeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -172,7 +172,7 @@ func (h *FieldHandler) GetFieldScheme(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// UpdateFieldScheme 更新工单类型的字段方案
+// HandleUpdateFieldScheme 更新工单类型的字段方案
 // @Summary 更新字段方案
 // @Description 更新工单类型的字段配置方案
 // @Tags Field
@@ -185,7 +185,7 @@ func (h *FieldHandler) GetFieldScheme(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/issue-types/{id}/field-scheme [put]
 // @Security BearerAuth
-func (h *FieldHandler) UpdateFieldScheme(c *gin.Context) {
+func (h *FieldHandler) HandleUpdateFieldScheme(c *gin.Context) {
 	projectKey := c.Param("key")
 	issueTypeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -210,7 +210,7 @@ func (h *FieldHandler) UpdateFieldScheme(c *gin.Context) {
 
 // ============ 版本管理 ============
 
-// CreateVersion 创建项目版本
+// HandleCreateVersion 创建项目版本
 // @Summary 创建项目版本
 // @Description 为项目创建新版本
 // @Tags Version
@@ -222,7 +222,7 @@ func (h *FieldHandler) UpdateFieldScheme(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/versions [post]
 // @Security BearerAuth
-func (h *FieldHandler) CreateVersion(c *gin.Context) {
+func (h *FieldHandler) HandleCreateVersion(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	var req dto.CreateVersionRequest
@@ -240,7 +240,7 @@ func (h *FieldHandler) CreateVersion(c *gin.Context) {
 	response.Created(c, result)
 }
 
-// UpdateVersion 更新项目版本
+// HandleUpdateVersion 更新项目版本
 // @Summary 更新项目版本
 // @Description 更新项目的版本信息
 // @Tags Version
@@ -253,7 +253,7 @@ func (h *FieldHandler) CreateVersion(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/versions/{id} [put]
 // @Security BearerAuth
-func (h *FieldHandler) UpdateVersion(c *gin.Context) {
+func (h *FieldHandler) HandleUpdateVersion(c *gin.Context) {
 	projectKey := c.Param("key")
 	versionID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -276,7 +276,7 @@ func (h *FieldHandler) UpdateVersion(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// DeleteVersion 删除项目版本
+// HandleDeleteVersion 删除项目版本
 // @Summary 删除项目版本
 // @Description 删除项目的版本
 // @Tags Version
@@ -287,7 +287,7 @@ func (h *FieldHandler) UpdateVersion(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/versions/{id} [delete]
 // @Security BearerAuth
-func (h *FieldHandler) DeleteVersion(c *gin.Context) {
+func (h *FieldHandler) HandleDeleteVersion(c *gin.Context) {
 	projectKey := c.Param("key")
 	versionID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -303,7 +303,7 @@ func (h *FieldHandler) DeleteVersion(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// ListVersions 获取项目版本列表
+// HandleListVersions 获取项目版本列表
 // @Summary 获取版本列表
 // @Description 获取项目的所有版本
 // @Tags Version
@@ -313,7 +313,7 @@ func (h *FieldHandler) DeleteVersion(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/versions [get]
 // @Security BearerAuth
-func (h *FieldHandler) ListVersions(c *gin.Context) {
+func (h *FieldHandler) HandleListVersions(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	result, err := h.fieldService.ListVersions(c.Request.Context(), projectKey)
@@ -327,7 +327,7 @@ func (h *FieldHandler) ListVersions(c *gin.Context) {
 
 // ============ 组件管理 ============
 
-// CreateComponent 创建项目组件
+// HandleCreateComponent 创建项目组件
 // @Summary 创建项目组件
 // @Description 为项目创建新组件
 // @Tags Component
@@ -339,7 +339,7 @@ func (h *FieldHandler) ListVersions(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/components [post]
 // @Security BearerAuth
-func (h *FieldHandler) CreateComponent(c *gin.Context) {
+func (h *FieldHandler) HandleCreateComponent(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	var req dto.CreateComponentRequest
@@ -357,7 +357,7 @@ func (h *FieldHandler) CreateComponent(c *gin.Context) {
 	response.Created(c, result)
 }
 
-// UpdateComponent 更新项目组件
+// HandleUpdateComponent 更新项目组件
 // @Summary 更新项目组件
 // @Description 更新项目的组件信息
 // @Tags Component
@@ -370,7 +370,7 @@ func (h *FieldHandler) CreateComponent(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/components/{id} [put]
 // @Security BearerAuth
-func (h *FieldHandler) UpdateComponent(c *gin.Context) {
+func (h *FieldHandler) HandleUpdateComponent(c *gin.Context) {
 	projectKey := c.Param("key")
 	componentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -393,7 +393,7 @@ func (h *FieldHandler) UpdateComponent(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// DeleteComponent 删除项目组件
+// HandleDeleteComponent 删除项目组件
 // @Summary 删除项目组件
 // @Description 删除项目的组件
 // @Tags Component
@@ -404,7 +404,7 @@ func (h *FieldHandler) UpdateComponent(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/components/{id} [delete]
 // @Security BearerAuth
-func (h *FieldHandler) DeleteComponent(c *gin.Context) {
+func (h *FieldHandler) HandleDeleteComponent(c *gin.Context) {
 	projectKey := c.Param("key")
 	componentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -420,7 +420,7 @@ func (h *FieldHandler) DeleteComponent(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// ListComponents 获取项目组件列表
+// HandleListComponents 获取项目组件列表
 // @Summary 获取组件列表
 // @Description 获取项目的所有组件
 // @Tags Component
@@ -430,7 +430,7 @@ func (h *FieldHandler) DeleteComponent(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/components [get]
 // @Security BearerAuth
-func (h *FieldHandler) ListComponents(c *gin.Context) {
+func (h *FieldHandler) HandleListComponents(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	result, err := h.fieldService.ListComponents(c.Request.Context(), projectKey)
@@ -444,7 +444,7 @@ func (h *FieldHandler) ListComponents(c *gin.Context) {
 
 // ============ 标签管理 ============
 
-// CreateLabel 创建标签
+// HandleCreateLabel 创建标签
 // @Summary 创建标签
 // @Description 为项目创建新标签
 // @Tags Label
@@ -456,7 +456,7 @@ func (h *FieldHandler) ListComponents(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/labels [post]
 // @Security BearerAuth
-func (h *FieldHandler) CreateLabel(c *gin.Context) {
+func (h *FieldHandler) HandleCreateLabel(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	var req dto.CreateLabelRequest
@@ -474,7 +474,7 @@ func (h *FieldHandler) CreateLabel(c *gin.Context) {
 	response.Created(c, result)
 }
 
-// UpdateLabel 更新标签
+// HandleUpdateLabel 更新标签
 // @Summary 更新标签
 // @Description 更新项目的标签信息
 // @Tags Label
@@ -487,7 +487,7 @@ func (h *FieldHandler) CreateLabel(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/labels/{id} [put]
 // @Security BearerAuth
-func (h *FieldHandler) UpdateLabel(c *gin.Context) {
+func (h *FieldHandler) HandleUpdateLabel(c *gin.Context) {
 	projectKey := c.Param("key")
 	labelID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -510,7 +510,7 @@ func (h *FieldHandler) UpdateLabel(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// DeleteLabel 删除标签
+// HandleDeleteLabel 删除标签
 // @Summary 删除标签
 // @Description 删除项目的标签
 // @Tags Label
@@ -521,7 +521,7 @@ func (h *FieldHandler) UpdateLabel(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/labels/{id} [delete]
 // @Security BearerAuth
-func (h *FieldHandler) DeleteLabel(c *gin.Context) {
+func (h *FieldHandler) HandleDeleteLabel(c *gin.Context) {
 	projectKey := c.Param("key")
 	labelID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -537,7 +537,7 @@ func (h *FieldHandler) DeleteLabel(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// ListLabels 获取标签列表
+// HandleListLabels 获取标签列表
 // @Summary 获取标签列表
 // @Description 获取项目的所有标签
 // @Tags Label
@@ -547,7 +547,7 @@ func (h *FieldHandler) DeleteLabel(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/projects/{key}/labels [get]
 // @Security BearerAuth
-func (h *FieldHandler) ListLabels(c *gin.Context) {
+func (h *FieldHandler) HandleListLabels(c *gin.Context) {
 	projectKey := c.Param("key")
 
 	result, err := h.fieldService.ListLabels(c.Request.Context(), projectKey)
@@ -561,7 +561,7 @@ func (h *FieldHandler) ListLabels(c *gin.Context) {
 
 // ============ 字段值 ============
 
-// GetIssueFieldValues 获取工单的字段值
+// HandleGetIssueFieldValues 获取工单的字段值
 // @Summary 获取工单字段值
 // @Description 获取指定工单的所有自定义字段值
 // @Tags FieldValue
@@ -571,7 +571,7 @@ func (h *FieldHandler) ListLabels(c *gin.Context) {
 // @Failure 400 {object} response.Response
 // @Router /api/v1/issues/{issue_id}/field-values [get]
 // @Security BearerAuth
-func (h *FieldHandler) GetIssueFieldValues(c *gin.Context) {
+func (h *FieldHandler) HandleGetIssueFieldValues(c *gin.Context) {
 	issueID, err := strconv.ParseUint(c.Param("issue_id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的工单ID")
@@ -589,8 +589,8 @@ func (h *FieldHandler) GetIssueFieldValues(c *gin.Context) {
 
 // ============ 全局字段管理 ============
 
-// ListGlobalFields 获取全局字段列表
-func (h *FieldHandler) ListGlobalFields(c *gin.Context) {
+// HandleListGlobalFields 获取全局字段列表
+func (h *FieldHandler) HandleListGlobalFields(c *gin.Context) {
 	result, err := h.fieldService.ListGlobalFields(c.Request.Context())
 	if err != nil {
 		h.handleError(c, err)
@@ -599,8 +599,8 @@ func (h *FieldHandler) ListGlobalFields(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// CreateGlobalField 创建全局自定义字段
-func (h *FieldHandler) CreateGlobalField(c *gin.Context) {
+// HandleCreateGlobalField 创建全局自定义字段
+func (h *FieldHandler) HandleCreateGlobalField(c *gin.Context) {
 	var req dto.CreateFieldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -614,8 +614,8 @@ func (h *FieldHandler) CreateGlobalField(c *gin.Context) {
 	response.Created(c, result)
 }
 
-// UpdateGlobalField 更新全局字段
-func (h *FieldHandler) UpdateGlobalField(c *gin.Context) {
+// HandleUpdateGlobalField 更新全局字段
+func (h *FieldHandler) HandleUpdateGlobalField(c *gin.Context) {
 	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的字段ID")
@@ -634,8 +634,8 @@ func (h *FieldHandler) UpdateGlobalField(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// DeleteGlobalField 删除全局字段
-func (h *FieldHandler) DeleteGlobalField(c *gin.Context) {
+// HandleDeleteGlobalField 删除全局字段
+func (h *FieldHandler) HandleDeleteGlobalField(c *gin.Context) {
 	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的字段ID")
@@ -648,8 +648,8 @@ func (h *FieldHandler) DeleteGlobalField(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// GetFieldUsage 获取字段使用情况
-func (h *FieldHandler) GetFieldUsage(c *gin.Context) {
+// HandleGetFieldUsage 获取字段使用情况
+func (h *FieldHandler) HandleGetFieldUsage(c *gin.Context) {
 	fieldID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的字段ID")
@@ -665,8 +665,8 @@ func (h *FieldHandler) GetFieldUsage(c *gin.Context) {
 
 // ============ 方案模板 ============
 
-// ListTemplates 获取所有方案模板
-func (h *FieldHandler) ListTemplates(c *gin.Context) {
+// HandleListTemplates 获取所有方案模板
+func (h *FieldHandler) HandleListTemplates(c *gin.Context) {
 	result, err := h.fieldService.ListTemplates(c.Request.Context())
 	if err != nil {
 		h.handleError(c, err)
@@ -675,8 +675,8 @@ func (h *FieldHandler) ListTemplates(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// CreateTemplate 创建方案模板
-func (h *FieldHandler) CreateTemplate(c *gin.Context) {
+// HandleCreateTemplate 创建方案模板
+func (h *FieldHandler) HandleCreateTemplate(c *gin.Context) {
 	var req dto.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -691,8 +691,8 @@ func (h *FieldHandler) CreateTemplate(c *gin.Context) {
 	response.Created(c, result)
 }
 
-// GetTemplate 获取模板详情
-func (h *FieldHandler) GetTemplate(c *gin.Context) {
+// HandleGetTemplate 获取模板详情
+func (h *FieldHandler) HandleGetTemplate(c *gin.Context) {
 	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的模板ID")
@@ -706,8 +706,8 @@ func (h *FieldHandler) GetTemplate(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// UpdateTemplate 更新模板
-func (h *FieldHandler) UpdateTemplate(c *gin.Context) {
+// HandleUpdateTemplate 更新模板
+func (h *FieldHandler) HandleUpdateTemplate(c *gin.Context) {
 	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的模板ID")
@@ -726,8 +726,8 @@ func (h *FieldHandler) UpdateTemplate(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// DeleteTemplate 删除模板
-func (h *FieldHandler) DeleteTemplate(c *gin.Context) {
+// HandleDeleteTemplate 删除模板
+func (h *FieldHandler) HandleDeleteTemplate(c *gin.Context) {
 	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的模板ID")
@@ -740,8 +740,8 @@ func (h *FieldHandler) DeleteTemplate(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// UpdateTemplateItems 更新模板字段项
-func (h *FieldHandler) UpdateTemplateItems(c *gin.Context) {
+// HandleUpdateTemplateItems 更新模板字段项
+func (h *FieldHandler) HandleUpdateTemplateItems(c *gin.Context) {
 	templateID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的模板ID")
@@ -759,8 +759,8 @@ func (h *FieldHandler) UpdateTemplateItems(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// ApplyTemplate 套用模板到工单类型
-func (h *FieldHandler) ApplyTemplate(c *gin.Context) {
+// HandleApplyTemplate 套用模板到工单类型
+func (h *FieldHandler) HandleApplyTemplate(c *gin.Context) {
 	projectKey := c.Param("key")
 	issueTypeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

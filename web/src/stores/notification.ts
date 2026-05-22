@@ -122,7 +122,6 @@ export const useNotificationStore = defineStore('notification', () => {
   // 请求通知权限
   const requestNotificationPermission = async () => {
     if (!('Notification' in window)) {
-      console.log('[Notification] Browser does not support notifications')
       return false
     }
 
@@ -140,17 +139,11 @@ export const useNotificationStore = defineStore('notification', () => {
 
   // 显示浏览器通知
   const showBrowserNotification = (notif: NotificationItem) => {
-    console.log('[Browser Notification] Attempting to show notification:', notif)
-    console.log('[Browser Notification] Notification support:', 'Notification' in window)
-    console.log('[Browser Notification] Permission:', window.Notification?.permission)
-
     if (!('Notification' in window)) {
-      console.warn('[Browser Notification] Browser does not support notifications')
       return
     }
 
     if (window.Notification.permission !== 'granted') {
-      console.warn('[Browser Notification] Permission not granted:', window.Notification.permission)
       return
     }
 
@@ -164,11 +157,8 @@ export const useNotificationStore = defineStore('notification', () => {
         silent: false,
       })
 
-      console.log('[Browser Notification] Notification created successfully')
-
       // 点击通知时跳转到对应页面并标记为已读
       browserNotif.onclick = () => {
-        console.log('[Browser Notification] Notification clicked')
         markAsRead(notif.id) // 标记为已读
         window.focus()
         if (notif.entity_type === 'issue' && notif.entity_key) {
@@ -194,18 +184,15 @@ export const useNotificationStore = defineStore('notification', () => {
       browserNotif.onclose = () => {
         document.removeEventListener('visibilitychange', handleVisibilityChange)
       }
-    } catch (error) {
-      console.error('[Browser Notification] Failed to create notification:', error)
+    } catch {
+      // 静默处理
     }
   }
 
   // 处理 WebSocket 消息
   const handleWSMessage = (message: WSMessage) => {
-    console.log('[Notification Store] Received WS message:', message)
-
     if (message.type === 'notification') {
       const notif = message.data as NotificationItem
-      console.log('[Notification Store] Processing notification:', notif)
 
       // 添加到列表头部
       notifications.value.unshift(notif)
@@ -215,7 +202,6 @@ export const useNotificationStore = defineStore('notification', () => {
       showBrowserNotification(notif)
 
       // 同时显示页面内通知（当前标签页）
-      console.log('[Notification Store] Showing ElNotification')
       ElNotification({
         title: notif.title,
         message: notif.content,
@@ -263,7 +249,7 @@ export const useNotificationStore = defineStore('notification', () => {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
-    const wsUrl = `${protocol}//${host}/api/v1/ws?token=${token}`
+    const wsUrl = `${protocol}//${host}/ws?token=${token}`
 
     const socket = new WebSocket(wsUrl)
     let opened = false
@@ -329,41 +315,6 @@ export const useNotificationStore = defineStore('notification', () => {
     connected.value = false
   }
 
-  // 测试浏览器通知（用于调试）
-  const testBrowserNotification = () => {
-    console.log('[Test] Testing browser notification...')
-    console.log('[Test] Permission:', window.Notification?.permission)
-
-    if (!('Notification' in window)) {
-      console.error('[Test] Browser does not support notifications')
-      return
-    }
-
-    if (window.Notification.permission !== 'granted') {
-      console.error('[Test] Permission not granted. Current permission:', window.Notification.permission)
-      return
-    }
-
-    try {
-      const testNotif = new window.Notification('测试通知', {
-        body: '这是一条测试通知，用于验证浏览器通知功能是否正常工作',
-        icon: '/favicon.ico',
-        tag: 'test-notification',
-      })
-
-      console.log('[Test] Test notification created successfully')
-
-      testNotif.onclick = () => {
-        console.log('[Test] Test notification clicked')
-        testNotif.close()
-      }
-
-      setTimeout(() => testNotif.close(), 4000)
-    } catch (error) {
-      console.error('[Test] Failed to create test notification:', error)
-    }
-  }
-
   return {
     // 状态
     notifications,
@@ -380,6 +331,5 @@ export const useNotificationStore = defineStore('notification', () => {
     connectWebSocket,
     disconnectWebSocket,
     requestNotificationPermission,
-    testBrowserNotification,
   }
 })

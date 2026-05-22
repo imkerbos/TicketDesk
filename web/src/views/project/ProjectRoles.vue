@@ -183,8 +183,8 @@ const loadRoles = async () => {
   try {
     const { data } = await getProjectRoles(projectKey.value)
     roles.value = data.data
-  } catch (error) {
-    console.error('Failed to load roles:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -194,8 +194,8 @@ const loadUsers = async () => {
   try {
     const { data } = await getAllUsers()
     users.value = data.data
-  } catch (error) {
-    console.error('Failed to load users:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -237,8 +237,8 @@ const submitRole = async () => {
       }
       roleDialogVisible.value = false
       loadRoles()
-    } catch (error) {
-      console.error('Failed to save role:', error)
+    } catch {
+      // ignored
     } finally {
       submitLoading.value = false
     }
@@ -255,7 +255,7 @@ const handleDeleteRole = async (role: ProjectRole) => {
     loadRoles()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete role:', error)
+      // ignored
     }
   }
 }
@@ -272,8 +272,8 @@ const loadRoleMembers = async (roleId: number) => {
   try {
     const { data } = await getRoleMembers(projectKey.value, roleId)
     roleMembers.value = data.data
-  } catch (error) {
-    console.error('Failed to load role members:', error)
+  } catch {
+    // ignored
   } finally {
     membersLoading.value = false
   }
@@ -287,8 +287,8 @@ const handleAddMember = async () => {
     ElMessage.success('添加成功')
     selectedUserId.value = null
     await loadRoleMembers(currentRole.value.id)
-  } catch (error) {
-    console.error('Failed to add member:', error)
+  } catch {
+    // ignored
   } finally {
     addMemberLoading.value = false
   }
@@ -305,7 +305,7 @@ const handleRemoveMember = async (member: ProjectRoleMember) => {
     await loadRoleMembers(currentRole.value.id)
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to remove member:', error)
+      // ignored
     }
   }
 }
@@ -351,7 +351,7 @@ onMounted(() => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -404,7 +404,7 @@ onMounted(() => {
   background: var(--td-bg-page);
   border-radius: 12px;
   padding: 20px;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 150ms ease-out;
 
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);

@@ -77,8 +77,8 @@ const loadVersions = async () => {
   try {
     const res = await getVersions(props.projectKey)
     versions.value = res.data.data || []
-  } catch (error) {
-    console.error('Failed to load versions:', error)
+  } catch {
+    // ignored
   }
 }
 

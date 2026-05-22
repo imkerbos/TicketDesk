@@ -220,8 +220,8 @@ const loadData = async () => {
 
     // 统计各状态数量（分别请求）
     await loadStats()
-  } catch (e) {
-    console.error('Failed to load project overview:', e)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -234,8 +234,8 @@ const loadStats = async () => {
     stats.inProgress = data.data.in_progress
     stats.pendingReview = data.data.pending_review
     stats.resolved = data.data.completed
-  } catch (e) {
-    console.error('Failed to load stats:', e)
+  } catch {
+    // ignored
   }
 }
 

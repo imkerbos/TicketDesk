@@ -408,8 +408,8 @@ const loadData = async () => {
     const { data } = await getAlertList(queryParams)
     alertList.value = data.data.items
     total.value = data.data.total
-  } catch (error) {
-    console.error('Failed to load alerts:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -419,8 +419,8 @@ const loadStats = async () => {
   try {
     const { data } = await getAlertStats()
     Object.assign(stats, data.data)
-  } catch (error) {
-    console.error('Failed to load alert stats:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -431,8 +431,8 @@ const loadGroupData = async () => {
       status: queryParams.status, severity: queryParams.severity,
     })
     groupData.value = data.data.items
-  } catch (error) {
-    console.error('Failed to load group data:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -518,7 +518,7 @@ const confirmAck = async () => {
   try {
     await ackAlert(ackForm.id, ackForm.comment)
     ElMessage.success('确认成功'); ackDialogVisible.value = false; loadData()
-  } catch (error) { console.error(error) }
+  } catch { /* ignored */ }
 }
 
 const handleResolve = (row: Alert) => { resolveForm.id = row.id; resolveForm.comment = ''; resolveDialogVisible.value = true }
@@ -526,7 +526,7 @@ const confirmResolve = async () => {
   try {
     await resolveAlert(resolveForm.id, resolveForm.comment)
     ElMessage.success('解决成功'); resolveDialogVisible.value = false; loadData()
-  } catch (error) { console.error(error) }
+  } catch { /* ignored */ }
 }
 
 const getSeverityType = (severity: string) => {
@@ -588,8 +588,8 @@ const loadLabelKeys = async () => {
   try {
     const { data } = await getAlertLabelKeys()
     labelKeyOptions.value = data.data || []
-  } catch (error) {
-    console.error('Failed to load label keys:', error)
+  } catch {
+    // ignored
   }
 }
 </script>
@@ -620,7 +620,7 @@ const loadLabelKeys = async () => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -644,11 +644,11 @@ const loadLabelKeys = async () => {
   background: var(--td-bg-card);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s;
+  transition: all 150ms ease-out;
   cursor: pointer;
   border: 2px solid transparent;
 
-  &:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
+  &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
   &.active { border-color: currentColor; }
 
   .stat-icon-wrapper {
@@ -778,7 +778,7 @@ const loadLabelKeys = async () => {
   align-items: center;
   gap: 5px;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 12px;
 
   .status-dot { width: 6px; height: 6px; border-radius: 50%; }
@@ -832,11 +832,10 @@ const loadLabelKeys = async () => {
   border-radius: 12px;
   padding: 20px;
   border: 1px solid var(--td-divider-color);
-  transition: transform 0.3s, box-shadow 0.3s;
+  transition: box-shadow 150ms ease-out;
   cursor: pointer;
 
   &:hover {
-    transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   }
 
@@ -892,7 +891,7 @@ const loadLabelKeys = async () => {
     .dialog-icon {
       width: 56px; height: 56px;
       margin: 0 auto 12px;
-      border-radius: 14px;
+      border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
       font-size: 24px; color: var(--td-text-white);
 

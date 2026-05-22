@@ -28,8 +28,8 @@ export const useUserStore = defineStore('user', () => {
     if (storedUser) {
       try {
         user.value = JSON.parse(storedUser)
-      } catch (e) {
-        console.error('Failed to parse user from localStorage:', e)
+      } catch {
+        // ignored
       }
     }
   }

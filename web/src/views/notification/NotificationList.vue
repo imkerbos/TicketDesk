@@ -323,7 +323,7 @@ onMounted(() => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -419,7 +419,7 @@ onMounted(() => {
   padding: 20px 24px;
   border-bottom: 1px solid var(--td-divider-color);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 
   &:last-child {
     border-bottom: none;
@@ -505,7 +505,7 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 150ms ease-out;
 }
 
 .notification-item:hover .item-actions {

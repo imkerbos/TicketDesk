@@ -29,11 +29,11 @@ defineProps<{
     gap: 6px;
     padding: 12px 20px;
     background: var(--td-text-secondary);
-    border-radius: 50px;
+    border-radius: 12px;
     color: var(--td-text-white);
     min-width: 80px;
     box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
-    transition: box-shadow 0.2s, transform 0.2s;
+    transition: box-shadow 150ms ease-out, transform 150ms ease-out;
   }
 
   &.selected .node-body {

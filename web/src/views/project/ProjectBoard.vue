@@ -110,8 +110,8 @@ const loadProject = async () => {
   try {
     const { data } = await getProjectDetail(projectKey.value)
     project.value = data.data
-  } catch (e) {
-    console.error('Failed to load project:', e)
+  } catch {
+    // ignored
   }
 }
 

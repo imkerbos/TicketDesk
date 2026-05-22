@@ -506,8 +506,8 @@ const loadUsers = async () => {
     const { data } = await getUserList(queryParams)
     userList.value = data.data.items
     total.value = data.data.total
-  } catch (error) {
-    console.error('Failed to load users:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -580,8 +580,8 @@ const submitForm = async () => {
       }
       dialogVisible.value = false
       loadUsers()
-    } catch (error) {
-      console.error('Failed to submit:', error)
+    } catch {
+      // ignored
     } finally {
       submitLoading.value = false
     }
@@ -608,8 +608,8 @@ const submitResetPassword = async () => {
       await resetUserPassword(resetUserId.value, resetForm.password)
       ElMessage.success('密码重置成功')
       resetPasswordVisible.value = false
-    } catch (error) {
-      console.error('Failed to reset password:', error)
+    } catch {
+      // ignored
     } finally {
       resetLoading.value = false
     }
@@ -635,7 +635,7 @@ const handleToggleStatus = async (user: UserType) => {
     loadUsers()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to toggle status:', error)
+      // ignored
     }
   }
 }
@@ -652,7 +652,7 @@ const handleDeleteUser = async (user: UserType) => {
     loadUsers()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete user:', error)
+      // ignored
     }
   }
 }
@@ -694,7 +694,7 @@ onMounted(() => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -739,10 +739,9 @@ onMounted(() => {
   background: var(--td-bg-card);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s;
+  transition: all 150ms ease-out;
 
   &:hover {
-    transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   }
 
@@ -978,7 +977,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 12px;
 
   .status-dot {
@@ -1155,7 +1154,7 @@ onMounted(() => {
       height: 64px;
       margin: 0 auto 16px;
       background: var(--td-color-warning);
-      border-radius: 16px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;

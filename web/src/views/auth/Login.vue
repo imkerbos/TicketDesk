@@ -450,44 +450,6 @@ onMounted(async () => {
 }
 
 
-/* 入场动画 */
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.fade-up {
-  opacity: 0;
-  animation: fadeUp 250ms ease-out forwards;
-  animation-delay: calc(var(--i, 0) * 60ms + 80ms);
-}
-
-/* 左侧特性列表 stagger 入场 */
-.stagger {
-  opacity: 0;
-  animation: fadeUp 250ms ease-out forwards;
-  animation-delay: calc(var(--i, 0) * 60ms + 200ms);
-}
-
-/* 登录失败 shake */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(5px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(2px); }
-}
-
-.shake {
-  animation: shake 250ms ease-out;
-}
-
 /* prefers-reduced-motion 降级 */
 @media (prefers-reduced-motion: reduce) {
   .fade-up,

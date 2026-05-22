@@ -52,7 +52,7 @@ const statusText = computed(() => {
     min-width: 160px;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
-    transition: box-shadow 0.2s, transform 0.2s;
+    transition: box-shadow 150ms ease-out, transform 150ms ease-out;
   }
 
   &.selected .node-body {

@@ -361,8 +361,8 @@ const loadProfile = async () => {
     profile.value = data.data
     profileForm.display_name = data.data.display_name || ''
     profileForm.email = data.data.email || ''
-  } catch (error) {
-    console.error('Failed to load profile:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -381,8 +381,8 @@ const submitProfile = async () => {
       })
       ElMessage.success('保存成功')
       loadProfile()
-    } catch (error) {
-      console.error('Failed to update profile:', error)
+    } catch {
+      // ignored
     } finally {
       profileLoading.value = false
     }
@@ -409,8 +409,8 @@ const submitPassword = async () => {
       passwordForm.new_password = ''
       passwordForm.confirm_password = ''
       passwordFormRef.value?.resetFields()
-    } catch (error) {
-      console.error('Failed to update password:', error)
+    } catch {
+      // ignored
     } finally {
       passwordLoading.value = false
     }
@@ -449,8 +449,8 @@ const loadMFAStatus = async () => {
   try {
     const { data } = await getMFAStatus()
     mfaStatus.value = data.data
-  } catch (error) {
-    console.error('Failed to load MFA status:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -463,8 +463,7 @@ const startMFASetup = async () => {
     qrCodeUrl.value = data.data.qr_code_data
     mfaVerifyCode.value = ''
     mfaSetupDialogVisible.value = true
-  } catch (error) {
-    console.error('Failed to setup MFA:', error)
+  } catch {
     ElMessage.error('启动 MFA 设置失败')
   }
 }
@@ -482,8 +481,7 @@ const confirmEnableMFA = async () => {
     ElMessage.success('MFA 已启用')
     mfaSetupDialogVisible.value = false
     loadMFAStatus()
-  } catch (error) {
-    console.error('Failed to enable MFA:', error)
+  } catch {
     ElMessage.error('验证码错误，请重试')
   } finally {
     mfaEnabling.value = false
@@ -509,8 +507,7 @@ const confirmDisableMFA = async () => {
     ElMessage.success('MFA 已禁用')
     mfaDisableDialogVisible.value = false
     loadMFAStatus()
-  } catch (error) {
-    console.error('Failed to disable MFA:', error)
+  } catch {
     ElMessage.error('验证码错误，请重试')
   } finally {
     mfaDisabling.value = false
@@ -560,7 +557,7 @@ onMounted(() => {
         justify-content: center;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         color: var(--td-text-secondary);
-        transition: all 0.3s;
+        transition: all 150ms ease-out;
 
         &:hover {
           background: var(--td-color-primary);

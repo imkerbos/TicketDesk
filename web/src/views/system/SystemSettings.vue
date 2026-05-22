@@ -1097,7 +1097,7 @@ const loadGeneralConfig = async () => {
   } catch (error: any) {
     // 如果配置不存在（404），不报错，使用默认空值
     if (error?.response?.status !== 404) {
-      console.error('加载通用配置失败:', error)
+      // ignored
     }
   }
 }
@@ -1148,8 +1148,8 @@ const loadEmailConfig = async () => {
   try {
     const { data } = await getEmailConfig()
     Object.assign(emailForm, data.data)
-  } catch (error) {
-    console.error('Failed to load email config:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -1162,8 +1162,8 @@ const saveEmailConfig = async () => {
     try {
       await updateEmailConfig(emailForm)
       ElMessage.success('邮件配置保存成功')
-    } catch (error) {
-      console.error('Failed to save email config:', error)
+    } catch {
+      // ignored
     } finally {
       emailSaving.value = false
     }
@@ -1194,8 +1194,8 @@ const sendTestEmail = async () => {
       // await testEmail(testEmailForm.to_address)
       ElMessage.success('测试邮件已发送')
       testEmailDialog.value = false
-    } catch (error) {
-      console.error('Failed to send test email:', error)
+    } catch {
+      // ignored
     } finally {
       testEmailSending.value = false
     }
@@ -1217,8 +1217,8 @@ const loadSecurityConfig = async () => {
   try {
     const { data } = await getSecurityConfig()
     Object.assign(securityForm, data.data)
-  } catch (error) {
-    console.error('Failed to load security config:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -1227,8 +1227,8 @@ const saveSecurityConfig = async () => {
   try {
     await updateSecurityConfig(securityForm)
     ElMessage.success('安全配置保存成功')
-  } catch (error) {
-    console.error('Failed to save security config:', error)
+  } catch {
+    // ignored
   } finally {
     securitySaving.value = false
   }
@@ -1246,8 +1246,8 @@ const loadRateLimitConfig = async () => {
   try {
     const { data } = await getRateLimitConfig()
     Object.assign(rateLimitForm, data.data)
-  } catch (error) {
-    console.error('Failed to load ratelimit config:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -1256,8 +1256,8 @@ const saveRateLimitConfig = async () => {
   try {
     await updateRateLimitConfig(rateLimitForm)
     ElMessage.success('限流配置保存成功')
-  } catch (error) {
-    console.error('Failed to save ratelimit config:', error)
+  } catch {
+    // ignored
   } finally {
     rateLimitSaving.value = false
   }
@@ -1278,7 +1278,7 @@ const loadWorkTypeConfig = async () => {
     }
   } catch (error: any) {
     if (error?.response?.status !== 404) {
-      console.error('加载工时配置失败:', error)
+      // ignored
     }
   }
 }
@@ -1304,8 +1304,8 @@ const saveWorkTypeConfig = async () => {
     await updateConfig('worklog.work_types', JSON.stringify(filtered))
     workTypeList.value = filtered
     ElMessage.success('工时配置保存成功')
-  } catch (error) {
-    console.error('Failed to save worklog config:', error)
+  } catch {
+    // ignored
   } finally {
     worklogSaving.value = false
   }
@@ -1357,8 +1357,8 @@ const loadSSOConfig = async () => {
     }
     // client_secret 不会从后端返回，保持为空
     ssoForm.client_secret = ''
-  } catch (error) {
-    console.error('Failed to load SSO config:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -1367,8 +1367,8 @@ const saveSSOConfig = async () => {
   try {
     await updateSSOConfig(ssoForm)
     ElMessage.success('SSO 配置保存成功')
-  } catch (error) {
-    console.error('Failed to save SSO config:', error)
+  } catch {
+    // ignored
   } finally {
     ssoSaving.value = false
   }

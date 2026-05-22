@@ -50,8 +50,8 @@ const loadUsers = async () => {
   try {
     const { data } = await getAllUsers()
     users.value = data.data
-  } catch (error) {
-    console.error('Failed to load users:', error)
+  } catch {
+    // ignored
   }
 }
 

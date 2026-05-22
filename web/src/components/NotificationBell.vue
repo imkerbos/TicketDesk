@@ -94,7 +94,7 @@ const goToNotificationPage = () => {
   cursor: pointer;
   padding: 6px;
   border-radius: 8px;
-  transition: background-color 0.2s;
+  transition: background-color 150ms ease-out;
 }
 
 .bell-wrapper:hover {

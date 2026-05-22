@@ -25,7 +25,7 @@ func NewCategoryHandler(service service.CategoryService, logger *zap.Logger) *Ca
 	}
 }
 
-// List 获取需求分类列表
+// HandleList 获取需求分类列表
 // @Summary 获取需求分类列表
 // @Description 获取所有需求分类
 // @Tags RequirementCategory
@@ -34,7 +34,7 @@ func NewCategoryHandler(service service.CategoryService, logger *zap.Logger) *Ca
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-categories [get]
 // @Security BearerAuth
-func (h *CategoryHandler) List(c *gin.Context) {
+func (h *CategoryHandler) HandleList(c *gin.Context) {
 	categories, err := h.service.List(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to list requirement categories", zap.Error(err))
@@ -45,7 +45,7 @@ func (h *CategoryHandler) List(c *gin.Context) {
 	response.Success(c, categories)
 }
 
-// Create 创建需求分类
+// HandleCreate 创建需求分类
 // @Summary 创建需求分类
 // @Description 创建一个新的需求分类
 // @Tags RequirementCategory
@@ -57,7 +57,7 @@ func (h *CategoryHandler) List(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-categories [post]
 // @Security BearerAuth
-func (h *CategoryHandler) Create(c *gin.Context) {
+func (h *CategoryHandler) HandleCreate(c *gin.Context) {
 	var req dto.CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "请求参数错误: "+err.Error())
@@ -78,7 +78,7 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 	response.Created(c, cat)
 }
 
-// Update 更新需求分类
+// HandleUpdate 更新需求分类
 // @Summary 更新需求分类
 // @Description 更新需求分类信息
 // @Tags RequirementCategory
@@ -92,7 +92,7 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-categories/{id} [put]
 // @Security BearerAuth
-func (h *CategoryHandler) Update(c *gin.Context) {
+func (h *CategoryHandler) HandleUpdate(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的分类ID")
@@ -118,7 +118,7 @@ func (h *CategoryHandler) Update(c *gin.Context) {
 	response.Success(c, gin.H{"message": "更新成功"})
 }
 
-// Delete 删除需求分类
+// HandleDelete 删除需求分类
 // @Summary 删除需求分类
 // @Description 删除需求分类（系统预置不可删除，有关联需求时不可删除）
 // @Tags RequirementCategory
@@ -130,7 +130,7 @@ func (h *CategoryHandler) Update(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse
 // @Router /api/v1/requirement-categories/{id} [delete]
 // @Security BearerAuth
-func (h *CategoryHandler) Delete(c *gin.Context) {
+func (h *CategoryHandler) HandleDelete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的分类ID")

@@ -224,7 +224,7 @@ const handleSubmit = async () => {
   padding: 4px 12px;
   border-radius: 8px;
   box-shadow: 0 0 0 1px var(--td-border-color);
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 }
 
 .form-input :deep(.el-input__wrapper:hover) {
@@ -247,16 +247,11 @@ const handleSubmit = async () => {
   border-radius: 8px;
   background: var(--td-color-primary);
   border: none;
-  transition: all 0.3s;
+  transition: all 150ms ease-out;
 }
 
 .submit-button:hover {
-  transform: translateY(-1px);
   box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
-}
-
-.submit-button:active {
-  transform: translateY(0);
 }
 
 .form-footer {
@@ -272,7 +267,7 @@ const handleSubmit = async () => {
   color: var(--td-color-primary);
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.2s;
+  transition: color 150ms ease-out;
 }
 
 .back-link:hover {

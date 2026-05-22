@@ -209,8 +209,7 @@ const loadWorkflow = async () => {
 
     allUsers.value = (edgesRes.data as any).data || []
     hasUnsavedChanges.value = false
-  } catch (error) {
-    console.error('Failed to load workflow:', error)
+  } catch {
     ElMessage.error('加载工作流失败')
   } finally {
     loading.value = false
@@ -542,8 +541,7 @@ const handleSave = async () => {
 
     ElMessage.success('保存成功')
     hasUnsavedChanges.value = false
-  } catch (error) {
-    console.error('Failed to save workflow:', error)
+  } catch {
     ElMessage.error('保存失败')
   } finally {
     saving.value = false
@@ -772,7 +770,7 @@ onMounted(() => {
   background: var(--td-text-secondary);
   border: 2px solid var(--td-bg-card);
   border-radius: 50%;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 
   &:hover {
     background: var(--td-color-primary);

@@ -268,8 +268,8 @@ const loadIssues = async () => {
     const { data } = await getIssueList(params)
     issueList.value = data.data.items || []
     total.value = data.data.total
-  } catch (e) {
-    console.error('Failed to load issues:', e)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -284,8 +284,8 @@ const loadFilterOptions = async () => {
     ])
     issueTypes.value = typesRes.data.data || []
     members.value = membersRes.data.data || []
-  } catch (e) {
-    console.error('Failed to load filter options:', e)
+  } catch {
+    // ignored
   }
 }
 

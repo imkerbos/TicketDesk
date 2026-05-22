@@ -91,7 +91,7 @@ const timeAgo = (dateStr: string): string => {
   gap: 10px;
   padding: 12px 16px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 150ms ease-out;
   border-bottom: 1px solid var(--td-divider-color);
   position: relative;
 }

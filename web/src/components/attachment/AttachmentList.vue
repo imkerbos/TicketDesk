@@ -117,8 +117,8 @@ const loadImageBlob = async (attachment: Attachment) => {
       imageBlobUrlMap.value.set(attachment.id, blobUrl)
       imageBlobUrls.value.push(blobUrl)
     }
-  } catch (error) {
-    console.error('加载图片失败:', error)
+  } catch {
+    // ignored
   } finally {
     imageLoading.value[attachment.id] = false
   }
@@ -194,8 +194,6 @@ const handleDownload = async (attachmentId: number) => {
     const url = getAttachmentDownloadUrl(props.issueKey, attachmentId)
     const token = localStorage.getItem('token')
 
-    console.log('下载附件:', { url, hasToken: !!token })
-
     // 使用 fetch 带 token 下载
     const response = await fetch(url, {
       headers: {
@@ -203,11 +201,7 @@ const handleDownload = async (attachmentId: number) => {
       }
     })
 
-    console.log('下载响应:', { status: response.status, ok: response.ok })
-
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('下载失败:', errorText)
       throw new Error('下载失败')
     }
 
@@ -226,9 +220,7 @@ const handleDownload = async (attachmentId: number) => {
     document.body.removeChild(link)
     window.URL.revokeObjectURL(blobUrl)
 
-    console.log('下载成功')
   } catch (error: any) {
-    console.error('下载错误:', error)
     ElMessage.error(error.message || '下载失败')
   }
 }
@@ -270,7 +262,7 @@ const handleDelete = async (attachmentId: number) => {
   padding: 12px;
   border: 1px solid var(--td-border-color);
   border-radius: 4px;
-  transition: all 0.3s;
+  transition: all 150ms ease-out;
 }
 
 .attachment-item:hover {

@@ -496,8 +496,8 @@ func (r *Router) Setup() *gin.Engine {
 
 	// API v1 路由组
 	v1 := engine.Group("/api/v1")
-	// WebSocket 连接（使用 query 参数认证，不走中间件）
-	v1.GET("/ws", r.wsHandler.HandleWebSocket)
+	// WebSocket 连接（独立于 API 路由，使用 query 参数认证，不走中间件）
+	engine.GET("/ws", r.wsHandler.HandleWebSocket)
 
 	// 注册公开路由
 	r.registerPublicRoutes(v1)
@@ -1041,73 +1041,73 @@ func (r *Router) registerFieldRoutes(rg *gin.RouterGroup) {
 	adminFields := rg.Group("/admin/fields")
 	adminFields.Use(r.rbac.RequireProjectAdmin())
 	{
-		adminFields.GET("", r.fieldHandler.ListGlobalFields)
-		adminFields.POST("", r.fieldHandler.CreateGlobalField)
-		adminFields.PUT("/:id", r.fieldHandler.UpdateGlobalField)
-		adminFields.DELETE("/:id", r.fieldHandler.DeleteGlobalField)
-		adminFields.GET("/:id/usage", r.fieldHandler.GetFieldUsage)
+		adminFields.GET("", r.fieldHandler.HandleListGlobalFields)
+		adminFields.POST("", r.fieldHandler.HandleCreateGlobalField)
+		adminFields.PUT("/:id", r.fieldHandler.HandleUpdateGlobalField)
+		adminFields.DELETE("/:id", r.fieldHandler.HandleDeleteGlobalField)
+		adminFields.GET("/:id/usage", r.fieldHandler.HandleGetFieldUsage)
 	}
 
 	// ============ 方案模板管理（需要项目管理员权限）============
 	templates := rg.Group("/admin/field-scheme-templates")
 	templates.Use(r.rbac.RequireProjectAdmin())
 	{
-		templates.GET("", r.fieldHandler.ListTemplates)
-		templates.POST("", r.fieldHandler.CreateTemplate)
-		templates.GET("/:id", r.fieldHandler.GetTemplate)
-		templates.PUT("/:id", r.fieldHandler.UpdateTemplate)
-		templates.DELETE("/:id", r.fieldHandler.DeleteTemplate)
-		templates.PUT("/:id/items", r.fieldHandler.UpdateTemplateItems)
+		templates.GET("", r.fieldHandler.HandleListTemplates)
+		templates.POST("", r.fieldHandler.HandleCreateTemplate)
+		templates.GET("/:id", r.fieldHandler.HandleGetTemplate)
+		templates.PUT("/:id", r.fieldHandler.HandleUpdateTemplate)
+		templates.DELETE("/:id", r.fieldHandler.HandleDeleteTemplate)
+		templates.PUT("/:id/items", r.fieldHandler.HandleUpdateTemplateItems)
 	}
 
 	// 字段定义（在项目下）
 	projectFields := rg.Group("/projects/:key/fields")
 	{
-		projectFields.GET("", r.fieldHandler.ListFields)
-		projectFields.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateField)
-		projectFields.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateField)
-		projectFields.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteField)
+		projectFields.GET("", r.fieldHandler.HandleListFields)
+		projectFields.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleCreateField)
+		projectFields.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleUpdateField)
+		projectFields.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleDeleteField)
 	}
 
 	// 字段方案（在项目的工单类型下）
 	fieldScheme := rg.Group("/projects/:key/issue-types/:id/field-scheme")
 	{
-		fieldScheme.GET("", r.fieldHandler.GetFieldScheme)
-		fieldScheme.PUT("", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateFieldScheme)
+		fieldScheme.GET("", r.fieldHandler.HandleGetFieldScheme)
+		fieldScheme.PUT("", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleUpdateFieldScheme)
 	}
 
 	// 套用模板
-	rg.POST("/projects/:key/issue-types/:id/apply-template", r.rbac.RequireProjectAdmin(), r.fieldHandler.ApplyTemplate)
+	rg.POST("/projects/:key/issue-types/:id/apply-template", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleApplyTemplate)
 
 	// 版本管理
 	versions := rg.Group("/projects/:key/versions")
 	{
-		versions.GET("", r.fieldHandler.ListVersions)
-		versions.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateVersion)
-		versions.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateVersion)
-		versions.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteVersion)
+		versions.GET("", r.fieldHandler.HandleListVersions)
+		versions.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleCreateVersion)
+		versions.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleUpdateVersion)
+		versions.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleDeleteVersion)
 	}
 
 	// 组件管理
 	components := rg.Group("/projects/:key/components")
 	{
-		components.GET("", r.fieldHandler.ListComponents)
-		components.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateComponent)
-		components.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateComponent)
-		components.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteComponent)
+		components.GET("", r.fieldHandler.HandleListComponents)
+		components.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleCreateComponent)
+		components.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleUpdateComponent)
+		components.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleDeleteComponent)
 	}
 
 	// 标签管理
 	labels := rg.Group("/projects/:key/labels")
 	{
-		labels.GET("", r.fieldHandler.ListLabels)
-		labels.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.CreateLabel)
-		labels.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.UpdateLabel)
-		labels.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.DeleteLabel)
+		labels.GET("", r.fieldHandler.HandleListLabels)
+		labels.POST("", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleCreateLabel)
+		labels.PUT("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleUpdateLabel)
+		labels.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.fieldHandler.HandleDeleteLabel)
 	}
 
 	// 工单字段值
-	rg.GET("/issue-field-values/:issue_id", r.fieldHandler.GetIssueFieldValues)
+	rg.GET("/issue-field-values/:issue_id", r.fieldHandler.HandleGetIssueFieldValues)
 }
 
 // registerRequirementPoolRoutes 注册需求池路由
@@ -1115,38 +1115,38 @@ func (r *Router) registerRequirementPoolRoutes(rg *gin.RouterGroup) {
 	// 需求分类管理
 	categories := rg.Group("/requirement-categories")
 	{
-		categories.GET("", r.categoryHandler.List)
-		categories.POST("", r.rbac.RequireProjectAdmin(), r.categoryHandler.Create)
-		categories.PUT("/:id", r.rbac.RequireProjectAdmin(), r.categoryHandler.Update)
-		categories.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.categoryHandler.Delete)
+		categories.GET("", r.categoryHandler.HandleList)
+		categories.POST("", r.rbac.RequireProjectAdmin(), r.categoryHandler.HandleCreate)
+		categories.PUT("/:id", r.rbac.RequireProjectAdmin(), r.categoryHandler.HandleUpdate)
+		categories.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.categoryHandler.HandleDelete)
 	}
 
 	// 需求池管理
 	pools := rg.Group("/requirement-pools")
 	{
-		pools.GET("", r.requirementPoolHandler.List)
-		pools.POST("", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.Create)
-		pools.GET("/:id", r.requirementPoolHandler.GetByID)
-		pools.PUT("/:id", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.Update)
-		pools.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.Delete)
+		pools.GET("", r.requirementPoolHandler.HandleList)
+		pools.POST("", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.HandleCreate)
+		pools.GET("/:id", r.requirementPoolHandler.HandleGetByID)
+		pools.PUT("/:id", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.HandleUpdate)
+		pools.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.requirementPoolHandler.HandleDelete)
 	}
 
 	// 需求管理
 	requirements := rg.Group("/requirements")
 	{
 		// 看板和报告（必须在 /:id 之前）
-		requirements.GET("/kanban", r.requirementHandler.GetKanban)
-		requirements.GET("/report", r.requirementHandler.GetReport)
+		requirements.GET("/kanban", r.requirementHandler.HandleGetKanban)
+		requirements.GET("/report", r.requirementHandler.HandleGetReport)
 
 		// 需求 CRUD
-		requirements.GET("", r.requirementHandler.List)
-		requirements.POST("", r.rbac.RequireProjectAdmin(), r.requirementHandler.Create)
-		requirements.GET("/:id", r.requirementHandler.GetByID)
-		requirements.PUT("/:id", r.rbac.RequireProjectAdmin(), r.requirementHandler.Update)
-		requirements.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.requirementHandler.Delete)
+		requirements.GET("", r.requirementHandler.HandleList)
+		requirements.POST("", r.rbac.RequireProjectAdmin(), r.requirementHandler.HandleCreate)
+		requirements.GET("/:id", r.requirementHandler.HandleGetByID)
+		requirements.PUT("/:id", r.rbac.RequireProjectAdmin(), r.requirementHandler.HandleUpdate)
+		requirements.DELETE("/:id", r.rbac.RequireProjectAdmin(), r.requirementHandler.HandleDelete)
 
 		// 需求操作
-		requirements.POST("/:id/convert", r.rbac.RequireProjectAdmin(), r.requirementHandler.ConvertToIssue)
-		requirements.POST("/:id/comments", r.requirementHandler.AddComment)
+		requirements.POST("/:id/convert", r.rbac.RequireProjectAdmin(), r.requirementHandler.HandleConvertToIssue)
+		requirements.POST("/:id/comments", r.requirementHandler.HandleAddComment)
 	}
 }

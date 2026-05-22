@@ -277,10 +277,7 @@ func (s *ssoService) HandleCallback(ctx context.Context, req *dto.SSOCallbackReq
 
 	// 5. 验证 nonce
 	if idToken.Nonce != expectedNonce {
-		logger.Error("SSO nonce mismatch",
-			zap.String("expected", expectedNonce),
-			zap.String("got", idToken.Nonce),
-		)
+		logger.Error("SSO nonce mismatch")
 		return nil, ErrSSONonceMismatch
 	}
 

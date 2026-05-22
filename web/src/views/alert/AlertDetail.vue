@@ -122,8 +122,8 @@ const loadData = async () => {
   try {
     const { data } = await getAlertDetail(Number(route.params.id), { _redirectOn404: true })
     alert.value = data.data
-  } catch (error) {
-    console.error('Failed to load alert:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -134,8 +134,8 @@ const handleAck = async () => {
     await ackAlert(alert.value!.id)
     ElMessage.success('确认成功')
     loadData()
-  } catch (error) {
-    console.error('Failed to ack alert:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -144,8 +144,8 @@ const handleResolve = async () => {
     await resolveAlert(alert.value!.id)
     ElMessage.success('解决成功')
     loadData()
-  } catch (error) {
-    console.error('Failed to resolve alert:', error)
+  } catch {
+    // ignored
   }
 }
 

@@ -876,8 +876,8 @@ const loadProjects = async () => {
   try {
     const { data } = await getAllProjects()
     projects.value = data.data
-  } catch (error) {
-    console.error('Failed to load projects:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -891,8 +891,8 @@ const loadIssueStats = async () => {
       end_date: dateRange.value[1],
     })
     issueStats.value = data.data
-  } catch (error) {
-    console.error('Failed to load issue stats:', error)
+  } catch {
+    // ignored
   } finally {
     loading.issues = false
   }
@@ -908,8 +908,8 @@ const loadSLAReport = async () => {
       end_date: dateRange.value[1],
     })
     slaReport.value = data.data
-  } catch (error) {
-    console.error('Failed to load SLA report:', error)
+  } catch {
+    // ignored
   } finally {
     loading.sla = false
   }
@@ -925,8 +925,8 @@ const loadAlertStats = async () => {
       end_date: dateRange.value[1],
     })
     alertStats.value = data.data
-  } catch (error) {
-    console.error('Failed to load alert stats:', error)
+  } catch {
+    // ignored
   } finally {
     loading.alerts = false
   }
@@ -942,8 +942,8 @@ const loadUserPerformance = async () => {
       end_date: dateRange.value[1],
     })
     userPerformance.value = data.data
-  } catch (error) {
-    console.error('Failed to load user performance:', error)
+  } catch {
+    // ignored
   } finally {
     loading.performance = false
   }
@@ -960,8 +960,8 @@ const loadWorklogStats = async () => {
       grid_month: gridMonth.value,
     })
     worklogStats.value = data.data
-  } catch (error) {
-    console.error('Failed to load worklog stats:', error)
+  } catch {
+    // ignored
   } finally {
     loading.worklogs = false
   }
@@ -1204,7 +1204,7 @@ onMounted(() => {
   margin-bottom: 24px;
   padding: 24px 28px;
   background: #8b5cf6;
-  border-radius: 16px;
+  border-radius: 12px;
   color: var(--td-text-white);
 
   .header-info {
@@ -1264,7 +1264,7 @@ onMounted(() => {
 
 .summary-card {
   background: var(--td-bg-card);
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 18px 20px;
   display: flex;
   align-items: center;
@@ -1328,7 +1328,7 @@ onMounted(() => {
 // ========== 图表卡片 ==========
 .chart-card {
   margin-bottom: 16px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--td-divider-color);
 
   :deep(.el-card__header) {
@@ -1591,7 +1591,7 @@ onMounted(() => {
     background: var(--td-color-primary);
     border-radius: 4px 4px 0 0;
     min-height: 2px;
-    transition: height 0.3s ease;
+    transition: height 150ms ease-out;
   }
 
   .bar-label {

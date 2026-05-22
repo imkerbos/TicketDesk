@@ -1159,8 +1159,7 @@ const handleConfigPermissions = async (role: ProjectRole) => {
   try {
     const { data } = await getRolePermissions(projectKey.value, role.id)
     rolePermissions.value = data.data || []
-  } catch (error) {
-    console.error('Failed to load role permissions:', error)
+  } catch {
     rolePermissions.value = role.permissions || []
   } finally {
     permLoading.value = false
@@ -1210,8 +1209,7 @@ const handleSavePermissions = async () => {
     ElMessage.success('权限保存成功')
     permDialogVisible.value = false
     loadRoles()
-  } catch (error) {
-    console.error('Failed to save permissions:', error)
+  } catch {
     ElMessage.error('权限保存失败')
   } finally {
     permSaveLoading.value = false
@@ -1279,8 +1277,8 @@ const loadProjectDetail = async () => {
       lead_user_id: project.lead_user_id,
       status: project.status,
     })
-  } catch (error) {
-    console.error('Failed to load project:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -1290,8 +1288,8 @@ const loadUsers = async () => {
   try {
     const { data } = await getAllUsers()
     users.value = data.data
-  } catch (error) {
-    console.error('Failed to load users:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -1300,8 +1298,8 @@ const loadMembers = async () => {
   try {
     const { data } = await getProjectMembers(projectKey.value)
     members.value = data.data
-  } catch (error) {
-    console.error('Failed to load members:', error)
+  } catch {
+    // ignored
   } finally {
     membersLoading.value = false
   }
@@ -1312,8 +1310,8 @@ const loadRoles = async () => {
   try {
     const { data } = await getProjectRoles(projectKey.value)
     roles.value = data.data
-  } catch (error) {
-    console.error('Failed to load roles:', error)
+  } catch {
+    // ignored
   } finally {
     rolesLoading.value = false
   }
@@ -1324,8 +1322,8 @@ const loadIssueTypes = async () => {
   try {
     const { data } = await getProjectIssueTypes(projectKey.value)
     issueTypes.value = data.data
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
+  } catch {
+    // ignored
   } finally {
     issueTypesLoading.value = false
   }
@@ -1336,8 +1334,8 @@ const loadChannels = async () => {
   try {
     const { data } = await getNotificationChannels(projectKey.value)
     channels.value = data.data || []
-  } catch (error) {
-    console.error('Failed to load notification channels:', error)
+  } catch {
+    // ignored
   } finally {
     channelsLoading.value = false
   }
@@ -1384,7 +1382,6 @@ const handleDeleteChannel = async (channel: NotificationChannel) => {
     loadChannels()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete channel:', error)
       ElMessage.error('删除失败')
     }
   }
@@ -1396,7 +1393,6 @@ const handleTestChannel = async (channel: NotificationChannel) => {
     await testNotificationChannel(projectKey.value, channel.id)
     ElMessage.success('测试消息发送成功，请检查对应渠道')
   } catch (error: any) {
-    console.error('Failed to test channel:', error)
     ElMessage.error(error?.response?.data?.message || '测试发送失败')
   } finally {
     testingChannelId.value = null
@@ -1453,7 +1449,6 @@ const submitChannel = async () => {
       channelDialogVisible.value = false
       loadChannels()
     } catch (error: any) {
-      console.error('Failed to submit channel:', error)
       ElMessage.error(error?.response?.data?.message || (isEditingChannel.value ? '更新失败' : '创建失败'))
     } finally {
       channelSubmitLoading.value = false
@@ -1505,8 +1500,8 @@ const loadSchemes = async () => {
   try {
     const { data } = await getWorkflowSchemes(projectKey.value)
     schemes.value = (data as any).data || []
-  } catch (error) {
-    console.error('Failed to load workflow schemes:', error)
+  } catch {
+    // ignored
   } finally {
     schemesLoading.value = false
   }
@@ -1516,8 +1511,8 @@ const loadAllWorkflows = async () => {
   try {
     const { data } = await getWorkflowList()
     allWorkflows.value = (data as any).data?.items || []
-  } catch (error) {
-    console.error('Failed to load workflows:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -1544,8 +1539,8 @@ const submitScheme = async () => {
       ElMessage.success('工作流配置添加成功')
       schemeDialogVisible.value = false
       loadSchemes()
-    } catch (error) {
-      console.error('Failed to create workflow scheme:', error)
+    } catch {
+      // ignored
     } finally {
       schemeSubmitLoading.value = false
     }
@@ -1565,7 +1560,6 @@ const handleDeleteScheme = async (scheme: WorkflowScheme) => {
     loadSchemes()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete workflow scheme:', error)
       ElMessage.error('删除失败')
     }
   }
@@ -1595,8 +1589,8 @@ const saveBasicInfo = async () => {
         status: basicForm.status,
       })
       ElMessage.success('保存成功')
-    } catch (error) {
-      console.error('Failed to save:', error)
+    } catch {
+      // ignored
     } finally {
       saveLoading.value = false
     }
@@ -1627,7 +1621,6 @@ const handleDeleteProject = async () => {
     router.push('/projects')
   } catch (error: any) {
     if (error !== 'cancel' && error !== 'close') {
-      console.error('Failed to delete project:', error)
       ElMessage.error(error?.response?.data?.message || '删除项目失败')
     }
   } finally {
@@ -1676,8 +1669,7 @@ const handleEditMemberRole = async (member: ProjectMember, newRole: string) => {
     await updateProjectMemberRole(projectKey.value, member.user_id, newRole)
     ElMessage.success('角色更新成功')
     loadMembers()
-  } catch (error) {
-    console.error('Failed to update member role:', error)
+  } catch {
     ElMessage.error('角色更新失败')
   }
 }
@@ -1692,7 +1684,7 @@ const handleRemoveMember = async (member: ProjectMember) => {
     loadMembers()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to remove member:', error)
+      // ignored
     }
   }
 }
@@ -1729,7 +1721,6 @@ const handleDeleteRole = async (role: ProjectRole) => {
     loadRoles()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete role:', error)
       ElMessage.error('删除失败')
     }
   }
@@ -1748,8 +1739,8 @@ const loadRoleMembers = async (roleId: number) => {
   try {
     const { data } = await getRoleMembers(projectKey.value, roleId)
     roleMembers.value = data.data
-  } catch (error) {
-    console.error('Failed to load role members:', error)
+  } catch {
+    // ignored
   } finally {
     roleMembersLoading.value = false
   }
@@ -1763,8 +1754,7 @@ const handleAddRoleMember = async () => {
     ElMessage.success('添加成功')
     selectedRoleMemberUserId.value = null
     await loadRoleMembers(currentMgmtRole.value.id)
-  } catch (error) {
-    console.error('Failed to add role member:', error)
+  } catch {
     ElMessage.error('添加失败')
   } finally {
     addRoleMemberLoading.value = false
@@ -1782,7 +1772,6 @@ const handleRemoveRoleMember = async (member: ProjectRoleMember) => {
     await loadRoleMembers(currentMgmtRole.value.id)
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to remove role member:', error)
       ElMessage.error('移除失败')
     }
   }
@@ -1814,8 +1803,7 @@ const submitRole = async () => {
       }
       roleDialogVisible.value = false
       loadRoles()
-    } catch (error) {
-      console.error('Failed to submit role:', error)
+    } catch {
       ElMessage.error(isEditingRole.value ? '更新失败' : '创建失败')
     } finally {
       roleSubmitLoading.value = false
@@ -1869,8 +1857,7 @@ const submitIssueType = async () => {
       }
       issueTypeDialogVisible.value = false
       loadIssueTypes()
-    } catch (error) {
-      console.error('Failed to submit issue type:', error)
+    } catch {
       ElMessage.error(isEditingIssueType.value ? '更新失败' : '创建失败')
     } finally {
       issueTypeSubmitLoading.value = false
@@ -1888,7 +1875,7 @@ const handleDeleteIssueType = async (issueType: ProjectIssueType) => {
     loadIssueTypes()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete issue type:', error)
+      // ignored
     }
   }
 }
@@ -2012,7 +1999,7 @@ onMounted(async () => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2309,7 +2296,7 @@ onMounted(async () => {
   background: var(--td-bg-card);
   border: 1px solid var(--td-border-color);
   border-radius: 12px;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
   position: relative;
 
   &:hover {
@@ -2459,7 +2446,7 @@ onMounted(async () => {
   background: var(--td-bg-card);
   border: 1px solid var(--td-border-color);
   border-radius: 12px;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -2705,7 +2692,7 @@ onMounted(async () => {
   border: 2px solid var(--td-border-color);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
 
   &:hover {
     border-color: var(--td-color-primary);
@@ -2742,7 +2729,7 @@ onMounted(async () => {
   height: 32px;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
   border: 2px solid transparent;
 
   &:hover {
@@ -2990,7 +2977,7 @@ onMounted(async () => {
   .empty-icon-wrapper {
     width: 96px;
     height: 96px;
-    border-radius: 24px;
+    border-radius: 12px;
     background: var(--td-tag-primary-bg);
     display: flex;
     align-items: center;
@@ -3014,7 +3001,6 @@ onMounted(async () => {
       background: #a5b4fc;
       top: -4px;
       right: 8px;
-      animation: float 3s ease-in-out infinite;
     }
 
     .deco-2 {
@@ -3023,7 +3009,6 @@ onMounted(async () => {
       background: #c4b5fd;
       bottom: 4px;
       left: -4px;
-      animation: float 3s ease-in-out infinite 1s;
     }
 
     .deco-3 {
@@ -3033,7 +3018,6 @@ onMounted(async () => {
       opacity: 0.5;
       bottom: -6px;
       right: -2px;
-      animation: float 3s ease-in-out infinite 2s;
     }
   }
 
@@ -3051,11 +3035,6 @@ onMounted(async () => {
     text-align: center;
     line-height: 1.6;
   }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
 }
 
 // 通知渠道对话框
@@ -3086,7 +3065,7 @@ onMounted(async () => {
   border: 2px solid var(--td-border-color);
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 150ms ease-out;
   background: var(--td-bg-card);
 
   &:hover:not(.disabled) {
@@ -3197,7 +3176,7 @@ onMounted(async () => {
   .enable-switch-label {
     font-size: 13px;
     color: var(--td-text-placeholder);
-    transition: color 0.2s;
+    transition: color 150ms ease-out;
 
     &.active {
       color: var(--td-color-success);

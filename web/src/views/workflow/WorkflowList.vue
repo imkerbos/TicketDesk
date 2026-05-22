@@ -366,8 +366,7 @@ const loadWorkflows = async () => {
   try {
     const { data } = await getWorkflowList()
     workflows.value = (data as any).data.items || []
-  } catch (error) {
-    console.error('Failed to load workflows:', error)
+  } catch {
     ElMessage.error('加载工作流列表失败')
   } finally {
     loading.value = false
@@ -378,8 +377,8 @@ const loadProjects = async () => {
   try {
     const { data } = await getAllProjects()
     projects.value = data.data
-  } catch (error) {
-    console.error('Failed to load projects:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -429,8 +428,7 @@ const submitForm = async () => {
       }
       dialogVisible.value = false
       loadWorkflows()
-    } catch (error) {
-      console.error('Failed to save workflow:', error)
+    } catch {
       ElMessage.error(isEditMode.value ? '更新失败' : '创建失败')
     } finally {
       submitLoading.value = false
@@ -449,7 +447,7 @@ const handleDelete = async (workflow: Workflow) => {
     loadWorkflows()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete workflow:', error)
+      // ignored
     }
   }
 }
@@ -469,8 +467,7 @@ const loadNodes = async (workflowId: number) => {
   try {
     const { data } = await getWorkflowNodes(workflowId)
     workflowNodes.value = (data as any).data || []
-  } catch (error) {
-    console.error('Failed to load nodes:', error)
+  } catch {
     ElMessage.error('加载节点列表失败')
   } finally {
     nodesLoading.value = false
@@ -482,8 +479,7 @@ const loadEdges = async (workflowId: number) => {
   try {
     const { data } = await getWorkflowEdges(workflowId)
     workflowEdges.value = (data as any).data || []
-  } catch (error) {
-    console.error('Failed to load edges:', error)
+  } catch {
     ElMessage.error('加载边列表失败')
   } finally {
     edgesLoading.value = false
@@ -495,8 +491,8 @@ const loadAllUsers = async () => {
   try {
     const { data } = await getAllUsers()
     allUsers.value = data.data || []
-  } catch (error) {
-    console.error('Failed to load users:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -545,8 +541,7 @@ const submitNodeForm = async () => {
       }
       nodeDialogVisible.value = false
       await loadNodes(currentWorkflow.value!.id)
-    } catch (error) {
-      console.error('Failed to save node:', error)
+    } catch {
       ElMessage.error(isEditNodeMode.value ? '更新节点失败' : '创建节点失败')
     } finally {
       nodeSubmitLoading.value = false
@@ -568,7 +563,6 @@ const handleDeleteNode = async (node: WorkflowNode) => {
     ])
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete node:', error)
       ElMessage.error('删除节点失败')
     }
   }
@@ -596,8 +590,7 @@ const submitEdgeForm = async () => {
       ElMessage.success('边创建成功')
       edgeDialogVisible.value = false
       await loadEdges(currentWorkflow.value!.id)
-    } catch (error) {
-      console.error('Failed to create edge:', error)
+    } catch {
       ElMessage.error('创建边失败')
     } finally {
       edgeSubmitLoading.value = false
@@ -616,7 +609,6 @@ const handleDeleteEdge = async (edge: WorkflowEdge) => {
     await loadEdges(currentWorkflow.value.id)
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete edge:', error)
       ElMessage.error('删除边失败')
     }
   }
@@ -688,7 +680,7 @@ onMounted(() => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -736,7 +728,7 @@ onMounted(() => {
   background: var(--td-bg-page);
   border-radius: 12px;
   padding: 20px;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 150ms ease-out;
 
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);

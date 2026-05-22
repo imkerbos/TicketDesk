@@ -182,8 +182,8 @@ const handleDialogOpen = async () => {
     try {
       const { data } = await getAllProjects()
       internalProjects.value = data.data
-    } catch (error) {
-      console.error('Failed to load projects:', error)
+    } catch {
+      // ignored
     }
   }
 
@@ -206,8 +206,8 @@ const handleProjectChange = async (projectKey: string) => {
   try {
     const { data } = await getProjectIssueTypes(projectKey)
     issueTypes.value = data.data
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -240,8 +240,8 @@ const handleIssueTypeChange = async (issueTypeId: number) => {
         customFieldValues.value[item.field_id] = item.default_value
       }
     })
-  } catch (error) {
-    console.error('Failed to load field scheme:', error)
+  } catch {
+    // ignored
   } finally {
     fieldSchemeLoading.value = false
   }
@@ -301,8 +301,8 @@ const submitCreate = async () => {
       ElMessage.success(props.parentId ? '子任务创建成功' : '创建成功')
       emit('update:modelValue', false)
       emit('created', data.data.issue_key)
-    } catch (error) {
-      console.error('Failed to create issue:', error)
+    } catch {
+      // ignored
     } finally {
       createLoading.value = false
     }

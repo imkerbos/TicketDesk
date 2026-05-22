@@ -560,8 +560,7 @@ const loadFields = async () => {
   try {
     const { data } = await getGlobalFields()
     allFields.value = data.data || []
-  } catch (error) {
-    console.error('加载字段列表失败:', error)
+  } catch {
     ElMessage.error('加载字段列表失败')
   } finally {
     fieldsLoading.value = false
@@ -573,8 +572,7 @@ const loadTemplates = async () => {
   try {
     const { data } = await getTemplates()
     templates.value = data.data || []
-  } catch (error) {
-    console.error('加载模板列表失败:', error)
+  } catch {
     ElMessage.error('加载模板列表失败')
   } finally {
     templatesLoading.value = false
@@ -710,8 +708,7 @@ const submitFieldForm = async () => {
       }
       fieldDialogVisible.value = false
       await loadFields()
-    } catch (error) {
-      console.error('保存字段失败:', error)
+    } catch {
       ElMessage.error(isEditFieldMode.value ? '更新字段失败' : '创建字段失败')
     } finally {
       fieldSubmitLoading.value = false
@@ -762,7 +759,6 @@ const handleDeleteField = async (field: FieldDefinition) => {
     await loadFields()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除字段失败:', error)
       ElMessage.error('删除字段失败')
     }
   }
@@ -824,8 +820,7 @@ const submitTemplateForm = async () => {
       }
       templateDialogVisible.value = false
       await loadTemplates()
-    } catch (error) {
-      console.error('保存模板失败:', error)
+    } catch {
       ElMessage.error(isEditTemplateMode.value ? '更新模板失败' : '创建模板失败')
     } finally {
       templateSubmitLoading.value = false
@@ -843,7 +838,6 @@ const handleDeleteTemplate = async (tpl: FieldSchemeTemplate) => {
     await loadTemplates()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除模板失败:', error)
       ElMessage.error('删除模板失败')
     }
   }
@@ -866,8 +860,7 @@ const openTemplateDetail = async (tpl: FieldSchemeTemplate) => {
   try {
     const { data } = await getTemplate(tpl.id)
     templateItems.value = data.data?.items || []
-  } catch (error) {
-    console.error('加载模板详情失败:', error)
+  } catch {
     ElMessage.error('加载模板详情失败')
   } finally {
     templateDetailLoading.value = false
@@ -900,8 +893,7 @@ const saveTemplateItems = async () => {
     ElMessage.success('保存成功')
     templateItemsDirty.value = false
     await loadTemplates()
-  } catch (error) {
-    console.error('保存模板配置失败:', error)
+  } catch {
     ElMessage.error('保存模板配置失败')
   } finally {
     templateItemsSaving.value = false
@@ -1013,7 +1005,7 @@ onMounted(async () => {
   margin-bottom: 24px;
   padding: 28px 32px;
   background: var(--td-color-primary);
-  border-radius: 16px;
+  border-radius: 12px;
   color: var(--td-text-white);
 
   .header-info {
@@ -1027,7 +1019,7 @@ onMounted(async () => {
     height: 52px;
     background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1084,7 +1076,7 @@ onMounted(async () => {
 
 // ============ 内容卡片 ============
 .content-card {
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--td-border-color);
 
   :deep(.el-card__body) {
@@ -1170,7 +1162,7 @@ onMounted(async () => {
   border-radius: 10px;
   margin-bottom: 12px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 150ms ease-out;
   user-select: none;
 
   &:hover {
@@ -1187,7 +1179,7 @@ onMounted(async () => {
 .collapse-arrow {
   font-size: 14px;
   color: var(--td-text-secondary);
-  transition: transform 0.3s;
+  transition: transform 150ms ease-out;
 
   &.collapsed {
     transform: rotate(-90deg);
@@ -1234,7 +1226,7 @@ onMounted(async () => {
   background: var(--td-bg-card);
   border: 1px solid var(--td-divider-color);
   border-radius: 10px;
-  transition: all 0.2s ease;
+  transition: all 150ms ease-out;
 
   &:hover {
     border-color: var(--td-tag-primary-border);
@@ -1397,12 +1389,11 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 20px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 150ms ease-out;
 
   &:hover {
     border-color: var(--td-tag-primary-border);
     box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
-    transform: translateY(-2px);
   }
 }
 
@@ -1540,7 +1531,7 @@ onMounted(async () => {
 // ============ 折叠动画 ============
 .collapse-enter-active,
 .collapse-leave-active {
-  transition: all 0.3s ease;
+  transition: all 150ms ease-out;
   overflow: hidden;
 }
 .collapse-enter-from,
@@ -1557,7 +1548,7 @@ onMounted(async () => {
 // ============ 对话框美化 ============
 .custom-dialog {
   :deep(.el-dialog) {
-    border-radius: 16px;
+    border-radius: 12px;
   }
 
   :deep(.el-dialog__header) {

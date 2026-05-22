@@ -455,8 +455,7 @@ const loadSavedViewsFromStorage = () => {
   try {
     const raw = localStorage.getItem(savedViewsStorageKey.value)
     savedViews.value = raw ? JSON.parse(raw) : []
-  } catch (error) {
-    console.error('Failed to load saved issue views:', error)
+  } catch {
     savedViews.value = []
   }
 }
@@ -516,8 +515,8 @@ const loadData = async () => {
     total.value = listRes.data.data.total
     hasMore.value = listRes.data.data.has_more || false
     Object.assign(issueStats, statsRes.data.data)
-  } catch (error) {
-    console.error('Failed to load issues:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -528,8 +527,8 @@ const loadFilterOptions = async () => {
     const [projectsRes, usersRes] = await Promise.all([getAllProjects(), getAllUsers()])
     projects.value = projectsRes.data.data
     users.value = usersRes.data.data
-  } catch (error) {
-    console.error('Failed to load filter options:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -542,8 +541,8 @@ const loadFilterIssueTypes = async () => {
       const { data } = await getAllIssueTypes()
       filterIssueTypes.value = data.data || []
     }
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -560,8 +559,8 @@ const loadFilterEpics = async () => {
     }
     const { data } = await getIssueList(params)
     filterEpics.value = data.data.items || []
-  } catch (error) {
-    console.error('Failed to load epics:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -807,7 +806,7 @@ const handleDeleteIssue = async (issue: Issue) => {
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete issue:', error)
+      // ignored
     }
   }
 }
@@ -1092,7 +1091,7 @@ onMounted(async () => {
     align-items: center;
     gap: 5px;
     padding: 3px 10px;
-    border-radius: 20px;
+    border-radius: 12px;
     font-size: 12px;
 
     .status-dot {

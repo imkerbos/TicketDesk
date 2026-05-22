@@ -1179,8 +1179,7 @@ const loadIssue = async () => {
       loadWorkflowData(key),
       loadIssueAlerts(data.data.id),
     ])
-  } catch (error: any) {
-    console.error('Failed to load issue:', error)
+  } catch {
     ElMessage.error('加载工单失败')
   } finally {
     loading.value = false
@@ -1197,16 +1196,16 @@ const navigateToIssue = (key: string) => {
 }
 
 const loadComments = async (key: string) => {
-  try { const { data } = await getIssueComments(key); comments.value = data.data } catch (e) { console.error(e) }
+  try { const { data } = await getIssueComments(key); comments.value = data.data } catch { /* ignored */ }
 }
 const loadActivities = async (key: string) => {
-  try { const { data } = await getIssueActivities(key); activities.value = data.data.items || [] } catch (e) { console.error(e) }
+  try { const { data } = await getIssueActivities(key); activities.value = data.data.items || [] } catch { /* ignored */ }
 }
 const loadWatchers = async (key: string) => {
-  try { const { data } = await getIssueWatchers(key); watchers.value = data.data } catch (e) { console.error(e) }
+  try { const { data } = await getIssueWatchers(key); watchers.value = data.data } catch { /* ignored */ }
 }
 const loadWorklogs = async (key: string) => {
-  try { const { data } = await getWorklogs(key); worklogs.value = data.data } catch (e) { console.error(e) }
+  try { const { data } = await getWorklogs(key); worklogs.value = data.data } catch { /* ignored */ }
 }
 const loadEpicIssues = async (key: string) => {
   // 只有当工单类型是 Epic 时才加载
@@ -1217,8 +1216,7 @@ const loadEpicIssues = async (key: string) => {
   try {
     const { data } = await getEpicIssues(key)
     epicIssues.value = data.data || []
-  } catch (e) {
-    console.error('Failed to load epic issues:', e)
+  } catch {
     epicIssues.value = []
   }
 }
@@ -1227,8 +1225,7 @@ const loadSubtasks = async (key: string) => {
   try {
     const { data } = await getSubtasks(key)
     subtasks.value = data.data || []
-  } catch (e) {
-    console.error('Failed to load subtasks:', e)
+  } catch {
     subtasks.value = []
   }
 }
@@ -1237,8 +1234,7 @@ const loadAttachments = async (key: string) => {
   try {
     const response = await listAttachments(key)
     attachments.value = (response as any).data.data || []
-  } catch (e) {
-    console.error('Failed to load attachments:', e)
+  } catch {
     attachments.value = []
   }
 }
@@ -1289,8 +1285,7 @@ const loadIssueAlerts = async (issueId: number) => {
   try {
     const { data } = await getAlertList({ issue_id: issueId, page_size: 50 })
     issueAlerts.value = data.data.items || []
-  } catch (e) {
-    console.error('Failed to load issue alerts:', e)
+  } catch {
     issueAlerts.value = []
   }
 }
@@ -1523,7 +1518,6 @@ const handleComplete = async () => {
     completeComment.value = ''
     await loadIssue()
   } catch (error: any) {
-    console.error('Failed to complete:', error)
     ElMessage.error(error.response?.data?.message || '完成操作失败')
   } finally {
     completeLoading.value = false
@@ -1546,7 +1540,6 @@ const handleCompleteWithResult = async (result: string) => {
     completeComment.value = ''
     await loadIssue()
   } catch (error: any) {
-    console.error('Failed to complete with result:', error)
     ElMessage.error(error.response?.data?.message || '操作失败')
   } finally {
     completeLoading.value = false
@@ -1563,7 +1556,6 @@ const handleApprove = async () => {
     approveComment.value = ''
     await loadIssue() // 刷新工单（状态已由工作流联动更新）
   } catch (error: any) {
-    console.error('Failed to approve:', error)
     ElMessage.error(error.response?.data?.message || '审批操作失败')
   } finally {
     approveLoading.value = false
@@ -1590,7 +1582,6 @@ const handleReject = async () => {
     rejectDialogVisible.value = false
     await loadIssue() // 刷新工单（状态已由工作流联动更新）
   } catch (error: any) {
-    console.error('Failed to reject:', error)
     ElMessage.error(error.response?.data?.message || '拒绝操作失败')
   } finally {
     rejectLoading.value = false
@@ -1683,8 +1674,8 @@ const loadCustomFields = async (issueId: number) => {
         display_value: savedValue?.display_value || ''
       }
     })
-  } catch (e) {
-    console.error('Failed to load custom fields:', e)
+  } catch {
+    // ignored
   }
 }
 
@@ -1696,7 +1687,7 @@ const submitComment = async () => {
     ElMessage.success('评论成功')
     newComment.value = ''
     loadComments(issue.value.issue_key)
-  } catch (error) { console.error(error) }
+  } catch { /* ignored */ }
   finally { commentLoading.value = false }
 }
 
@@ -1722,8 +1713,7 @@ const handleAssignToMe = async () => {
     })
     ElMessage.success('已分配给您')
     loadIssue()
-  } catch (error) {
-    console.error('Failed to assign to me:', error)
+  } catch {
     ElMessage.error('分配失败')
   }
 }
@@ -1734,7 +1724,7 @@ const editAssigneeId = ref<number | undefined>(undefined)
 
 const startEditAssignee = async () => {
   if (users.value.length === 0) {
-    try { const { data } = await getAllUsers(); users.value = data.data } catch (e) { console.error(e) }
+    try { const { data } = await getAllUsers(); users.value = data.data } catch { /* ignored */ }
   }
   editAssigneeId.value = issue.value?.assignee?.id
   editingAssignee.value = true
@@ -1747,8 +1737,7 @@ const handleAssigneeChange = async (userId: number | undefined) => {
     ElMessage.success('指派人已更新')
     editingAssignee.value = false
     loadIssue()
-  } catch (error) {
-    console.error('Failed to update assignee:', error)
+  } catch {
     ElMessage.error('更新指派人失败')
   }
 }
@@ -1775,7 +1764,6 @@ const handleDelete = async () => {
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete issue:', error)
       ElMessage.error('删除工单失败')
     }
   }
@@ -1788,7 +1776,7 @@ const handleCreateSubtask = () => {
 
 const handleEdit = async () => {
   if (!issue.value) return
-  try { const { data } = await getAllUsers(); users.value = data.data } catch (e) { console.error(e) }
+  try { const { data } = await getAllUsers(); users.value = data.data } catch { /* ignored */ }
 
   Object.assign(editForm, {
     title: issue.value.title,
@@ -1823,7 +1811,7 @@ const handleEdit = async () => {
         editFieldValues.value[v.field_id] = v.value
       }
     })
-  } catch (e) { console.error('Failed to load field scheme for edit:', e) }
+  } catch { /* ignored */ }
 
   editDialogVisible.value = true
 }
@@ -1865,7 +1853,7 @@ const submitEdit = async () => {
       ElMessage.success('更新成功')
       editDialogVisible.value = false
       loadIssue()
-    } catch (error) { console.error(error) }
+    } catch { /* ignored */ }
     finally { editLoading.value = false }
   })
 }
@@ -1895,8 +1883,7 @@ const showAddWatcherDialog = async () => {
     try {
       const { data } = await getAllUsers()
       users.value = data.data
-    } catch (error) {
-      console.error(error)
+    } catch {
       ElMessage.error('加载用户列表失败')
       return
     }
@@ -1914,7 +1901,6 @@ const handleAddWatcher = async () => {
     addWatcherDialogVisible.value = false
     loadWatchers(issue.value.issue_key)
   } catch (error: any) {
-    console.error(error)
     if (error.response?.data?.message?.includes('已经关注')) {
       ElMessage.warning('该用户已经关注此工单')
     } else {
@@ -1938,7 +1924,6 @@ const handleRemoveWatcher = async (userId: number) => {
     loadWatchers(issue.value.issue_key)
   } catch (error) {
     if (error !== 'cancel') {
-      console.error(error)
       ElMessage.error('移除失败')
     }
   }
@@ -1951,7 +1936,6 @@ const handleWatchIssue = async () => {
     ElMessage.success('关注成功')
     loadWatchers(issue.value.issue_key)
   } catch (error: any) {
-    console.error(error)
     if (error.response?.data?.message?.includes('已经关注')) {
       ElMessage.warning('您已经关注此工单')
     } else {
@@ -1966,8 +1950,7 @@ const handleUnwatchIssue = async () => {
     await removeIssueWatcher(issue.value.issue_key, userStore.user.id)
     ElMessage.success('取消关注成功')
     loadWatchers(issue.value.issue_key)
-  } catch (error) {
-    console.error(error)
+  } catch {
     ElMessage.error('取消关注失败')
   }
 }
@@ -2056,8 +2039,7 @@ const submitWorklog = async () => {
       work_type: '',
     })
     loadWorklogs(issue.value.issue_key)
-  } catch (error) {
-    console.error(error)
+  } catch {
     ElMessage.error('添加工作日志失败')
   } finally {
     worklogLoading.value = false
@@ -2081,7 +2063,6 @@ const handleDeleteWorklog = async (worklogId: number) => {
     loadWorklogs(issue.value.issue_key)
   } catch (error) {
     if (error !== 'cancel') {
-      console.error(error)
       ElMessage.error('删除失败')
     }
   }
@@ -2415,8 +2396,7 @@ const showWorkflowDiagram = async () => {
     ])
     diagramNodes.value = (nodesRes.data as any).data || []
     diagramEdges.value = (edgesRes.data as any).data || []
-  } catch (e) {
-    console.error('Failed to load workflow diagram', e)
+  } catch {
     ElMessage.error('加载流程图失败')
   } finally {
     diagramLoading.value = false
@@ -2582,7 +2562,7 @@ const showWorkflowDiagram = async () => {
   align-items: center;
   gap: 5px;
   padding: 3px 12px;
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 13px;
   font-weight: 500;
 
@@ -2719,7 +2699,7 @@ const showWorkflowDiagram = async () => {
           color: var(--td-color-primary);
           text-decoration: none;
           font-weight: 500;
-          transition: all 0.2s;
+          transition: all 150ms ease-out;
 
           &:hover {
             color: var(--td-color-primary-hover);
@@ -3235,14 +3215,13 @@ const showWorkflowDiagram = async () => {
       background: var(--td-bg-card);
       border-radius: 8px;
       border: 1px solid var(--td-border-color);
-      transition: all 0.2s ease;
+      transition: all 150ms ease-out;
       cursor: pointer;
 
       &:hover {
         background: var(--td-bg-page);
         border-color: var(--td-color-primary);
         box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
-        transform: translateY(-1px);
       }
 
       &:last-child {
@@ -3290,7 +3269,7 @@ const showWorkflowDiagram = async () => {
             font-size: 13px;
             font-weight: 600;
             color: var(--td-color-primary);
-            transition: all 0.2s;
+            transition: all 150ms ease-out;
 
             &:hover {
               color: var(--td-color-primary-hover);
@@ -3390,7 +3369,7 @@ const showWorkflowDiagram = async () => {
             justify-content: center;
             font-size: 12px;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: all 150ms ease-out;
             flex-shrink: 0;
 
             &.unassigned {
@@ -3445,14 +3424,13 @@ const showWorkflowDiagram = async () => {
       background: var(--td-bg-card);
       border-radius: 8px;
       border: 1px solid var(--td-border-color);
-      transition: all 0.2s ease;
+      transition: all 150ms ease-out;
       cursor: pointer;
 
       &:hover {
         background: var(--td-bg-page);
         border-color: var(--td-color-danger);
         box-shadow: 0 2px 8px rgba(250, 112, 154, 0.1);
-        transform: translateY(-1px);
       }
 
       &:last-child {
@@ -3495,7 +3473,7 @@ const showWorkflowDiagram = async () => {
             font-size: 13px;
             font-weight: 600;
             color: var(--td-color-danger);
-            transition: all 0.2s;
+            transition: all 150ms ease-out;
 
             &:hover {
               color: var(--td-color-danger);
@@ -3595,7 +3573,7 @@ const showWorkflowDiagram = async () => {
             justify-content: center;
             font-size: 12px;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: all 150ms ease-out;
             flex-shrink: 0;
 
             &.unassigned {
@@ -3660,7 +3638,7 @@ const showWorkflowDiagram = async () => {
     border-radius: 10px;
     border: 2px solid var(--td-border-color);
     background: var(--td-bg-page);
-    transition: all 0.3s ease;
+    transition: all 150ms ease-out;
     cursor: default;
 
     .diagram-node-icon {
@@ -3773,7 +3751,7 @@ const showWorkflowDiagram = async () => {
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
-    border-radius: 20px;
+    border-radius: 12px;
     font-size: 12px;
 
     .status-dot { width: 6px; height: 6px; border-radius: 50%; }

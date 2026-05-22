@@ -253,8 +253,8 @@ const loadProjects = async () => {
   try {
     const { data } = await getAllProjects()
     projects.value = data.data
-  } catch (error) {
-    console.error('加载项目列表失败', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -263,8 +263,8 @@ const loadUsers = async () => {
   try {
     const { data } = await getAllUsers()
     users.value = data.data
-  } catch (error) {
-    console.error('加载用户列表失败', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -404,11 +404,10 @@ onMounted(() => {
       border: 1px solid rgba(255, 255, 255, 0.3);
       color: var(--td-text-white);
       backdrop-filter: blur(10px);
-      transition: all 0.3s ease;
+      transition: all 150ms ease-out;
 
       &:hover {
         background: rgba(255, 255, 255, 0.3);
-        transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       }
     }
@@ -419,7 +418,7 @@ onMounted(() => {
     border-radius: 12px;
     border: none;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 150ms ease-out;
 
     &:hover {
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
@@ -436,10 +435,9 @@ onMounted(() => {
     :deep(.el-button--primary) {
       background: var(--td-color-primary);
       border: none;
-      transition: all 0.3s ease;
+      transition: all 150ms ease-out;
 
       &:hover {
-        transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
       }
     }
@@ -471,11 +469,10 @@ onMounted(() => {
       }
 
       .el-table__row {
-        transition: all 0.3s ease;
+        transition: all 150ms ease-out;
 
         &:hover {
           background: var(--td-bg-card-hover) !important;
-          transform: scale(1.01);
           box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
         }
       }
@@ -485,7 +482,7 @@ onMounted(() => {
       color: var(--td-color-primary);
       text-decoration: none;
       font-weight: 500;
-      transition: all 0.3s ease;
+      transition: all 150ms ease-out;
 
       &:hover {
         color: var(--td-color-primary-hover);
@@ -565,10 +562,9 @@ onMounted(() => {
         background: var(--td-color-primary);
         border: none;
         padding: 10px 24px;
-        transition: all 0.3s ease;
+        transition: all 150ms ease-out;
 
         &:hover {
-          transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
       }

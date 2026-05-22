@@ -332,7 +332,6 @@ func SeedData(db *gorm.DB) error {
 
 			logger.Info("default admin user created",
 				zap.String("username", "admin"),
-				zap.String("password", "admin123"),
 			)
 		}
 	}

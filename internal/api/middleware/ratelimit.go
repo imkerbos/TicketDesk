@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/pkg/logger"
 	pkgRedis "github.com/kerbos/ticketdesk/pkg/redis"
 )
@@ -95,10 +96,8 @@ func RateLimitMiddleware(cfg RateLimitConfig) gin.HandlerFunc {
 		if int(count) > limit {
 			retryAfter := windowSec - int(time.Now().Unix()%int64(windowSec))
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"code":    http.StatusTooManyRequests,
-				"message": "请求过于频繁，请稍后再试",
-			})
+			response.Error(c, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "请求过于频繁，请稍后再试")
+			c.Abort()
 			return
 		}
 

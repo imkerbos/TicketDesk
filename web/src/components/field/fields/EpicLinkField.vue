@@ -64,8 +64,8 @@ const loadEpicTypeId = async () => {
     const { data } = await getProjectIssueTypes(props.projectKey)
     const epicType = (data.data || []).find((t: any) => t.name.toLowerCase() === 'epic')
     epicTypeId.value = epicType?.id
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
+  } catch {
+    // ignored
   }
 }
 
@@ -86,8 +86,8 @@ const loadEpics = async (keyword = '') => {
       issue_key: item.issue_key,
       title: item.title,
     }))
-  } catch (error) {
-    console.error('Failed to load epics:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }

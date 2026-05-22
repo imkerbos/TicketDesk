@@ -59,8 +59,8 @@ const loadComponents = async () => {
   try {
     const res = await getComponents(props.projectKey)
     components.value = res.data.data || []
-  } catch (error) {
-    console.error('Failed to load components:', error)
+  } catch {
+    // ignored
   }
 }
 

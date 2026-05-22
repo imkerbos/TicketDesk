@@ -265,8 +265,8 @@ const loadData = async () => {
     const { data } = await getAlertSilenceList(queryParams)
     silenceList.value = data.data.items
     total.value = data.data.total
-  } catch (error) {
-    console.error('Failed to load silences:', error)
+  } catch {
+    // ignored
   } finally {
     loading.value = false
   }
@@ -327,8 +327,8 @@ const handleSubmit = async () => {
       }
       dialogVisible.value = false
       loadData()
-    } catch (error) {
-      console.error('Failed to submit:', error)
+    } catch {
+      // ignored
     }
   })
 }
@@ -357,7 +357,7 @@ const handleEnable = async (row: AlertSilence) => {
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to enable:', error)
+      // ignored
     }
   }
 }
@@ -375,7 +375,7 @@ const handleDisable = async (row: AlertSilence) => {
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to disable:', error)
+      // ignored
     }
   }
 }
@@ -390,7 +390,7 @@ const handleDelete = async (row: AlertSilence) => {
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('Failed to delete:', error)
+      // ignored
     }
   }
 }
@@ -461,7 +461,7 @@ onMounted(() => {
     width: 56px;
     height: 56px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -518,7 +518,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 12px;
 
   .status-dot {
