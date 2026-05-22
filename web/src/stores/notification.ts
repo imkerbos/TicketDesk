@@ -21,24 +21,20 @@ export const useNotificationStore = defineStore('notification', () => {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectAttempts = 0
   const MAX_RECONNECT_DELAY = 60000 // 最大重连间隔 60 秒
+  const MAX_RECONNECT_FAILURES = 5  // 连续失败上限，超过后停止重连
 
-  // 检查 JWT 是否过期（提前 30 秒判定，留网络余量）
+  // 检查 JWT 是否过期（提前 60 秒判定，留网络延迟和时钟偏差余量）
   const isTokenExpired = (token: string): boolean => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]))
-      return payload.exp * 1000 < Date.now() + 30000
+      return payload.exp * 1000 < Date.now() + 60000
     } catch {
       return true
     }
   }
 
-  // 确保获取有效 token（过期则尝试刷新）
-  const ensureFreshToken = async (): Promise<string | null> => {
-    const token = localStorage.getItem('token')
-    if (!token) return null
-    if (!isTokenExpired(token)) return token
-
-    // Token 已过期，尝试用 refresh_token 刷新
+  // 刷新 token
+  const refreshAccessToken = async (): Promise<string | null> => {
     const refreshToken = localStorage.getItem('refresh_token')
     if (!refreshToken) return null
 
@@ -51,9 +47,20 @@ export const useNotificationStore = defineStore('notification', () => {
       }
       return access_token
     } catch {
-      // refresh_token 也失效，放弃重连
       return null
     }
+  }
+
+  // 确保获取有效 token（forceRefresh 为 true 时跳过本地过期检查，直接刷新）
+  const ensureFreshToken = async (forceRefresh = false): Promise<string | null> => {
+    const token = localStorage.getItem('token')
+    if (!token) return null
+
+    // 不强制刷新且 token 未过期，直接返回
+    if (!forceRefresh && !isTokenExpired(token)) return token
+
+    // token 已过期或强制刷新（如 WS 连接被服务端拒绝）
+    return await refreshAccessToken()
   }
 
   // 计算属性
@@ -243,9 +250,9 @@ export const useNotificationStore = defineStore('notification', () => {
   }
 
   // 连接 WebSocket
-  const connectWebSocket = async () => {
-    // 确保 token 有效，过期则自动刷新
-    const token = await ensureFreshToken()
+  const connectWebSocket = async (forceRefresh = false) => {
+    // 确保 token 有效，过期或连接曾被拒绝时强制刷新
+    const token = await ensureFreshToken(forceRefresh)
     if (!token) return
 
     // 请求通知权限
@@ -259,8 +266,10 @@ export const useNotificationStore = defineStore('notification', () => {
     const wsUrl = `${protocol}//${host}/api/v1/ws?token=${token}`
 
     const socket = new WebSocket(wsUrl)
+    let opened = false
 
     socket.onopen = () => {
+      opened = true
       connected.value = true
       reconnectAttempts = 0 // 连接成功，重置重连计数
       startHeartbeat()
@@ -283,11 +292,19 @@ export const useNotificationStore = defineStore('notification', () => {
       stopHeartbeat()
       ws.value = null
 
-      // 指数退避重连：5s → 10s → 20s → 40s → 60s（上限）
+      // 连接从未建立（如 401）→ 视为认证失败
+      const authFailed = !opened
+
       reconnectAttempts++
+
+      // 连续失败超限，停止重连
+      if (reconnectAttempts > MAX_RECONNECT_FAILURES) return
+
+      // 指数退避重连：5s → 10s → 20s → 40s → 60s（上限）
       const delay = Math.min(5000 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY)
       reconnectTimer = setTimeout(() => {
-        connectWebSocket()
+        // 认证失败时强制刷新 token，避免用同一个被拒绝的 token 反复重试
+        connectWebSocket(authFailed)
       }, delay)
     }
 

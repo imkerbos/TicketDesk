@@ -1,13 +1,40 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
+import { writeFileSync } from 'fs'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
+// 构建时生成 version.json，前端定期轮询比对，版本不一致时提示用户刷新
+function versionPlugin(): Plugin {
+  const version = Date.now().toString(36)
+  let outDir = ''
+  return {
+    name: 'version-plugin',
+    config() {
+      return {
+        define: {
+          __APP_VERSION__: JSON.stringify(version),
+        },
+      }
+    },
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir)
+    },
+    closeBundle() {
+      writeFileSync(
+        resolve(outDir, 'version.json'),
+        JSON.stringify({ version }),
+      )
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     vue(),
+    versionPlugin(),
     AutoImport({
       resolvers: [ElementPlusResolver()],
       imports: ['vue', 'vue-router', 'pinia'],

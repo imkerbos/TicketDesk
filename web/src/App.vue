@@ -1,10 +1,16 @@
 <template>
   <div id="app">
+    <!-- 版本更新提示：固定在浏览器顶部 -->
+    <div v-if="hasNewVersion" class="update-banner" @click="reloadPage">
+      <el-icon><RefreshRight /></el-icon>
+      <span>系统已更新，点击刷新获取最新版本</span>
+    </div>
+
     <!-- 登录页面：独立全屏显示 -->
     <router-view v-if="isAuthPage" />
 
     <!-- 主布局：带侧边栏 -->
-    <el-container v-else class="main-layout">
+    <el-container v-else class="main-layout" :class="{ 'has-update-banner': hasNewVersion }">
       <el-aside width="220px" class="sidebar">
         <div class="logo">
           <img v-if="brandStore.logoUrl" :src="brandStore.logoUrl" :alt="brandStore.systemName" class="logo-custom" />
@@ -173,11 +179,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton, Document, DataAnalysis, Sunny, Moon, Monitor } from '@element-plus/icons-vue'
+import { House, Tickets, Folder, Bell, Message, Setting, ArrowDown, User, SwitchButton, Document, DataAnalysis, Sunny, Moon, Monitor, RefreshRight } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import { useThemeStore } from '@/stores/theme'
 import { useBrandStore } from '@/stores/brand'
+import { useVersionCheck } from '@/composables/useVersionCheck'
 import NotificationBell from '@/components/NotificationBell.vue'
 
 const route = useRoute()
@@ -186,6 +193,7 @@ const userStore = useUserStore()
 const notificationStore = useNotificationStore()
 const themeStore = useThemeStore()
 const brandStore = useBrandStore()
+const { hasNewVersion, reload: reloadPage } = useVersionCheck()
 
 // 登录后连接 WebSocket
 onMounted(() => {
@@ -455,6 +463,36 @@ const handleMenuSelect = (index: string) => {
 .arrow-icon {
   font-size: 12px;
   color: var(--td-text-placeholder);
+}
+
+.update-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--td-color-primary, #3b82f6);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.update-banner:hover {
+  background-color: #2563eb;
+}
+
+.has-update-banner .sidebar {
+  top: 40px;
+}
+
+.has-update-banner .main-container {
+  padding-top: 40px;
 }
 
 .main-content {
