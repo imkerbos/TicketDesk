@@ -63,6 +63,8 @@ spec:
             - --collation-server=utf8mb4_unicode_ci
             - --max-connections=500
             - --innodb-buffer-pool-size=256M
+            - --disable-log-bin
+            - --innodb-redo-log-capacity=256M
           volumeMounts:
             - name: data
               mountPath: /var/lib/mysql
