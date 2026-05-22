@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <el-button class="back-btn" circle @click="$router.push('/projects')">
+        <el-button class="back-btn" circle @click="$router.push(`/projects/${projectKey}`)">
           <el-icon><ArrowLeft /></el-icon>
         </el-button>
         <div class="header-info">

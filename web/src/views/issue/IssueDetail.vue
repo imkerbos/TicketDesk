@@ -1063,7 +1063,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
@@ -1078,7 +1078,7 @@ import {
 } from '@/api/issue'
 import { getAlertList } from '@/api/alert'
 import type { Alert } from '@/types/alert'
-import { listAttachments } from '@/api/attachment'
+import { listAttachments, uploadAttachment } from '@/api/attachment'
 import { getWorkflowInstance, getWorkflowHistory, approveWorkflow, rejectWorkflow, completeWorkflow, getWorkflowNodes, getWorkflowEdges } from '@/api/workflow'
 import type { WorkflowInstance, WorkflowHistory, WorkflowNode, WorkflowEdge } from '@/types/workflow'
 import type { Attachment } from '@/types/attachment'
@@ -1241,6 +1241,47 @@ const loadAttachments = async (key: string) => {
     console.error('Failed to load attachments:', e)
     attachments.value = []
   }
+}
+
+// 粘贴图片上传为附件
+const handlePaste = async (e: ClipboardEvent) => {
+  if (!issue.value || !e.clipboardData) return
+
+  const imageFiles: File[] = []
+  for (const item of Array.from(e.clipboardData.items)) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) imageFiles.push(file)
+    }
+  }
+  if (imageFiles.length === 0) return
+
+  // 阻止默认粘贴行为（避免在输入框中插入图片）
+  e.preventDefault()
+
+  const issueKey = issue.value.issue_key
+  showAttachmentUpload.value = true
+
+  for (const file of imageFiles) {
+    // 给剪贴板图片生成文件名
+    const ext = file.type.split('/')[1] || 'png'
+    const timestamp = dayjs().format('YYYYMMDDHHmmss')
+    const namedFile = new File([file], `paste-${timestamp}.${ext}`, { type: file.type })
+
+    // 检查文件大小
+    if (namedFile.size > 10 * 1024 * 1024) {
+      ElMessage.error('粘贴的图片超过10MB限制')
+      continue
+    }
+
+    try {
+      await uploadAttachment(issueKey, namedFile)
+      ElMessage.success('粘贴图片上传成功')
+    } catch {
+      ElMessage.error('粘贴图片上传失败')
+    }
+  }
+  loadAttachments(issueKey)
 }
 
 // 关联告警加载
@@ -2162,6 +2203,11 @@ const getAlertStatusText = (status: string) => {
 onMounted(() => {
   loadIssue()
   loadWorkTypeOptions()
+  document.addEventListener('paste', handlePaste)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('paste', handlePaste)
 })
 
 // 监听路由参数或 props 变化，当切换到不同的 Issue 时重新加载数据

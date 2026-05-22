@@ -3,6 +3,9 @@
     <!-- 页面头部 -->
     <div class="board-header">
       <div class="header-left">
+        <el-button class="back-btn" circle size="small" @click="$router.push(`/projects/${projectKey}`)">
+          <el-icon><ArrowLeft /></el-icon>
+        </el-button>
         <div class="project-identity">
           <div class="project-icon" :style="{ background: getProjectColor(projectKey) }">
             {{ projectKey.substring(0, 2).toUpperCase() }}
@@ -79,7 +82,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataAnalysis, Grid, Setting, Tickets } from '@element-plus/icons-vue'
+import { ArrowLeft, DataAnalysis, Grid, Setting, Tickets } from '@element-plus/icons-vue'
 import BoardIssueList from './components/BoardIssueList.vue'
 import IssueDetail from '@/views/issue/IssueDetail.vue'
 import { getProjectDetail } from '@/api/project'
@@ -174,6 +177,23 @@ onMounted(() => {
   background: var(--td-bg-card);
   border-bottom: 1px solid var(--td-border-color);
   flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-btn {
+  color: var(--td-text-secondary);
+  border-color: var(--td-border-color);
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--td-color-primary);
+    border-color: var(--td-color-primary);
+  }
 }
 
 .project-identity {

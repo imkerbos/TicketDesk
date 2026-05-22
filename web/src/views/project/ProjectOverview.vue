@@ -3,6 +3,9 @@
     <!-- 页面头部（头部+导航一体化） -->
     <div class="overview-hero">
       <div class="hero-top">
+        <el-button class="back-btn" circle @click="$router.push('/projects')">
+          <el-icon><ArrowLeft /></el-icon>
+        </el-button>
         <div class="header-info">
           <div class="project-icon" :style="{ background: getProjectColor(projectKey) }">
             {{ projectKey.substring(0, 2).toUpperCase() }}
@@ -166,7 +169,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Tickets, User, Setting, ArrowRight, View, CircleCheck, Loading, DataAnalysis, Grid } from '@element-plus/icons-vue'
+import { Tickets, User, Setting, ArrowLeft, ArrowRight, View, CircleCheck, Loading, DataAnalysis, Grid } from '@element-plus/icons-vue'
 import { getProjectDetail, getProjectMembers } from '@/api/project'
 import { getIssueList, getProjectOverviewStats } from '@/api/issue'
 import type { Project, ProjectMember } from '@/types/project'
@@ -269,6 +272,19 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   padding: 24px 28px 16px;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--td-text-white);
+  margin-right: 12px;
+  margin-top: 4px;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 }
 
 .header-info {
