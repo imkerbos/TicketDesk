@@ -20,7 +20,7 @@ spec:
             host: {{ .Release.Name }}-backend
             port:
               number: {{ .Values.backend.port }}
-      timeout: 0s
+      timeout: 86400s
     # 健康检查直连后端
     - match:
         - uri:
