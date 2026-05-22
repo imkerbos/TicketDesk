@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import axios from 'axios'
 import { ElNotification } from 'element-plus'
 import type { NotificationItem, WSMessage } from '@/types/notification'
 import {
@@ -18,6 +19,42 @@ export const useNotificationStore = defineStore('notification', () => {
   const total = ref(0)
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectAttempts = 0
+  const MAX_RECONNECT_DELAY = 60000 // 最大重连间隔 60 秒
+
+  // 检查 JWT 是否过期（提前 30 秒判定，留网络余量）
+  const isTokenExpired = (token: string): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      return payload.exp * 1000 < Date.now() + 30000
+    } catch {
+      return true
+    }
+  }
+
+  // 确保获取有效 token（过期则尝试刷新）
+  const ensureFreshToken = async (): Promise<string | null> => {
+    const token = localStorage.getItem('token')
+    if (!token) return null
+    if (!isTokenExpired(token)) return token
+
+    // Token 已过期，尝试用 refresh_token 刷新
+    const refreshToken = localStorage.getItem('refresh_token')
+    if (!refreshToken) return null
+
+    try {
+      const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshToken })
+      const { access_token, refresh_token: newRefreshToken } = res.data.data
+      localStorage.setItem('token', access_token)
+      if (newRefreshToken) {
+        localStorage.setItem('refresh_token', newRefreshToken)
+      }
+      return access_token
+    } catch {
+      // refresh_token 也失效，放弃重连
+      return null
+    }
+  }
 
   // 计算属性
   const recentNotifications = computed(() => notifications.value.slice(0, 10))
@@ -207,7 +244,8 @@ export const useNotificationStore = defineStore('notification', () => {
 
   // 连接 WebSocket
   const connectWebSocket = async () => {
-    const token = localStorage.getItem('token')
+    // 确保 token 有效，过期则自动刷新
+    const token = await ensureFreshToken()
     if (!token) return
 
     // 请求通知权限
@@ -224,6 +262,7 @@ export const useNotificationStore = defineStore('notification', () => {
 
     socket.onopen = () => {
       connected.value = true
+      reconnectAttempts = 0 // 连接成功，重置重连计数
       startHeartbeat()
       // 连接后刷新数据
       fetchUnreadCountData()
@@ -244,13 +283,12 @@ export const useNotificationStore = defineStore('notification', () => {
       stopHeartbeat()
       ws.value = null
 
-      // 5秒后重连
+      // 指数退避重连：5s → 10s → 20s → 40s → 60s（上限）
+      reconnectAttempts++
+      const delay = Math.min(5000 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY)
       reconnectTimer = setTimeout(() => {
-        const currentToken = localStorage.getItem('token')
-        if (currentToken) {
-          connectWebSocket()
-        }
-      }, 5000)
+        connectWebSocket()
+      }, delay)
     }
 
     socket.onerror = () => {
