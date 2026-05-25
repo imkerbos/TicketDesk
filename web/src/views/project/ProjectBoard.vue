@@ -1,39 +1,36 @@
 <template>
   <div class="project-board-container">
     <!-- 页面头部 -->
-    <div class="board-header">
+    <header class="board-header">
       <div class="header-left">
-        <el-button class="back-btn" circle size="small" @click="$router.push(`/projects/${projectKey}`)">
+        <button class="back-btn" type="button" :title="`返回 ${project?.name || projectKey} 概览`" @click="$router.push(`/projects/${projectKey}`)">
           <el-icon><ArrowLeft /></el-icon>
-        </el-button>
+        </button>
         <div class="project-identity">
           <div class="project-icon" :style="{ background: getProjectColor(projectKey) }">
             {{ projectKey.substring(0, 2).toUpperCase() }}
           </div>
           <div class="project-info">
-            <el-breadcrumb separator="/" class="header-breadcrumb">
-              <el-breadcrumb-item :to="{ path: '/projects' }">项目</el-breadcrumb-item>
-              <el-breadcrumb-item>{{ project?.name || projectKey }}</el-breadcrumb-item>
-            </el-breadcrumb>
-            <h2 class="project-title">工单看板</h2>
+            <div class="project-name">{{ project?.name || projectKey }}</div>
+            <div class="project-section">工单看板</div>
           </div>
         </div>
       </div>
-      <div class="project-nav">
+      <nav class="project-nav">
         <router-link :to="`/projects/${projectKey}`" class="nav-item">
           <el-icon><DataAnalysis /></el-icon>
-          概览
+          <span>概览</span>
         </router-link>
         <router-link :to="`/projects/${projectKey}/board`" class="nav-item active">
           <el-icon><Grid /></el-icon>
-          看板
+          <span>看板</span>
         </router-link>
         <router-link :to="`/projects/${projectKey}/settings`" class="nav-item">
           <el-icon><Setting /></el-icon>
-          设置
+          <span>设置</span>
         </router-link>
-      </div>
-    </div>
+      </nav>
+    </header>
 
     <!-- 分���主体 -->
     <div class="board-body">
@@ -183,94 +180,112 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
-  height: 56px;
+  padding: 0 var(--td-space-5);
+  height: 60px;
   background: var(--td-bg-card);
   border-bottom: 1px solid var(--td-border-color);
   flex-shrink: 0;
+  gap: var(--td-space-4);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--td-space-3);
+  min-width: 0;
 }
 
 .back-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--td-radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
   color: var(--td-text-secondary);
-  border-color: var(--td-border-color);
+  cursor: pointer;
   flex-shrink: 0;
+  font-size: var(--td-font-md);
+  transition: var(--td-transition-bg), var(--td-transition-color);
 
   &:hover {
+    background: var(--td-bg-section);
     color: var(--td-color-primary);
-    border-color: var(--td-color-primary);
   }
 }
 
 .project-identity {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--td-space-3);
+  min-width: 0;
 }
 
 .project-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--td-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--td-text-white);
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: var(--td-weight-bold);
+  font-size: var(--td-font-sm);
+  letter-spacing: var(--td-tracking-wide);
   flex-shrink: 0;
+  box-shadow: var(--td-elevation-1);
 }
 
 .project-info {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
 }
 
-.header-breadcrumb {
-  :deep(.el-breadcrumb__inner) {
-    font-size: 12px;
-    color: var(--td-text-placeholder);
-  }
-
-  :deep(.el-breadcrumb__separator) {
-    font-size: 12px;
-    color: var(--td-text-disabled);
-  }
-}
-
-.project-title {
-  font-size: 15px;
-  font-weight: 600;
+.project-name {
+  font-size: var(--td-font-md);
+  font-weight: var(--td-weight-semibold);
   color: var(--td-text-primary);
-  margin: 0;
-  line-height: 1.2;
+  line-height: var(--td-leading-tight);
+  letter-spacing: var(--td-tracking-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-section {
+  font-size: var(--td-font-xs);
+  color: var(--td-text-placeholder);
+  font-weight: var(--td-weight-medium);
+  letter-spacing: var(--td-tracking-wide);
+  text-transform: uppercase;
+  line-height: 1.4;
 }
 
 .project-nav {
   display: flex;
   align-items: center;
   gap: 2px;
-  height: 100%;
+  flex-shrink: 0;
 
   .nav-item {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 13px;
+    gap: var(--td-space-2);
+    padding: var(--td-space-2) var(--td-space-3);
+    border-radius: var(--td-radius-md);
+    font-size: var(--td-font-base);
+    font-weight: var(--td-weight-medium);
     color: var(--td-text-secondary);
     text-decoration: none;
-    transition: background-color 150ms ease-out, color 150ms ease-out;
+    transition: var(--td-transition-bg), var(--td-transition-color);
+    position: relative;
 
     .el-icon {
-      font-size: 14px;
+      font-size: 15px;
     }
 
     &:hover {
@@ -282,7 +297,6 @@ onMounted(() => {
     &.router-link-exact-active {
       background: var(--td-tag-primary-bg);
       color: var(--td-color-primary);
-      font-weight: 500;
     }
   }
 }
@@ -295,32 +309,49 @@ onMounted(() => {
 }
 
 .board-left {
-  width: 360px;
-  min-width: 360px;
+  width: clamp(320px, 28vw, 400px);
   border-right: 1px solid var(--td-border-color);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  background: var(--td-bg-card);
 }
 
 .board-right {
   flex: 1;
   overflow-y: auto;
-  background: var(--td-bg-section);
+  background: var(--td-bg-page);
+  position: relative;
+
+  // 微妙网格装饰背景, 减少纯色空白单调感
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--td-border-color-light, rgba(255, 255, 255, 0.04)) 1px, transparent 0);
+  background-size: 24px 24px;
 }
 
-// ---- 空状态容器 (TdEmptyState 在内) ----
+// ---- 空状态容器 ----
 .empty-detail {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100%;
-  background: var(--td-bg-section);
+  min-height: 360px;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .back-btn,
   .nav-item {
     transition: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .board-header {
+    padding: 0 var(--td-space-3);
+
+    .nav-item span {
+      display: none;
+    }
   }
 }
 </style>

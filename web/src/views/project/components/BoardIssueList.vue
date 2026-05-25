@@ -488,23 +488,29 @@ defineExpose({
 }
 
 .issue-card {
-  padding: 10px 12px;
-  margin-bottom: 2px;
-  border-radius: 8px;
+  padding: var(--td-space-3) var(--td-space-3);
+  margin-bottom: var(--td-space-2);
+  border-radius: var(--td-radius-md);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  background: transparent;
+  transition: var(--td-transition-bg), var(--td-transition-border), var(--td-transition-shadow);
   position: relative;
 
   &:hover {
-    background: var(--td-bg-page);
+    background: var(--td-bg-section);
     border-color: var(--td-border-color);
+    box-shadow: var(--td-elevation-1);
   }
 
   &.selected {
     background: var(--td-tag-primary-bg);
     border-color: var(--td-tag-primary-border);
-    box-shadow: inset 3px 0 0 #3b82f6;
+    box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-color-primary);
+
+    &:hover {
+      background: var(--td-tag-primary-bg);
+    }
   }
 
   .card-top {

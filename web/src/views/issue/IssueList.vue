@@ -904,19 +904,26 @@ onMounted(async () => {
 
 // 筛选卡片
 .filter-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
+  margin-bottom: var(--td-space-5);
+  border-radius: var(--td-radius-lg);
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
 
-  :deep(.el-card__body) { padding: 16px 20px; }
+  &:hover {
+    box-shadow: var(--td-elevation-2);
+  }
+
+  :deep(.el-card__body) { padding: var(--td-space-4) var(--td-space-5); }
 
   .quick-filter-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px dashed #e5e7eb;
+    gap: var(--td-space-3);
+    margin-bottom: var(--td-space-3);
+    padding-bottom: var(--td-space-3);
+    border-bottom: 1px dashed var(--td-border-color);
   }
 
   .quick-filter-left {

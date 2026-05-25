@@ -133,7 +133,8 @@
       <el-container class="main-container">
         <el-header class="header">
           <div class="header-content">
-            <div class="page-title">{{ $route.meta.title }}</div>
+            <div v-if="$route.meta.title" class="page-title">{{ $route.meta.title }}</div>
+            <div v-else class="page-title-spacer"></div>
             <div class="header-right">
               <el-tooltip
                 :content="themeStore.mode === 'light' ? '切换到暗黑模式' : themeStore.mode === 'dark' ? '切换到跟随系统' : '切换到亮色模式'"

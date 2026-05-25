@@ -61,8 +61,9 @@ const iconComponent = computed(() => {
     margin-bottom: var(--td-space-2);
     font-size: 32px;
     color: var(--td-text-placeholder);
-    background: var(--td-bg-section);
-    transition: var(--td-transition-bg), var(--td-transition-color);
+    background: var(--td-tag-info-bg);
+    box-shadow: var(--td-elevation-1);
+    transition: var(--td-transition-bg), var(--td-transition-color), var(--td-transition-shadow);
   }
 
   &__title {

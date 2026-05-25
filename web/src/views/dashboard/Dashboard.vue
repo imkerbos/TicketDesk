@@ -88,7 +88,7 @@
           </template>
           <div v-loading="loadingTodo">
             <div v-if="todoIssues.length === 0" class="empty-state">
-              <el-empty description="暂无待办工单" :image-size="80" />
+              <TdEmptyState preset="no-data" title="暂无待办工单" description="所有任务都已处理完毕" />
             </div>
             <div v-else class="issue-list">
               <div
@@ -139,7 +139,7 @@
           </template>
           <div v-loading="loadingCreated">
             <div v-if="createdIssues.length === 0" class="empty-state">
-              <el-empty description="暂无创建的工单" :image-size="80" />
+              <TdEmptyState preset="no-data" title="暂无创建的工单" description="点击右上角「创建工单」开始" />
             </div>
             <div v-else class="issue-list">
               <div
@@ -199,7 +199,7 @@
           </template>
           <div v-loading="loadingAlerts">
             <div v-if="pendingAlerts.length === 0" class="empty-state">
-              <el-empty description="暂无待确认告警" :image-size="60" />
+              <TdEmptyState preset="no-data" tone="primary" title="无告警" description="系统运行正常" />
             </div>
             <div v-else class="alert-list">
               <div
@@ -238,7 +238,7 @@
           </template>
           <div v-loading="loadingActivities">
             <div v-if="recentActivities.length === 0" class="empty-state">
-              <el-empty description="暂无活动记录" :image-size="60" />
+              <TdEmptyState preset="no-data" title="暂无活动记录" />
             </div>
             <el-timeline v-else class="activity-timeline">
               <el-timeline-item
@@ -478,13 +478,22 @@ onMounted(() => {
 
 // 内容卡片
 .content-card {
-  margin-bottom: 20px;
-  border-radius: 8px;
+  margin-bottom: var(--td-space-5);
+  border-radius: var(--td-radius-lg);
   min-height: 200px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  overflow: hidden;
+
+  &:hover {
+    box-shadow: var(--td-elevation-2);
+  }
 
   :deep(.el-card__header) {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--td-divider-color);
+    padding: var(--td-space-4) var(--td-space-5);
+    border-bottom: 1px solid var(--td-border-color);
+    background: var(--td-bg-card);
   }
 
   :deep(.el-card__body) {
@@ -565,14 +574,18 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
+    padding: var(--td-space-3) var(--td-space-5);
     cursor: pointer;
-    transition: background-color 150ms ease-out;
-    border-bottom: 1px solid var(--td-divider-color);
+    transition: var(--td-transition-bg);
+    border-bottom: 1px solid var(--td-border-color);
+    position: relative;
 
     &:last-child { border-bottom: none; }
-    &:hover { background-color: var(--td-bg-page); }
-    &:active { background-color: var(--td-bg-section); }
+    &:hover {
+      background-color: var(--td-bg-section);
+      .issue-key { color: var(--td-color-primary-hover); }
+    }
+    &:active { background-color: var(--td-bg-card-hover); }
 
     .issue-left {
       display: flex;
