@@ -82,6 +82,8 @@ type Router struct {
 	notifChannelHandler    *projectHandler.NotificationChannelHandler
 	configSvc              configService.ConfigService
 	ssoHandler             *userHandler.SSOHandler
+	apiTokenHandler        *userHandler.APITokenHandler
+	apiTokenSvc            userService.APITokenService
 }
 
 // NewRouter 创建路由管理器
@@ -111,6 +113,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	var ssoHdl *userHandler.SSOHandler
 	ssoSvc := userService.NewSSOService(configSvc, userRepository, userRoleRepository, jwtManager)
 	ssoHdl = userHandler.NewSSOHandler(ssoSvc)
+
+	// ============ 初始化 API Token 模块 ============
+	apiTokenRepo := userRepo.NewAPITokenRepository(db)
+	apiTokenSvc := userService.NewAPITokenService(apiTokenRepo, userRepository)
+	apiTokenHdl := userHandler.NewAPITokenHandler(apiTokenSvc)
 
 	// ============ 初始化 Project 模块 ============
 	projectRepository := projectRepo.NewProjectRepository(db)
@@ -459,6 +466,8 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		notifChannelHandler:    notifChannelHdl,
 		configSvc:              configSvc,
 		ssoHandler:             ssoHdl,
+		apiTokenHandler:        apiTokenHdl,
+		apiTokenSvc:            apiTokenSvc,
 	}
 }
 
@@ -579,7 +588,7 @@ func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 		ConfigKey: "ratelimit.api_limit",
 		ConfigSvc: r.configSvc,
 	}))
-	protected.Use(middleware.AuthMiddleware(r.jwtManager))
+	protected.Use(middleware.AuthMiddleware(r.jwtManager, r.apiTokenSvc))
 	protected.Use(r.rbac.LoadUserRoles())
 	// 用户相关
 	r.registerUserRoutes(protected)
@@ -627,6 +636,14 @@ func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 	users.POST("/me/mfa/setup", r.userHandler.HandleSetupMFA)
 	users.POST("/me/mfa/enable", r.userHandler.HandleEnableMFA)
 	users.POST("/me/mfa/disable", r.userHandler.HandleDisableMFA)
+
+	// 用户个人 API token 管理（需 JWT 登录，拒绝 PAT 自调）
+	userTokens := users.Group("/me/tokens")
+	{
+		userTokens.POST("", r.apiTokenHandler.HandleCreate)
+		userTokens.GET("", r.apiTokenHandler.HandleList)
+		userTokens.DELETE("/:id", r.apiTokenHandler.HandleDelete)
+	}
 
 	// 获取所有用户（用于选择器，必须在 /:id 之前）
 	users.GET("/all", r.userHandler.HandleListAllUsers)
