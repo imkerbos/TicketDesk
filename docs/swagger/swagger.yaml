@@ -4192,9 +4192,29 @@ paths:
         in: query
         name: page_size
         type: integer
-      - description: 告警状态
+      - description: 告警状态 (firing/resolved)
         in: query
         name: status
+        type: string
+      - description: 严重级别 (critical/warning/info)
+        in: query
+        name: severity
+        type: string
+      - description: 来源
+        in: query
+        name: source
+        type: string
+      - description: 告警名称
+        in: query
+        name: alert_name
+        type: string
+      - description: 关联工单 ID
+        in: query
+        name: issue_id
+        type: integer
+      - description: '标签筛选，格式: key==value,key!=value'
+        in: query
+        name: label_filters
         type: string
       produces:
       - application/json
@@ -4522,13 +4542,22 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.LoginResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LoginResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 账号已禁用
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       summary: 用户登录
@@ -4552,7 +4581,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.LoginResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LoginResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -4578,7 +4612,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.LoginResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LoginResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -4608,7 +4647,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -4651,7 +4695,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.SSOAuthorizeResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SSOAuthorizeResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -4677,7 +4726,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.LoginResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LoginResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -4702,7 +4756,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.SSOConfigResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SSOConfigResponse'
+              type: object
       summary: 获取 SSO 配置
       tags:
       - SSO
@@ -4756,9 +4815,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.IssueTypeResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.IssueTypeResponse'
+                  type: array
+              type: object
       security:
       - BearerAuth: []
       summary: 获取所有工单类型
@@ -4779,6 +4843,54 @@ paths:
         in: query
         name: page_size
         type: integer
+      - description: 状态，支持逗号分隔多值，如 open,in_progress
+        in: query
+        name: status
+        type: string
+      - description: 优先级 (P0/P1/P2/P3)
+        in: query
+        name: priority
+        type: string
+      - description: 经办人 ID
+        in: query
+        name: assignee_id
+        type: integer
+      - description: 报告人 ID
+        in: query
+        name: reporter_id
+        type: integer
+      - description: 工单类型 ID
+        in: query
+        name: issue_type_id
+        type: integer
+      - description: Epic ID
+        in: query
+        name: epic_id
+        type: integer
+      - description: 关键字搜索
+        in: query
+        name: keyword
+        type: string
+      - description: 分类 (normal/alert)
+        in: query
+        name: category
+        type: string
+      - description: 排序字段 (id/priority/status/issue_type_id/created_at/updated_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: 排序方向 (asc/desc)
+        in: query
+        name: order
+        type: string
+      - description: 开始日期 (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
       produces:
       - application/json
       responses:
@@ -4789,9 +4901,7 @@ paths:
             - $ref: '#/definitions/response.Response'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/dto.IssueResponse'
-                  type: array
+                  $ref: '#/definitions/response.PageData'
               type: object
         "401":
           description: 未认证
@@ -4809,14 +4919,22 @@ paths:
     post:
       consumes:
       - application/json
+      - multipart/form-data
       description: 支持 application/json 和 multipart/form-data 两种方式，后者可同时上传附件
       parameters:
-      - description: 创建工单请求体
+      - description: 'application/json 模式: 创建工单请求体'
         in: body
         name: body
-        required: true
         schema:
           $ref: '#/definitions/dto.CreateIssueRequest'
+      - description: 'multipart 模式: JSON 字符串（与 body 二选一）'
+        in: formData
+        name: data
+        type: string
+      - description: 'multipart 模式: 附件文件（可多个）'
+        in: formData
+        name: files
+        type: file
       produces:
       - application/json
       responses:
@@ -4872,7 +4990,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 获取工单字段值
@@ -5479,7 +5597,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.WorkflowInstanceResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorkflowInstanceResponse'
+              type: object
         "404":
           description: Not Found
           schema:
@@ -5541,9 +5664,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.WorkflowHistoryResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.WorkflowHistoryResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -6048,7 +6176,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.PageData'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.PageData'
+              type: object
       security:
       - BearerAuth: []
       summary: 获取项目列表
@@ -6071,9 +6204,22 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.ProjectResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectResponse'
+              type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 需项目管理员
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
@@ -6120,7 +6266,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.ProjectResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectResponse'
+              type: object
         "404":
           description: Not Found
           schema:
@@ -6152,7 +6303,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.ProjectResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -6192,7 +6348,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 获取组件列表
@@ -6229,7 +6385,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 创建项目组件
@@ -6259,7 +6415,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 删除项目组件
@@ -6301,7 +6457,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 更新项目组件
@@ -6333,7 +6489,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 获取字段列表
@@ -6370,7 +6526,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 需项目管理员
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 创建自定义字段
@@ -6400,7 +6564,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 删除字段定义
@@ -6442,7 +6606,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 更新字段定义
@@ -6463,9 +6627,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.IssueTypeResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.IssueTypeResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -6497,7 +6666,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.IssueTypeResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueTypeResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -6572,7 +6746,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.IssueTypeResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueTypeResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -6617,7 +6796,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 获取字段方案
@@ -6661,7 +6840,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 更新字段方案
@@ -6693,7 +6872,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 获取标签列表
@@ -6730,7 +6909,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 创建标签
@@ -6760,7 +6939,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 删除标签
@@ -6802,7 +6981,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 更新标签
@@ -6823,9 +7002,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.ProjectMemberResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ProjectMemberResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -6857,7 +7041,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.ProjectMemberResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectMemberResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -6932,7 +7121,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.ProjectMemberResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectMemberResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -6961,9 +7155,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.NotificationChannelResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.NotificationChannelResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -6995,7 +7194,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.NotificationChannelResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.NotificationChannelResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7052,7 +7256,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.NotificationChannelResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.NotificationChannelResponse'
+              type: object
         "404":
           description: Not Found
           schema:
@@ -7089,7 +7298,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.NotificationChannelResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.NotificationChannelResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7146,9 +7360,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.ProjectRoleResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ProjectRoleResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -7180,7 +7399,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.ProjectRoleResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectRoleResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7255,7 +7479,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.ProjectRoleResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectRoleResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7289,9 +7518,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.ProjectRoleMemberResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ProjectRoleMemberResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -7328,7 +7562,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.ProjectRoleMemberResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectRoleMemberResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7401,9 +7640,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.ProjectRoleResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ProjectRoleResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -7439,7 +7683,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 获取版本列表
@@ -7476,7 +7720,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 创建项目版本
@@ -7506,7 +7750,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 删除项目版本
@@ -7548,7 +7792,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.Response'
+            $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
       summary: 更新项目版本
@@ -7569,9 +7813,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.WorkflowSchemeResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.WorkflowSchemeResponse'
+                  type: array
+              type: object
         "404":
           description: Not Found
           schema:
@@ -7603,7 +7852,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.WorkflowSchemeResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorkflowSchemeResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7656,9 +7910,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.ProjectResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ProjectResponse'
+                  type: array
+              type: object
       security:
       - BearerAuth: []
       summary: 获取所有项目
@@ -7714,7 +7973,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.DashboardStatsResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DashboardStatsResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7750,7 +8014,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.IssueStatsResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueStatsResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7784,7 +8053,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.SLAReportResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SLAReportResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7816,9 +8090,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.UserPerformanceResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.UserPerformanceResponse'
+                  type: array
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -7850,7 +8129,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.WorklogStatsResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorklogStatsResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -9476,7 +9760,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.PageData'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.PageData'
+              type: object
       security:
       - BearerAuth: []
       summary: 获取用户列表
@@ -9499,7 +9788,12 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -9548,7 +9842,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
         "404":
           description: Not Found
           schema:
@@ -9580,7 +9879,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -9690,9 +9994,14 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/dto.UserResponse'
-            type: array
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.UserResponse'
+                  type: array
+              type: object
       security:
       - BearerAuth: []
       summary: 获取所有用户
@@ -9707,7 +10016,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
         "401":
           description: Unauthorized
           schema:
@@ -9726,7 +10040,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.MFAStatusResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MFAStatusResponse'
+              type: object
       security:
       - BearerAuth: []
       summary: 获取 MFA 状态
@@ -9797,7 +10116,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.MFASetupResponse'
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.MFASetupResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
