@@ -153,7 +153,7 @@
     <!-- 工单卡片列表 -->
     <div v-loading="loading" class="issue-cards">
       <div v-if="issueList.length === 0 && !loading" class="empty-state">
-        <el-empty description="暂无匹配的工单" :image-size="60" />
+        <TdEmptyState preset="no-result" title="暂无匹配的工单" />
       </div>
       <div
         v-for="item in issueList"

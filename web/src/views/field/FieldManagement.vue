@@ -88,7 +88,7 @@
                       </div>
                     </div>
                   </div>
-                  <el-empty v-if="!fieldsLoading && filteredSystemFields.length === 0" description="无匹配的系统字段" :image-size="80" />
+                  <TdEmptyState v-if="!fieldsLoading && filteredSystemFields.length === 0" preset="no-result" title="无匹配的系统字段" />
                 </div>
               </div>
             </transition>
@@ -137,14 +137,14 @@
                 </div>
               </div>
               <div v-if="!fieldsLoading && filteredCustomFields.length === 0 && !fieldSearchText" class="empty-custom">
-                <el-empty description="暂无自定义字段" :image-size="100">
+                <TdEmptyState preset="first-time" title="暂无自定义字段" description="创建自定义字段，为工单添加更多属性">
                   <el-button type="primary" @click="openCreateFieldDialog">
                     <el-icon><Plus /></el-icon>
                     创建第一个字段
                   </el-button>
-                </el-empty>
+                </TdEmptyState>
               </div>
-              <el-empty v-if="!fieldsLoading && filteredCustomFields.length === 0 && fieldSearchText" description="无匹配的自定义字段" :image-size="80" />
+              <TdEmptyState v-if="!fieldsLoading && filteredCustomFields.length === 0 && fieldSearchText" preset="no-result" title="无匹配的自定义字段" />
             </div>
           </div>
         </el-tab-pane>
@@ -222,12 +222,12 @@
                 </div>
               </div>
             </div>
-            <el-empty v-if="!templatesLoading && templates.length === 0" description="暂无方案模板" :image-size="120">
+            <TdEmptyState v-if="!templatesLoading && templates.length === 0" preset="first-time" title="暂无方案模板" description="方案模板可快速套用到项目的工单类型字段配置">
               <el-button type="primary" @click="openCreateTemplateDialog">
                 <el-icon><Plus /></el-icon>
                 创建第一个模板
               </el-button>
-            </el-empty>
+            </TdEmptyState>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -390,7 +390,7 @@
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="templateItems.length === 0" description="暂无字段，点击上方按钮添加" :image-size="80" />
+        <TdEmptyState v-if="templateItems.length === 0" preset="no-data" title="暂无字段，点击上方按钮添加" />
       </div>
       <template #footer>
         <el-button @click="templateDetailVisible = false">取消</el-button>
@@ -999,8 +999,12 @@ onMounted(async () => {
 
 // ============ 内容卡片 ============
 .content-card {
-  border-radius: 12px;
-  border: 1px solid var(--td-border-color);
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) {
     padding: 0;

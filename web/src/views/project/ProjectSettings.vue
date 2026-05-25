@@ -169,7 +169,7 @@
                 </template>
               </el-table-column>
             </el-table>
-            <el-empty v-if="!membersLoading && members.length === 0" description="暂无成员" />
+            <TdEmptyState v-if="!membersLoading && members.length === 0" preset="no-data" title="暂无成员" />
           </div>
         </el-tab-pane>
 
@@ -242,7 +242,7 @@
                 </div>
               </div>
             </div>
-            <el-empty v-if="!rolesLoading && roles.length === 0" description="暂无角色" />
+            <TdEmptyState v-if="!rolesLoading && roles.length === 0" preset="no-data" title="暂无角色" />
           </div>
         </el-tab-pane>
 
@@ -288,7 +288,7 @@
                 </div>
               </div>
             </div>
-            <el-empty v-if="!issueTypesLoading && issueTypes.length === 0" description="暂无工单类型" />
+            <TdEmptyState v-if="!issueTypesLoading && issueTypes.length === 0" preset="no-data" title="暂无工单类型" />
           </div>
         </el-tab-pane>
 
@@ -477,12 +477,12 @@
               </div>
             </div>
 
-            <el-empty v-if="!schemesLoading && schemes.length === 0" description="暂未配置工作流方案">
+            <TdEmptyState v-if="!schemesLoading && schemes.length === 0" preset="first-time" title="暂未配置工作流方案" description="绑定工单类型与工作流，自动启动流程实例">
               <el-button type="primary" @click="openSchemeDialog">
                 <el-icon><Plus /></el-icon>
                 添加第一个配置
               </el-button>
-            </el-empty>
+            </TdEmptyState>
           </div>
         </el-tab-pane>
 
@@ -570,7 +570,7 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-empty v-if="filteredAvailableUsers.length === 0 && memberSearchKeyword" description="无匹配用户" :image-size="60" />
+          <TdEmptyState v-if="filteredAvailableUsers.length === 0 && memberSearchKeyword" preset="no-result" title="无匹配用户" />
         </div>
       </div>
       <template #footer>
@@ -658,7 +658,7 @@
               移除
             </el-button>
           </div>
-          <el-empty v-if="!roleMembersLoading && roleMembers.length === 0" description="暂无成员" />
+          <TdEmptyState v-if="!roleMembersLoading && roleMembers.length === 0" preset="no-data" title="暂无成员" />
         </div>
       </div>
     </el-dialog>
@@ -1974,7 +1974,12 @@ onMounted(async () => {
 
 
 .settings-card {
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) {
     padding: 0;

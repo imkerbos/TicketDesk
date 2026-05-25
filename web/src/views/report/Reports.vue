@@ -90,7 +90,7 @@
                     </div>
                     <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="getStatusColor(item.name)" />
                   </div>
-                  <el-empty v-if="!issueStats.status_distribution?.length" description="暂无数据" :image-size="60" />
+                  <TdEmptyState v-if="!issueStats.status_distribution?.length" preset="no-data" title="暂无数据" />
                 </div>
               </el-card>
             </el-col>
@@ -111,7 +111,7 @@
                     </div>
                     <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="getPriorityColor(item.name)" />
                   </div>
-                  <el-empty v-if="!issueStats.priority_distribution?.length" description="暂无数据" :image-size="60" />
+                  <TdEmptyState v-if="!issueStats.priority_distribution?.length" preset="no-data" title="暂无数据" />
                 </div>
               </el-card>
             </el-col>
@@ -136,7 +136,7 @@
                     </div>
                     <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="typeColors[idx % typeColors.length]" />
                   </div>
-                  <el-empty v-if="!issueStats.type_distribution?.length" description="暂无数据" :image-size="60" />
+                  <TdEmptyState v-if="!issueStats.type_distribution?.length" preset="no-data" title="暂无数据" />
                 </div>
               </el-card>
             </el-col>
@@ -157,7 +157,7 @@
                     </div>
                     <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="assigneeColors[idx % assigneeColors.length]" />
                   </div>
-                  <el-empty v-if="!issueStats.assignee_distribution?.length" description="暂无数据" :image-size="60" />
+                  <TdEmptyState v-if="!issueStats.assignee_distribution?.length" preset="no-data" title="暂无数据" />
                 </div>
               </el-card>
             </el-col>
@@ -182,7 +182,7 @@
                     </div>
                     <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="epicColors[idx % epicColors.length]" />
                   </div>
-                  <el-empty v-if="!issueStats.epic_distribution?.length" description="暂无数据" :image-size="60" />
+                  <TdEmptyState v-if="!issueStats.epic_distribution?.length" preset="no-data" title="暂无数据" />
                 </div>
               </el-card>
             </el-col>
@@ -224,7 +224,7 @@
                   </template>
                 </el-table-column>
               </el-table>
-              <el-empty v-if="!issueStats.timeline?.length" description="暂无趋势数据" :image-size="60" />
+              <TdEmptyState v-if="!issueStats.timeline?.length" preset="no-data" title="暂无趋势数据" />
             </div>
           </el-card>
         </div>
@@ -330,7 +330,7 @@
                     </template>
                   </el-table-column>
                 </el-table>
-                <el-empty v-if="!slaReport.by_project?.length" description="暂无数据" :image-size="60" />
+                <TdEmptyState v-if="!slaReport.by_project?.length" preset="no-data" title="暂无数据" />
               </el-card>
             </el-col>
           </el-row>
@@ -371,7 +371,7 @@
                 </template>
               </el-table-column>
             </el-table>
-            <el-empty v-if="!slaReport.violations?.length" description="暂无超时工单" :image-size="60" />
+            <TdEmptyState v-if="!slaReport.violations?.length" preset="no-data" title="暂无超时工单" />
           </el-card>
         </div>
       </el-tab-pane>
@@ -437,7 +437,7 @@
                     </div>
                     <el-progress :percentage="item.ratio" :show-text="false" :stroke-width="6" :color="getSeverityColor(item.name)" />
                   </div>
-                  <el-empty v-if="!alertStats.severity_distribution?.length" description="暂无数据" :image-size="60" />
+                  <TdEmptyState v-if="!alertStats.severity_distribution?.length" preset="no-data" title="暂无数据" />
                 </div>
               </el-card>
             </el-col>
@@ -467,7 +467,7 @@
                       </template>
                     </el-table-column>
                   </el-table>
-                  <el-empty v-if="!alertStats.timeline?.length" description="暂无趋势数据" :image-size="60" />
+                  <TdEmptyState v-if="!alertStats.timeline?.length" preset="no-data" title="暂无趋势数据" />
                 </div>
               </el-card>
             </el-col>
@@ -499,7 +499,7 @@
                 </template>
               </el-table-column>
             </el-table>
-            <el-empty v-if="!alertStats.top_alerts?.length" description="暂无数据" :image-size="60" />
+            <TdEmptyState v-if="!alertStats.top_alerts?.length" preset="no-data" title="暂无数据" />
           </el-card>
         </div>
       </el-tab-pane>
@@ -584,7 +584,7 @@
                 <template #default="{ row }">{{ formatHours(row.avg_resolve_time) }}</template>
               </el-table-column>
             </el-table>
-            <el-empty v-if="!userPerformance.length" description="暂无绩效数据" :image-size="60" />
+            <TdEmptyState v-if="!userPerformance.length" preset="no-data" title="暂无绩效数据" />
           </el-card>
         </div>
       </el-tab-pane>
@@ -649,7 +649,7 @@
                       <div class="bar-label">{{ formatShortDate(item.date) }}</div>
                     </div>
                   </div>
-                  <el-empty v-else description="暂无工时数据" :image-size="60" />
+                  <TdEmptyState v-else preset="no-data" title="暂无工时数据" />
                 </div>
               </el-card>
             </el-col>
@@ -672,7 +672,7 @@
                     </div>
                     <el-progress :percentage="getTypePercentage(item.total_time_sec)" :show-text="false" :stroke-width="6" :color="worklogTypeColors[idx % worklogTypeColors.length]" />
                   </div>
-                  <el-empty v-if="!worklogStats.type_stats?.length" description="暂无数据" :image-size="60" />
+                  <TdEmptyState v-if="!worklogStats.type_stats?.length" preset="no-data" title="暂无数据" />
                 </div>
               </el-card>
             </el-col>
@@ -712,7 +712,7 @@
                 </template>
               </el-table-column>
             </el-table>
-            <el-empty v-if="!worklogStats.user_stats?.length" description="暂无工时数据" :image-size="60" />
+            <TdEmptyState v-if="!worklogStats.user_stats?.length" preset="no-data" title="暂无工时数据" />
           </el-card>
 
           <!-- 工时明细网格（用户 × 日期） -->
@@ -789,7 +789,7 @@
                   </template>
                 </el-table-column>
               </el-table>
-              <el-empty v-else description="暂无工时明细" :image-size="60" />
+              <TdEmptyState v-else preset="no-data" title="暂无工时明细" />
             </div>
           </el-card>
         </div>

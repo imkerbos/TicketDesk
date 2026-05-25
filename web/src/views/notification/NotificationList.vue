@@ -58,11 +58,7 @@
       </div>
 
       <div v-else-if="notifications.length === 0" class="empty-state">
-        <el-empty description="暂无通知">
-          <template #image>
-            <el-icon :size="80" color="#d1d5db"><BellFilled /></el-icon>
-          </template>
-        </el-empty>
+        <TdEmptyState preset="no-data" title="暂无通知" />
       </div>
 
       <div v-else class="notification-list">
@@ -142,7 +138,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Bell, BellFilled, Check, User, Clock } from '@element-plus/icons-vue'
+import { Bell, Check, User, Clock } from '@element-plus/icons-vue'
 import { useNotificationStore } from '@/stores/notification'
 import { getNotificationList, markAsRead, deleteNotification } from '@/api/notification'
 import type { NotificationItem } from '@/types/notification'
@@ -306,7 +302,12 @@ onMounted(() => {
 // 筛选卡片
 .filter-card {
   margin-bottom: 20px;
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) {
     padding: 16px 20px;

@@ -57,7 +57,7 @@
             </div>
           </div>
         </div>
-        <el-empty v-if="!loading && workflows.length === 0" description="暂无工作流" />
+        <TdEmptyState v-if="!loading && workflows.length === 0" preset="no-data" title="暂无工作流" />
       </div>
     </el-card>
 
@@ -121,7 +121,7 @@
               <el-button size="small" type="danger" :disabled="node.node_type === 'start' || node.node_type === 'end'" @click="handleDeleteNode(node)">删除</el-button>
             </div>
           </div>
-          <el-empty v-if="!nodesLoading && workflowNodes.length === 0" description="暂无节点" />
+          <TdEmptyState v-if="!nodesLoading && workflowNodes.length === 0" preset="no-data" title="暂无节点" />
         </div>
 
         <!-- 边管理 -->
@@ -144,7 +144,7 @@
               <el-button size="small" type="danger" @click="handleDeleteEdge(edge)">删除</el-button>
             </div>
           </div>
-          <el-empty v-if="!edgesLoading && workflowEdges.length === 0" description="暂无边" />
+          <TdEmptyState v-if="!edgesLoading && workflowEdges.length === 0" preset="no-data" title="暂无边" />
         </div>
       </div>
     </el-dialog>
@@ -674,7 +674,12 @@ onMounted(() => {
 }
 
 .workflows-card {
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) {
     padding: 24px;

@@ -55,7 +55,7 @@
             </div>
           </div>
         </div>
-        <el-empty v-if="!loading && roles.length === 0" description="暂无角色" />
+        <TdEmptyState v-if="!loading && roles.length === 0" preset="no-data" title="暂无角色" />
       </div>
     </el-card>
 
@@ -111,7 +111,7 @@
               移除
             </el-button>
           </div>
-          <el-empty v-if="!membersLoading && roleMembers.length === 0" description="暂无成员" />
+          <TdEmptyState v-if="!membersLoading && roleMembers.length === 0" preset="no-data" title="暂无成员" />
         </div>
       </div>
     </el-dialog>
@@ -343,7 +343,12 @@ onMounted(() => {
 }
 
 .roles-card {
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) {
     padding: 24px;

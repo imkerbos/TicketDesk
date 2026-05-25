@@ -127,15 +127,15 @@
           </el-table-column>
         </el-table>
 
-        <el-empty v-if="currentScheme.length === 0" description="暂未配置字段" :image-size="80">
+        <TdEmptyState v-if="currentScheme.length === 0" preset="first-time" title="暂未配置字段" description="为此工单类型添加字段以收集更多信息">
           <el-button type="primary" @click="openSchemeFieldDialog">
             <el-icon><Plus /></el-icon>
             添加字段
           </el-button>
-        </el-empty>
+        </TdEmptyState>
       </div>
 
-      <el-empty v-else description="请选择一个工单类型以配置字段" :image-size="100" />
+      <TdEmptyState v-else preset="no-data" title="请选择一个工单类型以配置字段" />
     </div>
 
     <!-- 添加字段到方案对话框 -->
@@ -168,7 +168,7 @@
             </div>
           </div>
         </div>
-        <el-empty v-if="availableFieldsForScheme.length === 0" description="所有字段已添加" :image-size="60" />
+        <TdEmptyState v-if="availableFieldsForScheme.length === 0" preset="no-data" title="所有字段已添加" />
       </div>
       <template #footer>
         <el-button @click="schemeFieldDialogVisible = false">取消</el-button>

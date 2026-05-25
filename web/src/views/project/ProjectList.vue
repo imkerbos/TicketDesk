@@ -96,12 +96,12 @@
       </el-row>
 
       <div v-if="projectList.length === 0 && !loading" class="empty-state">
-        <el-empty description="暂无项目">
+        <TdEmptyState preset="first-time" title="暂无项目" description="创建第一个项目开始工作">
           <el-button type="primary" @click="handleCreate">
             <el-icon><Plus /></el-icon>
             创建第一个项目
           </el-button>
-        </el-empty>
+        </TdEmptyState>
       </div>
 
       <div v-if="total > 0" class="pagination-wrapper">
@@ -344,7 +344,12 @@ onMounted(() => { loadProjects(); loadUsers() })
 // 筛选
 .filter-card {
   margin-bottom: 20px;
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) { padding: 16px 20px; }
 

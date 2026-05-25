@@ -674,7 +674,12 @@ const loadLabelKeys = async () => {
 // 筛选
 .filter-card {
   margin-bottom: 20px;
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) { padding: 16px 20px; }
 
