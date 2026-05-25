@@ -201,11 +201,11 @@ const handlePaste = (e: ClipboardEvent) => {
 }
 
 const bindPasteListener = () => {
-  document.querySelector('.create-issue-dialog')?.addEventListener('paste', handlePaste)
+  document.querySelector('.create-issue-dialog')?.addEventListener('paste', handlePaste as unknown as (ev: Event) => void)
 }
 
 const unbindPasteListener = () => {
-  document.querySelector('.create-issue-dialog')?.removeEventListener('paste', handlePaste)
+  document.querySelector('.create-issue-dialog')?.removeEventListener('paste', handlePaste as unknown as (ev: Event) => void)
 }
 
 // 对话框打开时重置状态

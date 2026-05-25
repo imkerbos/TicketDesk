@@ -1,0 +1,30 @@
+// 动效标度 — 时长 + 曲线 + 常用组合
+:root {
+  // 时长
+  --td-duration-instant: 80ms;
+  --td-duration-fast: 150ms;
+  --td-duration-base: 200ms;
+  --td-duration-slow: 300ms;
+
+  // 缓动曲线
+  --td-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --td-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --td-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  // 常用 transition 组合
+  --td-transition-color: color var(--td-duration-fast) var(--td-ease-in-out);
+  --td-transition-bg: background-color var(--td-duration-fast) var(--td-ease-in-out);
+  --td-transition-border: border-color var(--td-duration-fast) var(--td-ease-in-out);
+  --td-transition-shadow: box-shadow var(--td-duration-fast) var(--td-ease-in-out);
+  --td-transition-all: all var(--td-duration-fast) var(--td-ease-in-out);
+}
+
+// 用户偏好降级
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --td-duration-instant: 0ms;
+    --td-duration-fast: 0ms;
+    --td-duration-base: 0ms;
+    --td-duration-slow: 0ms;
+  }
+}

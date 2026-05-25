@@ -39,7 +39,8 @@ watch(internalValue, (newVal) => {
   emit('update:modelValue', newVal)
 })
 
-const handleChange = (value: boolean) => {
-  emit('change', value)
+// el-switch 的 @change 类型签名是 (string | number | boolean), 这里强制布尔语义
+const handleChange = (value: string | number | boolean) => {
+  emit('change', Boolean(value))
 }
 </script>
