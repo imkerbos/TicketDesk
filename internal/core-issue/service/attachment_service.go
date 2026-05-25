@@ -113,46 +113,21 @@ func (s *attachmentService) UploadAttachment(ctx context.Context, issueKey strin
 		return nil, fmt.Errorf("查询工单失败: %w", err)
 	}
 
-	// 验证文件大小
-	if fileHeader.Size > MaxAttachmentSize {
-		return nil, ErrFileTooLarge
-	}
-
-	// 验证文件类型
-	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-	if !IsAllowedAttachmentExt(ext) {
-		return nil, ErrInvalidFileType
-	}
-
-	// 打开文件
-	file, err := fileHeader.Open()
+	// 校验 + 落盘（复用 SaveFile）
+	relPath, err := s.SaveFile(fileHeader)
 	if err != nil {
-		return nil, fmt.Errorf("打开文件失败: %w", err)
+		return nil, err
 	}
-	defer file.Close()
-
-	// 生成唯一文件名（时间戳 + 原文件名）
-	timestamp := time.Now().Format("20060102150405")
-	uniqueFilename := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
-
-	// 保存文件
-	relPath, err := s.storage.Save(file, uniqueFilename)
-	if err != nil {
-		logger.Error("failed to save file", zap.Error(err))
-		return nil, fmt.Errorf("保存文件失败: %w", err)
-	}
-
-	// 判断是否为图片
-	isImage := IsImageAttachmentExt(ext)
 
 	// 创建附件记录
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	attachment := &model.IssueAttachment{
 		IssueID:    issue.ID,
 		FileName:   fileHeader.Filename,
 		FilePath:   relPath,
 		FileSize:   fileHeader.Size,
 		FileType:   ext,
-		IsImage:    isImage,
+		IsImage:    IsImageAttachmentExt(ext),
 		UploadedBy: userID,
 	}
 
