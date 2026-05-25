@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-issue/dto"
@@ -70,8 +71,16 @@ func (h *IssueHandler) HandleCreateIssue(c *gin.Context) {
 			response.BadRequest(c, "请求参数错误: "+err.Error())
 			return
 		}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			response.BadRequest(c, "请求参数错误: "+err.Error())
+			return
+		}
 		form, err := c.MultipartForm()
-		if err == nil && form != nil {
+		if err != nil {
+			response.BadRequest(c, "解析 multipart 表单失败: "+err.Error())
+			return
+		}
+		if form != nil {
 			files = form.File["files"]
 		}
 	} else {
