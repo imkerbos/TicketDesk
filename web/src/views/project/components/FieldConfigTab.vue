@@ -39,7 +39,12 @@
           </div>
         </div>
 
-        <el-table :data="currentScheme" stripe class="scheme-table">
+        <el-table ref="schemeTableRef" :data="currentScheme" stripe row-key="field_id" class="scheme-table">
+          <el-table-column width="44" align="center" class-name="drag-handle-col">
+            <template #default>
+              <el-icon class="drag-handle" title="拖拽排序"><Rank /></el-icon>
+            </template>
+          </el-table-column>
           <el-table-column label="字段" min-width="200">
             <template #default="{ row }">
               <div class="field-cell">
@@ -251,9 +256,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import Sortable from 'sortablejs'
 import {
   Plus,
   Check,
@@ -267,6 +273,7 @@ import {
   Link,
   Grid,
   DocumentCopy,
+  Rank,
 } from '@element-plus/icons-vue'
 import {
   getFields,
@@ -300,6 +307,10 @@ const selectedIssueTypeId = ref<number | undefined>(
   route.query.issueTypeId ? Number(route.query.issueTypeId) : undefined
 )
 const currentScheme = ref<FieldSchemeItem[]>([])
+
+// 字段方案表格 + 拖拽排序
+const schemeTableRef = ref<any>(null)
+let sortableInstance: Sortable | null = null
 
 // 同步状态到 URL
 const syncStateToUrl = () => {
@@ -359,10 +370,64 @@ const loadFieldScheme = async () => {
   try {
     const { data } = await getFieldScheme(props.projectKey, selectedIssueTypeId.value)
     currentScheme.value = data.data || []
+    await nextTick()
+    setupSortable()
   } catch {
     // ignored
   } finally {
     schemesLoading.value = false
+  }
+}
+
+// 初始化/重置 SortableJS, 绑到 el-table 的 tbody
+const setupSortable = () => {
+  if (sortableInstance) {
+    sortableInstance.destroy()
+    sortableInstance = null
+  }
+  const tableEl = schemeTableRef.value?.$el as HTMLElement | undefined
+  const tbody = tableEl?.querySelector<HTMLElement>('.el-table__body-wrapper tbody')
+  if (!tbody) return
+  sortableInstance = Sortable.create(tbody, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'drag-ghost-row',
+    chosenClass: 'drag-chosen-row',
+    onEnd: handleDragEnd,
+  })
+}
+
+// 拖拽结束: 按新顺序重排 currentScheme + 重赋 sort_order + 批量保存
+const handleDragEnd = async (evt: Sortable.SortableEvent) => {
+  const { oldIndex, newIndex } = evt
+  if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) return
+  if (!selectedIssueTypeId.value) return
+
+  // 重排数组 (响应式)
+  const moved = currentScheme.value.splice(oldIndex, 1)[0]
+  currentScheme.value.splice(newIndex, 0, moved)
+
+  // 重新分配 sort_order, 间隔 10 留出手动微调空间
+  currentScheme.value.forEach((item, idx) => {
+    item.sort_order = idx * 10
+  })
+
+  // 批量保存
+  try {
+    const allItems = currentScheme.value.map(s => ({
+      field_id: s.field_id,
+      is_required: s.is_required,
+      is_visible_create: s.is_visible_create,
+      is_visible_edit: s.is_visible_edit,
+      is_visible_detail: s.is_visible_detail,
+      sort_order: s.sort_order,
+      default_value: s.default_value,
+    }))
+    await updateFieldScheme(props.projectKey, selectedIssueTypeId.value, { items: allItems })
+    ElMessage.success('排序已保存')
+  } catch {
+    ElMessage.error('排序保存失败')
+    await loadFieldScheme()
   }
 }
 
@@ -582,6 +647,13 @@ onMounted(async () => {
     await loadFieldScheme()
   }
 })
+
+onBeforeUnmount(() => {
+  if (sortableInstance) {
+    sortableInstance.destroy()
+    sortableInstance = null
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -653,6 +725,39 @@ onMounted(async () => {
       font-weight: 600;
       color: var(--td-text-regular);
     }
+  }
+
+  // 拖拽手柄列
+  :deep(.drag-handle-col) {
+    .drag-handle {
+      cursor: grab;
+      color: var(--td-text-placeholder, #9ca3af);
+      transition: color 150ms ease-out;
+
+      &:hover {
+        color: var(--td-color-primary, #3b82f6);
+      }
+
+      &:active {
+        cursor: grabbing;
+      }
+    }
+  }
+
+  // 拖拽中行样式 (SortableJS 类)
+  :deep(.drag-ghost-row) {
+    opacity: 0.4;
+    background: var(--td-bg-page) !important;
+  }
+
+  :deep(.drag-chosen-row) {
+    background: var(--el-fill-color-light, #f5f7fa) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scheme-table :deep(.drag-handle) {
+    transition: none;
   }
 }
 
