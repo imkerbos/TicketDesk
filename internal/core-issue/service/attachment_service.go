@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -31,8 +32,8 @@ var (
 // 附件校验常量（包级，供 issue_service 与 attachment_service 共享）
 const MaxAttachmentSize int64 = 10 * 1024 * 1024 // 10MB
 
-// AllowedAttachmentExts 允许的附件扩展名（小写）
-var AllowedAttachmentExts = []string{
+// allowedAttachmentExts 允许的附件扩展名（小写），不对外暴露，通过 IsAllowedAttachmentExt 访问
+var allowedAttachmentExts = []string{
 	".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
 	".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
 	".txt", ".md", ".csv",
@@ -40,27 +41,17 @@ var AllowedAttachmentExts = []string{
 	".log", ".json", ".xml", ".yaml", ".yml",
 }
 
-// ImageAttachmentExts 图片扩展名（小写）
-var ImageAttachmentExts = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+// imageAttachmentExts 图片扩展名（小写），不对外暴露，通过 IsImageAttachmentExt 访问
+var imageAttachmentExts = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
 
 // IsAllowedAttachmentExt 判断扩展名是否允许（参数应为小写带点格式，如 ".png"）
 func IsAllowedAttachmentExt(ext string) bool {
-	for _, allowed := range AllowedAttachmentExts {
-		if ext == allowed {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowedAttachmentExts, ext)
 }
 
 // IsImageAttachmentExt 判断扩展名是否为图片
 func IsImageAttachmentExt(ext string) bool {
-	for _, imgExt := range ImageAttachmentExts {
-		if ext == imgExt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(imageAttachmentExts, ext)
 }
 
 // AttachmentService 附件服务接口
