@@ -389,6 +389,17 @@ func (h *UserHandler) HandleDisableUser(c *gin.Context) {
 		return
 	}
 
+	// 禁止禁用自己
+	if currentUserID := c.GetUint64("user_id"); currentUserID == id {
+		response.Forbidden(c, "不能禁用自己")
+		return
+	}
+	// 禁止禁用 admin (id=1)
+	if id == 1 {
+		response.Forbidden(c, "不能禁用系统管理员")
+		return
+	}
+
 	err = h.userService.DisableUser(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
@@ -416,6 +427,17 @@ func (h *UserHandler) HandleDeleteUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的用户 ID")
+		return
+	}
+
+	// 禁止删除自己
+	if currentUserID := c.GetUint64("user_id"); currentUserID == id {
+		response.Forbidden(c, "不能删除自己")
+		return
+	}
+	// 禁止删除 admin (id=1)
+	if id == 1 {
+		response.Forbidden(c, "不能删除系统管理员")
 		return
 	}
 
