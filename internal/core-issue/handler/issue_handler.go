@@ -3,10 +3,14 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 
 	"github.com/kerbos/ticketdesk/internal/api/response"
 	"github.com/kerbos/ticketdesk/internal/core-issue/dto"
@@ -47,21 +51,80 @@ func ctxWithUser(c *gin.Context) context.Context {
 }
 
 // HandleCreateIssue 创建工单
+// 支持两种 Content-Type:
+//   - application/json (兼容现有调用方, 如告警自动建单)
+//   - multipart/form-data (含附件): form field "data" 存 JSON, "files" 存文件列表
+//
+// @Summary 创建工单
+// @Description 支持 application/json 和 multipart/form-data 两种方式，后者可同时上传附件
+// @Tags Issue
+// @Accept json,multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.CreateIssueRequest false "application/json 模式: 创建工单请求体"
+// @Param data formData string false "multipart 模式: JSON 字符串（与 body 二选一）"
+// @Param files formData file false "multipart 模式: 附件文件（可多个）"
+// @Success 201 {object} response.Response{data=dto.IssueResponse} "创建成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "项目不存在"
+// @Router /api/v1/issues [post]
 func (h *IssueHandler) HandleCreateIssue(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
 	var req dto.CreateIssueRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
-		return
+	var files []*multipart.FileHeader
+
+	contentType := c.ContentType()
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		dataStr := c.PostForm("data")
+		if dataStr == "" {
+			response.BadRequest(c, "缺少表单字段 data")
+			return
+		}
+		if err := json.Unmarshal([]byte(dataStr), &req); err != nil {
+			response.BadRequest(c, "请求参数错误: "+err.Error())
+			return
+		}
+		if err := binding.Validator.ValidateStruct(&req); err != nil {
+			response.BadRequest(c, "请求参数错误: "+err.Error())
+			return
+		}
+		form, err := c.MultipartForm()
+		if err != nil {
+			response.BadRequest(c, "解析 multipart 表单失败: "+err.Error())
+			return
+		}
+		if form != nil {
+			files = form.File["files"]
+		}
+	} else {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.BadRequest(c, "请求参数错误: "+err.Error())
+			return
+		}
 	}
 
-	userID := c.GetUint64("user_id")
-	result, err := h.issueService.CreateIssue(c.Request.Context(), &req, userID)
+	var (
+		result *dto.IssueResponse
+		err    error
+	)
+	if len(files) > 0 {
+		result, err = h.issueService.CreateIssueWithAttachments(c.Request.Context(), &req, files, userID)
+	} else {
+		result, err = h.issueService.CreateIssue(c.Request.Context(), &req, userID)
+	}
+
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrProjectNotFound):
 			response.NotFound(c, err.Error())
 		case errors.Is(err, service.ErrIssueTypeNotFound):
 			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrFileTooLarge):
+			response.BadRequest(c, "文件大小超过限制（最大10MB）")
+		case errors.Is(err, service.ErrInvalidFileType):
+			response.BadRequest(c, "不支持的文件类型")
 		default:
 			response.InternalError(c, "创建工单失败")
 		}
@@ -72,6 +135,15 @@ func (h *IssueHandler) HandleCreateIssue(c *gin.Context) {
 }
 
 // HandleGetIssue 获取工单详情
+// @Summary 获取工单详情
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Success 200 {object} response.Response{data=dto.IssueResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key} [get]
 func (h *IssueHandler) HandleGetIssue(c *gin.Context) {
 	key := c.Param("key")
 
@@ -89,6 +161,18 @@ func (h *IssueHandler) HandleGetIssue(c *gin.Context) {
 }
 
 // HandleUpdateIssue 更新工单
+// @Summary 更新工单
+// @Tags Issue
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param body body dto.UpdateIssueRequest true "更新工单请求体"
+// @Success 200 {object} response.Response{data=dto.IssueResponse} "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key} [put]
 func (h *IssueHandler) HandleUpdateIssue(c *gin.Context) {
 	key := c.Param("key")
 
@@ -115,6 +199,15 @@ func (h *IssueHandler) HandleUpdateIssue(c *gin.Context) {
 }
 
 // HandleDeleteIssue 删除工单
+// @Summary 删除工单
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key} [delete]
 func (h *IssueHandler) HandleDeleteIssue(c *gin.Context) {
 	key := c.Param("key")
 
@@ -132,6 +225,29 @@ func (h *IssueHandler) HandleDeleteIssue(c *gin.Context) {
 }
 
 // HandleListIssues 获取工单列表
+// @Summary 获取工单列表
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param project_key query string false "项目 Key"
+// @Param page query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Param status query string false "状态，支持逗号分隔多值，如 open,in_progress"
+// @Param priority query string false "优先级 (P0/P1/P2/P3)"
+// @Param assignee_id query int false "经办人 ID"
+// @Param reporter_id query int false "报告人 ID"
+// @Param issue_type_id query int false "工单类型 ID"
+// @Param epic_id query int false "Epic ID"
+// @Param keyword query string false "关键字搜索"
+// @Param category query string false "分类 (normal/alert)"
+// @Param sort_by query string false "排序字段 (id/priority/status/issue_type_id/created_at/updated_at)"
+// @Param order query string false "排序方向 (asc/desc)"
+// @Param start_date query string false "开始日期 (YYYY-MM-DD)"
+// @Param end_date query string false "结束日期 (YYYY-MM-DD)"
+// @Success 200 {object} response.Response{data=response.PageData} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "项目不存在"
+// @Router /api/v1/issues [get]
 func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 	var req dto.ListIssuesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -160,6 +276,14 @@ func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 }
 
 // HandleGetIssueListStats 获取工单列表统计数据
+// @Summary 获取工单列表统计数据
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param project_key query string false "项目 Key"
+// @Success 200 {object} response.Response{data=dto.IssueListStatsResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/issues/stats [get]
 func (h *IssueHandler) HandleGetIssueListStats(c *gin.Context) {
 	var req dto.ListIssuesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -188,6 +312,17 @@ func (h *IssueHandler) HandleGetIssueListStats(c *gin.Context) {
 }
 
 // HandleGetProjectOverviewStats 获取项目概述统计（按状态分组聚合，替代 4 次列表请求）
+// @Summary 获取项目概述统计
+// @Description 按状态分组聚合工单数量，用于项目概述页面
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param project_key query string true "项目 Key"
+// @Success 200 {object} response.Response{data=dto.ProjectOverviewStatsResponse} "获取成功"
+// @Failure 400 {object} response.ErrorResponse "请求参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "项目不存在"
+// @Router /api/v1/issues/project-overview-stats [get]
 func (h *IssueHandler) HandleGetProjectOverviewStats(c *gin.Context) {
 	var req dto.ProjectOverviewStatsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -209,6 +344,15 @@ func (h *IssueHandler) HandleGetProjectOverviewStats(c *gin.Context) {
 }
 
 // HandleListIssuesInEpic 获取 Epic 下的所有 Issues
+// @Summary 获取 Epic 下的关联工单
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "Epic 工单 Key"
+// @Success 200 {object} response.Response{data=[]dto.IssueResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "Epic 不存在"
+// @Router /api/v1/issues/{key}/epic-issues [get]
 func (h *IssueHandler) HandleListIssuesInEpic(c *gin.Context) {
 	epicKey := c.Param("key")
 
@@ -226,6 +370,18 @@ func (h *IssueHandler) HandleListIssuesInEpic(c *gin.Context) {
 }
 
 // HandleAssignIssue 指派工单
+// @Summary 指派工单负责人
+// @Tags Issue
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param body body dto.AssignIssueRequest true "指派请求体"
+// @Success 200 {object} response.Response{data=dto.IssueResponse} "指派成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/assign [post]
 func (h *IssueHandler) HandleAssignIssue(c *gin.Context) {
 	key := c.Param("key")
 
@@ -252,6 +408,15 @@ func (h *IssueHandler) HandleAssignIssue(c *gin.Context) {
 }
 
 // HandleListSubtasks 获取工单的所有子任务
+// @Summary 获取工单子任务列表
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "父工单 Key"
+// @Success 200 {object} response.Response{data=[]dto.IssueResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "父工单不存在"
+// @Router /api/v1/issues/{key}/subtasks [get]
 func (h *IssueHandler) HandleListSubtasks(c *gin.Context) {
 	parentKey := c.Param("key")
 
@@ -269,6 +434,18 @@ func (h *IssueHandler) HandleListSubtasks(c *gin.Context) {
 }
 
 // HandleAddComment 添加评论
+// @Summary 添加工单评论
+// @Tags Issue
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param body body dto.CreateCommentRequest true "评论请求体"
+// @Success 201 {object} response.Response{data=dto.CommentResponse} "添加成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/comments [post]
 func (h *IssueHandler) HandleAddComment(c *gin.Context) {
 	key := c.Param("key")
 
@@ -293,6 +470,15 @@ func (h *IssueHandler) HandleAddComment(c *gin.Context) {
 }
 
 // HandleListComments 获取评论列表
+// @Summary 获取工单评论列表
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Success 200 {object} response.Response{data=[]dto.CommentResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/comments [get]
 func (h *IssueHandler) HandleListComments(c *gin.Context) {
 	key := c.Param("key")
 
@@ -310,6 +496,16 @@ func (h *IssueHandler) HandleListComments(c *gin.Context) {
 }
 
 // HandleDeleteComment 删除评论
+// @Summary 删除工单评论
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param comment_id path int true "评论 ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "评论不存在"
+// @Router /api/v1/issues/{key}/comments/{comment_id} [delete]
 func (h *IssueHandler) HandleDeleteComment(c *gin.Context) {
 	commentID, err := strconv.ParseUint(c.Param("comment_id"), 10, 64)
 	if err != nil {
@@ -332,6 +528,18 @@ func (h *IssueHandler) HandleDeleteComment(c *gin.Context) {
 }
 
 // HandleAddWatcher 添加关注人
+// @Summary 添加工单关注人
+// @Tags Issue
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param body body dto.AddWatcherRequest false "关注请求体（不传则关注自己）"
+// @Success 200 {object} response.Response "关注成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/watchers [post]
 func (h *IssueHandler) HandleAddWatcher(c *gin.Context) {
 	key := c.Param("key")
 
@@ -359,6 +567,16 @@ func (h *IssueHandler) HandleAddWatcher(c *gin.Context) {
 }
 
 // HandleRemoveWatcher 移除关注人
+// @Summary 移除工单关注人
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param user_id path int true "用户 ID"
+// @Success 200 {object} response.Response "取消关注成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/watchers/{user_id} [delete]
 func (h *IssueHandler) HandleRemoveWatcher(c *gin.Context) {
 	key := c.Param("key")
 	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
@@ -381,6 +599,15 @@ func (h *IssueHandler) HandleRemoveWatcher(c *gin.Context) {
 }
 
 // HandleListWatchers 获取关注人列表
+// @Summary 获取工单关注人列表
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Success 200 {object} response.Response{data=[]dto.WatcherResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/watchers [get]
 func (h *IssueHandler) HandleListWatchers(c *gin.Context) {
 	key := c.Param("key")
 
@@ -398,6 +625,15 @@ func (h *IssueHandler) HandleListWatchers(c *gin.Context) {
 }
 
 // HandleListMyTodoIssues 获取我的待办工单
+// @Summary 获取我的待办工单
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(10)
+// @Success 200 {object} response.Response{data=[]dto.IssueResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/issues/my-todo [get]
 func (h *IssueHandler) HandleListMyTodoIssues(c *gin.Context) {
 	userID := c.GetUint64("user_id")
 
@@ -428,6 +664,15 @@ func (h *IssueHandler) HandleListMyTodoIssues(c *gin.Context) {
 }
 
 // HandleListMyCreatedIssues 获取我创建的工单
+// @Summary 获取我创建的工单
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(10)
+// @Success 200 {object} response.Response{data=[]dto.IssueResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/issues/my-created [get]
 func (h *IssueHandler) HandleListMyCreatedIssues(c *gin.Context) {
 	userID := c.GetUint64("user_id")
 
@@ -460,6 +705,18 @@ func (h *IssueHandler) HandleListMyCreatedIssues(c *gin.Context) {
 // ============ 工作日志相关处理器 ============
 
 // HandleAddWorklog 添加工作日志
+// @Summary 添加工作日志
+// @Tags Issue
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param body body dto.CreateWorklogRequest true "工作日志请求体"
+// @Success 201 {object} response.Response{data=dto.WorklogResponse} "添加成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/worklogs [post]
 func (h *IssueHandler) HandleAddWorklog(c *gin.Context) {
 	issueKey := c.Param("key")
 	userID := c.GetUint64("user_id")
@@ -487,6 +744,20 @@ func (h *IssueHandler) HandleAddWorklog(c *gin.Context) {
 }
 
 // HandleUpdateWorklog 更新工作日志
+// @Summary 更新工作日志
+// @Tags Issue
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param worklog_id path int true "工作日志 ID"
+// @Param body body dto.UpdateWorklogRequest true "更新工作日志请求体"
+// @Success 200 {object} response.Response{data=dto.WorklogResponse} "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 403 {object} response.ErrorResponse "无权限"
+// @Failure 404 {object} response.ErrorResponse "工作日志不存在"
+// @Router /api/v1/issues/{key}/worklogs/{worklog_id} [put]
 func (h *IssueHandler) HandleUpdateWorklog(c *gin.Context) {
 	worklogIDStr := c.Param("worklog_id")
 	worklogID, err := strconv.ParseUint(worklogIDStr, 10, 64)
@@ -522,6 +793,18 @@ func (h *IssueHandler) HandleUpdateWorklog(c *gin.Context) {
 }
 
 // HandleDeleteWorklog 删除工作日志
+// @Summary 删除工作日志
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param worklog_id path int true "工作日志 ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.ErrorResponse "无效的工作日志 ID"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 403 {object} response.ErrorResponse "无权限"
+// @Failure 404 {object} response.ErrorResponse "工作日志不存在"
+// @Router /api/v1/issues/{key}/worklogs/{worklog_id} [delete]
 func (h *IssueHandler) HandleDeleteWorklog(c *gin.Context) {
 	worklogIDStr := c.Param("worklog_id")
 	worklogID, err := strconv.ParseUint(worklogIDStr, 10, 64)
@@ -549,6 +832,15 @@ func (h *IssueHandler) HandleDeleteWorklog(c *gin.Context) {
 }
 
 // HandleListWorklogs 获取工作日志列表
+// @Summary 获取工作日志列表
+// @Tags Issue
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Success 200 {object} response.Response{data=[]dto.WorklogResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
+// @Router /api/v1/issues/{key}/worklogs [get]
 func (h *IssueHandler) HandleListWorklogs(c *gin.Context) {
 	issueKey := c.Param("key")
 

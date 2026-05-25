@@ -65,6 +65,17 @@ func (h *WorkflowHandler) logActivity(userID uint64, userName, action, entityKey
 // ============ 工作流管理 ============
 
 // HandleCreateWorkflow 创建工作流
+// @Summary 创建工作流
+// @Description 创建新的工作流定义
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateWorkflowRequest true "创建工作流请求"
+// @Success 201 {object} response.Response{data=dto.WorkflowResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Router /api/v1/workflows [post]
 func (h *WorkflowHandler) HandleCreateWorkflow(c *gin.Context) {
 	var req dto.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -82,6 +93,17 @@ func (h *WorkflowHandler) HandleCreateWorkflow(c *gin.Context) {
 }
 
 // HandleGetWorkflow 获取工作流详情
+// @Summary 获取工作流详情
+// @Description 根据 ID 获取工作流定义，包含节点和边
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Success 200 {object} response.Response{data=dto.WorkflowResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id} [get]
 func (h *WorkflowHandler) HandleGetWorkflow(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -103,6 +125,19 @@ func (h *WorkflowHandler) HandleGetWorkflow(c *gin.Context) {
 }
 
 // HandleUpdateWorkflow 更新工作流
+// @Summary 更新工作流
+// @Description 更新工作流名称、描述或状态
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param request body dto.UpdateWorkflowRequest true "更新工作流请求"
+// @Success 200 {object} response.Response{data=dto.WorkflowResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id} [put]
 func (h *WorkflowHandler) HandleUpdateWorkflow(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -130,6 +165,17 @@ func (h *WorkflowHandler) HandleUpdateWorkflow(c *gin.Context) {
 }
 
 // HandleDeleteWorkflow 删除工作流
+// @Summary 删除工作流
+// @Description 根据 ID 删除工作流（需要管理员权限）
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id} [delete]
 func (h *WorkflowHandler) HandleDeleteWorkflow(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -151,6 +197,20 @@ func (h *WorkflowHandler) HandleDeleteWorkflow(c *gin.Context) {
 }
 
 // HandleListWorkflows 获取工作流列表
+// @Summary 获取工作流列表
+// @Description 分页查询工作流，支持按项目、状态、关键字筛选
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码（默认 1）"
+// @Param page_size query int false "每页数量（默认 20，最大 100）"
+// @Param project_id query int false "项目 ID"
+// @Param status query int false "状态（0=禁用，1=启用）"
+// @Param keyword query string false "关键字搜索"
+// @Success 200 {object} response.Response{data=response.PageData}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Router /api/v1/workflows [get]
 func (h *WorkflowHandler) HandleListWorkflows(c *gin.Context) {
 	var req dto.ListWorkflowsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -170,6 +230,19 @@ func (h *WorkflowHandler) HandleListWorkflows(c *gin.Context) {
 // ============ 节点管理 ============
 
 // HandleCreateNode 创建节点
+// @Summary 创建工作流节点
+// @Description 在指定工作流中创建新节点
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param request body dto.CreateNodeRequest true "创建节点请求"
+// @Success 201 {object} response.Response{data=dto.NodeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/nodes [post]
 func (h *WorkflowHandler) HandleCreateNode(c *gin.Context) {
 	workflowID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -197,6 +270,18 @@ func (h *WorkflowHandler) HandleCreateNode(c *gin.Context) {
 }
 
 // HandleGetNode 获取节点详情
+// @Summary 获取工作流节点详情
+// @Description 根据节点 ID 获取节点配置
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param node_id path int true "节点 ID"
+// @Success 200 {object} response.Response{data=dto.NodeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/nodes/{node_id} [get]
 func (h *WorkflowHandler) HandleGetNode(c *gin.Context) {
 	nodeID, err := strconv.ParseUint(c.Param("node_id"), 10, 64)
 	if err != nil {
@@ -218,6 +303,20 @@ func (h *WorkflowHandler) HandleGetNode(c *gin.Context) {
 }
 
 // HandleUpdateNode 更新节点
+// @Summary 更新工作流节点
+// @Description 更新节点名称、配置或位置
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param node_id path int true "节点 ID"
+// @Param request body dto.UpdateNodeRequest true "更新节点请求"
+// @Success 200 {object} response.Response{data=dto.NodeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/nodes/{node_id} [put]
 func (h *WorkflowHandler) HandleUpdateNode(c *gin.Context) {
 	nodeID, err := strconv.ParseUint(c.Param("node_id"), 10, 64)
 	if err != nil {
@@ -245,6 +344,18 @@ func (h *WorkflowHandler) HandleUpdateNode(c *gin.Context) {
 }
 
 // HandleDeleteNode 删除节点
+// @Summary 删除工作流节点
+// @Description 根据节点 ID 删除节点
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param node_id path int true "节点 ID"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/nodes/{node_id} [delete]
 func (h *WorkflowHandler) HandleDeleteNode(c *gin.Context) {
 	nodeID, err := strconv.ParseUint(c.Param("node_id"), 10, 64)
 	if err != nil {
@@ -266,6 +377,17 @@ func (h *WorkflowHandler) HandleDeleteNode(c *gin.Context) {
 }
 
 // HandleListNodes 获取工作流的所有节点
+// @Summary 获取工作流节点列表
+// @Description 获取指定工作流的所有节点
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Success 200 {object} response.Response{data=[]dto.NodeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/nodes [get]
 func (h *WorkflowHandler) HandleListNodes(c *gin.Context) {
 	workflowID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -289,6 +411,19 @@ func (h *WorkflowHandler) HandleListNodes(c *gin.Context) {
 // ============ 边管理 ============
 
 // HandleCreateEdge 创建边
+// @Summary 创建工作流边
+// @Description 在指定工作流中创建节点之间的连接边
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param request body dto.CreateEdgeRequest true "创建边请求"
+// @Success 201 {object} response.Response{data=dto.EdgeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/edges [post]
 func (h *WorkflowHandler) HandleCreateEdge(c *gin.Context) {
 	workflowID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -316,6 +451,18 @@ func (h *WorkflowHandler) HandleCreateEdge(c *gin.Context) {
 }
 
 // HandleGetEdge 获取边详情
+// @Summary 获取工作流边详情
+// @Description 根据边 ID 获取边配置
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param edge_id path int true "边 ID"
+// @Success 200 {object} response.Response{data=dto.EdgeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/edges/{edge_id} [get]
 func (h *WorkflowHandler) HandleGetEdge(c *gin.Context) {
 	edgeID, err := strconv.ParseUint(c.Param("edge_id"), 10, 64)
 	if err != nil {
@@ -337,6 +484,20 @@ func (h *WorkflowHandler) HandleGetEdge(c *gin.Context) {
 }
 
 // HandleUpdateEdge 更新边
+// @Summary 更新工作流边
+// @Description 更新边的条件表达式
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param edge_id path int true "边 ID"
+// @Param request body dto.UpdateEdgeRequest true "更新边请求"
+// @Success 200 {object} response.Response{data=dto.EdgeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/edges/{edge_id} [put]
 func (h *WorkflowHandler) HandleUpdateEdge(c *gin.Context) {
 	edgeID, err := strconv.ParseUint(c.Param("edge_id"), 10, 64)
 	if err != nil {
@@ -364,6 +525,18 @@ func (h *WorkflowHandler) HandleUpdateEdge(c *gin.Context) {
 }
 
 // HandleDeleteEdge 删除边
+// @Summary 删除工作流边
+// @Description 根据边 ID 删除节点间的连接
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Param edge_id path int true "边 ID"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/edges/{edge_id} [delete]
 func (h *WorkflowHandler) HandleDeleteEdge(c *gin.Context) {
 	edgeID, err := strconv.ParseUint(c.Param("edge_id"), 10, 64)
 	if err != nil {
@@ -385,6 +558,17 @@ func (h *WorkflowHandler) HandleDeleteEdge(c *gin.Context) {
 }
 
 // HandleListEdges 获取工作流的所有边
+// @Summary 获取工作流边列表
+// @Description 获取指定工作流的所有边
+// @Tags Workflow
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "工作流 ID"
+// @Success 200 {object} response.Response{data=[]dto.EdgeResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/workflows/{id}/edges [get]
 func (h *WorkflowHandler) HandleListEdges(c *gin.Context) {
 	workflowID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -413,7 +597,7 @@ func (h *WorkflowHandler) HandleListEdges(c *gin.Context) {
 // @Tags Workflow
 // @Produce json
 // @Param key path string true "工单 Key"
-// @Success 200 {object} dto.WorkflowInstanceResponse
+// @Success 200 {object} response.Response{data=dto.WorkflowInstanceResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/issues/{key}/workflow [get]
 // @Security BearerAuth
@@ -539,6 +723,11 @@ func (h *WorkflowHandler) HandleApprove(c *gin.Context) {
 			response.BadRequest(c, "已经审批过了")
 			return
 		}
+		if errors.Is(err, service.ErrNotApprovalNode) {
+			response.BadRequest(c, "当前节点不是审批节点，无法执行审批操作")
+			return
+		}
+		logger.Error("approve operation failed", zap.Error(err))
 		response.InternalError(c, "审批操作失败: "+err.Error())
 		return
 	}
@@ -625,6 +814,11 @@ func (h *WorkflowHandler) HandleReject(c *gin.Context) {
 			response.BadRequest(c, "已经审批过了")
 			return
 		}
+		if errors.Is(err, service.ErrNotApprovalNode) {
+			response.BadRequest(c, "当前节点不是审批节点，无法执行拒绝操作")
+			return
+		}
+		logger.Error("reject operation failed", zap.Error(err))
 		response.InternalError(c, "拒绝操作失败: "+err.Error())
 		return
 	}
@@ -645,6 +839,19 @@ func (h *WorkflowHandler) HandleReject(c *gin.Context) {
 }
 
 // HandleComplete 完成工作节点
+// @Summary 完成工作节点
+// @Description 操作人完成当前工作节点，推进工作流流转
+// @Tags Workflow
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "工单 Key"
+// @Param request body dto.CompleteRequest true "完成节点请求"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Router /api/v1/issues/{key}/workflow/complete [post]
 func (h *WorkflowHandler) HandleComplete(c *gin.Context) {
 	issueKey := c.Param("key")
 	if issueKey == "" {
@@ -724,7 +931,7 @@ func (h *WorkflowHandler) HandleComplete(c *gin.Context) {
 // @Tags Workflow
 // @Produce json
 // @Param key path string true "工单 Key"
-// @Success 200 {array} dto.WorkflowHistoryResponse
+// @Success 200 {object} response.Response{data=[]dto.WorkflowHistoryResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/issues/{key}/workflow/history [get]
 // @Security BearerAuth
@@ -777,7 +984,7 @@ func (h *WorkflowHandler) HandleGetHistory(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param request body dto.CreateWorkflowSchemeRequest true "创建方案请求"
-// @Success 201 {object} dto.WorkflowSchemeResponse
+// @Success 201 {object} response.Response{data=dto.WorkflowSchemeResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/workflow-schemes [post]
@@ -831,7 +1038,7 @@ func (h *WorkflowHandler) HandleCreateScheme(c *gin.Context) {
 // @Tags Workflow
 // @Produce json
 // @Param key path string true "项目 Key"
-// @Success 200 {array} dto.WorkflowSchemeResponse
+// @Success 200 {object} response.Response{data=[]dto.WorkflowSchemeResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/workflow-schemes [get]
 // @Security BearerAuth

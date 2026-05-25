@@ -43,48 +43,44 @@
       <!-- 统计卡片 -->
       <el-row :gutter="16" class="stat-row">
         <el-col :xs="12" :sm="6">
-          <div class="stat-card" @click="goBoard('open,reopened')">
-            <div class="stat-icon-wrapper todo">
-              <el-icon :size="20"><Tickets /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.open }}</div>
-              <div class="stat-label">待处理</div>
-            </div>
-          </div>
+          <TdStatTile
+            label="待处理"
+            :value="stats.open"
+            tone="warning"
+            :icon-component="Tickets"
+            interactive
+            @click="goBoard('open,reopened')"
+          />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <div class="stat-card" @click="goBoard('in_progress')">
-            <div class="stat-icon-wrapper progress">
-              <el-icon :size="20"><Loading /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.inProgress }}</div>
-              <div class="stat-label">进行中</div>
-            </div>
-          </div>
+          <TdStatTile
+            label="进行中"
+            :value="stats.inProgress"
+            tone="primary"
+            :icon-component="Loading"
+            interactive
+            @click="goBoard('in_progress')"
+          />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <div class="stat-card" @click="goBoard('pending_review')">
-            <div class="stat-icon-wrapper review">
-              <el-icon :size="20"><View /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.pendingReview }}</div>
-              <div class="stat-label">待确认</div>
-            </div>
-          </div>
+          <TdStatTile
+            label="待确认"
+            :value="stats.pendingReview"
+            tone="warning"
+            :icon-component="View"
+            interactive
+            @click="goBoard('pending_review')"
+          />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <div class="stat-card" @click="goBoard('resolved,closed')">
-            <div class="stat-icon-wrapper done">
-              <el-icon :size="20"><CircleCheck /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.resolved }}</div>
-              <div class="stat-label">已完成</div>
-            </div>
-          </div>
+          <TdStatTile
+            label="已完成"
+            :value="stats.resolved"
+            tone="success"
+            :icon-component="CircleCheck"
+            interactive
+            @click="goBoard('resolved,closed')"
+          />
         </el-col>
       </el-row>
 
@@ -441,8 +437,13 @@ onMounted(() => {
 
 // 内容卡片
 .content-card {
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
   margin-bottom: 20px;
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__header) {
     padding: 16px 20px;

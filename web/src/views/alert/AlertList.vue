@@ -1,85 +1,83 @@
 <template>
   <div class="alert-list-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><Bell /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Bell /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">告警列表</h1>
-          <p class="header-desc">监控和管理所有告警事件</p>
-        </div>
-      </div>
-    </div>
+      </template>
+      <template #title>告警列表</template>
+      <template #subtitle>监控和管理所有告警事件</template>
+    </TdPageHeader>
 
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stat-row">
       <el-col :xs="12" :sm="8" :md="4">
-        <div class="stat-card total" :class="{ active: !queryParams.status && !queryParams.severity }" @click="handleStatClick()">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><Bell /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">总告警数</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="总告警数"
+          :value="stats.total"
+          tone="info"
+          :icon-component="Bell"
+          interactive
+          :active="!queryParams.status && !queryParams.severity"
+          @click="handleStatClick()"
+        />
       </el-col>
       <el-col :xs="12" :sm="8" :md="4">
-        <div class="stat-card firing" :class="{ active: queryParams.status === 'firing' && !queryParams.severity }" @click="handleStatClick('firing')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><Promotion /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.firing }}</div>
-            <div class="stat-label">活跃告警</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="活跃告警"
+          :value="stats.firing"
+          tone="primary"
+          :icon-component="Promotion"
+          interactive
+          :active="queryParams.status === 'firing' && !queryParams.severity"
+          @click="handleStatClick('firing')"
+        />
       </el-col>
       <el-col :xs="12" :sm="8" :md="4">
-        <div class="stat-card resolved" :class="{ active: queryParams.status === 'resolved' && !queryParams.severity }" @click="handleStatClick('resolved')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><CircleCheck /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.resolved }}</div>
-            <div class="stat-label">已解决</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="已解决"
+          :value="stats.resolved"
+          tone="success"
+          :icon-component="CircleCheck"
+          interactive
+          :active="queryParams.status === 'resolved' && !queryParams.severity"
+          @click="handleStatClick('resolved')"
+        />
       </el-col>
       <el-col :xs="12" :sm="8" :md="4">
-        <div class="stat-card critical" :class="{ active: queryParams.severity === 'critical' && !queryParams.status }" @click="handleStatClick(undefined, 'critical')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><WarningFilled /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.critical }}</div>
-            <div class="stat-label">严重</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="严重"
+          :value="stats.critical"
+          tone="danger"
+          :icon-component="WarningFilled"
+          interactive
+          :active="queryParams.severity === 'critical' && !queryParams.status"
+          @click="handleStatClick(undefined, 'critical')"
+        />
       </el-col>
       <el-col :xs="12" :sm="8" :md="4">
-        <div class="stat-card warning" :class="{ active: queryParams.severity === 'warning' && !queryParams.status }" @click="handleStatClick(undefined, 'warning')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><Warning /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.warning }}</div>
-            <div class="stat-label">警告</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="警告"
+          :value="stats.warning"
+          tone="warning"
+          :icon-component="Warning"
+          interactive
+          :active="queryParams.severity === 'warning' && !queryParams.status"
+          @click="handleStatClick(undefined, 'warning')"
+        />
       </el-col>
       <el-col :xs="12" :sm="8" :md="4">
-        <div class="stat-card info" :class="{ active: queryParams.severity === 'info' && !queryParams.status }" @click="handleStatClick(undefined, 'info')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><InfoFilled /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.info }}</div>
-            <div class="stat-label">信息</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="信息"
+          :value="stats.info"
+          tone="info"
+          :icon-component="InfoFilled"
+          interactive
+          :active="queryParams.severity === 'info' && !queryParams.status"
+          @click="handleStatClick(undefined, 'info')"
+        />
       </el-col>
     </el-row>
 
@@ -599,105 +597,31 @@ const loadLabelKeys = async () => {
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 32px;
-  background: var(--td-color-danger);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title { font-size: 22px; font-weight: 600; margin: 0 0 4px 0; }
-    .header-desc { font-size: 14px; margin: 0; opacity: 0.9; }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // 统计卡片
-.stat-row { margin-bottom: 20px; }
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-  background: var(--td-bg-card);
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 150ms ease-out;
-  cursor: pointer;
-  border: 2px solid transparent;
-
-  &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
-  &.active { border-color: currentColor; }
-
-  .stat-icon-wrapper {
-    width: 44px; height: 44px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; color: var(--td-text-white);
-    flex-shrink: 0;
-  }
-
-  .stat-content {
-    .stat-value { font-size: 24px; font-weight: 700; line-height: 1.2; }
-    .stat-label { font-size: 12px; color: var(--td-color-info); margin-top: 2px; }
-  }
-
-  &.total {
-    .stat-icon-wrapper { background: var(--td-color-primary); }
-    .stat-value { color: var(--td-color-primary); }
-    &.active { border-color: var(--td-color-primary); }
-  }
-  &.firing {
-    .stat-icon-wrapper { background: var(--td-color-danger); }
-    .stat-value { color: var(--td-color-danger); }
-    &.active { border-color: var(--td-color-danger); }
-  }
-  &.resolved {
-    .stat-icon-wrapper { background: var(--td-color-success); }
-    .stat-value { color: var(--td-color-success); }
-    &.active { border-color: var(--td-color-success); }
-  }
-  &.critical {
-    .stat-icon-wrapper { background: var(--td-color-danger); }
-    .stat-value { color: var(--td-color-danger); }
-    &.active { border-color: var(--td-color-danger); }
-  }
-  &.warning {
-    .stat-icon-wrapper { background: var(--td-color-warning); }
-    .stat-value { color: var(--td-color-warning); }
-    &.active { border-color: var(--td-color-warning); }
-  }
-  &.info {
-    .stat-icon-wrapper { background: var(--td-text-secondary); }
-    .stat-value { color: var(--td-text-secondary); }
-    &.active { border-color: var(--td-text-secondary); }
-  }
-}
+.stat-row { margin-bottom: var(--td-space-5); }
 
 // 筛选
 .filter-card {
   margin-bottom: 20px;
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) { padding: 16px 20px; }
 

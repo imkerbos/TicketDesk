@@ -31,9 +31,13 @@ import ComponentSelectField from './fields/ComponentSelectField.vue'
 import LabelSelectField from './fields/LabelSelectField.vue'
 import EpicLinkField from './fields/EpicLinkField.vue'
 import TimeEstimateField from './fields/TimeEstimateField.vue'
+import DateTimeField from './fields/DateTimeField.vue'
+import UrlField from './fields/UrlField.vue'
+import MultiUserSelectField from './fields/MultiUserSelectField.vue'
+import CheckboxField from './fields/CheckboxField.vue'
 
 // 需要数组值的字段类型
-const ARRAY_FIELD_TYPES: string[] = [FieldType.MULTISELECT, FieldType.LABEL, FieldType.COMPONENT]
+const ARRAY_FIELD_TYPES: string[] = [FieldType.MULTISELECT, FieldType.LABEL, FieldType.COMPONENT, FieldType.MULTIUSER]
 
 const props = defineProps<{
   field: FieldDefinition
@@ -92,14 +96,18 @@ const fieldComponent = computed(() => {
     [FieldType.TEXTAREA]: TextareaField,
     [FieldType.NUMBER]: NumberField,
     [FieldType.DATE]: DateField,
+    [FieldType.DATETIME]: DateTimeField,
     [FieldType.SELECT]: SelectField,
     [FieldType.MULTISELECT]: MultiSelectField,
     [FieldType.USER]: UserSelectField,
+    [FieldType.MULTIUSER]: MultiUserSelectField,
     [FieldType.VERSION]: VersionSelectField,
     [FieldType.COMPONENT]: ComponentSelectField,
     [FieldType.LABEL]: LabelSelectField,
     [FieldType.EPIC_LINK]: EpicLinkField,
     [FieldType.TIME_ESTIMATE]: TimeEstimateField,
+    [FieldType.URL]: UrlField,
+    [FieldType.CHECKBOX]: CheckboxField,
   }
   return componentMap[props.field.field_type as FieldTypeValue] || TextField
 })

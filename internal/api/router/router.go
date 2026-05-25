@@ -4,12 +4,17 @@ package router
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	_ "github.com/kerbos/ticketdesk/docs/swagger" // Swagger 文档 (由 make swagger 生成)
 	activityHandler "github.com/kerbos/ticketdesk/internal/activity/handler"
 	activityRepo "github.com/kerbos/ticketdesk/internal/activity/repository"
 	activityService "github.com/kerbos/ticketdesk/internal/activity/service"
@@ -82,6 +87,8 @@ type Router struct {
 	notifChannelHandler    *projectHandler.NotificationChannelHandler
 	configSvc              configService.ConfigService
 	ssoHandler             *userHandler.SSOHandler
+	apiTokenHandler        *userHandler.APITokenHandler
+	apiTokenSvc            userService.APITokenService
 }
 
 // NewRouter 创建路由管理器
@@ -111,6 +118,11 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	var ssoHdl *userHandler.SSOHandler
 	ssoSvc := userService.NewSSOService(configSvc, userRepository, userRoleRepository, jwtManager)
 	ssoHdl = userHandler.NewSSOHandler(ssoSvc)
+
+	// ============ 初始化 API Token 模块 ============
+	apiTokenRepo := userRepo.NewAPITokenRepository(db)
+	apiTokenSvc := userService.NewAPITokenService(apiTokenRepo, userRepository)
+	apiTokenHdl := userHandler.NewAPITokenHandler(apiTokenSvc)
 
 	// ============ 初始化 Project 模块 ============
 	projectRepository := projectRepo.NewProjectRepository(db)
@@ -161,6 +173,13 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		localStorage,
 	)
 	attachmentHdl := issueHandler.NewAttachmentHandler(attachmentSvc)
+
+	// 给 issueSvc 注入附件服务以支持创建工单时原子上传附件
+	if issueImpl, ok := issueSvc.(interface {
+		SetAttachmentService(svc issueService.AttachmentService)
+	}); ok {
+		issueImpl.SetAttachmentService(attachmentSvc)
+	}
 
 	// 注入 LocalStorage 到 ConfigHandler（品牌资源上传）
 	configHdl.SetLocalStorage(localStorage)
@@ -452,6 +471,8 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		notifChannelHandler:    notifChannelHdl,
 		configSvc:              configSvc,
 		ssoHandler:             ssoHdl,
+		apiTokenHandler:        apiTokenHdl,
+		apiTokenSvc:            apiTokenSvc,
 	}
 }
 
@@ -493,6 +514,13 @@ func (r *Router) Setup() *gin.Engine {
 
 	// 健康检查
 	engine.GET("/health", healthCheck)
+
+	// Swagger UI: /api/v1/swagger/index.html (需登录, Authorization / cookie / query token 三选一)
+	// 走 /api 前缀, 复用现有反向代理规则, 无需单独路由
+	engine.GET("/api/v1/swagger/*any",
+		middleware.SwaggerAuthMiddleware(r.jwtManager, r.apiTokenSvc),
+		ginSwagger.WrapHandler(swaggerFiles.Handler),
+	)
 
 	// API v1 路由组
 	v1 := engine.Group("/api/v1")
@@ -572,8 +600,30 @@ func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 		ConfigKey: "ratelimit.api_limit",
 		ConfigSvc: r.configSvc,
 	}))
-	protected.Use(middleware.AuthMiddleware(r.jwtManager))
+	protected.Use(middleware.AuthMiddleware(r.jwtManager, r.apiTokenSvc))
 	protected.Use(r.rbac.LoadUserRoles())
+
+	// Swagger 会话: 已通过 JWT 鉴权, 设 HttpOnly cookie 供后续 swagger UI 资源请求 (doc.json/css/js) 使用
+	// 前端 /api-docs 页 iframe 加载前先调此端点
+	protected.POST("/auth/swagger-session", func(c *gin.Context) {
+		raw := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			response.BadRequest(c, "需 Bearer token")
+			return
+		}
+		c.SetSameSite(http.SameSiteStrictMode)
+		c.SetCookie(
+			"td_swagger_token", // name
+			raw,                // value
+			7200,               // max-age 2h
+			"/api/v1/swagger",  // path
+			"",                 // domain (空 = 当前)
+			false,              // secure (内网 http 也用; 生产 HTTPS 时浏览器会自动加 Secure 属性)
+			true,               // HttpOnly
+		)
+		response.Success(c, gin.H{"expires_in": 7200})
+	})
 	// 用户相关
 	r.registerUserRoutes(protected)
 
@@ -620,6 +670,14 @@ func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 	users.POST("/me/mfa/setup", r.userHandler.HandleSetupMFA)
 	users.POST("/me/mfa/enable", r.userHandler.HandleEnableMFA)
 	users.POST("/me/mfa/disable", r.userHandler.HandleDisableMFA)
+
+	// 用户个人 API token 管理（需 JWT 登录，拒绝 PAT 自调）
+	userTokens := users.Group("/me/tokens")
+	{
+		userTokens.POST("", r.apiTokenHandler.HandleCreate)
+		userTokens.GET("", r.apiTokenHandler.HandleList)
+		userTokens.DELETE("/:id", r.apiTokenHandler.HandleDelete)
+	}
 
 	// 获取所有用户（用于选择器，必须在 /:id 之前）
 	users.GET("/all", r.userHandler.HandleListAllUsers)
@@ -905,6 +963,24 @@ func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
 	{
 		sso.GET("", r.configHandler.HandleGetSSOConfig)
 		sso.PUT("", r.configHandler.HandleUpdateSSOConfig)
+	}
+
+	// Lark 通知配置 (需管理员权限)
+	larkCfg := rg.Group("/system/lark")
+	larkCfg.Use(r.rbac.RequireAdmin())
+	{
+		larkCfg.GET("", r.configHandler.HandleGetLarkConfig)
+		larkCfg.PUT("", r.configHandler.HandleUpdateLarkConfig)
+		larkCfg.POST("/test", r.configHandler.HandleTestLark)
+	}
+
+	// Telegram 通知配置 (需管理员权限)
+	telegramCfg := rg.Group("/system/telegram")
+	telegramCfg.Use(r.rbac.RequireAdmin())
+	{
+		telegramCfg.GET("", r.configHandler.HandleGetTelegramConfig)
+		telegramCfg.PUT("", r.configHandler.HandleUpdateTelegramConfig)
+		telegramCfg.POST("/test", r.configHandler.HandleTestTelegram)
 	}
 
 	// 品牌配置管理（需要管理员权限）

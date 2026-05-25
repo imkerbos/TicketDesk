@@ -709,14 +709,18 @@ const (
 	FieldTypeTextarea     = "textarea"      // 多行文本
 	FieldTypeNumber       = "number"        // 数字
 	FieldTypeDate         = "date"          // 日期
+	FieldTypeDateTime     = "datetime"      // 日期时间 (精确到分钟)
 	FieldTypeSelect       = "select"        // 单选
 	FieldTypeMultiSelect  = "multiselect"   // 多选
 	FieldTypeUser         = "user"          // 用户选择
+	FieldTypeMultiUser    = "multiuser"     // 多用户选择
 	FieldTypeVersion      = "version"       // 版本选择
 	FieldTypeComponent    = "component"     // 组件选择
 	FieldTypeLabel        = "label"         // 标签选择
 	FieldTypeEpicLink     = "epic_link"     // Epic链接
 	FieldTypeTimeEstimate = "time_estimate" // 时间估算
+	FieldTypeURL          = "url"           // URL 链接
+	FieldTypeCheckbox     = "checkbox"      // 复选框 (布尔)
 )
 
 // 版本状态常量
@@ -725,3 +729,17 @@ const (
 	VersionStatusReleased   = "released"
 	VersionStatusArchived   = "archived"
 )
+
+// APIToken 用户 API 访问令牌 (Personal Access Token)
+type APIToken struct {
+	BaseModel
+	UserID     uint64     `gorm:"not null;index" json:"user_id"`
+	Name       string     `gorm:"size:100;not null" json:"name"`
+	TokenHash  string     `gorm:"size:64;not null;uniqueIndex" json:"-"`
+	Prefix     string     `gorm:"size:16;not null" json:"prefix"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+}
+
+// TableName 指定表名
+func (APIToken) TableName() string { return "api_tokens" }

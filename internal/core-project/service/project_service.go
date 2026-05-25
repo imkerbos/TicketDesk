@@ -409,7 +409,33 @@ func (s *projectService) DeleteProject(ctx context.Context, key string) error {
 			}
 		}
 
-		// 10. 删除其他项目级数据
+		// 10. 删除需求池及关联需求数据
+		var poolIDs []uint64
+		if err := tx.Model(&model.RequirementPool{}).Where("project_id = ?", projectID).Pluck("id", &poolIDs).Error; err != nil {
+			return fmt.Errorf("查询需求池失败: %w", err)
+		}
+		if len(poolIDs) > 0 {
+			var requirementIDs []uint64
+			if err := tx.Model(&model.Requirement{}).Where("pool_id IN ?", poolIDs).Pluck("id", &requirementIDs).Error; err != nil {
+				return fmt.Errorf("查询需求失败: %w", err)
+			}
+			if len(requirementIDs) > 0 {
+				if err := tx.Unscoped().Where("requirement_id IN ?", requirementIDs).Delete(&model.RequirementComment{}).Error; err != nil {
+					return fmt.Errorf("删除需求评论失败: %w", err)
+				}
+				if err := tx.Unscoped().Where("requirement_id IN ?", requirementIDs).Delete(&model.RequirementAttachment{}).Error; err != nil {
+					return fmt.Errorf("删除需求附件失败: %w", err)
+				}
+				if err := tx.Unscoped().Where("id IN ?", requirementIDs).Delete(&model.Requirement{}).Error; err != nil {
+					return fmt.Errorf("删除需求失败: %w", err)
+				}
+			}
+			if err := tx.Unscoped().Where("id IN ?", poolIDs).Delete(&model.RequirementPool{}).Error; err != nil {
+				return fmt.Errorf("删除需求池失败: %w", err)
+			}
+		}
+
+		// 11. 删除其他项目级数据
 		for _, m := range []struct {
 			model interface{}
 			desc  string
@@ -426,7 +452,7 @@ func (s *projectService) DeleteProject(ctx context.Context, key string) error {
 			}
 		}
 
-		// 11. 删除项目本身
+		// 12. 删除项目本身
 		if err := tx.Unscoped().Delete(&model.Project{}, projectID).Error; err != nil {
 			return fmt.Errorf("删除项目失败: %w", err)
 		}

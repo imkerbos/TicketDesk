@@ -14,19 +14,31 @@
 
     <!-- 筛选区 -->
     <div class="list-filters">
-      <el-input
-        v-model="keyword"
-        placeholder="搜索标题或编号..."
-        clearable
-        size="small"
-        class="search-input"
-        @clear="handleSearch"
-        @keyup.enter="handleSearch"
-      >
-        <template #prefix>
+      <div class="search-row">
+        <el-input
+          v-model="keyword"
+          placeholder="搜索标题或编号..."
+          clearable
+          size="small"
+          class="search-input"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-button
+          type="primary"
+          size="small"
+          class="search-btn"
+          title="搜索 (Enter)"
+          @click="handleSearch"
+        >
           <el-icon><Search /></el-icon>
-        </template>
-      </el-input>
+          <span>搜索</span>
+        </el-button>
+      </div>
       <div class="filter-row">
         <el-select
           v-model="statusFilter"
@@ -141,7 +153,7 @@
     <!-- 工单卡片列表 -->
     <div v-loading="loading" class="issue-cards">
       <div v-if="issueList.length === 0 && !loading" class="empty-state">
-        <el-empty description="暂无匹配的工单" :image-size="60" />
+        <TdEmptyState preset="no-result" title="暂无匹配的工单" />
       </div>
       <div
         v-for="item in issueList"
@@ -321,6 +333,14 @@ onMounted(() => {
   loadIssues()
   loadFilterOptions()
 })
+
+// 暴露 reload 给父组件 (例如创建工单后刷新列表)
+defineExpose({
+  reload: () => {
+    page.value = 1
+    return loadIssues()
+  },
+})
 </script>
 
 <style scoped lang="scss">
@@ -378,14 +398,27 @@ onMounted(() => {
   gap: 8px;
   flex-shrink: 0;
 
-  .search-input {
-    :deep(.el-input__wrapper) {
-      border-radius: 8px;
-      box-shadow: 0 0 0 1px var(--td-border-color);
+  .search-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
 
-      &:focus-within {
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    .search-input {
+      flex: 1;
+      :deep(.el-input__wrapper) {
+        border-radius: 8px;
+        box-shadow: 0 0 0 1px var(--td-border-color);
+
+        &:focus-within {
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
       }
+    }
+
+    .search-btn {
+      flex-shrink: 0;
+      border-radius: 6px;
+      gap: 4px;
     }
   }
 
@@ -455,23 +488,29 @@ onMounted(() => {
 }
 
 .issue-card {
-  padding: 10px 12px;
-  margin-bottom: 2px;
-  border-radius: 8px;
+  padding: var(--td-space-3) var(--td-space-3);
+  margin-bottom: var(--td-space-2);
+  border-radius: var(--td-radius-md);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  background: transparent;
+  transition: var(--td-transition-bg), var(--td-transition-border), var(--td-transition-shadow);
   position: relative;
 
   &:hover {
-    background: var(--td-bg-page);
+    background: var(--td-bg-section);
     border-color: var(--td-border-color);
+    box-shadow: var(--td-elevation-1);
   }
 
   &.selected {
     background: var(--td-tag-primary-bg);
     border-color: var(--td-tag-primary-border);
-    box-shadow: inset 3px 0 0 #3b82f6;
+    box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-color-primary);
+
+    &:hover {
+      background: var(--td-tag-primary-bg);
+    }
   }
 
   .card-top {

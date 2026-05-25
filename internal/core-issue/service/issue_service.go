@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -42,6 +44,7 @@ const ContextUserIDKey ctxKey = "user_id"
 // IssueService 工单服务接口
 type IssueService interface {
 	CreateIssue(ctx context.Context, req *dto.CreateIssueRequest, reporterID uint64) (*dto.IssueResponse, error)
+	CreateIssueWithAttachments(ctx context.Context, req *dto.CreateIssueRequest, files []*multipart.FileHeader, reporterID uint64) (*dto.IssueResponse, error)
 	GetIssue(ctx context.Context, key string) (*dto.IssueResponse, error)
 	UpdateIssue(ctx context.Context, key string, req *dto.UpdateIssueRequest) (*dto.IssueResponse, error)
 	DeleteIssue(ctx context.Context, key string) error
@@ -81,21 +84,22 @@ type IssueService interface {
 
 // issueService 工单服务实现
 type issueService struct {
-	issueRepo       repository.IssueRepository
-	commentRepo     repository.CommentRepository
-	watcherRepo     repository.WatcherRepository
-	worklogRepo     repository.WorklogRepository
-	projectRepo     projectRepo.ProjectRepository
-	issueTypeRepo   projectRepo.IssueTypeRepository
-	userRepo        userRepo.UserRepository
-	db              *gorm.DB           // 用于级联删除事务
-	alertSyncSvc    AlertSyncService   // 告警同步服务（可选）
-	activityLogger  ActivityLogger     // 活动日志记录器（可选）
-	notifSender     NotificationSender // 通知发送服务（可选）
-	workflowEngine  WorkflowEngine     // 工作流引擎（可选）
-	fieldValueSaver FieldValueSaver    // 字段值保存服务（可选）
-	epicLinkGetter  EpicLinkGetter     // Epic 链接获取服务（可选）
-	projectNotifier ProjectNotifier    // 项目外部通知服务（可选）
+	issueRepo         repository.IssueRepository
+	commentRepo       repository.CommentRepository
+	watcherRepo       repository.WatcherRepository
+	worklogRepo       repository.WorklogRepository
+	projectRepo       projectRepo.ProjectRepository
+	issueTypeRepo     projectRepo.IssueTypeRepository
+	userRepo          userRepo.UserRepository
+	db                *gorm.DB           // 用于级联删除事务
+	alertSyncSvc      AlertSyncService   // 告警同步服务（可选）
+	activityLogger    ActivityLogger     // 活动日志记录器（可选）
+	notifSender       NotificationSender // 通知发送服务（可选）
+	workflowEngine    WorkflowEngine     // 工作流引擎（可选）
+	fieldValueSaver   FieldValueSaver    // 字段值保存服务（可选）
+	epicLinkGetter    EpicLinkGetter     // Epic 链接获取服务（可选）
+	projectNotifier   ProjectNotifier    // 项目外部通知服务（可选）
+	attachmentService AttachmentService  // 附件服务（可选, 通过 setter 注入避免循环依赖）
 }
 
 // WorkflowEngine 工作流引擎接口（避免循环依赖）
@@ -209,6 +213,11 @@ func (s *issueService) SetProjectNotifier(projectNotifier ProjectNotifier) {
 	s.projectNotifier = projectNotifier
 }
 
+// SetAttachmentService 设置附件服务（用于避免循环依赖）
+func (s *issueService) SetAttachmentService(svc AttachmentService) {
+	s.attachmentService = svc
+}
+
 // notifyProjectChannels 向项目的外部通知渠道发送通知（异步不阻塞主流程）
 func (s *issueService) notifyProjectChannels(projectID uint64, event string, data map[string]interface{}) {
 	if s.projectNotifier == nil {
@@ -302,24 +311,24 @@ func (s *issueService) logActivity(_ context.Context, userID uint64, userName, a
 	}()
 }
 
-// CreateIssue 创建工单
-func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequest, reporterID uint64) (*dto.IssueResponse, error) {
+// prepareIssue 准备阶段：校验、生成 Key、解析日期、构造 model.Issue（无数据库写入）
+func (s *issueService) prepareIssue(ctx context.Context, req *dto.CreateIssueRequest, reporterID uint64) (*model.Project, *model.Issue, error) {
 	// 获取项目
 	project, err := s.projectRepo.GetByKey(ctx, strings.ToUpper(req.ProjectKey))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrProjectNotFound
+			return nil, nil, ErrProjectNotFound
 		}
-		return nil, fmt.Errorf("查询项目失败: %w", err)
+		return nil, nil, fmt.Errorf("查询项目失败: %w", err)
 	}
 
 	// 验证工单类型
 	issueType, err := s.issueTypeRepo.GetByID(ctx, req.IssueTypeID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrIssueTypeNotFound
+			return nil, nil, ErrIssueTypeNotFound
 		}
-		return nil, fmt.Errorf("查询工单类型失败: %w", err)
+		return nil, nil, fmt.Errorf("查询工单类型失败: %w", err)
 	}
 
 	// 验证指派人
@@ -327,9 +336,9 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		_, assigneeErr := s.userRepo.GetByID(ctx, *req.AssigneeID)
 		if assigneeErr != nil {
 			if errors.Is(assigneeErr, gorm.ErrRecordNotFound) {
-				return nil, fmt.Errorf("指派人不存在")
+				return nil, nil, fmt.Errorf("指派人不存在")
 			}
-			return nil, fmt.Errorf("查询指派人失败: %w", assigneeErr)
+			return nil, nil, fmt.Errorf("查询指派人失败: %w", assigneeErr)
 		}
 	}
 
@@ -339,7 +348,7 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 	}
 	nextNum, err := sequence.NextIssueNumber(ctx, project.ProjectKey, dbFallback)
 	if err != nil {
-		return nil, fmt.Errorf("生成工单编号失败: %w", err)
+		return nil, nil, fmt.Errorf("生成工单编号失败: %w", err)
 	}
 	issueKey := repository.GenerateIssueKey(project.ProjectKey, nextNum)
 
@@ -348,7 +357,7 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 	if req.DueDate != nil && *req.DueDate != "" {
 		t, err := time.Parse("2006-01-02", *req.DueDate)
 		if err != nil {
-			return nil, fmt.Errorf("截止日期格式错误")
+			return nil, nil, fmt.Errorf("截止日期格式错误")
 		}
 		dueDate = &t
 	}
@@ -358,7 +367,7 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 	if req.PlannedStartDate != nil && *req.PlannedStartDate != "" {
 		t, err := time.Parse("2006-01-02", *req.PlannedStartDate)
 		if err != nil {
-			return nil, fmt.Errorf("预计开始时间格式错误")
+			return nil, nil, fmt.Errorf("预计开始时间格式错误")
 		}
 		plannedStartDate = &t
 	}
@@ -368,7 +377,7 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 	if req.PlannedEndDate != nil && *req.PlannedEndDate != "" {
 		t, err := time.Parse("2006-01-02", *req.PlannedEndDate)
 		if err != nil {
-			return nil, fmt.Errorf("预计交付时间格式错误")
+			return nil, nil, fmt.Errorf("预计交付时间格式错误")
 		}
 		plannedEndDate = &t
 	}
@@ -379,7 +388,7 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		priority = "P2"
 	}
 
-	// 创建工单
+	// 构造工单对象（未持久化）
 	issue := &model.Issue{
 		IssueKey:         issueKey,
 		ProjectID:        project.ID,
@@ -397,11 +406,17 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		PlannedEndDate:   plannedEndDate,
 	}
 
-	if err := s.issueRepo.Create(ctx, issue); err != nil {
-		logger.Error("failed to create issue", zap.Error(err))
-		return nil, fmt.Errorf("创建工单失败: %w", err)
-	}
+	return project, issue, nil
+}
 
+// createIssueInTx 事务内写入：仅执行工单记录的数据库插入
+func (s *issueService) createIssueInTx(ctx context.Context, tx *gorm.DB, issue *model.Issue) error {
+	return tx.WithContext(ctx).Create(issue).Error
+}
+
+// afterIssueCreated 事务后副作用：字段值、关注人、通知、工作流实例、活动日志
+// 返回可能被工作流引擎刷新过的 issue 指针
+func (s *issueService) afterIssueCreated(ctx context.Context, issue *model.Issue, project *model.Project, req *dto.CreateIssueRequest, reporterID uint64) *model.Issue {
 	// 保存自定义字段值
 	logger.Info("CreateIssue: checking custom fields",
 		zap.Bool("fieldValueSaver_nil", s.fieldValueSaver == nil),
@@ -489,15 +504,15 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 
 	// 记录活动日志
 	if s.activityLogger != nil {
-		reporter, _ := s.userRepo.GetByID(ctx, reporterID)
-		reporterName := "未知用户"
-		if reporter != nil {
-			reporterName = reporter.DisplayName
+		actReporter, _ := s.userRepo.GetByID(ctx, reporterID)
+		actReporterName := "未知用户"
+		if actReporter != nil {
+			actReporterName = actReporter.DisplayName
 		}
 		_ = s.activityLogger.LogActivity(
 			ctx,
 			reporterID,
-			reporterName,
+			actReporterName,
 			"创建工单",
 			"issue",
 			issue.ID,
@@ -506,6 +521,93 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		)
 	}
 
+	return issue
+}
+
+// CreateIssue 创建工单
+func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequest, reporterID uint64) (*dto.IssueResponse, error) {
+	project, issue, err := s.prepareIssue(ctx, req, reporterID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		return s.createIssueInTx(ctx, tx, issue)
+	}); err != nil {
+		logger.Error("failed to create issue", zap.Error(err))
+		return nil, fmt.Errorf("创建工单失败: %w", err)
+	}
+
+	issue = s.afterIssueCreated(ctx, issue, project, req, reporterID)
+	return s.toIssueResponse(ctx, issue, project.ProjectKey), nil
+}
+
+// CreateIssueWithAttachments 在单事务内原子创建工单 + 附件
+// 任一环节失败 → 事务回滚 + 删除已落盘文件
+func (s *issueService) CreateIssueWithAttachments(
+	ctx context.Context,
+	req *dto.CreateIssueRequest,
+	files []*multipart.FileHeader,
+	reporterID uint64,
+) (*dto.IssueResponse, error) {
+	// 前置校验所有文件 (大小 + 扩展名), 任一不合规直接返回
+	for _, fh := range files {
+		if fh.Size > MaxAttachmentSize {
+			return nil, ErrFileTooLarge
+		}
+		ext := strings.ToLower(filepath.Ext(fh.Filename))
+		if !IsAllowedAttachmentExt(ext) {
+			return nil, ErrInvalidFileType
+		}
+	}
+
+	if len(files) > 0 && s.attachmentService == nil {
+		return nil, fmt.Errorf("附件服务未注入")
+	}
+
+	// 准备工单数据 (无 DB 写)
+	project, issue, err := s.prepareIssue(ctx, req, reporterID)
+	if err != nil {
+		return nil, err
+	}
+
+	var savedPaths []string
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		// 工单写入
+		if err := s.createIssueInTx(ctx, tx, issue); err != nil {
+			return err
+		}
+		// 逐个落盘 + 写附件记录
+		for _, fh := range files {
+			relPath, err := s.attachmentService.SaveFile(fh)
+			if err != nil {
+				return err
+			}
+			savedPaths = append(savedPaths, relPath)
+
+			if _, err := s.attachmentService.CreateRecordInTx(ctx, tx, issue.ID, fh, relPath, reporterID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		// 事务回滚 → 清理所有已落盘文件
+		for _, p := range savedPaths {
+			if delErr := s.attachmentService.DeletePath(p); delErr != nil {
+				logger.Warn("failed to delete file after rollback",
+					zap.String("path", p),
+					zap.Error(delErr),
+				)
+			}
+		}
+		logger.Error("failed to create issue with attachments", zap.Error(err))
+		return nil, err
+	}
+
+	// 事务外副作用
+	issue = s.afterIssueCreated(ctx, issue, project, req, reporterID)
 	return s.toIssueResponse(ctx, issue, project.ProjectKey), nil
 }
 

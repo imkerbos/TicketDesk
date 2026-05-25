@@ -149,7 +149,7 @@
             </template>
             <div class="epic-issues-list">
               <div v-if="epicIssues.length === 0" class="empty-state">
-                <el-empty description="暂无关联的工单" :image-size="80" />
+                <TdEmptyState preset="no-data" title="暂无关联的工单" />
               </div>
               <div v-for="epicIssue in epicIssues" :key="epicIssue.id" class="epic-issue-item">
                 <div class="issue-left">
@@ -1055,7 +1055,7 @@
           </div>
         </div>
         <div v-else-if="!diagramLoading" class="diagram-empty">
-          <el-empty description="暂无流程节点" :image-size="80" />
+          <TdEmptyState preset="no-data" title="暂无流程节点" />
         </div>
       </div>
     </el-dialog>

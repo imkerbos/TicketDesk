@@ -1,0 +1,311 @@
+// 全局高频 Element Plus 组件视觉统一 (UI Phase 5D)
+// 范围: el-dialog / el-tabs / el-pagination / el-tag / el-message /
+//       el-message-box / el-dropdown-menu / el-tooltip / el-popover / el-card
+
+// ============ el-dialog ============
+.el-dialog {
+  border-radius: var(--td-radius-xl) !important;
+  overflow: hidden;
+  box-shadow: var(--td-elevation-4) !important;
+  background: var(--td-bg-card) !important;
+}
+
+.el-dialog__header {
+  padding: var(--td-space-4) var(--td-space-6) !important;
+  margin-right: 0 !important;
+  border-bottom: 1px solid var(--td-border-color);
+}
+
+.el-dialog__title {
+  font-size: var(--td-font-lg) !important;
+  font-weight: var(--td-weight-semibold) !important;
+  color: var(--td-text-primary) !important;
+  letter-spacing: var(--td-tracking-tight);
+}
+
+.el-dialog__body {
+  padding: var(--td-space-5) var(--td-space-6) !important;
+  color: var(--td-text-regular);
+  font-size: var(--td-font-md);
+}
+
+.el-dialog__footer {
+  padding: var(--td-space-3) var(--td-space-6) !important;
+  border-top: 1px solid var(--td-border-color);
+  background: var(--td-bg-section);
+}
+
+.el-dialog__headerbtn {
+  top: var(--td-space-3) !important;
+  right: var(--td-space-4) !important;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--td-radius-md);
+  transition: var(--td-transition-bg);
+
+  &:hover {
+    background: var(--td-bg-section);
+  }
+
+  .el-dialog__close {
+    color: var(--td-text-secondary);
+    font-size: var(--td-font-md);
+  }
+}
+
+// ============ el-overlay (modal mask) ============
+.el-overlay {
+  background-color: var(--td-bg-mask) !important;
+  backdrop-filter: blur(2px);
+}
+
+// ============ el-tabs ============
+.el-tabs__header {
+  margin: 0 0 var(--td-space-4) 0 !important;
+}
+
+.el-tabs__nav-wrap::after {
+  height: 1px !important;
+  background-color: var(--td-border-color) !important;
+}
+
+.el-tabs__active-bar {
+  background-color: var(--td-color-primary) !important;
+  height: 2px !important;
+  border-radius: var(--td-radius-xs);
+}
+
+.el-tabs__item {
+  font-size: var(--td-font-md) !important;
+  font-weight: var(--td-weight-medium) !important;
+  color: var(--td-text-secondary) !important;
+  padding: 0 var(--td-space-5) !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  transition: var(--td-transition-color);
+
+  &:hover {
+    color: var(--td-text-primary) !important;
+  }
+
+  &.is-active {
+    color: var(--td-color-primary) !important;
+    font-weight: var(--td-weight-semibold) !important;
+  }
+
+  &.is-disabled {
+    color: var(--td-text-disabled) !important;
+    cursor: not-allowed;
+  }
+}
+
+// ============ el-pagination ============
+.el-pagination {
+  font-size: var(--td-font-md);
+  --el-pagination-button-color: var(--td-text-secondary);
+  --el-pagination-hover-color: var(--td-color-primary);
+
+  .btn-prev,
+  .btn-next,
+  .el-pager li {
+    background: var(--td-bg-card) !important;
+    border-radius: var(--td-radius-md) !important;
+    color: var(--td-text-regular) !important;
+    border: 1px solid var(--td-border-color);
+    transition: var(--td-transition-bg), var(--td-transition-color), var(--td-transition-border);
+    font-weight: var(--td-weight-medium);
+
+    &:hover {
+      background: var(--td-bg-section) !important;
+      color: var(--td-color-primary) !important;
+      border-color: var(--td-color-primary);
+    }
+
+    &.is-active {
+      background: var(--td-color-primary) !important;
+      color: #fff !important;
+      border-color: var(--td-color-primary);
+      box-shadow: var(--td-elevation-1);
+    }
+
+    &.is-disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ============ el-tag ============
+.el-tag {
+  border-radius: var(--td-radius-sm) !important;
+  font-weight: var(--td-weight-medium) !important;
+  font-size: var(--td-font-xs) !important;
+  border: none;
+  padding: 0 var(--td-space-2);
+  line-height: 20px;
+  height: 22px;
+
+  &.el-tag--large {
+    height: 26px;
+    line-height: 24px;
+    font-size: var(--td-font-sm) !important;
+    padding: 0 var(--td-space-3);
+  }
+
+  &.el-tag--small {
+    height: 20px;
+    line-height: 18px;
+    font-size: var(--td-font-xs) !important;
+  }
+}
+
+// ============ el-message (toast) ============
+.el-message {
+  border-radius: var(--td-radius-lg) !important;
+  box-shadow: var(--td-elevation-3) !important;
+  border: none !important;
+  padding: var(--td-space-3) var(--td-space-4) !important;
+  min-width: 280px;
+
+  .el-message__content {
+    font-size: var(--td-font-md);
+    font-weight: var(--td-weight-medium);
+  }
+}
+
+// ============ el-message-box (confirm) ============
+.el-message-box {
+  border-radius: var(--td-radius-xl) !important;
+  box-shadow: var(--td-elevation-4) !important;
+  padding: 0 !important;
+  overflow: hidden;
+
+  .el-message-box__header {
+    padding: var(--td-space-4) var(--td-space-6);
+    border-bottom: 1px solid var(--td-border-color);
+  }
+
+  .el-message-box__title {
+    font-size: var(--td-font-lg);
+    font-weight: var(--td-weight-semibold);
+  }
+
+  .el-message-box__content {
+    padding: var(--td-space-5) var(--td-space-6) !important;
+    font-size: var(--td-font-md);
+    color: var(--td-text-regular);
+  }
+
+  .el-message-box__btns {
+    padding: var(--td-space-3) var(--td-space-6) !important;
+    border-top: 1px solid var(--td-border-color);
+    background: var(--td-bg-section);
+  }
+}
+
+// ============ el-dropdown-menu ============
+.el-dropdown-menu {
+  border-radius: var(--td-radius-md) !important;
+  box-shadow: var(--td-elevation-3) !important;
+  border: 1px solid var(--td-border-color) !important;
+  padding: var(--td-space-1) !important;
+}
+
+.el-dropdown-menu__item {
+  border-radius: var(--td-radius-sm) !important;
+  font-size: var(--td-font-md) !important;
+  padding: var(--td-space-2) var(--td-space-3) !important;
+  color: var(--td-text-regular) !important;
+  transition: var(--td-transition-bg);
+
+  &:hover {
+    background: var(--td-bg-section) !important;
+    color: var(--td-color-primary) !important;
+  }
+}
+
+.el-dropdown-menu__item--divided {
+  border-top: 1px solid var(--td-border-color) !important;
+  margin-top: var(--td-space-1);
+  padding-top: var(--td-space-2) !important;
+
+  &::before {
+    display: none;
+  }
+}
+
+// ============ el-tooltip ============
+.el-popper.is-dark {
+  background: var(--td-bg-tooltip) !important;
+  border-radius: var(--td-radius-sm) !important;
+  font-size: var(--td-font-sm) !important;
+  padding: var(--td-space-1) var(--td-space-2) !important;
+  box-shadow: var(--td-elevation-2) !important;
+
+  .el-popper__arrow::before {
+    background: var(--td-bg-tooltip) !important;
+  }
+}
+
+// ============ el-popover ============
+.el-popover.el-popper {
+  border-radius: var(--td-radius-md) !important;
+  box-shadow: var(--td-elevation-3) !important;
+  border: 1px solid var(--td-border-color) !important;
+  padding: var(--td-space-3) !important;
+}
+
+// ============ el-card (强化默认) ============
+.el-card {
+  border-radius: var(--td-radius-lg) !important;
+  border: 1px solid var(--td-border-color);
+  background: var(--td-bg-card);
+
+  &.is-hover-shadow {
+    transition: var(--td-transition-shadow);
+
+    &:hover {
+      box-shadow: var(--td-elevation-3) !important;
+    }
+  }
+}
+
+// ============ el-breadcrumb ============
+.el-breadcrumb {
+  font-size: var(--td-font-sm);
+
+  .el-breadcrumb__inner {
+    color: var(--td-text-placeholder) !important;
+    font-weight: var(--td-weight-regular) !important;
+    transition: var(--td-transition-color);
+
+    &.is-link:hover {
+      color: var(--td-color-primary) !important;
+    }
+  }
+
+  .el-breadcrumb__separator {
+    color: var(--td-text-disabled) !important;
+    margin: 0 var(--td-space-2);
+  }
+
+  .el-breadcrumb__item:last-child .el-breadcrumb__inner {
+    color: var(--td-text-regular) !important;
+    font-weight: var(--td-weight-medium) !important;
+  }
+}
+
+// ============ prefers-reduced-motion ============
+@media (prefers-reduced-motion: reduce) {
+  .el-dialog,
+  .el-dialog__headerbtn,
+  .el-tabs__item,
+  .el-pagination .btn-prev,
+  .el-pagination .btn-next,
+  .el-pagination .el-pager li,
+  .el-dropdown-menu__item,
+  .el-card,
+  .el-breadcrumb__inner {
+    transition: none !important;
+  }
+}

@@ -20,6 +20,7 @@
     "echarts": "^5.4.3",
     "element-plus": "^2.5.4",
     "pinia": "^2.1.7",
+    "sortablejs": "^1.15.7",
     "vue": "^3.4.15",
     "vue-echarts": "^6.6.8",
     "vue-router": "^4.2.5"
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^20.11.5",
+    "@types/sortablejs": "^1.15.9",
     "@vitejs/plugin-vue": "^5.0.3",
     "@vue/tsconfig": "^0.5.1",
     "eslint": "^10.0.2",

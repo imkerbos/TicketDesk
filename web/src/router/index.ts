@@ -46,6 +46,13 @@ const router = createRouter({
       component: () => import('@/views/dashboard/Dashboard.vue'),
       meta: { title: '首页' },
     },
+    // API 文档 (Swagger UI 桥接, 需登录, 设 cookie 后 iframe)
+    {
+      path: '/api-docs',
+      name: 'ApiDocs',
+      component: () => import('@/views/api/ApiDocs.vue'),
+      meta: { title: 'API 文档', hideHeader: true },
+    },
     // 工单管理
     {
       path: '/issues',
@@ -76,13 +83,13 @@ const router = createRouter({
       path: '/projects/:key/board',
       name: 'ProjectBoard',
       component: () => import('@/views/project/ProjectBoard.vue'),
-      meta: { title: '项目看板' },
+      meta: { title: '', hideHeader: true },
     },
     {
       path: '/projects/:key/board/:issueKey',
       name: 'ProjectBoardIssue',
       component: () => import('@/views/project/ProjectBoard.vue'),
-      meta: { title: '项目看板' },
+      meta: { title: '', hideHeader: true },
     },
     {
       path: '/projects/:key/settings',

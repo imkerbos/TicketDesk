@@ -219,6 +219,9 @@
             </div>
           </div>
         </el-card>
+
+        <!-- API 密钥管理 -->
+        <ApiTokenSection />
       </el-col>
     </el-row>
 
@@ -301,6 +304,7 @@ import { getCurrentUser, updateCurrentUser, updatePassword, getMFAStatus, setupM
 import type { UserProfile, UpdatePasswordRequest } from '@/types/user'
 import type { MFAStatusResponse, MFASetupResponse } from '@/api/user'
 import dayjs from 'dayjs'
+import ApiTokenSection from './components/ApiTokenSection.vue'
 
 // 用户信息
 const profile = ref<UserProfile & { created_at?: string } | null>(null)

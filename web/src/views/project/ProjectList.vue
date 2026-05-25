@@ -1,21 +1,21 @@
 <template>
   <div class="project-list-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><Folder /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Folder /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">项目管理</h1>
-          <p class="header-desc">管理所有项目和工作空间</p>
-        </div>
-      </div>
-      <el-button type="primary" class="header-btn" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建项目
-      </el-button>
-    </div>
+      </template>
+      <template #title>项目管理</template>
+      <template #subtitle>管理所有项目和工作空间</template>
+      <template #actions>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建项目
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 搜索栏 -->
     <el-card shadow="never" class="filter-card">
@@ -96,12 +96,12 @@
       </el-row>
 
       <div v-if="projectList.length === 0 && !loading" class="empty-state">
-        <el-empty description="暂无项目">
+        <TdEmptyState preset="first-time" title="暂无项目" description="创建第一个项目开始工作">
           <el-button type="primary" @click="handleCreate">
             <el-icon><Plus /></el-icon>
             创建第一个项目
           </el-button>
-        </el-empty>
+        </TdEmptyState>
       </div>
 
       <div v-if="total > 0" class="pagination-wrapper">
@@ -328,51 +328,28 @@ onMounted(() => { loadProjects(); loadUsers() })
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 32px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title { font-size: 22px; font-weight: 600; margin: 0 0 4px 0; }
-    .header-desc { font-size: 14px; margin: 0; opacity: 0.9; }
-  }
-
-  .header-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: var(--td-text-white);
-    &:hover { background: rgba(255, 255, 255, 0.3); }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // 筛选
 .filter-card {
   margin-bottom: 20px;
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) { padding: 16px 20px; }
 
@@ -582,12 +559,6 @@ onMounted(() => { loadProjects(); loadUsers() })
 
 // 响应式
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
   .filter-card .search-input { width: 100%; }
 }
 </style>

@@ -9,7 +9,7 @@ import "time"
 type CreateFieldRequest struct {
 	FieldKey     string `json:"field_key" binding:"required,min=2,max=50"`
 	FieldName    string `json:"field_name" binding:"required,min=1,max=100"`
-	FieldType    string `json:"field_type" binding:"required,oneof=text textarea number date select multiselect user version component label epic_link time_estimate"`
+	FieldType    string `json:"field_type" binding:"required,oneof=text textarea number date datetime select multiselect user multiuser version component label epic_link time_estimate url checkbox"`
 	Description  string `json:"description" binding:"max=500"`
 	Options      string `json:"options"`    // JSON格式的选项配置
 	Validation   string `json:"validation"` // JSON格式的校验规则

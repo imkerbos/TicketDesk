@@ -1,0 +1,194 @@
+// 全局 Element Plus 表单组件视觉统一 (UI Phase 5B)
+// 范围: el-input / el-select / el-textarea / el-date-picker / el-input-number /
+//       el-checkbox / el-radio / el-switch / el-form-item
+
+// ---- el-input / el-select / el-cascader / el-date-picker 共用的 input wrapper ----
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: var(--td-radius-md) !important;
+  background-color: var(--td-bg-card) !important;
+  box-shadow: 0 0 0 1px var(--td-border-color) inset !important;
+  transition: var(--td-transition-shadow), var(--td-transition-border) !important;
+
+  &:hover {
+    box-shadow: 0 0 0 1px var(--td-border-color-dark, var(--td-text-disabled)) inset !important;
+  }
+}
+
+// 聚焦环
+.el-input__wrapper.is-focus,
+.el-input__wrapper:focus-within,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focused {
+  box-shadow:
+    0 0 0 1px var(--td-color-primary) inset,
+    var(--td-ring-primary) !important;
+  outline: none;
+}
+
+// 错误态 (el-form-item.is-error)
+.el-form-item.is-error {
+  .el-input__wrapper,
+  .el-textarea__inner,
+  .el-select__wrapper {
+    box-shadow: 0 0 0 1px var(--td-color-danger) inset !important;
+
+    &.is-focus,
+    &:focus-within,
+    &.is-focused,
+    &:focus {
+      box-shadow:
+        0 0 0 1px var(--td-color-danger) inset,
+        var(--td-ring-danger) !important;
+    }
+  }
+}
+
+// 禁用态
+.el-input.is-disabled .el-input__wrapper,
+.el-select__wrapper.is-disabled,
+.el-textarea.is-disabled .el-textarea__inner {
+  background-color: var(--td-bg-section) !important;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+// placeholder
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: var(--td-text-placeholder) !important;
+  font-size: var(--td-font-md);
+}
+
+// ---- el-textarea 圆角 + 内边距 ----
+.el-textarea__inner {
+  padding: var(--td-space-2) var(--td-space-3) !important;
+  font-size: var(--td-font-md) !important;
+  line-height: var(--td-leading-normal) !important;
+}
+
+// ---- el-form-item label ----
+.el-form-item__label {
+  font-size: var(--td-font-md) !important;
+  font-weight: var(--td-weight-medium) !important;
+  color: var(--td-text-regular) !important;
+  line-height: var(--td-leading-tight) !important;
+  padding-bottom: var(--td-space-1) !important;
+}
+
+// 错误信息
+.el-form-item__error {
+  font-size: var(--td-font-xs) !important;
+  color: var(--td-color-danger) !important;
+  line-height: var(--td-leading-tight) !important;
+  margin-top: 2px;
+}
+
+// ---- el-checkbox / el-radio ----
+.el-checkbox__input.is-checked .el-checkbox__inner,
+.el-radio__input.is-checked .el-radio__inner {
+  background-color: var(--td-color-primary) !important;
+  border-color: var(--td-color-primary) !important;
+}
+
+.el-checkbox__inner,
+.el-radio__inner {
+  border-radius: var(--td-radius-xs) !important;
+  border-color: var(--td-border-color-dark, var(--td-text-disabled)) !important;
+  transition: var(--td-transition-bg), var(--td-transition-border) !important;
+}
+
+.el-radio__inner {
+  border-radius: var(--td-radius-full) !important;
+}
+
+.el-checkbox__input:hover .el-checkbox__inner,
+.el-radio__input:hover .el-radio__inner {
+  border-color: var(--td-color-primary) !important;
+}
+
+.el-checkbox__label,
+.el-radio__label {
+  font-size: var(--td-font-md) !important;
+  color: var(--td-text-primary) !important;
+}
+
+// ---- el-switch ----
+.el-switch {
+  --el-switch-on-color: var(--td-color-primary);
+  --el-switch-off-color: var(--td-text-disabled);
+
+  .el-switch__core {
+    transition: var(--td-transition-bg) !important;
+  }
+}
+
+// ---- el-input-number ----
+.el-input-number {
+  .el-input-number__decrease,
+  .el-input-number__increase {
+    background: var(--td-bg-section);
+    color: var(--td-text-secondary);
+    border-color: var(--td-border-color);
+    transition: var(--td-transition-bg), var(--td-transition-color);
+
+    &:hover {
+      background: var(--td-bg-card-hover);
+      color: var(--td-color-primary);
+    }
+  }
+}
+
+// ---- el-date-picker (日期范围) ----
+.el-range-editor.el-input__wrapper {
+  // 已被 .el-input__wrapper 规则覆盖, 仅修补 separator/icon
+  .el-range-separator {
+    color: var(--td-text-placeholder);
+  }
+}
+
+// ---- el-select 下拉选项 ----
+.el-select-dropdown__item {
+  font-size: var(--td-font-md);
+  color: var(--td-text-primary);
+  transition: var(--td-transition-bg);
+
+  &.is-hovering {
+    background: var(--td-bg-section) !important;
+  }
+
+  &.is-selected {
+    color: var(--td-color-primary) !important;
+    font-weight: var(--td-weight-medium);
+    background: var(--td-tag-primary-bg) !important;
+  }
+}
+
+// ---- el-button 统一圆角 ----
+.el-button {
+  border-radius: var(--td-radius-md) !important;
+  font-weight: var(--td-weight-medium);
+  transition: var(--td-transition-all);
+}
+
+// primary 按钮聚焦环
+.el-button--primary:focus-visible {
+  box-shadow: var(--td-ring-primary);
+}
+
+// ---- prefers-reduced-motion ----
+@media (prefers-reduced-motion: reduce) {
+  .el-input__wrapper,
+  .el-textarea__inner,
+  .el-select__wrapper,
+  .el-checkbox__inner,
+  .el-radio__inner,
+  .el-button,
+  .el-switch__core,
+  .el-input-number__decrease,
+  .el-input-number__increase,
+  .el-select-dropdown__item {
+    transition: none !important;
+  }
+}

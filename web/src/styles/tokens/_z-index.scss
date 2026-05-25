@@ -1,0 +1,11 @@
+// z-index 层级
+:root {
+  --td-z-base: 1;
+  --td-z-dropdown: 1000;
+  --td-z-sticky: 1100;
+  --td-z-modal-mask: 2000;
+  --td-z-modal: 2001;
+  --td-z-popover: 2100;
+  --td-z-tooltip: 2200;
+  --td-z-toast: 3000;
+}

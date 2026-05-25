@@ -1,8 +1,13 @@
 <template>
   <div class="requirement-list">
-    <div class="page-header">
-      <h1>需求管理</h1>
-      <div class="header-actions">
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Tickets /></el-icon>
+        </div>
+      </template>
+      <template #title>需求管理</template>
+      <template #actions>
         <el-button @click="router.push('/requirements/kanban')">
           <el-icon><Grid /></el-icon>
           看板视图
@@ -11,8 +16,8 @@
           <el-icon><Plus /></el-icon>
           创建需求
         </el-button>
-      </div>
-    </div>
+      </template>
+    </TdPageHeader>
 
     <!-- 筛选条件 -->
     <el-card class="filter-card" shadow="never">
@@ -461,7 +466,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Grid, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, Grid, ArrowDown, Tickets } from '@element-plus/icons-vue'
 import {
   getRequirementList,
   getRequirementPoolList,
@@ -1038,52 +1043,17 @@ onMounted(async () => {
   background: var(--td-bg-page);
   min-height: 100vh;
 
-  .page-header {
+  // 页面头部 icon (TdPageHeader leading slot)
+  .page-header-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--td-tag-primary-bg);
+    border-radius: var(--td-radius-md);
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
-    padding: 20px 24px;
-    background: var(--td-color-primary);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
-
-    h1 {
-      margin: 0;
-      font-size: 28px;
-      font-weight: 600;
-      color: var(--td-text-white);
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 12px;
-
-      :deep(.el-button) {
-        background: rgba(255, 255, 255, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        color: var(--td-text-white);
-        backdrop-filter: blur(10px);
-        transition: all 150ms ease-out;
-
-        &:hover {
-          background: rgba(255, 255, 255, 0.3);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        &.el-button--primary {
-          background: rgba(255, 255, 255, 0.95);
-          color: var(--td-color-primary);
-          font-weight: 500;
-
-          &:hover {
-            background: var(--td-bg-card);
-            color: var(--td-color-primary-hover);
-          }
-        }
-      }
-    }
+    justify-content: center;
+    color: var(--td-color-primary);
+    flex-shrink: 0;
   }
 
   .filter-card {

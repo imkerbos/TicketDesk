@@ -1,16 +1,21 @@
 <template>
   <div class="datasource-page">
     <!-- 页头 -->
-    <div class="page-header">
-      <div class="header-info">
-        <h2 class="header-title">告警数据源</h2>
-        <p class="header-desc">管理告警数据源连接，支持 Prometheus 和夜莺 (Nightingale) 等监控系统</p>
-      </div>
-      <el-button type="primary" size="large" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon>
-        添加数据源
-      </el-button>
-    </div>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Connection /></el-icon>
+        </div>
+      </template>
+      <template #title>告警数据源</template>
+      <template #subtitle>管理告警数据源连接，支持 Prometheus 和夜莺 (Nightingale) 等监控系统</template>
+      <template #actions>
+        <el-button type="primary" size="large" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon>
+          添加数据源
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 数据源卡片列表 -->
     <div v-loading="loading" class="datasource-list">
@@ -449,43 +454,17 @@ onMounted(() => {
   width: 100%;
 }
 
-/* ===== 页头 ===== */
-.page-header {
+/* ===== 页头 icon (TdPageHeader leading slot) ===== */
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 28px 32px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-}
-
-.header-title {
-  margin: 0 0 6px 0;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
-.header-desc {
-  margin: 0;
-  font-size: 14px;
-  opacity: 0.85;
-}
-
-.page-header :deep(.el-button) {
+  justify-content: center;
+  color: var(--td-color-primary);
   flex-shrink: 0;
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--td-text-white);
-  font-weight: 500;
-  backdrop-filter: blur(4px);
-}
-
-.page-header :deep(.el-button:hover) {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
 }
 
 /* ===== 空状态 ===== */

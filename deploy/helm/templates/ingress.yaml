@@ -61,7 +61,7 @@ spec:
       backendRefs:
         - name: {{ .Release.Name }}-backend
           port: {{ .Values.backend.port }}
-    # API
+    # API (含 /api/v1/swagger UI)
     - matches:
         - path:
             type: PathPrefix

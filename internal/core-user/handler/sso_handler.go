@@ -28,7 +28,7 @@ func NewSSOHandler(ssoService service.SSOService) *SSOHandler {
 // @Description 获取 SSO 配置信息（是否启用、提供方名称）
 // @Tags SSO
 // @Produce json
-// @Success 200 {object} dto.SSOConfigResponse
+// @Success 200 {object} response.Response{data=dto.SSOConfigResponse}
 // @Router /api/v1/auth/sso/config [get]
 func (h *SSOHandler) HandleGetSSOConfig(c *gin.Context) {
 	result := h.ssoService.GetSSOConfig(c.Request.Context())
@@ -40,7 +40,7 @@ func (h *SSOHandler) HandleGetSSOConfig(c *gin.Context) {
 // @Description 生成 SSO 授权 URL，前端跳转到该 URL 进行认证
 // @Tags SSO
 // @Produce json
-// @Success 200 {object} dto.SSOAuthorizeResponse
+// @Success 200 {object} response.Response{data=dto.SSOAuthorizeResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/auth/sso/authorize [get]
 func (h *SSOHandler) HandleSSOAuthorize(c *gin.Context) {
@@ -64,7 +64,7 @@ func (h *SSOHandler) HandleSSOAuthorize(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body dto.SSOCallbackRequest true "SSO 回调请求"
-// @Success 200 {object} dto.LoginResponse
+// @Success 200 {object} response.Response{data=dto.LoginResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 401 {object} response.ErrorResponse
 // @Failure 403 {object} response.ErrorResponse
