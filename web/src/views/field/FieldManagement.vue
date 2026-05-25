@@ -507,7 +507,7 @@ import type {
   FieldUsage,
   TemplateItemInput,
 } from '@/types/field'
-import { getFieldTypeLabel } from '@/types/field'
+import { getFieldTypeLabel, FieldType } from '@/types/field'
 
 // ============ 路由 & Tab 持久化 ============
 
@@ -635,15 +635,20 @@ const fieldFormRules: FormRules = {
   field_type: [{ required: true, message: '请选择字段类型', trigger: 'change' }],
 }
 
+// 字段类型下拉选项 (与 FieldType 常量同源, 避免类型遗漏)
 const fieldTypeOptions: Record<string, string> = {
-  text: '单行文本',
-  textarea: '多行文本',
-  number: '数字',
-  date: '日期',
-  select: '单选',
-  multiselect: '多选',
-  user: '用户',
-  label: '标签',
+  [FieldType.TEXT]: getFieldTypeLabel(FieldType.TEXT),
+  [FieldType.TEXTAREA]: getFieldTypeLabel(FieldType.TEXTAREA),
+  [FieldType.NUMBER]: getFieldTypeLabel(FieldType.NUMBER),
+  [FieldType.DATE]: getFieldTypeLabel(FieldType.DATE),
+  [FieldType.DATETIME]: getFieldTypeLabel(FieldType.DATETIME),
+  [FieldType.SELECT]: getFieldTypeLabel(FieldType.SELECT),
+  [FieldType.MULTISELECT]: getFieldTypeLabel(FieldType.MULTISELECT),
+  [FieldType.USER]: getFieldTypeLabel(FieldType.USER),
+  [FieldType.MULTIUSER]: getFieldTypeLabel(FieldType.MULTIUSER),
+  [FieldType.LABEL]: getFieldTypeLabel(FieldType.LABEL),
+  [FieldType.URL]: getFieldTypeLabel(FieldType.URL),
+  [FieldType.CHECKBOX]: getFieldTypeLabel(FieldType.CHECKBOX),
 }
 
 const openCreateFieldDialog = () => {
