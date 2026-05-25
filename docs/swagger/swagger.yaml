@@ -447,6 +447,15 @@ definitions:
       user_id:
         type: integer
     type: object
+  dto.CompleteRequest:
+    properties:
+      comment:
+        maxLength: 1000
+        type: string
+      result:
+        description: 条件表达式值（如 approved, rejected, 或自定义条件名称），空=默认流转
+        type: string
+    type: object
   dto.ComponentResponse:
     properties:
       created_at:
@@ -651,6 +660,19 @@ definitions:
     - name
     - type
     type: object
+  dto.CreateEdgeRequest:
+    properties:
+      condition_expr:
+        maxLength: 500
+        type: string
+      source_node_id:
+        type: integer
+      target_node_id:
+        type: integer
+    required:
+    - source_node_id
+    - target_node_id
+    type: object
   dto.CreateFieldRequest:
     properties:
       default_value:
@@ -779,6 +801,30 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  dto.CreateNodeRequest:
+    properties:
+      config:
+        $ref: '#/definitions/dto.NodeConfig'
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      node_type:
+        enum:
+        - start
+        - end
+        - approval
+        - work
+        - system
+        type: string
+      position_x:
+        type: integer
+      position_y:
+        type: integer
+    required:
+    - name
+    - node_type
     type: object
   dto.CreateNotificationChannelRequest:
     properties:
@@ -1004,6 +1050,20 @@ definitions:
     - name
     - url
     type: object
+  dto.CreateWorkflowRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      project_id:
+        type: integer
+    required:
+    - name
+    type: object
   dto.CreateWorkflowSchemeRequest:
     properties:
       issue_type_id:
@@ -1171,6 +1231,23 @@ definitions:
         type: number
       value:
         description: 数量
+        type: integer
+    type: object
+  dto.EdgeResponse:
+    properties:
+      condition_expr:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      source_node_id:
+        type: integer
+      target_node_id:
+        type: integer
+      updated_at:
+        type: string
+      workflow_id:
         type: integer
     type: object
   dto.EmailConfig:
@@ -2534,6 +2611,12 @@ definitions:
         - 1
         type: integer
     type: object
+  dto.UpdateEdgeRequest:
+    properties:
+      condition_expr:
+        maxLength: 500
+        type: string
+    type: object
   dto.UpdateEmailConfigRequest:
     properties:
       enabled:
@@ -2676,6 +2759,19 @@ definitions:
         type: string
     required:
     - role
+    type: object
+  dto.UpdateNodeRequest:
+    properties:
+      config:
+        $ref: '#/definitions/dto.NodeConfig'
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      position_x:
+        type: integer
+      position_y:
+        type: integer
     type: object
   dto.UpdateNotificationChannelRequest:
     properties:
@@ -2920,6 +3016,21 @@ definitions:
         maxLength: 500
         type: string
     type: object
+  dto.UpdateWorkflowRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+    type: object
   dto.UpdateWorklogRequest:
     properties:
       description:
@@ -3140,6 +3251,31 @@ definitions:
       workflow_id:
         type: integer
       workflow_name:
+        type: string
+    type: object
+  dto.WorkflowResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      edges:
+        items:
+          $ref: '#/definitions/dto.EdgeResponse'
+        type: array
+      id:
+        type: integer
+      name:
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/dto.NodeResponse'
+        type: array
+      project_id:
+        type: integer
+      status:
+        type: integer
+      updated_at:
         type: string
     type: object
   dto.WorkflowSchemeResponse:
@@ -5647,6 +5783,47 @@ paths:
       security:
       - BearerAuth: []
       summary: 审批通过
+      tags:
+      - Workflow
+  /api/v1/issues/{key}/workflow/complete:
+    post:
+      consumes:
+      - application/json
+      description: 操作人完成当前工作节点，推进工作流流转
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 完成节点请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CompleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 完成工作节点
       tags:
       - Workflow
   /api/v1/issues/{key}/workflow/history:
@@ -10254,6 +10431,636 @@ paths:
       summary: 撤销 API Token
       tags:
       - Token
+  /api/v1/workflows:
+    get:
+      description: 分页查询工作流，支持按项目、状态、关键字筛选
+      parameters:
+      - description: 页码（默认 1）
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量（默认 20，最大 100）
+        in: query
+        name: page_size
+        type: integer
+      - description: 项目 ID
+        in: query
+        name: project_id
+        type: integer
+      - description: 状态（0=禁用，1=启用）
+        in: query
+        name: status
+        type: integer
+      - description: 关键字搜索
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.PageData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作流列表
+      tags:
+      - Workflow
+    post:
+      consumes:
+      - application/json
+      description: 创建新的工作流定义
+      parameters:
+      - description: 创建工作流请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateWorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorkflowResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建工作流
+      tags:
+      - Workflow
+  /api/v1/workflows/{id}:
+    delete:
+      description: 根据 ID 删除工作流（需要管理员权限）
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工作流
+      tags:
+      - Workflow
+    get:
+      description: 根据 ID 获取工作流定义，包含节点和边
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorkflowResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作流详情
+      tags:
+      - Workflow
+    put:
+      consumes:
+      - application/json
+      description: 更新工作流名称、描述或状态
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新工作流请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateWorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorkflowResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新工作流
+      tags:
+      - Workflow
+  /api/v1/workflows/{id}/edges:
+    get:
+      description: 获取指定工作流的所有边
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.EdgeResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作流边列表
+      tags:
+      - Workflow
+    post:
+      consumes:
+      - application/json
+      description: 在指定工作流中创建节点之间的连接边
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 创建边请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateEdgeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.EdgeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建工作流边
+      tags:
+      - Workflow
+  /api/v1/workflows/{id}/edges/{edge_id}:
+    delete:
+      description: 根据边 ID 删除节点间的连接
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 边 ID
+        in: path
+        name: edge_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工作流边
+      tags:
+      - Workflow
+    get:
+      description: 根据边 ID 获取边配置
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 边 ID
+        in: path
+        name: edge_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.EdgeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作流边详情
+      tags:
+      - Workflow
+    put:
+      consumes:
+      - application/json
+      description: 更新边的条件表达式
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 边 ID
+        in: path
+        name: edge_id
+        required: true
+        type: integer
+      - description: 更新边请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateEdgeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.EdgeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新工作流边
+      tags:
+      - Workflow
+  /api/v1/workflows/{id}/nodes:
+    get:
+      description: 获取指定工作流的所有节点
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.NodeResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作流节点列表
+      tags:
+      - Workflow
+    post:
+      consumes:
+      - application/json
+      description: 在指定工作流中创建新节点
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 创建节点请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateNodeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.NodeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建工作流节点
+      tags:
+      - Workflow
+  /api/v1/workflows/{id}/nodes/{node_id}:
+    delete:
+      description: 根据节点 ID 删除节点
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 节点 ID
+        in: path
+        name: node_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工作流节点
+      tags:
+      - Workflow
+    get:
+      description: 根据节点 ID 获取节点配置
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 节点 ID
+        in: path
+        name: node_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.NodeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作流节点详情
+      tags:
+      - Workflow
+    put:
+      consumes:
+      - application/json
+      description: 更新节点名称、配置或位置
+      parameters:
+      - description: 工作流 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 节点 ID
+        in: path
+        name: node_id
+        required: true
+        type: integer
+      - description: 更新节点请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateNodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.NodeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新工作流节点
+      tags:
+      - Workflow
   /ws:
     get:
       description: 通过 token 查询参数进行认证后升级为 WebSocket 连接，用于接收实时站内通知

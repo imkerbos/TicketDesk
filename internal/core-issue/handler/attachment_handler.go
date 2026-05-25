@@ -145,6 +145,7 @@ func (h *AttachmentHandler) HandleDeleteAttachment(c *gin.Context) {
 // @Failure 404 {object} response.ErrorResponse "附件不存在"
 // @Router /api/v1/issues/{key}/attachments/{id}/download [get]
 func (h *AttachmentHandler) HandleDownloadAttachment(c *gin.Context) {
+	issueKey := c.Param("key")
 	attachmentIDStr := c.Param("id")
 
 	attachmentID, err := strconv.ParseUint(attachmentIDStr, 10, 64)
@@ -153,13 +154,17 @@ func (h *AttachmentHandler) HandleDownloadAttachment(c *gin.Context) {
 		return
 	}
 
-	filePath, err := h.attachmentService.GetAttachmentPath(c.Request.Context(), attachmentID)
+	// 校验附件归属于该工单, 防 IDOR (别的工单的附件 ID 不应能下到)
+	filePath, err := h.attachmentService.GetAttachmentPathForIssue(c.Request.Context(), issueKey, attachmentID)
 	if err != nil {
-		if errors.Is(err, service.ErrAttachmentNotFound) {
+		switch {
+		case errors.Is(err, service.ErrIssueNotFound):
+			response.NotFound(c, "工单不存在")
+		case errors.Is(err, service.ErrAttachmentNotFound):
 			response.NotFound(c, "附件不存在")
-			return
+		default:
+			response.InternalError(c, "获取附件失败")
 		}
-		response.InternalError(c, "获取附件失败")
 		return
 	}
 

@@ -965,6 +965,24 @@ func (r *Router) registerConfigRoutes(rg *gin.RouterGroup) {
 		sso.PUT("", r.configHandler.HandleUpdateSSOConfig)
 	}
 
+	// Lark 通知配置 (需管理员权限)
+	larkCfg := rg.Group("/system/lark")
+	larkCfg.Use(r.rbac.RequireAdmin())
+	{
+		larkCfg.GET("", r.configHandler.HandleGetLarkConfig)
+		larkCfg.PUT("", r.configHandler.HandleUpdateLarkConfig)
+		larkCfg.POST("/test", r.configHandler.HandleTestLark)
+	}
+
+	// Telegram 通知配置 (需管理员权限)
+	telegramCfg := rg.Group("/system/telegram")
+	telegramCfg.Use(r.rbac.RequireAdmin())
+	{
+		telegramCfg.GET("", r.configHandler.HandleGetTelegramConfig)
+		telegramCfg.PUT("", r.configHandler.HandleUpdateTelegramConfig)
+		telegramCfg.POST("/test", r.configHandler.HandleTestTelegram)
+	}
+
 	// 品牌配置管理（需要管理员权限）
 	brand := rg.Group("/system/brand")
 	brand.Use(r.rbac.RequireAdmin())

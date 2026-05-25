@@ -60,6 +60,7 @@ type AttachmentService interface {
 	ListAttachments(ctx context.Context, issueKey string) ([]*dto.AttachmentResponse, error)
 	DeleteAttachment(ctx context.Context, issueKey string, attachmentID, userID uint64) error
 	GetAttachmentPath(ctx context.Context, attachmentID uint64) (string, error)
+	GetAttachmentPathForIssue(ctx context.Context, issueKey string, attachmentID uint64) (string, error)
 	SetActivityLogger(activityLogger ActivityLogger)
 
 	// SaveFile 仅落盘, 不写数据库; 返回相对路径
@@ -250,7 +251,7 @@ func (s *attachmentService) DeleteAttachment(ctx context.Context, issueKey strin
 	return nil
 }
 
-// GetAttachmentPath 获取附件的完整路径
+// GetAttachmentPath 获取附件的完整路径 (不校验归属, 仅供内部使用)
 func (s *attachmentService) GetAttachmentPath(ctx context.Context, attachmentID uint64) (string, error) {
 	attachment, err := s.attachmentRepo.GetByID(ctx, attachmentID)
 	if err != nil {
@@ -258,6 +259,34 @@ func (s *attachmentService) GetAttachmentPath(ctx context.Context, attachmentID 
 			return "", ErrAttachmentNotFound
 		}
 		return "", fmt.Errorf("查询附件失败: %w", err)
+	}
+
+	return s.storage.GetFullPath(attachment.FilePath), nil
+}
+
+// GetAttachmentPathForIssue 获取附件路径并校验附件归属于指定工单 (防 IDOR 越权下载)
+func (s *attachmentService) GetAttachmentPathForIssue(ctx context.Context, issueKey string, attachmentID uint64) (string, error) {
+	// 取工单
+	issue, err := s.issueRepo.GetByKey(ctx, strings.ToUpper(issueKey))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", ErrIssueNotFound
+		}
+		return "", fmt.Errorf("查询工单失败: %w", err)
+	}
+
+	// 取附件
+	attachment, err := s.attachmentRepo.GetByID(ctx, attachmentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", ErrAttachmentNotFound
+		}
+		return "", fmt.Errorf("查询附件失败: %w", err)
+	}
+
+	// 归属校验
+	if attachment.IssueID != issue.ID {
+		return "", ErrAttachmentNotFound
 	}
 
 	return s.storage.GetFullPath(attachment.FilePath), nil
