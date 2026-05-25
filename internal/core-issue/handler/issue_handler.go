@@ -3,8 +3,11 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -47,21 +50,57 @@ func ctxWithUser(c *gin.Context) context.Context {
 }
 
 // HandleCreateIssue 创建工单
+// 支持两种 Content-Type:
+//   - application/json (兼容现有调用方, 如告警自动建单)
+//   - multipart/form-data (含附件): form field "data" 存 JSON, "files" 存文件列表
 func (h *IssueHandler) HandleCreateIssue(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
 	var req dto.CreateIssueRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "请求参数错误: "+err.Error())
-		return
+	var files []*multipart.FileHeader
+
+	contentType := c.ContentType()
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		dataStr := c.PostForm("data")
+		if dataStr == "" {
+			response.BadRequest(c, "缺少表单字段 data")
+			return
+		}
+		if err := json.Unmarshal([]byte(dataStr), &req); err != nil {
+			response.BadRequest(c, "请求参数错误: "+err.Error())
+			return
+		}
+		form, err := c.MultipartForm()
+		if err == nil && form != nil {
+			files = form.File["files"]
+		}
+	} else {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.BadRequest(c, "请求参数错误: "+err.Error())
+			return
+		}
 	}
 
-	userID := c.GetUint64("user_id")
-	result, err := h.issueService.CreateIssue(c.Request.Context(), &req, userID)
+	var (
+		result *dto.IssueResponse
+		err    error
+	)
+	if len(files) > 0 {
+		result, err = h.issueService.CreateIssueWithAttachments(c.Request.Context(), &req, files, userID)
+	} else {
+		result, err = h.issueService.CreateIssue(c.Request.Context(), &req, userID)
+	}
+
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrProjectNotFound):
 			response.NotFound(c, err.Error())
 		case errors.Is(err, service.ErrIssueTypeNotFound):
 			response.BadRequest(c, err.Error())
+		case errors.Is(err, service.ErrFileTooLarge):
+			response.BadRequest(c, "文件大小超过限制（最大10MB）")
+		case errors.Is(err, service.ErrInvalidFileType):
+			response.BadRequest(c, "不支持的文件类型")
 		default:
 			response.InternalError(c, "创建工单失败")
 		}
