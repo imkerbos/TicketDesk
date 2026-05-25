@@ -31,7 +31,7 @@ spec:
             port:
               number: {{ .Values.backend.port }}
       timeout: 10s
-    # API
+    # API (含 /api/v1/swagger UI)
     - match:
         - uri:
             prefix: /api
@@ -41,16 +41,6 @@ spec:
             port:
               number: {{ .Values.backend.port }}
       timeout: 120s
-    # Swagger UI (含 doc.json / static assets)
-    - match:
-        - uri:
-            prefix: /swagger
-      route:
-        - destination:
-            host: {{ .Release.Name }}-backend
-            port:
-              number: {{ .Values.backend.port }}
-      timeout: 30s
     # 前端静态资源（catch-all）
     - route:
         - destination:

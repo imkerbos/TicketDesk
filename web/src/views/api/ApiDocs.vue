@@ -31,11 +31,11 @@ onMounted(() => {
     return
   }
 
-  // 设 cookie 让 backend SwaggerAuthMiddleware 能读到 (同源, path 限制到 /swagger)
+  // 设 cookie 让 backend SwaggerAuthMiddleware 能读到 (同源, path 限制到 /api/v1/swagger)
   // SameSite=Strict 防 CSRF; 不加 Secure 因内网/HTTP 也用
-  document.cookie = `td_swagger_token=${encodeURIComponent(token)}; path=/swagger; SameSite=Strict; max-age=7200`
+  document.cookie = `td_swagger_token=${encodeURIComponent(token)}; path=/api/v1/swagger; SameSite=Strict; max-age=7200`
 
-  swaggerUrl.value = '/swagger/index.html'
+  swaggerUrl.value = '/api/v1/swagger/index.html'
   ready.value = true
 })
 </script>
