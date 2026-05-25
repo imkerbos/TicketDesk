@@ -7,11 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/kerbos/ticketdesk/internal/api/response"
+	"github.com/kerbos/ticketdesk/internal/core-user/service"
 	"github.com/kerbos/ticketdesk/pkg/jwt"
 )
 
-// AuthMiddleware JWT 认证中间件
-func AuthMiddleware(jwtManager *jwt.Manager) gin.HandlerFunc {
+// AuthMiddleware JWT 认证中间件，同时支持 PAT 鉴权
+func AuthMiddleware(jwtManager *jwt.Manager, tokenSvc service.APITokenService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -28,7 +29,25 @@ func AuthMiddleware(jwtManager *jwt.Manager) gin.HandlerFunc {
 			return
 		}
 
-		claims, err := jwtManager.ParseToken(parts[1])
+		raw := parts[1]
+
+		// API Token (PAT) 路径：前缀为 td_pat_ 时走 PAT 鉴权
+		if service.IsAPIToken(raw) {
+			user, _, err := tokenSvc.Authenticate(c.Request.Context(), raw)
+			if err != nil {
+				response.Unauthorized(c, "API token 无效或已过期")
+				c.Abort()
+				return
+			}
+			c.Set("user_id", user.ID)
+			c.Set("username", user.Username)
+			c.Set("is_pat", true)
+			c.Next()
+			return
+		}
+
+		// 否则走 JWT 鉴权（原有逻辑）
+		claims, err := jwtManager.ParseToken(raw)
 		if err != nil {
 			switch err {
 			case jwt.ErrTokenExpired:
