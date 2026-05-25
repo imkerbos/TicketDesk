@@ -723,6 +723,11 @@ func (h *WorkflowHandler) HandleApprove(c *gin.Context) {
 			response.BadRequest(c, "已经审批过了")
 			return
 		}
+		if errors.Is(err, service.ErrNotApprovalNode) {
+			response.BadRequest(c, "当前节点不是审批节点，无法执行审批操作")
+			return
+		}
+		logger.Error("approve operation failed", zap.Error(err))
 		response.InternalError(c, "审批操作失败: "+err.Error())
 		return
 	}
@@ -809,6 +814,11 @@ func (h *WorkflowHandler) HandleReject(c *gin.Context) {
 			response.BadRequest(c, "已经审批过了")
 			return
 		}
+		if errors.Is(err, service.ErrNotApprovalNode) {
+			response.BadRequest(c, "当前节点不是审批节点，无法执行拒绝操作")
+			return
+		}
+		logger.Error("reject operation failed", zap.Error(err))
 		response.InternalError(c, "拒绝操作失败: "+err.Error())
 		return
 	}

@@ -31,6 +31,8 @@ var (
 	ErrNotApprover              = errors.New("当前用户不是审批人")
 	ErrAlreadyApproved          = errors.New("已经审批过了")
 	ErrNoApproversConfigured    = errors.New("未配置审批人")
+	// ErrNotApprovalNode 当前节点不是审批节点，无法执行审批/拒绝操作
+	ErrNotApprovalNode = errors.New("当前节点不是审批节点")
 )
 
 // WorkflowEngine 工作流引擎接口
@@ -258,7 +260,7 @@ func (e *workflowEngine) Approve(ctx context.Context, instanceID, userID uint64,
 
 	// 检查节点类型
 	if currentNode.NodeType != "approval" {
-		return fmt.Errorf("当前节点不是审批节点")
+		return ErrNotApprovalNode
 	}
 
 	// 解析节点配置（提前解析，用于判断是否配置了指定审批人）
@@ -368,7 +370,7 @@ func (e *workflowEngine) Reject(ctx context.Context, instanceID, userID uint64, 
 
 	// 检查节点类型
 	if currentNode.NodeType != "approval" {
-		return fmt.Errorf("当前节点不是审批节点")
+		return ErrNotApprovalNode
 	}
 
 	// 解析节点配置（提前解析，用于判断是否配置了指定审批人）
