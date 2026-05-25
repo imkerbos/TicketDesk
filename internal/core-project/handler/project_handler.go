@@ -475,7 +475,7 @@ func (h *ProjectHandler) HandleListAllIssueTypes(c *gin.Context) {
 // @Description 获取所有项目列表（不分页，用于选择器）
 // @Tags Project
 // @Produce json
-// @Success 200 {array} dto.ProjectBrief
+// @Success 200 {array} dto.ProjectResponse
 // @Router /api/v1/projects/all [get]
 // @Security BearerAuth
 func (h *ProjectHandler) HandleListAllProjects(c *gin.Context) {

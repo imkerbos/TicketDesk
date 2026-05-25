@@ -1,4 +1,22 @@
 // Package main 应用入口
+//
+// @title           TicketDesk API
+// @version         1.0
+// @description     项目化工单与告警联动系统 API. 一切问题都是工单, 一切告警都必须被跟进.
+// @termsOfService  https://github.com/kerbos/ticketdesk
+//
+// @contact.name   TicketDesk
+// @contact.url    https://github.com/kerbos/ticketdesk
+//
+// @license.name  MIT
+//
+// @host      localhost:10010
+// @BasePath  /api/v1
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description JWT Bearer 令牌 (`Bearer <jwt>`) 或 Personal Access Token (`Bearer td_pat_xxx`)
 package main
 
 import (

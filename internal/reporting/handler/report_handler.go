@@ -111,7 +111,7 @@ func (h *ReportHandler) HandleGetSLAReport(c *gin.Context) {
 // @Param start_date query string false "开始日期 (YYYY-MM-DD)"
 // @Param end_date query string false "结束日期 (YYYY-MM-DD)"
 // @Param group_by query string false "分组方式 (day/week/month)"
-// @Success 200 {object} dto.AlertStatsResponse
+// @Success 200 {object} internal_reporting_dto.AlertStatsResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/reports/alerts [get]
 // @Security BearerAuth

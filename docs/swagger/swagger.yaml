@@ -1,0 +1,5577 @@
+basePath: /api/v1
+definitions:
+  dto.ActivityResponse:
+    properties:
+      action:
+        type: string
+      created_at:
+        type: string
+      details:
+        type: string
+      entity_id:
+        type: integer
+      entity_key:
+        type: string
+      entity_type:
+        type: string
+      id:
+        type: integer
+      user_id:
+        type: integer
+      user_name:
+        type: string
+    type: object
+  dto.AddMemberRequest:
+    properties:
+      role:
+        type: string
+      user_id:
+        type: integer
+    required:
+    - role
+    - user_id
+    type: object
+  dto.AddRoleMemberRequest:
+    properties:
+      user_id:
+        type: integer
+    required:
+    - user_id
+    type: object
+  dto.AlertTimelineItem:
+    properties:
+      date:
+        description: 日期
+        type: string
+      firing:
+        description: 触发数量
+        type: integer
+      resolved:
+        description: 恢复数量
+        type: integer
+    type: object
+  dto.ApprovalRecordResponse:
+    properties:
+      approved_at:
+        type: string
+      approver_id:
+        type: integer
+      approver_name:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      instance_id:
+        type: integer
+      node_id:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.ApproveRequest:
+    properties:
+      comment:
+        maxLength: 1000
+        type: string
+    type: object
+  dto.AssigneeSummary:
+    properties:
+      assignee_id:
+        type: integer
+      assignee_name:
+        type: string
+      completed:
+        type: integer
+      in_progress:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dto.CategoryResponse:
+    properties:
+      color:
+        type: string
+      id:
+        type: integer
+      is_default:
+        type: boolean
+      is_system:
+        type: boolean
+      label:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  dto.ComponentResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      lead_user:
+        $ref: '#/definitions/internal_core-field_dto.UserBrief'
+      lead_user_id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.ConvertToIssueRequest:
+    properties:
+      assignee_id:
+        type: integer
+      issue_type_id:
+        type: integer
+      project_key:
+        type: string
+    required:
+    - issue_type_id
+    - project_key
+    type: object
+  dto.CreateCategoryRequest:
+    properties:
+      color:
+        enum:
+        - primary
+        - success
+        - danger
+        - warning
+        - info
+        type: string
+      label:
+        maxLength: 50
+        minLength: 1
+        type: string
+      name:
+        maxLength: 30
+        minLength: 1
+        type: string
+    required:
+    - color
+    - label
+    - name
+    type: object
+  dto.CreateComponentRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      lead_user_id:
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  dto.CreateFieldRequest:
+    properties:
+      default_value:
+        maxLength: 500
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      field_key:
+        maxLength: 50
+        minLength: 2
+        type: string
+      field_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      field_type:
+        enum:
+        - text
+        - textarea
+        - number
+        - date
+        - datetime
+        - select
+        - multiselect
+        - user
+        - multiuser
+        - version
+        - component
+        - label
+        - epic_link
+        - time_estimate
+        - url
+        - checkbox
+        type: string
+      options:
+        description: JSON格式的选项配置
+        type: string
+      validation:
+        description: JSON格式的校验规则
+        type: string
+    required:
+    - field_key
+    - field_name
+    - field_type
+    type: object
+  dto.CreateIssueTypeRequest:
+    properties:
+      color:
+        maxLength: 20
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      display_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      icon:
+        maxLength: 50
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+    required:
+    - display_name
+    - name
+    type: object
+  dto.CreateLabelRequest:
+    properties:
+      color:
+        maxLength: 20
+        type: string
+      description:
+        maxLength: 200
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  dto.CreateNotificationChannelRequest:
+    properties:
+      channel_type:
+        enum:
+        - lark
+        - telegram
+        type: string
+      config: {}
+      enabled:
+        type: boolean
+      name:
+        maxLength: 100
+        type: string
+    required:
+    - channel_type
+    - config
+    - name
+    type: object
+  dto.CreateProjectRequest:
+    properties:
+      description:
+        maxLength: 1000
+        type: string
+      lead_user_id:
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      project_key:
+        maxLength: 10
+        minLength: 2
+        type: string
+      template:
+        description: '"standard" 使用模版（默认），"blank" 空项目'
+        type: string
+    required:
+    - lead_user_id
+    - name
+    - project_key
+    type: object
+  dto.CreateProjectRoleRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      role_key:
+        maxLength: 50
+        minLength: 2
+        type: string
+      role_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - role_key
+    - role_name
+    type: object
+  dto.CreateRequirementPoolRequest:
+    properties:
+      description:
+        maxLength: 5000
+        type: string
+      name:
+        maxLength: 200
+        minLength: 1
+        type: string
+      owner_id:
+        type: integer
+      project_id:
+        type: integer
+      type:
+        allOf:
+        - $ref: '#/definitions/model.RequirementPoolType'
+        enum:
+        - global
+        - project
+    required:
+    - name
+    - owner_id
+    - type
+    type: object
+  dto.CreateRequirementRequest:
+    properties:
+      assignee_id:
+        type: integer
+      category:
+        $ref: '#/definitions/model.RequirementCategory'
+      description:
+        maxLength: 10000
+        type: string
+      end_date:
+        description: '格式: 2006-01-02 或 2006-01-02 15:04:05'
+        type: string
+      pool_id:
+        type: integer
+      priority:
+        allOf:
+        - $ref: '#/definitions/model.RequirementPriority'
+        enum:
+        - P0
+        - P1
+        - P2
+        - P3
+      reporter_id:
+        type: integer
+      start_date:
+        description: '格式: 2006-01-02 或 2006-01-02 15:04:05'
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      target_project_id:
+        type: integer
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+    required:
+    - category
+    - pool_id
+    - priority
+    - title
+    type: object
+  dto.CreateUserRequest:
+    properties:
+      display_name:
+        maxLength: 100
+        type: string
+      email:
+        maxLength: 100
+        type: string
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      roles:
+        items:
+          type: string
+        type: array
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  dto.CreateVersionRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      release_date:
+        description: '格式: 2006-01-02'
+        type: string
+    required:
+    - name
+    type: object
+  dto.CreateWorkflowSchemeRequest:
+    properties:
+      issue_type_id:
+        type: integer
+      workflow_id:
+        type: integer
+    required:
+    - issue_type_id
+    - workflow_id
+    type: object
+  dto.DailyWorklogStat:
+    properties:
+      date:
+        type: string
+      entry_count:
+        type: integer
+      total_time_sec:
+        type: integer
+    type: object
+  dto.DashboardStatsResponse:
+    properties:
+      alert_stats:
+        description: 告警统计
+        properties:
+          today_created:
+            description: 今日告警
+            type: integer
+          total_acked:
+            description: 已确认告警
+            type: integer
+          total_firing:
+            description: 触发中告警
+            type: integer
+          total_resolved:
+            description: 已恢复告警
+            type: integer
+          week_created:
+            description: 本周告警
+            type: integer
+        type: object
+      issue_stats:
+        description: 工单统计
+        properties:
+          today_created:
+            description: 今日创建
+            type: integer
+          total_closed:
+            description: 已关闭工单
+            type: integer
+          total_in_progress:
+            description: 进行中工单
+            type: integer
+          total_open:
+            description: 待处理工单
+            type: integer
+          total_resolved:
+            description: 已解决工单
+            type: integer
+          week_created:
+            description: 本周创建
+            type: integer
+          week_resolved:
+            description: 本周解决
+            type: integer
+        type: object
+      project_stats:
+        description: 项目统计
+        properties:
+          total_members:
+            description: 总成员数
+            type: integer
+          total_projects:
+            description: 总项目数
+            type: integer
+        type: object
+    type: object
+  dto.DistributionItem:
+    properties:
+      name:
+        description: 名称
+        type: string
+      ratio:
+        description: 占比
+        type: number
+      value:
+        description: 数量
+        type: integer
+    type: object
+  dto.FieldDefinitionResponse:
+    properties:
+      created_at:
+        type: string
+      default_value:
+        type: string
+      description:
+        type: string
+      field_key:
+        type: string
+      field_name:
+        type: string
+      field_type:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      is_system:
+        type: boolean
+      options:
+        type: string
+      project_id:
+        type: integer
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+      validation:
+        type: string
+    type: object
+  dto.FieldSchemeItem:
+    properties:
+      default_value:
+        type: string
+      field_id:
+        type: integer
+      is_required:
+        type: boolean
+      is_visible_create:
+        type: boolean
+      is_visible_detail:
+        type: boolean
+      is_visible_edit:
+        type: boolean
+      sort_order:
+        type: integer
+    required:
+    - field_id
+    type: object
+  dto.FieldSchemeResponse:
+    properties:
+      created_at:
+        type: string
+      default_value:
+        type: string
+      field:
+        $ref: '#/definitions/dto.FieldDefinitionResponse'
+      field_id:
+        type: integer
+      id:
+        type: integer
+      is_required:
+        type: boolean
+      is_visible_create:
+        type: boolean
+      is_visible_detail:
+        type: boolean
+      is_visible_edit:
+        type: boolean
+      issue_type_id:
+        type: integer
+      project_id:
+        type: integer
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.FieldValueResponse:
+    properties:
+      display_value:
+        type: string
+      field_id:
+        type: integer
+      field_key:
+        type: string
+      field_name:
+        type: string
+      field_type:
+        type: string
+      value: {}
+    type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      email:
+        maxLength: 100
+        type: string
+    required:
+    - email
+    type: object
+  dto.IssueStatsResponse:
+    properties:
+      assignee_distribution:
+        description: 按指派人分布
+        items:
+          $ref: '#/definitions/dto.DistributionItem'
+        type: array
+      epic_distribution:
+        description: 按 Epic 分布
+        items:
+          $ref: '#/definitions/dto.DistributionItem'
+        type: array
+      priority_distribution:
+        description: 按优先级分布
+        items:
+          $ref: '#/definitions/dto.DistributionItem'
+        type: array
+      status_distribution:
+        description: 按状态分布
+        items:
+          $ref: '#/definitions/dto.DistributionItem'
+        type: array
+      summary:
+        properties:
+          avg_resolve_time:
+            description: 平均解决时间（小时）
+            type: number
+          closed:
+            description: 已关闭
+            type: integer
+          in_progress:
+            description: 进行中
+            type: integer
+          open:
+            description: 待处理
+            type: integer
+          resolved:
+            description: 已解决
+            type: integer
+          total:
+            description: 总数
+            type: integer
+        type: object
+      timeline:
+        description: 按时间分组的统计
+        items:
+          $ref: '#/definitions/dto.TimelineItem'
+        type: array
+      type_distribution:
+        description: 按类型分布
+        items:
+          $ref: '#/definitions/dto.DistributionItem'
+        type: array
+    type: object
+  dto.IssueTypeResponse:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      display_name:
+        type: string
+      icon:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.KanbanColumn:
+    properties:
+      count:
+        type: integer
+      key:
+        type: string
+      requirements:
+        items:
+          $ref: '#/definitions/dto.RequirementResponse'
+        type: array
+      title:
+        type: string
+    type: object
+  dto.KanbanResponse:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/dto.KanbanColumn'
+        type: array
+      group_by:
+        type: string
+      total:
+        type: integer
+    type: object
+  dto.LabelResponse:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.LoginRequest:
+    properties:
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  dto.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserResponse'
+    type: object
+  dto.MFALoginRequest:
+    properties:
+      code:
+        type: string
+      user_id:
+        type: integer
+    required:
+    - code
+    - user_id
+    type: object
+  dto.MFASetupResponse:
+    properties:
+      account:
+        description: 账户名
+        type: string
+      issuer:
+        description: 发行者
+        type: string
+      otp_auth_url:
+        description: 用于生成二维码的 URL
+        type: string
+      qr_code_data:
+        description: Base64 编码的 QR 码图片
+        type: string
+      secret:
+        description: Base32 编码的密钥
+        type: string
+    type: object
+  dto.MFAStatusResponse:
+    properties:
+      enabled:
+        type: boolean
+      verified_at:
+        type: string
+    type: object
+  dto.MFAVerifyRequest:
+    properties:
+      code:
+        type: string
+    required:
+    - code
+    type: object
+  dto.NodeConfig:
+    properties:
+      action:
+        description: 系统节点配置
+        type: string
+      approval_type:
+        description: 审批节点配置
+        type: string
+      approver_role:
+        description: 审批角色
+        type: string
+      approvers:
+        description: 审批人 ID 列表
+        items:
+          type: integer
+        type: array
+      assignee_role:
+        description: 指派角色
+        type: string
+      assignee_type:
+        description: 工作节点配置
+        type: string
+      assignees:
+        description: 指派人 ID 列表
+        items:
+          type: integer
+        type: array
+      description:
+        description: 节点说明
+        type: string
+      parameters:
+        additionalProperties:
+          type: string
+        description: 动作参数
+        type: object
+      target_status:
+        description: 进入该节点时工单目标状态（open, in_progress, resolved, closed）
+        type: string
+      timeout_hours:
+        description: 通用配置
+        type: integer
+    type: object
+  dto.NodeResponse:
+    properties:
+      config:
+        $ref: '#/definitions/dto.NodeConfig'
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      node_type:
+        type: string
+      position_x:
+        type: integer
+      position_y:
+        type: integer
+      updated_at:
+        type: string
+      workflow_id:
+        type: integer
+    type: object
+  dto.NotificationChannelResponse:
+    properties:
+      channel_type:
+        type: string
+      config: {}
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.PrioritySummary:
+    properties:
+      count:
+        type: integer
+      priority:
+        $ref: '#/definitions/model.RequirementPriority'
+    type: object
+  dto.ProjectMemberResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      project_id:
+        type: integer
+      role:
+        type: string
+      role_name:
+        type: string
+      user:
+        $ref: '#/definitions/internal_core-project_dto.UserBrief'
+      user_id:
+        type: integer
+    type: object
+  dto.ProjectResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      lead_user:
+        $ref: '#/definitions/internal_core-project_dto.UserBrief'
+      lead_user_id:
+        type: integer
+      member_count:
+        type: integer
+      name:
+        type: string
+      project_key:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.ProjectRoleMemberResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      project_id:
+        type: integer
+      role_id:
+        type: integer
+      user:
+        $ref: '#/definitions/internal_core-project_dto.UserBrief'
+      user_id:
+        type: integer
+    type: object
+  dto.ProjectRoleResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_system:
+        type: boolean
+      member_count:
+        type: integer
+      permissions:
+        items:
+          type: string
+        type: array
+      project_id:
+        type: integer
+      role_key:
+        type: string
+      role_name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  dto.RegisterRequest:
+    properties:
+      display_name:
+        maxLength: 100
+        type: string
+      email:
+        maxLength: 100
+        type: string
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  dto.RejectRequest:
+    properties:
+      comment:
+        maxLength: 1000
+        type: string
+    required:
+    - comment
+    type: object
+  dto.ReportResponse:
+    properties:
+      assignee_summary:
+        items:
+          $ref: '#/definitions/dto.AssigneeSummary'
+        type: array
+      avg_process_days:
+        type: number
+      end_date:
+        type: string
+      pool_id:
+        type: integer
+      pool_name:
+        type: string
+      priority_summary:
+        items:
+          $ref: '#/definitions/dto.PrioritySummary'
+        type: array
+      start_date:
+        type: string
+      status_summary:
+        items:
+          $ref: '#/definitions/dto.StatusSummary'
+        type: array
+      total_completed:
+        type: integer
+      total_created:
+        type: integer
+      total_rejected:
+        type: integer
+      trend_data:
+        items:
+          $ref: '#/definitions/dto.TrendData'
+        type: array
+    type: object
+  dto.RequirementCommentRequest:
+    properties:
+      content:
+        maxLength: 5000
+        minLength: 1
+        type: string
+    required:
+    - content
+    type: object
+  dto.RequirementCommentResponse:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      requirement_id:
+        type: integer
+      user_id:
+        type: integer
+      user_name:
+        type: string
+    type: object
+  dto.RequirementPoolResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      owner_id:
+        type: integer
+      owner_name:
+        type: string
+      project_id:
+        type: integer
+      project_name:
+        type: string
+      requirement_count:
+        description: 需求数量
+        type: integer
+      status:
+        $ref: '#/definitions/model.RequirementPoolStatus'
+      type:
+        $ref: '#/definitions/model.RequirementPoolType'
+      updated_at:
+        type: string
+    type: object
+  dto.RequirementResponse:
+    properties:
+      assignee_id:
+        type: integer
+      assignee_name:
+        type: string
+      category:
+        $ref: '#/definitions/model.RequirementCategory'
+      comment_count:
+        type: integer
+      converted_issue_id:
+        type: integer
+      converted_issue_key:
+        type: string
+      converted_issue_status:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      creator_name:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: integer
+      pool_id:
+        type: integer
+      pool_name:
+        type: string
+      priority:
+        $ref: '#/definitions/model.RequirementPriority'
+      progress:
+        type: string
+      reporter_id:
+        type: integer
+      reporter_name:
+        type: string
+      result:
+        type: string
+      start_date:
+        type: string
+      status:
+        $ref: '#/definitions/model.RequirementStatus'
+      tags:
+        items:
+          type: string
+        type: array
+      target_project_id:
+        type: integer
+      target_project_name:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.ResetPasswordRequest:
+    properties:
+      new_password:
+        maxLength: 50
+        minLength: 6
+        type: string
+    required:
+    - new_password
+    type: object
+  dto.ResetPasswordWithTokenRequest:
+    properties:
+      new_password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      token:
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
+  dto.SLAPriorityStats:
+    properties:
+      mtta:
+        description: 平均确认时间
+        type: number
+      mttr:
+        description: 平均解决时间
+        type: number
+      priority:
+        description: 优先级
+        type: string
+      resolved:
+        description: 已解决
+        type: integer
+      sla_met:
+        description: 达标数
+        type: integer
+      sla_rate:
+        description: 达标率
+        type: number
+      sla_target:
+        description: SLA 目标（分钟）
+        type: integer
+      total:
+        description: 总数
+        type: integer
+    type: object
+  dto.SLAProjectStats:
+    properties:
+      mttr:
+        description: 平均解决时间
+        type: number
+      project_key:
+        description: 项目 Key
+        type: string
+      project_name:
+        description: 项目名称
+        type: string
+      resolved:
+        description: 已解决
+        type: integer
+      sla_rate:
+        description: 达标率
+        type: number
+      total:
+        description: 总数
+        type: integer
+    type: object
+  dto.SLAReportResponse:
+    properties:
+      by_priority:
+        description: 按优先级的 SLA 统计
+        items:
+          $ref: '#/definitions/dto.SLAPriorityStats'
+        type: array
+      by_project:
+        description: 按项目的 SLA 统计
+        items:
+          $ref: '#/definitions/dto.SLAProjectStats'
+        type: array
+      summary:
+        properties:
+          mtta:
+            description: 平均确认时间（分钟）
+            type: number
+          mttr:
+            description: 平均解决时间（分钟）
+            type: number
+          resolved_issues:
+            description: 已解决工单数
+            type: integer
+          sla_met:
+            description: SLA 达标数
+            type: integer
+          sla_rate:
+            description: SLA 达标率（%）
+            type: number
+          sla_violated:
+            description: SLA 违规数
+            type: integer
+          total_issues:
+            description: 总工单数
+            type: integer
+        type: object
+      violations:
+        description: SLA 违规工单列表
+        items:
+          $ref: '#/definitions/dto.SLAViolation'
+        type: array
+    type: object
+  dto.SLAViolation:
+    properties:
+      actual_time:
+        description: 实际耗时（分钟）
+        type: number
+      assignee_name:
+        description: 经办人
+        type: string
+      issue_key:
+        description: 工单号
+        type: string
+      overdue_by:
+        description: 超时时长（分钟）
+        type: number
+      priority:
+        description: 优先级
+        type: string
+      sla_target:
+        description: SLA 目标（分钟）
+        type: integer
+      title:
+        description: 标题
+        type: string
+    type: object
+  dto.SSOAuthorizeResponse:
+    properties:
+      authorize_url:
+        type: string
+    type: object
+  dto.SSOCallbackRequest:
+    properties:
+      code:
+        type: string
+      state:
+        type: string
+    required:
+    - code
+    - state
+    type: object
+  dto.SSOConfigResponse:
+    properties:
+      enabled:
+        type: boolean
+      provider_name:
+        type: string
+    type: object
+  dto.StatusSummary:
+    properties:
+      count:
+        type: integer
+      status:
+        $ref: '#/definitions/model.RequirementStatus'
+    type: object
+  dto.TimelineItem:
+    properties:
+      closed:
+        description: 关闭数量
+        type: integer
+      created:
+        description: 创建数量
+        type: integer
+      date:
+        description: 日期
+        type: string
+      in_progress:
+        description: 进行中数量
+        type: integer
+      resolved:
+        description: 解决数量
+        type: integer
+    type: object
+  dto.TopAlertItem:
+    properties:
+      alert_name:
+        description: 告警名称
+        type: string
+      count:
+        description: 数量
+        type: integer
+      severity:
+        description: 严重程度
+        type: string
+    type: object
+  dto.TrendData:
+    properties:
+      completed:
+        type: integer
+      created:
+        type: integer
+      date:
+        type: string
+    type: object
+  dto.UpdateCategoryRequest:
+    properties:
+      color:
+        enum:
+        - primary
+        - success
+        - danger
+        - warning
+        - info
+        type: string
+      is_default:
+        type: boolean
+      label:
+        maxLength: 50
+        minLength: 1
+        type: string
+      sort_order:
+        minimum: 0
+        type: integer
+    type: object
+  dto.UpdateComponentRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      lead_user_id:
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    type: object
+  dto.UpdateFieldRequest:
+    properties:
+      default_value:
+        maxLength: 500
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      field_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      is_active:
+        type: boolean
+      options:
+        type: string
+      sort_order:
+        type: integer
+      validation:
+        type: string
+    type: object
+  dto.UpdateFieldSchemeRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.FieldSchemeItem'
+        type: array
+    required:
+    - items
+    type: object
+  dto.UpdateIssueTypeRequest:
+    properties:
+      color:
+        maxLength: 20
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      display_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      icon:
+        maxLength: 50
+        type: string
+    type: object
+  dto.UpdateLabelRequest:
+    properties:
+      color:
+        maxLength: 20
+        type: string
+      description:
+        maxLength: 200
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+    type: object
+  dto.UpdateMemberRequest:
+    properties:
+      role:
+        type: string
+    required:
+    - role
+    type: object
+  dto.UpdateNotificationChannelRequest:
+    properties:
+      config: {}
+      enabled:
+        type: boolean
+      name:
+        maxLength: 100
+        type: string
+    type: object
+  dto.UpdatePasswordRequest:
+    properties:
+      new_password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      old_password:
+        maxLength: 50
+        minLength: 6
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  dto.UpdateProjectRequest:
+    properties:
+      description:
+        maxLength: 1000
+        type: string
+      lead_user_id:
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+    type: object
+  dto.UpdateProjectRoleRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      role_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    type: object
+  dto.UpdateRequirementPoolRequest:
+    properties:
+      description:
+        maxLength: 5000
+        type: string
+      name:
+        maxLength: 200
+        minLength: 1
+        type: string
+      owner_id:
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/model.RequirementPoolStatus'
+        enum:
+        - active
+        - archived
+    type: object
+  dto.UpdateRequirementRequest:
+    properties:
+      assignee_id:
+        type: integer
+      category:
+        $ref: '#/definitions/model.RequirementCategory'
+      description:
+        maxLength: 10000
+        type: string
+      end_date:
+        description: '格式: 2006-01-02 或 2006-01-02 15:04:05'
+        type: string
+      priority:
+        allOf:
+        - $ref: '#/definitions/model.RequirementPriority'
+        enum:
+        - P0
+        - P1
+        - P2
+        - P3
+      progress:
+        maxLength: 10000
+        type: string
+      reporter_id:
+        type: integer
+      result:
+        maxLength: 10000
+        type: string
+      start_date:
+        description: '格式: 2006-01-02 或 2006-01-02 15:04:05'
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/model.RequirementStatus'
+        enum:
+        - pending_review
+        - planning
+        - in_progress
+        - completed
+        - on_hold
+        - rejected
+      tags:
+        items:
+          type: string
+        type: array
+      target_project_id:
+        type: integer
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+    type: object
+  dto.UpdateUserRequest:
+    properties:
+      avatar_url:
+        maxLength: 255
+        type: string
+      display_name:
+        maxLength: 100
+        type: string
+      email:
+        maxLength: 100
+        type: string
+    type: object
+  dto.UpdateVersionRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      release_date:
+        type: string
+      status:
+        enum:
+        - unreleased
+        - released
+        - archived
+        type: string
+    type: object
+  dto.UserPerformanceResponse:
+    properties:
+      assigned:
+        description: 指派数
+        type: integer
+      avg_resolve_time:
+        description: 平均解决时间
+        type: number
+      display_name:
+        type: string
+      resolved:
+        description: 解决数
+        type: integer
+      user_id:
+        type: integer
+      username:
+        type: string
+    type: object
+  dto.UserResponse:
+    properties:
+      auth_source:
+        description: '"local" 或 "sso"'
+        type: string
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      last_login_at:
+        type: string
+      mfa_enabled:
+        type: boolean
+      roles:
+        items:
+          type: string
+        type: array
+      sso_provider:
+        description: SSO 提供方名称（仅 SSO 用户）
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.UserWorklogStat:
+    properties:
+      display_name:
+        type: string
+      entry_count:
+        type: integer
+      total_time_sec:
+        type: integer
+      user_id:
+        type: integer
+    type: object
+  dto.VersionResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      release_date:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.WorkflowHistoryResponse:
+    properties:
+      action:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      from_node:
+        $ref: '#/definitions/dto.NodeResponse'
+      from_node_id:
+        type: integer
+      id:
+        type: integer
+      instance_id:
+        type: integer
+      operated_at:
+        type: string
+      operator_id:
+        type: integer
+      operator_name:
+        type: string
+      to_node:
+        $ref: '#/definitions/dto.NodeResponse'
+      to_node_id:
+        type: integer
+    type: object
+  dto.WorkflowInstanceResponse:
+    properties:
+      approvals:
+        items:
+          $ref: '#/definitions/dto.ApprovalRecordResponse'
+        type: array
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      current_node:
+        $ref: '#/definitions/dto.NodeResponse'
+      current_node_id:
+        type: integer
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      issue_key:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      workflow_id:
+        type: integer
+      workflow_name:
+        type: string
+    type: object
+  dto.WorkflowSchemeResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      issue_type_id:
+        type: integer
+      issue_type_name:
+        type: string
+      project_id:
+        type: integer
+      updated_at:
+        type: string
+      workflow_id:
+        type: integer
+      workflow_name:
+        type: string
+    type: object
+  dto.WorklogDetail:
+    properties:
+      issue_key:
+        type: string
+      time_sec:
+        type: integer
+      title:
+        type: string
+    type: object
+  dto.WorklogGridRow:
+    properties:
+      daily:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: date -> 秒
+        type: object
+      daily_details:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/dto.WorklogDetail'
+          type: array
+        description: date -> 工单明细
+        type: object
+      display_name:
+        type: string
+      total_sec:
+        description: 该用户总工时（秒）
+        type: integer
+      user_id:
+        type: integer
+    type: object
+  dto.WorklogStatsResponse:
+    properties:
+      daily_stats:
+        items:
+          $ref: '#/definitions/dto.DailyWorklogStat'
+        type: array
+      grid:
+        description: 用户×日期工时明细
+        items:
+          $ref: '#/definitions/dto.WorklogGridRow'
+        type: array
+      grid_dates:
+        description: 有序日期列表
+        items:
+          type: string
+        type: array
+      grid_totals:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: 每日合计（秒）
+        type: object
+      summary:
+        $ref: '#/definitions/dto.WorklogSummary'
+      type_stats:
+        items:
+          $ref: '#/definitions/dto.WorklogTypeStat'
+        type: array
+      user_stats:
+        items:
+          $ref: '#/definitions/dto.UserWorklogStat'
+        type: array
+    type: object
+  dto.WorklogSummary:
+    properties:
+      active_users:
+        type: integer
+      avg_daily_time_sec:
+        type: number
+      total_entries:
+        type: integer
+      total_time_sec:
+        type: integer
+    type: object
+  dto.WorklogTypeStat:
+    properties:
+      entry_count:
+        type: integer
+      total_time_sec:
+        type: integer
+      work_type:
+        type: string
+    type: object
+  internal_core-field_dto.UserBrief:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+  internal_core-project_dto.UserBrief:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+  internal_reporting_dto.AlertStatsResponse:
+    properties:
+      severity_distribution:
+        description: 按严重程度分布
+        items:
+          $ref: '#/definitions/dto.DistributionItem'
+        type: array
+      summary:
+        properties:
+          acked:
+            description: 已确认
+            type: integer
+          avg_ack_time:
+            description: 平均确认时间（分钟）
+            type: number
+          firing:
+            description: 触发中
+            type: integer
+          resolved:
+            description: 已恢复
+            type: integer
+          total:
+            description: 总数
+            type: integer
+        type: object
+      timeline:
+        description: 按时间分组的统计
+        items:
+          $ref: '#/definitions/dto.AlertTimelineItem'
+        type: array
+      top_alerts:
+        description: 按告警名称 Top10
+        items:
+          $ref: '#/definitions/dto.TopAlertItem'
+        type: array
+    type: object
+  model.RequirementCategory:
+    enum:
+    - feature
+    - optimization
+    - bugfix
+    - security
+    - infrastructure
+    - other
+    type: string
+    x-enum-comments:
+      RequirementCategoryBugfix: 故障修复
+      RequirementCategoryFeature: 功能需求
+      RequirementCategoryInfrastructure: 基础设施
+      RequirementCategoryOptimization: 优化改进
+      RequirementCategoryOther: 其他
+      RequirementCategorySecurity: 安全合规
+    x-enum-descriptions:
+    - 功能需求
+    - 优化改进
+    - 故障修复
+    - 安全合规
+    - 基础设施
+    - 其他
+    x-enum-varnames:
+    - RequirementCategoryFeature
+    - RequirementCategoryOptimization
+    - RequirementCategoryBugfix
+    - RequirementCategorySecurity
+    - RequirementCategoryInfrastructure
+    - RequirementCategoryOther
+  model.RequirementPoolStatus:
+    enum:
+    - active
+    - archived
+    type: string
+    x-enum-comments:
+      RequirementPoolStatusActive: 活跃
+      RequirementPoolStatusArchived: 已归档
+    x-enum-descriptions:
+    - 活跃
+    - 已归档
+    x-enum-varnames:
+    - RequirementPoolStatusActive
+    - RequirementPoolStatusArchived
+  model.RequirementPoolType:
+    enum:
+    - global
+    - project
+    type: string
+    x-enum-comments:
+      RequirementPoolTypeGlobal: 全局需求池
+      RequirementPoolTypeProject: 项目级需求池
+    x-enum-descriptions:
+    - 全局需求池
+    - 项目级需求池
+    x-enum-varnames:
+    - RequirementPoolTypeGlobal
+    - RequirementPoolTypeProject
+  model.RequirementPriority:
+    enum:
+    - P0
+    - P1
+    - P2
+    - P3
+    type: string
+    x-enum-comments:
+      RequirementPriorityP0: 紧急
+      RequirementPriorityP1: 高
+      RequirementPriorityP2: 中
+      RequirementPriorityP3: 低
+    x-enum-descriptions:
+    - 紧急
+    - 高
+    - 中
+    - 低
+    x-enum-varnames:
+    - RequirementPriorityP0
+    - RequirementPriorityP1
+    - RequirementPriorityP2
+    - RequirementPriorityP3
+  model.RequirementStatus:
+    enum:
+    - pending_review
+    - planning
+    - in_progress
+    - completed
+    - on_hold
+    - rejected
+    type: string
+    x-enum-comments:
+      RequirementStatusCompleted: 已完成
+      RequirementStatusInProgress: 进行中
+      RequirementStatusOnHold: 已搁置
+      RequirementStatusPendingReview: 待评估
+      RequirementStatusPlanning: 规划中
+      RequirementStatusRejected: 已拒绝
+    x-enum-descriptions:
+    - 待评估
+    - 规划中
+    - 进行中
+    - 已完成
+    - 已搁置
+    - 已拒绝
+    x-enum-varnames:
+    - RequirementStatusPendingReview
+    - RequirementStatusPlanning
+    - RequirementStatusInProgress
+    - RequirementStatusCompleted
+    - RequirementStatusOnHold
+    - RequirementStatusRejected
+  response.ErrorResponse:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  response.PageData:
+    properties:
+      has_more:
+        description: true 表示实际总数超过 Total，前端显示 "10,000+"
+        type: boolean
+      items: {}
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  response.PageResponse:
+    properties:
+      has_more:
+        description: true 表示实际总数超过 Total，前端显示 "10,000+"
+        type: boolean
+      items: {}
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  response.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+host: localhost:10010
+info:
+  contact:
+    name: TicketDesk
+    url: https://github.com/kerbos/ticketdesk
+  description: 项目化工单与告警联动系统 API. 一切问题都是工单, 一切告警都必须被跟进.
+  license:
+    name: MIT
+  termsOfService: https://github.com/kerbos/ticketdesk
+  title: TicketDesk API
+  version: "1.0"
+paths:
+  /api/v1/activities:
+    get:
+      consumes:
+      - application/json
+      description: 分页查询活动日志列表
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 实体类型
+        in: query
+        name: entity_type
+        type: string
+      - description: 实体标识
+        in: query
+        name: entity_key
+        type: string
+      - description: 实体 ID
+        in: query
+        name: entity_id
+        type: integer
+      - description: 用户 ID
+        in: query
+        name: user_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageResponse'
+                  - properties:
+                      items:
+                        items:
+                          $ref: '#/definitions/dto.ActivityResponse'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询活动列表
+      tags:
+      - Activity
+  /api/v1/activities/recent:
+    get:
+      consumes:
+      - application/json
+      description: 获取最近的活动日志
+      parameters:
+      - default: 10
+        description: 数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ActivityResponse'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取最近活动
+      tags:
+      - Activity
+  /api/v1/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: 请求重置密码，系统将发送重置链接到用户邮箱
+      parameters:
+      - description: 忘记密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 忘记密码
+      tags:
+      - Auth
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名和密码登录
+      parameters:
+      - description: 登录请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 用户登录
+      tags:
+      - Auth
+  /api/v1/auth/mfa/verify:
+    post:
+      consumes:
+      - application/json
+      description: 登录流程中验证 MFA 码
+      parameters:
+      - description: MFA 登录请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MFALoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 验证 MFA 码
+      tags:
+      - MFA
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用 Refresh Token 获取新的 Access Token
+      parameters:
+      - description: 刷新 Token 请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 刷新 Token
+      tags:
+      - Auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户
+      parameters:
+      - description: 注册请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 用户注册
+      tags:
+      - Auth
+  /api/v1/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: 使用重置密码令牌设置新密码
+      parameters:
+      - description: 重置密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordWithTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 使用令牌重置密码
+      tags:
+      - Auth
+  /api/v1/auth/sso/authorize:
+    get:
+      description: 生成 SSO 授权 URL，前端跳转到该 URL 进行认证
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SSOAuthorizeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 获取 SSO 授权 URL
+      tags:
+      - SSO
+  /api/v1/auth/sso/callback:
+    post:
+      consumes:
+      - application/json
+      description: 处理 SSO 认证回调，验证 code 并返回 JWT
+      parameters:
+      - description: SSO 回调请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SSOCallbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: SSO 回调
+      tags:
+      - SSO
+  /api/v1/auth/sso/config:
+    get:
+      description: 获取 SSO 配置信息（是否启用、提供方名称）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SSOConfigResponse'
+      summary: 获取 SSO 配置
+      tags:
+      - SSO
+  /api/v1/auth/verify-reset-token:
+    get:
+      description: 验证重置密码令牌是否有效
+      parameters:
+      - description: 重置密码令牌
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 验证重置密码令牌
+      tags:
+      - Auth
+  /api/v1/issue-types:
+    get:
+      description: 获取所有工单类型列表（全局 + 项目自定义，用于筛选器）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.IssueTypeResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取所有工单类型
+      tags:
+      - IssueType
+  /api/v1/issues/{issue_id}/field-values:
+    get:
+      description: 获取指定工单的所有自定义字段值
+      parameters:
+      - description: 工单ID
+        in: path
+        name: issue_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.FieldValueResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取工单字段值
+      tags:
+      - FieldValue
+  /api/v1/issues/{key}/workflow:
+    get:
+      description: 根据工单 Key 获取工作流实例
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.WorkflowInstanceResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单的工作流实例
+      tags:
+      - Workflow
+  /api/v1/issues/{key}/workflow/approve:
+    post:
+      consumes:
+      - application/json
+      description: 对工作流实例进行审批通过操作
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 审批请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ApproveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 审批通过
+      tags:
+      - Workflow
+  /api/v1/issues/{key}/workflow/history:
+    get:
+      description: 获取工作流实例的流转历史
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.WorkflowHistoryResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取流转历史
+      tags:
+      - Workflow
+  /api/v1/issues/{key}/workflow/reject:
+    post:
+      consumes:
+      - application/json
+      description: 对工作流实例进行审批拒绝操作
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 拒绝请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RejectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 审批拒绝
+      tags:
+      - Workflow
+  /api/v1/projects:
+    get:
+      description: 分页获取项目列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 搜索关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 项目状态 (0-归档, 1-活跃)
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PageData'
+      security:
+      - BearerAuth: []
+      summary: 获取项目列表
+      tags:
+      - Project
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新项目
+      parameters:
+      - description: 创建项目请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProjectResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建项目
+      tags:
+      - Project
+  /api/v1/projects/{key}:
+    delete:
+      description: 硬删除项目及所有关联数据
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除项目
+      tags:
+      - Project
+    get:
+      description: 根据项目 Key 获取项目详细信息
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProjectResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取项目详情
+      tags:
+      - Project
+    put:
+      consumes:
+      - application/json
+      description: 更新项目信息
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 更新项目请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProjectResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新项目
+      tags:
+      - Project
+  /api/v1/projects/{key}/components:
+    get:
+      description: 获取项目的所有组件
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ComponentResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取组件列表
+      tags:
+      - Component
+    post:
+      consumes:
+      - application/json
+      description: 为项目创建新组件
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建组件请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateComponentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ComponentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建项目组件
+      tags:
+      - Component
+  /api/v1/projects/{key}/components/{id}:
+    delete:
+      description: 删除项目的组件
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 组件ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除项目组件
+      tags:
+      - Component
+    put:
+      consumes:
+      - application/json
+      description: 更新项目的组件信息
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 组件ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新组件请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateComponentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ComponentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新项目组件
+      tags:
+      - Component
+  /api/v1/projects/{key}/fields:
+    get:
+      description: 获取项目可用的所有字段（系统字段+自定义字段）
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.FieldDefinitionResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取字段列表
+      tags:
+      - Field
+    post:
+      consumes:
+      - application/json
+      description: 为项目创建自定义字段
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建字段请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateFieldRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.FieldDefinitionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建自定义字段
+      tags:
+      - Field
+  /api/v1/projects/{key}/fields/{id}:
+    delete:
+      description: 删除项目的自定义字段
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 字段ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除字段定义
+      tags:
+      - Field
+    put:
+      consumes:
+      - application/json
+      description: 更新项目的字段定义
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 字段ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新字段请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateFieldRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.FieldDefinitionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新字段定义
+      tags:
+      - Field
+  /api/v1/projects/{key}/issue-types:
+    get:
+      description: 获取项目可用的所有工单类型（包括全局和项目自定义）
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.IssueTypeResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取项目工单类型列表
+      tags:
+      - Project
+    post:
+      consumes:
+      - application/json
+      description: 为项目创建自定义工单类型
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建工单类型请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateIssueTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.IssueTypeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建工单类型
+      tags:
+      - Project
+  /api/v1/projects/{key}/issue-types/{id}:
+    delete:
+      description: 删除项目自定义的工单类型
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工单类型 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工单类型
+      tags:
+      - Project
+    put:
+      consumes:
+      - application/json
+      description: 更新工单类型信息
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工单类型 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新工单类型请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateIssueTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.IssueTypeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新工单类型
+      tags:
+      - Project
+  /api/v1/projects/{key}/issue-types/{id}/field-scheme:
+    get:
+      description: 获取工单类型的字段配置方案
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工单类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.FieldSchemeResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取字段方案
+      tags:
+      - Field
+    put:
+      consumes:
+      - application/json
+      description: 更新工单类型的字段配置方案
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工单类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新字段方案请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateFieldSchemeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.FieldSchemeResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新字段方案
+      tags:
+      - Field
+  /api/v1/projects/{key}/labels:
+    get:
+      description: 获取项目的所有标签
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.LabelResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取标签列表
+      tags:
+      - Label
+    post:
+      consumes:
+      - application/json
+      description: 为项目创建新标签
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建标签请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateLabelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LabelResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建标签
+      tags:
+      - Label
+  /api/v1/projects/{key}/labels/{id}:
+    delete:
+      description: 删除项目的标签
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 标签ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除标签
+      tags:
+      - Label
+    put:
+      consumes:
+      - application/json
+      description: 更新项目的标签信息
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 标签ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新标签请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateLabelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LabelResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新标签
+      tags:
+      - Label
+  /api/v1/projects/{key}/members:
+    get:
+      description: 获取项目的所有成员
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProjectMemberResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取项目成员列表
+      tags:
+      - Project
+    post:
+      consumes:
+      - application/json
+      description: 向项目添加新成员
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 添加成员请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProjectMemberResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 添加项目成员
+      tags:
+      - Project
+  /api/v1/projects/{key}/members/{user_id}:
+    delete:
+      description: 从项目中移除成员
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 移除项目成员
+      tags:
+      - Project
+    put:
+      consumes:
+      - application/json
+      description: 更新项目成员角色
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: 更新成员请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProjectMemberResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新项目成员
+      tags:
+      - Project
+  /api/v1/projects/{key}/notification-channels:
+    get:
+      description: 获取指定项目的所有通知渠道
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.NotificationChannelResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取项目通知渠道列表
+      tags:
+      - ProjectNotificationChannel
+    post:
+      consumes:
+      - application/json
+      description: 为项目创建一个新的通知渠道
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建通知渠道请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateNotificationChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.NotificationChannelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建通知渠道
+      tags:
+      - ProjectNotificationChannel
+  /api/v1/projects/{key}/notification-channels/{id}:
+    delete:
+      description: 删除指定的通知渠道
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 渠道 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除通知渠道
+      tags:
+      - ProjectNotificationChannel
+    get:
+      description: 根据 ID 获取通知渠道详细信息
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 渠道 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NotificationChannelResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取通知渠道详情
+      tags:
+      - ProjectNotificationChannel
+    put:
+      consumes:
+      - application/json
+      description: 更新通知渠道信息
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 渠道 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新通知渠道请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateNotificationChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NotificationChannelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新通知渠道
+      tags:
+      - ProjectNotificationChannel
+  /api/v1/projects/{key}/notification-channels/{id}/test:
+    post:
+      description: 发送测试消息到指定通知渠道
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 渠道 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试通知渠道
+      tags:
+      - ProjectNotificationChannel
+  /api/v1/projects/{key}/roles:
+    get:
+      description: 获取项目的所有角色
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProjectRoleResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取项目角色列表
+      tags:
+      - Project
+    post:
+      consumes:
+      - application/json
+      description: 为项目创建自定义角色
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateProjectRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProjectRoleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建项目角色
+      tags:
+      - Project
+  /api/v1/projects/{key}/roles/{id}:
+    delete:
+      description: 删除项目自定义角色
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除项目角色
+      tags:
+      - Project
+    put:
+      consumes:
+      - application/json
+      description: 更新项目角色信息
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProjectRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProjectRoleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新项目角色
+      tags:
+      - Project
+  /api/v1/projects/{key}/roles/{id}/members:
+    get:
+      description: 获取角色的所有成员
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProjectRoleMemberResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取角色成员列表
+      tags:
+      - Project
+    post:
+      consumes:
+      - application/json
+      description: 向角色添加成员
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 添加成员请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddRoleMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProjectRoleMemberResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 添加角色成员
+      tags:
+      - Project
+  /api/v1/projects/{key}/roles/{id}/members/{user_id}:
+    delete:
+      description: 从角色中移除成员
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户 ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 移除角色成员
+      tags:
+      - Project
+  /api/v1/projects/{key}/users/{user_id}/roles:
+    get:
+      description: 获取用户在项目中的所有角色
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProjectRoleResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户角色
+      tags:
+      - Project
+  /api/v1/projects/{key}/versions:
+    get:
+      description: 获取项目的所有版本
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.VersionResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取版本列表
+      tags:
+      - Version
+    post:
+      consumes:
+      - application/json
+      description: 为项目创建新版本
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建版本请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.VersionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建项目版本
+      tags:
+      - Version
+  /api/v1/projects/{key}/versions/{id}:
+    delete:
+      description: 删除项目的版本
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 版本ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除项目版本
+      tags:
+      - Version
+    put:
+      consumes:
+      - application/json
+      description: 更新项目的版本信息
+      parameters:
+      - description: 项目Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 版本ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新版本请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.VersionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新项目版本
+      tags:
+      - Version
+  /api/v1/projects/{key}/workflow-schemes:
+    get:
+      description: 获取项目的所有工作流方案
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.WorkflowSchemeResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作流方案列表
+      tags:
+      - Workflow
+    post:
+      consumes:
+      - application/json
+      description: 为项目的工单类型配置工作流
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 创建方案请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateWorkflowSchemeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.WorkflowSchemeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建工作流方案
+      tags:
+      - Workflow
+  /api/v1/projects/{key}/workflow-schemes/{type_id}:
+    delete:
+      description: 删除项目工单类型的工作流方案
+      parameters:
+      - description: 项目 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工单类型 ID
+        in: path
+        name: type_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工作流方案
+      tags:
+      - Workflow
+  /api/v1/projects/all:
+    get:
+      description: 获取所有项目列表（不分页，用于选择器）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProjectResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取所有项目
+      tags:
+      - Project
+  /api/v1/reports/alerts:
+    get:
+      description: 获取告警的详细统计数据
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      - description: 开始日期 (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: 分组方式 (day/week/month)
+        in: query
+        name: group_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_reporting_dto.AlertStatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警统计
+      tags:
+      - Report
+  /api/v1/reports/dashboard:
+    get:
+      description: 获取仪表盘的综合统计数据
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DashboardStatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取仪表盘统计
+      tags:
+      - Report
+  /api/v1/reports/issues:
+    get:
+      description: 获取工单的详细统计数据
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      - description: 开始日期 (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: 分组方式 (day/week/month)
+        in: query
+        name: group_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.IssueStatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单统计
+      tags:
+      - Report
+  /api/v1/reports/sla:
+    get:
+      description: 获取 SLA 统计报表
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      - description: 开始日期 (YYYY-MM-DD)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: 结束日期 (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SLAReportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 SLA 报表
+      tags:
+      - Report
+  /api/v1/reports/user-performance:
+    get:
+      description: 获取用户处理工单的绩效数据
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      - description: 开始日期 (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.UserPerformanceResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户绩效
+      tags:
+      - Report
+  /api/v1/reports/worklogs:
+    get:
+      description: 获取工时统计数据（按日/按人/按类型汇总）
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      - description: 开始日期 (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.WorklogStatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工时统计
+      tags:
+      - Report
+  /api/v1/requirement-categories:
+    get:
+      description: 获取所有需求分类
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.CategoryResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取需求分类列表
+      tags:
+      - RequirementCategory
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的需求分类
+      parameters:
+      - description: 创建需求分类请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CategoryResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建需求分类
+      tags:
+      - RequirementCategory
+  /api/v1/requirement-categories/{id}:
+    delete:
+      description: 删除需求分类（系统预置不可删除，有关联需求时不可删除）
+      parameters:
+      - description: 分类ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除需求分类
+      tags:
+      - RequirementCategory
+    put:
+      consumes:
+      - application/json
+      description: 更新需求分类信息
+      parameters:
+      - description: 分类ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新需求分类请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新需求分类
+      tags:
+      - RequirementCategory
+  /api/v1/requirement-pools:
+    get:
+      consumes:
+      - application/json
+      description: 获取需求池列表（支持分页和筛选）
+      parameters:
+      - description: 类型
+        enum:
+        - global
+        - project
+        in: query
+        name: type
+        type: string
+      - description: 状态
+        enum:
+        - active
+        - archived
+        in: query
+        name: status
+        type: string
+      - description: 项目ID
+        in: query
+        name: project_id
+        type: integer
+      - description: 负责人ID
+        in: query
+        name: owner_id
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.PageData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取需求池列表
+      tags:
+      - RequirementPool
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的需求池
+      parameters:
+      - description: 创建需求池请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateRequirementPoolRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RequirementPoolResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建需求池
+      tags:
+      - RequirementPool
+  /api/v1/requirement-pools/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除需求池（软删除）
+      parameters:
+      - description: 需求池ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除需求池
+      tags:
+      - RequirementPool
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取需求池详情
+      parameters:
+      - description: 需求池ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RequirementPoolResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取需求池详情
+      tags:
+      - RequirementPool
+    put:
+      consumes:
+      - application/json
+      description: 更新需求池信息
+      parameters:
+      - description: 需求池ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新需求池请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateRequirementPoolRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新需求池
+      tags:
+      - RequirementPool
+  /api/v1/requirements:
+    get:
+      consumes:
+      - application/json
+      description: 获取需求列表（支持分页和筛选）
+      parameters:
+      - description: 需求池ID
+        in: query
+        name: pool_id
+        type: integer
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 优先级
+        in: query
+        name: priority
+        type: string
+      - description: 负责人ID
+        in: query
+        name: assignee_id
+        type: integer
+      - description: 创建人ID
+        in: query
+        name: created_by
+        type: integer
+      - description: 开始日期
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期
+        in: query
+        name: end_date
+        type: string
+      - description: 关键词
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.PageData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取需求列表
+      tags:
+      - Requirement
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的需求
+      parameters:
+      - description: 创建需求请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateRequirementRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RequirementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建需求
+      tags:
+      - Requirement
+  /api/v1/requirements/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除需求（软删除）
+      parameters:
+      - description: 需求ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除需求
+      tags:
+      - Requirement
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取需求详情
+      parameters:
+      - description: 需求ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RequirementResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取需求详情
+      tags:
+      - Requirement
+    put:
+      consumes:
+      - application/json
+      description: 更新需求信息
+      parameters:
+      - description: 需求ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新需求请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateRequirementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新需求
+      tags:
+      - Requirement
+  /api/v1/requirements/{id}/comments:
+    post:
+      consumes:
+      - application/json
+      description: 为需求添加评论
+      parameters:
+      - description: 需求ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 评论请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RequirementCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RequirementCommentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 添加评论
+      tags:
+      - Requirement
+  /api/v1/requirements/{id}/convert:
+    post:
+      consumes:
+      - application/json
+      description: 将需求转化为项目工单
+      parameters:
+      - description: 需求ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 转化为工单请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ConvertToIssueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 转化为工单
+      tags:
+      - Requirement
+  /api/v1/requirements/kanban:
+    get:
+      consumes:
+      - application/json
+      description: 获取需求看板数据（支持多维度分组）
+      parameters:
+      - description: 需求池ID
+        in: query
+        name: pool_id
+        type: integer
+      - description: 分组方式
+        enum:
+        - status
+        - priority
+        - assignee
+        - timeline
+        in: query
+        name: group_by
+        required: true
+        type: string
+      - description: 开始日期
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.KanbanResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取看板数据
+      tags:
+      - Requirement
+  /api/v1/requirements/report:
+    get:
+      consumes:
+      - application/json
+      description: 获取需求统计报告
+      parameters:
+      - description: 需求池ID
+        in: query
+        name: pool_id
+        type: integer
+      - description: 开始日期
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: 结束日期
+        in: query
+        name: end_date
+        required: true
+        type: string
+      - description: 分组方式
+        enum:
+        - day
+        - week
+        - month
+        in: query
+        name: group_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ReportResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取报告数据
+      tags:
+      - Requirement
+  /api/v1/users:
+    get:
+      description: 分页获取用户列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 搜索关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 用户状态 (0-禁用, 1-启用)
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PageData'
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      description: 管理员创建新用户
+      parameters:
+      - description: 创建用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建用户
+      tags:
+      - User
+  /api/v1/users/{id}:
+    delete:
+      description: 删除指定用户（软删除）
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除用户
+      tags:
+      - User
+    get:
+      description: 根据用户 ID 获取用户详细信息
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户详情
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: 更新指定用户的信息
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新用户信息
+      tags:
+      - User
+  /api/v1/users/{id}/disable:
+    post:
+      description: 禁用指定用户
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 禁用用户
+      tags:
+      - User
+  /api/v1/users/{id}/enable:
+    post:
+      description: 启用指定用户
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 启用用户
+      tags:
+      - User
+  /api/v1/users/{id}/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: 管理员重置指定用户的密码
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 重置密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 重置用户密码
+      tags:
+      - User
+  /api/v1/users/all:
+    get:
+      description: 获取所有启用的用户列表（不分页，用于选择器）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.UserResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取所有用户
+      tags:
+      - User
+  /api/v1/users/me:
+    get:
+      description: 获取当前登录用户的详细信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - User
+  /api/v1/users/me/mfa:
+    get:
+      description: 获取当前用户的 MFA 状态
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MFAStatusResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 MFA 状态
+      tags:
+      - MFA
+  /api/v1/users/me/mfa/disable:
+    post:
+      consumes:
+      - application/json
+      description: 验证 TOTP 码并禁用 MFA
+      parameters:
+      - description: MFA 验证请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MFAVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 禁用 MFA
+      tags:
+      - MFA
+  /api/v1/users/me/mfa/enable:
+    post:
+      consumes:
+      - application/json
+      description: 验证 TOTP 码并启用 MFA
+      parameters:
+      - description: MFA 验证请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MFAVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 验证并启用 MFA
+      tags:
+      - MFA
+  /api/v1/users/me/mfa/setup:
+    post:
+      description: 生成 MFA 密钥和二维码 URL
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MFASetupResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 开始 MFA 设置
+      tags:
+      - MFA
+  /api/v1/users/me/password:
+    put:
+      consumes:
+      - application/json
+      description: 修改当前用户的密码
+      parameters:
+      - description: 修改密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改密码
+      tags:
+      - User
+securityDefinitions:
+  BearerAuth:
+    description: JWT Bearer 令牌 (`Bearer <jwt>`) 或 Personal Access Token (`Bearer td_pat_xxx`)
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

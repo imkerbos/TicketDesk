@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	_ "github.com/kerbos/ticketdesk/docs/swagger" // Swagger 文档 (由 make swagger 生成)
 	activityHandler "github.com/kerbos/ticketdesk/internal/activity/handler"
 	activityRepo "github.com/kerbos/ticketdesk/internal/activity/repository"
 	activityService "github.com/kerbos/ticketdesk/internal/activity/service"
@@ -509,6 +512,9 @@ func (r *Router) Setup() *gin.Engine {
 
 	// 健康检查
 	engine.GET("/health", healthCheck)
+
+	// Swagger UI: http://localhost:10010/swagger/index.html
+	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API v1 路由组
 	v1 := engine.Group("/api/v1")

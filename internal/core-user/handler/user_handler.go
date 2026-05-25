@@ -464,7 +464,7 @@ func (h *UserHandler) HandleListUsers(c *gin.Context) {
 // @Description 获取所有启用的用户列表（不分页，用于选择器）
 // @Tags User
 // @Produce json
-// @Success 200 {array} dto.UserBrief
+// @Success 200 {array} dto.UserResponse
 // @Router /api/v1/users/all [get]
 // @Security BearerAuth
 func (h *UserHandler) HandleListAllUsers(c *gin.Context) {
