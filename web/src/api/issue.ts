@@ -27,9 +27,16 @@ export const getIssueDetail = (key: string, config?: any) => {
   return request.get<ApiResponse<Issue>>(`/issues/${key}`, config)
 }
 
-// 创建工单
-export const createIssue = (data: CreateIssueRequest) => {
-  return request.post<ApiResponse<Issue>>('/issues', data)
+// 创建工单（支持 JSON 与 multipart/form-data 两种格式）
+export const createIssue = (data: CreateIssueRequest | FormData) => {
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+  return request.post<ApiResponse<Issue>>(
+    '/issues',
+    data,
+    isFormData
+      ? { headers: { 'Content-Type': 'multipart/form-data' } }
+      : undefined,
+  )
 }
 
 // 更新工单

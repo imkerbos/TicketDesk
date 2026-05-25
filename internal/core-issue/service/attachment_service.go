@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,6 +29,31 @@ var (
 	ErrInvalidFileType    = errors.New("不支持的文件类型")
 )
 
+// 附件校验常量（包级，供 issue_service 与 attachment_service 共享）
+const MaxAttachmentSize int64 = 10 * 1024 * 1024 // 10MB
+
+// allowedAttachmentExts 允许的附件扩展名（小写），不对外暴露，通过 IsAllowedAttachmentExt 访问
+var allowedAttachmentExts = []string{
+	".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
+	".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+	".txt", ".md", ".csv",
+	".zip", ".rar", ".7z", ".tar", ".gz",
+	".log", ".json", ".xml", ".yaml", ".yml",
+}
+
+// imageAttachmentExts 图片扩展名（小写），不对外暴露，通过 IsImageAttachmentExt 访问
+var imageAttachmentExts = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+
+// IsAllowedAttachmentExt 判断扩展名是否允许（参数应为小写带点格式，如 ".png"）
+func IsAllowedAttachmentExt(ext string) bool {
+	return slices.Contains(allowedAttachmentExts, ext)
+}
+
+// IsImageAttachmentExt 判断扩展名是否为图片
+func IsImageAttachmentExt(ext string) bool {
+	return slices.Contains(imageAttachmentExts, ext)
+}
+
 // AttachmentService 附件服务接口
 type AttachmentService interface {
 	UploadAttachment(ctx context.Context, issueKey string, file *multipart.FileHeader, userID uint64) (*dto.AttachmentResponse, error)
@@ -35,6 +61,15 @@ type AttachmentService interface {
 	DeleteAttachment(ctx context.Context, issueKey string, attachmentID, userID uint64) error
 	GetAttachmentPath(ctx context.Context, attachmentID uint64) (string, error)
 	SetActivityLogger(activityLogger ActivityLogger)
+
+	// SaveFile 仅落盘, 不写数据库; 返回相对路径
+	SaveFile(fileHeader *multipart.FileHeader) (string, error)
+
+	// CreateRecordInTx 在传入事务中写入 issue_attachments 记录
+	CreateRecordInTx(ctx context.Context, tx *gorm.DB, issueID uint64, fileHeader *multipart.FileHeader, relPath string, userID uint64) (*model.IssueAttachment, error)
+
+	// DeletePath 删除存储中的文件 (用于事务回滚清理)
+	DeletePath(relPath string) error
 }
 
 // attachmentService 附件服务实现
@@ -43,8 +78,6 @@ type attachmentService struct {
 	issueRepo      repository.IssueRepository
 	userRepo       userRepo.UserRepository
 	storage        *storage.LocalStorage
-	maxFileSize    int64
-	allowedTypes   []string
 	activityLogger ActivityLogger // 活动日志记录器
 }
 
@@ -60,14 +93,6 @@ func NewAttachmentService(
 		issueRepo:      issueRepo,
 		userRepo:       userRepo,
 		storage:        storage,
-		maxFileSize:    10 * 1024 * 1024, // 10MB
-		allowedTypes: []string{
-			".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", // 图片
-			".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", // 文档
-			".txt", ".md", ".csv", // 文本
-			".zip", ".rar", ".7z", ".tar", ".gz", // 压缩包
-			".log", ".json", ".xml", ".yaml", ".yml", // 配置文件
-		},
 		activityLogger: nil, // 默认为 nil，可通过 SetActivityLogger 设置
 	}
 }
@@ -88,46 +113,21 @@ func (s *attachmentService) UploadAttachment(ctx context.Context, issueKey strin
 		return nil, fmt.Errorf("查询工单失败: %w", err)
 	}
 
-	// 验证文件大小
-	if fileHeader.Size > s.maxFileSize {
-		return nil, ErrFileTooLarge
-	}
-
-	// 验证文件类型
-	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-	if !s.isAllowedType(ext) {
-		return nil, ErrInvalidFileType
-	}
-
-	// 打开文件
-	file, err := fileHeader.Open()
+	// 校验 + 落盘（复用 SaveFile）
+	relPath, err := s.SaveFile(fileHeader)
 	if err != nil {
-		return nil, fmt.Errorf("打开文件失败: %w", err)
+		return nil, err
 	}
-	defer file.Close()
-
-	// 生成唯一文件名（时间戳 + 原文件名）
-	timestamp := time.Now().Format("20060102150405")
-	uniqueFilename := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
-
-	// 保存文件
-	relPath, err := s.storage.Save(file, uniqueFilename)
-	if err != nil {
-		logger.Error("failed to save file", zap.Error(err))
-		return nil, fmt.Errorf("保存文件失败: %w", err)
-	}
-
-	// 判断是否为图片
-	isImage := s.isImageType(ext)
 
 	// 创建附件记录
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	attachment := &model.IssueAttachment{
 		IssueID:    issue.ID,
 		FileName:   fileHeader.Filename,
 		FilePath:   relPath,
 		FileSize:   fileHeader.Size,
 		FileType:   ext,
-		IsImage:    isImage,
+		IsImage:    IsImageAttachmentExt(ext),
 		UploadedBy: userID,
 	}
 
@@ -263,6 +263,66 @@ func (s *attachmentService) GetAttachmentPath(ctx context.Context, attachmentID 
 	return s.storage.GetFullPath(attachment.FilePath), nil
 }
 
+// SaveFile 校验并落盘文件, 返回相对路径; 不写数据库
+func (s *attachmentService) SaveFile(fileHeader *multipart.FileHeader) (string, error) {
+	if fileHeader.Size > MaxAttachmentSize {
+		return "", ErrFileTooLarge
+	}
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	if !IsAllowedAttachmentExt(ext) {
+		return "", ErrInvalidFileType
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return "", fmt.Errorf("打开文件失败: %w", err)
+	}
+	defer file.Close()
+
+	// 用 filepath.Base 剥离任何路径成分, 防止伪造文件名导致目录穿越 (../etc/passwd 等)
+	safeName := filepath.Base(fileHeader.Filename)
+	timestamp := time.Now().Format("20060102150405")
+	uniqueFilename := fmt.Sprintf("%s_%s", timestamp, safeName)
+
+	relPath, err := s.storage.Save(file, uniqueFilename)
+	if err != nil {
+		logger.Error("failed to save file", zap.Error(err))
+		return "", fmt.Errorf("保存文件失败: %w", err)
+	}
+	return relPath, nil
+}
+
+// CreateRecordInTx 在传入事务中创建 issue_attachments 记录
+// 调用方负责 SaveFile 已成功
+func (s *attachmentService) CreateRecordInTx(
+	ctx context.Context,
+	tx *gorm.DB,
+	issueID uint64,
+	fileHeader *multipart.FileHeader,
+	relPath string,
+	userID uint64,
+) (*model.IssueAttachment, error) {
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	attachment := &model.IssueAttachment{
+		IssueID:    issueID,
+		FileName:   fileHeader.Filename,
+		FilePath:   relPath,
+		FileSize:   fileHeader.Size,
+		FileType:   ext,
+		IsImage:    IsImageAttachmentExt(ext),
+		UploadedBy: userID,
+	}
+	if err := tx.WithContext(ctx).Create(attachment).Error; err != nil {
+		return nil, fmt.Errorf("创建附件记录失败: %w", err)
+	}
+	return attachment, nil
+}
+
+// DeletePath 删除存储中的文件 (用于事务回滚清理)
+func (s *attachmentService) DeletePath(relPath string) error {
+	return s.storage.Delete(relPath)
+}
+
 // toAttachmentResponse 转换为响应格式
 func (s *attachmentService) toAttachmentResponse(ctx context.Context, attachment *model.IssueAttachment) *dto.AttachmentResponse {
 	resp := &dto.AttachmentResponse{
@@ -288,25 +348,4 @@ func (s *attachmentService) toAttachmentResponse(ctx context.Context, attachment
 	}
 
 	return resp
-}
-
-// isAllowedType 检查文件类型是否允许
-func (s *attachmentService) isAllowedType(ext string) bool {
-	for _, allowed := range s.allowedTypes {
-		if ext == allowed {
-			return true
-		}
-	}
-	return false
-}
-
-// isImageType 判断是否为图片类型
-func (s *attachmentService) isImageType(ext string) bool {
-	imageTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
-	for _, imgType := range imageTypes {
-		if ext == imgType {
-			return true
-		}
-	}
-	return false
 }
