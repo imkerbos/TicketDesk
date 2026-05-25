@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -42,6 +44,7 @@ const ContextUserIDKey ctxKey = "user_id"
 // IssueService 工单服务接口
 type IssueService interface {
 	CreateIssue(ctx context.Context, req *dto.CreateIssueRequest, reporterID uint64) (*dto.IssueResponse, error)
+	CreateIssueWithAttachments(ctx context.Context, req *dto.CreateIssueRequest, files []*multipart.FileHeader, reporterID uint64) (*dto.IssueResponse, error)
 	GetIssue(ctx context.Context, key string) (*dto.IssueResponse, error)
 	UpdateIssue(ctx context.Context, key string, req *dto.UpdateIssueRequest) (*dto.IssueResponse, error)
 	DeleteIssue(ctx context.Context, key string) error
@@ -81,21 +84,22 @@ type IssueService interface {
 
 // issueService 工单服务实现
 type issueService struct {
-	issueRepo       repository.IssueRepository
-	commentRepo     repository.CommentRepository
-	watcherRepo     repository.WatcherRepository
-	worklogRepo     repository.WorklogRepository
-	projectRepo     projectRepo.ProjectRepository
-	issueTypeRepo   projectRepo.IssueTypeRepository
-	userRepo        userRepo.UserRepository
-	db              *gorm.DB           // 用于级联删除事务
-	alertSyncSvc    AlertSyncService   // 告警同步服务（可选）
-	activityLogger  ActivityLogger     // 活动日志记录器（可选）
-	notifSender     NotificationSender // 通知发送服务（可选）
-	workflowEngine  WorkflowEngine     // 工作流引擎（可选）
-	fieldValueSaver FieldValueSaver    // 字段值保存服务（可选）
-	epicLinkGetter  EpicLinkGetter     // Epic 链接获取服务（可选）
-	projectNotifier ProjectNotifier    // 项目外部通知服务（可选）
+	issueRepo         repository.IssueRepository
+	commentRepo       repository.CommentRepository
+	watcherRepo       repository.WatcherRepository
+	worklogRepo       repository.WorklogRepository
+	projectRepo       projectRepo.ProjectRepository
+	issueTypeRepo     projectRepo.IssueTypeRepository
+	userRepo          userRepo.UserRepository
+	db                *gorm.DB           // 用于级联删除事务
+	alertSyncSvc      AlertSyncService   // 告警同步服务（可选）
+	activityLogger    ActivityLogger     // 活动日志记录器（可选）
+	notifSender       NotificationSender // 通知发送服务（可选）
+	workflowEngine    WorkflowEngine     // 工作流引擎（可选）
+	fieldValueSaver   FieldValueSaver    // 字段值保存服务（可选）
+	epicLinkGetter    EpicLinkGetter     // Epic 链接获取服务（可选）
+	projectNotifier   ProjectNotifier    // 项目外部通知服务（可选）
+	attachmentService AttachmentService  // 附件服务（可选, 通过 setter 注入避免循环依赖）
 }
 
 // WorkflowEngine 工作流引擎接口（避免循环依赖）
@@ -207,6 +211,11 @@ func (s *issueService) SetEpicLinkGetter(epicLinkGetter EpicLinkGetter) {
 // SetProjectNotifier 设置项目外部通知服务（用于避免循环依赖）
 func (s *issueService) SetProjectNotifier(projectNotifier ProjectNotifier) {
 	s.projectNotifier = projectNotifier
+}
+
+// SetAttachmentService 设置附件服务（用于避免循环依赖）
+func (s *issueService) SetAttachmentService(svc AttachmentService) {
+	s.attachmentService = svc
 }
 
 // notifyProjectChannels 向项目的外部通知渠道发送通知（异步不阻塞主流程）
@@ -529,6 +538,75 @@ func (s *issueService) CreateIssue(ctx context.Context, req *dto.CreateIssueRequ
 		return nil, fmt.Errorf("创建工单失败: %w", err)
 	}
 
+	issue = s.afterIssueCreated(ctx, issue, project, req, reporterID)
+	return s.toIssueResponse(ctx, issue, project.ProjectKey), nil
+}
+
+// CreateIssueWithAttachments 在单事务内原子创建工单 + 附件
+// 任一环节失败 → 事务回滚 + 删除已落盘文件
+func (s *issueService) CreateIssueWithAttachments(
+	ctx context.Context,
+	req *dto.CreateIssueRequest,
+	files []*multipart.FileHeader,
+	reporterID uint64,
+) (*dto.IssueResponse, error) {
+	// 前置校验所有文件 (大小 + 扩展名), 任一不合规直接返回
+	for _, fh := range files {
+		if fh.Size > MaxAttachmentSize {
+			return nil, ErrFileTooLarge
+		}
+		ext := strings.ToLower(filepath.Ext(fh.Filename))
+		if !IsAllowedAttachmentExt(ext) {
+			return nil, ErrInvalidFileType
+		}
+	}
+
+	if len(files) > 0 && s.attachmentService == nil {
+		return nil, fmt.Errorf("附件服务未注入")
+	}
+
+	// 准备工单数据 (无 DB 写)
+	project, issue, err := s.prepareIssue(ctx, req, reporterID)
+	if err != nil {
+		return nil, err
+	}
+
+	var savedPaths []string
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		// 工单写入
+		if err := s.createIssueInTx(ctx, tx, issue); err != nil {
+			return err
+		}
+		// 逐个落盘 + 写附件记录
+		for _, fh := range files {
+			relPath, err := s.attachmentService.SaveFile(fh)
+			if err != nil {
+				return err
+			}
+			savedPaths = append(savedPaths, relPath)
+
+			if _, err := s.attachmentService.CreateRecordInTx(ctx, tx, issue.ID, fh, relPath, reporterID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		// 事务回滚 → 清理所有已落盘文件
+		for _, p := range savedPaths {
+			if delErr := s.attachmentService.DeletePath(p); delErr != nil {
+				logger.Warn("failed to delete file after rollback",
+					zap.String("path", p),
+					zap.Error(delErr),
+				)
+			}
+		}
+		logger.Error("failed to create issue with attachments", zap.Error(err))
+		return nil, err
+	}
+
+	// 事务外副作用
 	issue = s.afterIssueCreated(ctx, issue, project, req, reporterID)
 	return s.toIssueResponse(ctx, issue, project.ProjectKey), nil
 }

@@ -162,6 +162,13 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	)
 	attachmentHdl := issueHandler.NewAttachmentHandler(attachmentSvc)
 
+	// 给 issueSvc 注入附件服务以支持创建工单时原子上传附件
+	if issueImpl, ok := issueSvc.(interface {
+		SetAttachmentService(svc issueService.AttachmentService)
+	}); ok {
+		issueImpl.SetAttachmentService(attachmentSvc)
+	}
+
 	// 注入 LocalStorage 到 ConfigHandler（品牌资源上传）
 	configHdl.SetLocalStorage(localStorage)
 
