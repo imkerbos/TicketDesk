@@ -14,30 +14,31 @@
 
     <!-- 筛选区 -->
     <div class="list-filters">
-      <el-input
-        v-model="keyword"
-        placeholder="搜索标题或编号..."
-        clearable
-        size="small"
-        class="search-input"
-        @clear="handleSearch"
-        @keyup.enter="handleSearch"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-        <template #suffix>
-          <el-button
-            link
-            size="small"
-            class="search-btn"
-            :title="'搜索 (Enter)'"
-            @click="handleSearch"
-          >
+      <div class="search-row">
+        <el-input
+          v-model="keyword"
+          placeholder="搜索标题或编号..."
+          clearable
+          size="small"
+          class="search-input"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
             <el-icon><Search /></el-icon>
-          </el-button>
-        </template>
-      </el-input>
+          </template>
+        </el-input>
+        <el-button
+          type="primary"
+          size="small"
+          class="search-btn"
+          title="搜索 (Enter)"
+          @click="handleSearch"
+        >
+          <el-icon><Search /></el-icon>
+          <span>搜索</span>
+        </el-button>
+      </div>
       <div class="filter-row">
         <el-select
           v-model="statusFilter"
@@ -397,24 +398,27 @@ defineExpose({
   gap: 8px;
   flex-shrink: 0;
 
-  .search-input {
-    :deep(.el-input__wrapper) {
-      border-radius: 8px;
-      box-shadow: 0 0 0 1px var(--td-border-color);
+  .search-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
 
-      &:focus-within {
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    .search-input {
+      flex: 1;
+      :deep(.el-input__wrapper) {
+        border-radius: 8px;
+        box-shadow: 0 0 0 1px var(--td-border-color);
+
+        &:focus-within {
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
       }
     }
 
     .search-btn {
-      padding: 0 4px;
-      color: var(--td-text-placeholder, #9ca3af);
-      transition: color 150ms ease-out;
-
-      &:hover {
-        color: var(--td-color-primary, #3b82f6);
-      }
+      flex-shrink: 0;
+      border-radius: 6px;
+      gap: 4px;
     }
   }
 
