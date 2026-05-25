@@ -1,0 +1,106 @@
+// 全局 el-table 视觉统一 (UI Phase 5A)
+// 目标: 头部 / 行 hover / 选中 / 分隔 / 圆角 全站一致
+
+.el-table {
+  --el-table-header-bg-color: var(--td-bg-section);
+  --el-table-header-text-color: var(--td-text-regular);
+  --el-table-row-hover-bg-color: var(--td-bg-section);
+  --el-table-border-color: var(--td-border-color);
+  --el-table-border: 1px solid var(--td-border-color);
+  --el-table-text-color: var(--td-text-primary);
+
+  border-radius: var(--td-radius-lg);
+  overflow: hidden;
+  background: var(--td-bg-card);
+  font-size: var(--td-font-base);
+
+  // 头部
+  .el-table__header-wrapper {
+    th.el-table__cell {
+      background: var(--td-bg-section) !important;
+      color: var(--td-text-regular) !important;
+      font-weight: var(--td-weight-semibold);
+      font-size: var(--td-font-sm);
+      letter-spacing: var(--td-tracking-wide);
+      padding: var(--td-space-2) 0;
+      border-bottom: 1px solid var(--td-border-color);
+
+      .cell {
+        padding: 0 var(--td-space-4);
+        line-height: var(--td-leading-tight);
+      }
+    }
+  }
+
+  // 单元格
+  .el-table__body-wrapper {
+    td.el-table__cell {
+      padding: var(--td-space-3) 0;
+      border-bottom: 1px solid var(--td-border-color-light, var(--td-divider-color));
+
+      .cell {
+        padding: 0 var(--td-space-4);
+        line-height: var(--td-leading-normal);
+        word-break: normal;
+      }
+    }
+  }
+
+  // 行 hover 节奏
+  .el-table__row {
+    transition: var(--td-transition-bg);
+
+    &:hover > td.el-table__cell {
+      background: var(--td-bg-section) !important;
+    }
+  }
+
+  // stripe 模式 (zebra)
+  &.el-table--striped {
+    .el-table__body tr.el-table__row--striped td.el-table__cell {
+      background: var(--td-bg-card-hover);
+    }
+  }
+
+  // 当前选中行 (current-row)
+  .el-table__row.current-row > td.el-table__cell {
+    background: var(--td-tag-primary-bg) !important;
+    box-shadow: inset 2px 0 0 var(--td-color-primary);
+  }
+
+  // 空状态居中
+  .el-table__empty-block {
+    min-height: 200px;
+  }
+
+  // 移除底部双线
+  &::before,
+  &::after {
+    display: none;
+  }
+
+  // 边框版
+  &.el-table--border {
+    border: 1px solid var(--td-border-color);
+
+    .el-table__cell {
+      border-right: 1px solid var(--td-border-color-light, var(--td-divider-color));
+    }
+  }
+}
+
+// 表格内的按钮统一更紧凑
+.el-table .el-button + .el-button {
+  margin-left: var(--td-space-1);
+}
+
+// 表格内 tag 略小
+.el-table .el-tag {
+  font-size: var(--td-font-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .el-table .el-table__row {
+    transition: none;
+  }
+}

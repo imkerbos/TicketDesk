@@ -1,67 +1,35 @@
 <template>
   <div class="user-list-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><UserFilled /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><UserFilled /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">用户管理</h1>
-          <p class="header-desc">管理系统用户账号、角色权限和访问控制</p>
-        </div>
-      </div>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建用户
-      </el-button>
-    </div>
+      </template>
+      <template #title>用户管理</template>
+      <template #subtitle>管理系统用户账号、角色权限和访问控制</template>
+      <template #actions>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建用户
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stats-row">
+    <el-row :gutter="16" class="stats-row">
       <el-col :xs="12" :sm="6">
-        <div class="stat-card total">
-          <div class="stat-icon">
-            <el-icon><User /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">总用户数</div>
-          </div>
-        </div>
+        <TdStatTile label="总用户数" :value="stats.total" tone="info" :icon-component="User" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card active">
-          <div class="stat-icon">
-            <el-icon><CircleCheck /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.active }}</div>
-            <div class="stat-label">活跃用户</div>
-          </div>
-        </div>
+        <TdStatTile label="活跃用户" :value="stats.active" tone="success" :icon-component="CircleCheck" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card admin">
-          <div class="stat-icon">
-            <el-icon><Avatar /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.admin }}</div>
-            <div class="stat-label">管理员</div>
-          </div>
-        </div>
+        <TdStatTile label="管理员" :value="stats.admin" tone="primary" :icon-component="Avatar" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card disabled">
-          <div class="stat-icon">
-            <el-icon><CircleClose /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.disabled }}</div>
-            <div class="stat-label">已禁用</div>
-          </div>
-        </div>
+        <TdStatTile label="已禁用" :value="stats.disabled" tone="danger" :icon-component="CircleClose" />
       </el-col>
     </el-row>
 
@@ -673,147 +641,33 @@ onMounted(() => {
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-    }
-
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      opacity: 0.9;
-    }
-  }
-
-  :deep(.el-button) {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: var(--td-text-white);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // 统计卡片
 .stats-row {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: var(--td-bg-card);
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 150ms ease-out;
-
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  }
-
-  .stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-  }
-
-  .stat-content {
-    .stat-value {
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-
-    .stat-label {
-      font-size: 13px;
-      color: var(--td-color-info);
-      margin-top: 2px;
-    }
-  }
-
-  &.total {
-    .stat-icon {
-      background: var(--td-color-primary);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-color-primary);
-    }
-  }
-
-  &.active {
-    .stat-icon {
-      background: var(--td-color-success);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-color-success);
-    }
-  }
-
-  &.admin {
-    .stat-icon {
-      background: var(--td-color-danger);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-color-danger);
-    }
-  }
-
-  &.disabled {
-    .stat-icon {
-      background: var(--td-text-secondary);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-text-secondary);
-    }
-  }
+  margin-bottom: var(--td-space-5);
 }
 
 // 筛选卡片
 .filter-card {
   margin-bottom: 20px;
-  border-radius: 12px;
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) {
     padding: 16px 20px;
@@ -1172,12 +1026,6 @@ onMounted(() => {
 
 // 响应式
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
   .filter-card {
     .filter-content {
       flex-direction: column;
@@ -1191,16 +1039,6 @@ onMounted(() => {
     .search-input,
     .filter-select {
       width: 100%;
-    }
-  }
-
-  .stat-card {
-    padding: 16px;
-
-    .stat-content {
-      .stat-value {
-        font-size: 22px;
-      }
     }
   }
 

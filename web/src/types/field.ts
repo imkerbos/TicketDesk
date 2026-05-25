@@ -4,14 +4,18 @@ export const FieldType = {
   TEXTAREA: 'textarea',
   NUMBER: 'number',
   DATE: 'date',
+  DATETIME: 'datetime',
   SELECT: 'select',
   MULTISELECT: 'multiselect',
   USER: 'user',
+  MULTIUSER: 'multiuser',
   VERSION: 'version',
   COMPONENT: 'component',
   LABEL: 'label',
   EPIC_LINK: 'epic_link',
   TIME_ESTIMATE: 'time_estimate',
+  URL: 'url',
+  CHECKBOX: 'checkbox',
 } as const
 
 export type FieldTypeValue = typeof FieldType[keyof typeof FieldType]
@@ -328,14 +332,18 @@ export function getFieldTypeLabel(type: FieldTypeValue): string {
     [FieldType.TEXTAREA]: '多行文本',
     [FieldType.NUMBER]: '数字',
     [FieldType.DATE]: '日期',
+    [FieldType.DATETIME]: '日期时间',
     [FieldType.SELECT]: '单选',
     [FieldType.MULTISELECT]: '多选',
     [FieldType.USER]: '用户',
+    [FieldType.MULTIUSER]: '多用户',
     [FieldType.VERSION]: '版本',
     [FieldType.COMPONENT]: '组件',
     [FieldType.LABEL]: '标签',
     [FieldType.EPIC_LINK]: 'Epic链接',
     [FieldType.TIME_ESTIMATE]: '时间估算',
+    [FieldType.URL]: '链接',
+    [FieldType.CHECKBOX]: '复选框',
   }
   return labels[type] || type
 }

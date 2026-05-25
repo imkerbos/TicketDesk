@@ -709,14 +709,18 @@ const (
 	FieldTypeTextarea     = "textarea"      // 多行文本
 	FieldTypeNumber       = "number"        // 数字
 	FieldTypeDate         = "date"          // 日期
+	FieldTypeDateTime     = "datetime"      // 日期时间 (精确到分钟)
 	FieldTypeSelect       = "select"        // 单选
 	FieldTypeMultiSelect  = "multiselect"   // 多选
 	FieldTypeUser         = "user"          // 用户选择
+	FieldTypeMultiUser    = "multiuser"     // 多用户选择
 	FieldTypeVersion      = "version"       // 版本选择
 	FieldTypeComponent    = "component"     // 组件选择
 	FieldTypeLabel        = "label"         // 标签选择
 	FieldTypeEpicLink     = "epic_link"     // Epic链接
 	FieldTypeTimeEstimate = "time_estimate" // 时间估算
+	FieldTypeURL          = "url"           // URL 链接
+	FieldTypeCheckbox     = "checkbox"      // 复选框 (布尔)
 )
 
 // 版本状态常量

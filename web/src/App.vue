@@ -133,7 +133,8 @@
       <el-container class="main-container">
         <el-header class="header">
           <div class="header-content">
-            <div class="page-title">{{ $route.meta.title }}</div>
+            <div v-if="$route.meta.title" class="page-title">{{ $route.meta.title }}</div>
+            <div v-else class="page-title-spacer"></div>
             <div class="header-right">
               <el-tooltip
                 :content="themeStore.mode === 'light' ? '切换到暗黑模式' : themeStore.mode === 'dark' ? '切换到跟随系统' : '切换到亮色模式'"
@@ -262,7 +263,7 @@ const handleMenuSelect = (index: string) => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .main-layout {
   min-height: 100vh;
 }
@@ -274,52 +275,64 @@ const handleMenuSelect = (index: string) => {
   bottom: 0;
   background: var(--td-sidebar-bg);
   border-right: 1px solid var(--td-sidebar-border);
-  z-index: 100;
+  z-index: var(--td-z-sticky);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--td-elevation-1);
 }
+
+// 自定义滚动条 (sidebar)
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
+.sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); }
 
 .logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 24px 20px;
+  gap: var(--td-space-2);
+  padding: var(--td-space-5) var(--td-space-4);
   border-bottom: 1px solid var(--td-sidebar-border);
+  flex-shrink: 0;
 }
 
 .logo-custom {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--td-radius-md);
   object-fit: contain;
+  box-shadow: var(--td-elevation-1);
 }
 
 .logo-text {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--td-font-lg);
+  font-weight: var(--td-weight-semibold);
   color: var(--td-text-white);
+  letter-spacing: var(--td-tracking-tight);
 }
 
 .sidebar-menu {
   border-right: none;
-  padding: 12px 8px;
+  padding: var(--td-space-3) var(--td-space-2);
   flex: 1;
   overflow-y: auto;
 }
 
 .sidebar-menu .el-menu-item {
-  margin: 4px 0;
-  border-radius: 8px;
-  height: 44px;
-  line-height: 44px;
+  margin: 2px 0;
+  border-radius: var(--td-radius-md);
+  height: 40px;
+  line-height: 40px;
+  font-size: var(--td-font-md);
+  font-weight: var(--td-weight-medium);
   position: relative;
+  transition: var(--td-transition-bg), var(--td-transition-color);
 }
 
 .sidebar-menu .el-menu-item .menu-badge {
   position: absolute;
-  right: 16px;
+  right: var(--td-space-4);
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -330,9 +343,9 @@ const handleMenuSelect = (index: string) => {
   position: static;
   transform: none;
   background: var(--td-color-danger);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  font-weight: 600;
-  font-size: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  font-weight: var(--td-weight-semibold);
+  font-size: var(--td-font-xs);
   height: 18px;
   line-height: 14px;
   padding: 0 6px;
@@ -344,43 +357,51 @@ const handleMenuSelect = (index: string) => {
 
 .sidebar-menu .el-menu-item:hover {
   background-color: var(--td-sidebar-hover) !important;
+  color: var(--td-text-white) !important;
 }
 
 .sidebar-menu .el-menu-item.is-active {
   background: var(--td-sidebar-active-bg) !important;
-  color: var(--td-sidebar-text-active);
-  border-left: 3px solid var(--td-color-primary);
-  padding-left: calc(20px - 3px);
+  color: var(--td-sidebar-text-active) !important;
+  box-shadow: inset 3px 0 0 var(--td-color-primary);
+  font-weight: var(--td-weight-semibold);
 }
 
 .sidebar-menu :deep(.el-sub-menu__title) {
-  margin: 4px 0;
-  border-radius: 8px;
-  height: 44px;
-  line-height: 44px;
+  margin: 2px 0;
+  border-radius: var(--td-radius-md);
+  height: 40px;
+  line-height: 40px;
+  font-size: var(--td-font-md);
+  font-weight: var(--td-weight-medium);
+  transition: var(--td-transition-bg), var(--td-transition-color);
 }
 
 .sidebar-menu :deep(.el-sub-menu__title:hover) {
   background-color: var(--td-sidebar-hover) !important;
+  color: var(--td-text-white) !important;
 }
 
 .sidebar-menu :deep(.el-sub-menu .el-menu-item) {
-  height: 40px;
-  line-height: 40px;
-  padding-left: 52px !important;
+  height: 36px;
+  line-height: 36px;
+  padding-left: 48px !important;
   min-width: auto;
+  font-size: var(--td-font-base);
+  font-weight: var(--td-weight-regular);
 }
 
 .sidebar-footer {
-  padding: 16px 20px;
+  padding: var(--td-space-3) var(--td-space-4);
   border-top: 1px solid var(--td-sidebar-border);
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .copyright-text {
-  font-size: 11px;
+  font-size: var(--td-font-xs);
   color: rgba(255, 255, 255, 0.35);
-  line-height: 1.4;
+  line-height: var(--td-leading-normal);
   overflow-wrap: break-word;
 }
 
@@ -392,9 +413,13 @@ const handleMenuSelect = (index: string) => {
 
 .header {
   background-color: var(--td-header-bg);
-  box-shadow: var(--td-header-shadow);
-  padding: 0 24px;
-  height: 64px;
+  box-shadow: var(--td-elevation-1);
+  padding: 0 var(--td-space-6);
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: var(--td-z-sticky);
+  border-bottom: 1px solid var(--td-border-color);
 }
 
 .header-content {
@@ -405,15 +430,20 @@ const handleMenuSelect = (index: string) => {
 }
 
 .page-title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--td-font-xl);
+  font-weight: var(--td-weight-semibold);
   color: var(--td-text-primary);
+  letter-spacing: var(--td-tracking-tight);
+}
+
+.page-title-spacer {
+  // 占位, 让 header-right 保持靠右
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--td-space-2);
 }
 
 .theme-toggle {
@@ -423,26 +453,27 @@ const handleMenuSelect = (index: string) => {
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--td-radius-md);
   background: transparent;
   color: var(--td-text-secondary);
   cursor: pointer;
-  transition: background-color 150ms ease-out, color 150ms ease-out;
+  transition: var(--td-transition-bg), var(--td-transition-color);
 }
 
 .theme-toggle:hover {
   background-color: var(--td-bg-section);
-  color: var(--td-text-primary);
+  color: var(--td-color-primary);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--td-space-2);
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background-color 150ms ease-out;
+  padding: var(--td-space-1) var(--td-space-3);
+  border-radius: var(--td-radius-md);
+  transition: var(--td-transition-bg);
+  height: 36px;
 }
 
 .user-info:hover {
@@ -451,18 +482,29 @@ const handleMenuSelect = (index: string) => {
 
 .user-avatar {
   background: var(--td-color-primary);
-  font-size: 14px;
+  font-size: var(--td-font-md);
+  font-weight: var(--td-weight-semibold);
+  box-shadow: var(--td-elevation-1);
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: var(--td-font-md);
   color: var(--td-text-regular);
-  font-weight: 500;
+  font-weight: var(--td-weight-medium);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .arrow-icon {
-  font-size: 12px;
+  font-size: var(--td-font-sm);
   color: var(--td-text-placeholder);
+  transition: var(--td-transition-color);
+}
+
+.user-info:hover .arrow-icon {
+  color: var(--td-text-primary);
 }
 
 .update-banner {
@@ -471,20 +513,22 @@ const handleMenuSelect = (index: string) => {
   left: 0;
   right: 0;
   height: 40px;
-  z-index: 9999;
+  z-index: var(--td-z-toast);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  background-color: var(--td-color-primary, #3b82f6);
+  gap: var(--td-space-2);
+  background-color: var(--td-color-primary);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--td-font-md);
+  font-weight: var(--td-weight-medium);
   cursor: pointer;
-  transition: background-color 150ms ease-out;
+  transition: var(--td-transition-bg);
+  box-shadow: var(--td-elevation-2);
 }
 
 .update-banner:hover {
-  background-color: #2563eb;
+  background-color: var(--td-color-primary-hover);
 }
 
 .has-update-banner .sidebar {
@@ -496,7 +540,37 @@ const handleMenuSelect = (index: string) => {
 }
 
 .main-content {
-  padding: 24px;
-  min-height: calc(100vh - 64px);
+  padding: var(--td-space-6);
+  min-height: calc(100vh - 60px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-menu .el-menu-item,
+  .sidebar-menu :deep(.el-sub-menu__title),
+  .theme-toggle,
+  .user-info,
+  .arrow-icon,
+  .update-banner {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-container {
+    margin-left: 0;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 200ms var(--td-ease-in-out);
+  }
+
+  .header {
+    padding: 0 var(--td-space-3);
+  }
+
+  .user-name {
+    display: none;
+  }
 }
 </style>

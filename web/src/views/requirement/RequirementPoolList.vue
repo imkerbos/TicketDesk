@@ -1,12 +1,19 @@
 <template>
   <div class="requirement-pool-list">
-    <div class="page-header">
-      <h1>需求池管理</h1>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建需求池
-      </el-button>
-    </div>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Folder /></el-icon>
+        </div>
+      </template>
+      <template #title>需求池管理</template>
+      <template #actions>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建需求池
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 筛选条件 -->
     <el-card class="filter-card" shadow="never">
@@ -143,7 +150,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Folder } from '@element-plus/icons-vue'
 import {
   getRequirementPoolList,
   createRequirementPool,
@@ -381,36 +388,17 @@ onMounted(() => {
   background: var(--td-bg-page);
   min-height: 100vh;
 
-  .page-header {
+  // 页面头部 icon (TdPageHeader leading slot)
+  .page-header-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--td-tag-primary-bg);
+    border-radius: var(--td-radius-md);
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
-    padding: 20px 24px;
-    background: var(--td-color-primary);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
-
-    h1 {
-      margin: 0;
-      font-size: 28px;
-      font-weight: 600;
-      color: var(--td-text-white);
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    :deep(.el-button) {
-      background: rgba(255, 255, 255, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: var(--td-text-white);
-      backdrop-filter: blur(10px);
-      transition: all 150ms ease-out;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.3);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-    }
+    justify-content: center;
+    color: var(--td-color-primary);
+    flex-shrink: 0;
   }
 
   .filter-card {

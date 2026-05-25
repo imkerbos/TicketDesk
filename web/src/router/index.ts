@@ -76,13 +76,13 @@ const router = createRouter({
       path: '/projects/:key/board',
       name: 'ProjectBoard',
       component: () => import('@/views/project/ProjectBoard.vue'),
-      meta: { title: '项目看板' },
+      meta: { title: '', hideHeader: true },
     },
     {
       path: '/projects/:key/board/:issueKey',
       name: 'ProjectBoardIssue',
       component: () => import('@/views/project/ProjectBoard.vue'),
-      meta: { title: '项目看板' },
+      meta: { title: '', hideHeader: true },
     },
     {
       path: '/projects/:key/settings',

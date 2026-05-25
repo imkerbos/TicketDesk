@@ -1,21 +1,20 @@
 <template>
   <div class="issue-list-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><Tickets /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Tickets /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">工单管理</h1>
-          <p class="header-desc">跟踪和管理所有工单任务</p>
-        </div>
-      </div>
-      <el-button type="primary" class="header-btn" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建工单
-      </el-button>
-    </div>
+      </template>
+      <template #title>工单管理</template>
+      <template #subtitle>跟踪和管理所有工单任务</template>
+      <template #actions>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>创建工单
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 分类 Tab -->
     <el-tabs v-model="queryParams.category" class="category-tabs" @tab-change="handleCategoryChange">
@@ -126,22 +125,10 @@
 
     <!-- KPI 统计卡片 -->
     <div class="stats-row">
-      <div class="stat-card stat-total">
-        <div class="stat-value">{{ issueStats.total }}</div>
-        <div class="stat-label">工单总数</div>
-      </div>
-      <div class="stat-card stat-resolved">
-        <div class="stat-value">{{ issueStats.resolved }}</div>
-        <div class="stat-label">已完成</div>
-      </div>
-      <div class="stat-card stat-rate">
-        <div class="stat-value">{{ issueStats.completion_rate }}%</div>
-        <div class="stat-label">完成率</div>
-      </div>
-      <div class="stat-card stat-hours">
-        <div class="stat-value">{{ issueStats.avg_resolve_hours }}h</div>
-        <div class="stat-label">平均解决时长</div>
-      </div>
+      <TdStatTile label="工单总数" :value="issueStats.total" tone="info" :icon-component="Tickets" />
+      <TdStatTile label="已完成" :value="issueStats.resolved" tone="success" :icon-component="CircleCheck" />
+      <TdStatTile label="完成率" :value="`${issueStats.completion_rate}%`" tone="primary" :icon-component="TrendCharts" />
+      <TdStatTile label="平均解决时长" :value="`${issueStats.avg_resolve_hours}h`" tone="warning" :icon-component="Clock" />
     </div>
 
     <!-- 工具栏 + 内容 -->
@@ -322,7 +309,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Delete, CircleCheck, TrendCharts } from '@element-plus/icons-vue'
 import { getIssueList, getIssueListStats, deleteIssue } from '@/api/issue'
 import { getAllProjects, getAllIssueTypes, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
@@ -870,55 +857,17 @@ onMounted(async () => {
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 28px;
-  background: var(--td-bg-card);
-  border-radius: 8px;
-  border: 1px solid var(--td-border-color);
-  border-left: 4px solid #3b82f6;
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--td-tag-primary-bg);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: var(--td-color-primary);
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin: 0 0 4px 0;
-      color: var(--td-text-primary);
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      color: var(--td-text-secondary);
-    }
-  }
-
-  .header-btn {
-    transition: box-shadow 150ms ease-out;
-    &:hover { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
-    &:active { background-color: var(--td-color-primary-active); border-color: var(--td-color-primary-active); }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // 分类 Tab
@@ -943,19 +892,26 @@ onMounted(async () => {
 
 // 筛选卡片
 .filter-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
+  margin-bottom: var(--td-space-5);
+  border-radius: var(--td-radius-lg);
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
 
-  :deep(.el-card__body) { padding: 16px 20px; }
+  &:hover {
+    box-shadow: var(--td-elevation-2);
+  }
+
+  :deep(.el-card__body) { padding: var(--td-space-4) var(--td-space-5); }
 
   .quick-filter-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px dashed #e5e7eb;
+    gap: var(--td-space-3);
+    margin-bottom: var(--td-space-3);
+    padding-bottom: var(--td-space-3);
+    border-bottom: 1px dashed var(--td-border-color);
   }
 
   .quick-filter-left {
@@ -1309,47 +1265,8 @@ onMounted(async () => {
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  padding: 16px 20px;
-  border-radius: 10px;
-  background: var(--td-bg-card);
-  border: 1px solid var(--td-border-color);
-
-  .stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1.2;
-    margin-bottom: 4px;
-  }
-
-  .stat-label {
-    font-size: 13px;
-    color: var(--td-text-secondary);
-  }
-
-  &.stat-total {
-    border-left: 3px solid #3b82f6;
-    .stat-value { color: #3b82f6; }
-  }
-
-  &.stat-resolved {
-    border-left: 3px solid #10b981;
-    .stat-value { color: #10b981; }
-  }
-
-  &.stat-rate {
-    border-left: 3px solid #f59e0b;
-    .stat-value { color: #f59e0b; }
-  }
-
-  &.stat-hours {
-    border-left: 3px solid #6b7280;
-    .stat-value { color: #6b7280; }
-  }
+  gap: var(--td-space-4);
+  margin-bottom: var(--td-space-5);
 }
 
 // 响应式

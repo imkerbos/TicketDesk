@@ -1,21 +1,21 @@
 <template>
   <div class="alert-silences-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><BellFilled /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><BellFilled /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">告警静默</h1>
-          <p class="header-desc">管理告警静默规则，临时屏蔽特定告警通知</p>
-        </div>
-      </div>
-      <el-button type="primary" class="header-btn" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建静默
-      </el-button>
-    </div>
+      </template>
+      <template #title>告警静默</template>
+      <template #subtitle>管理告警静默规则，临时屏蔽特定告警通知</template>
+      <template #actions>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建静默
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 静默列表 -->
     <el-card shadow="never" class="table-card">
@@ -440,57 +440,17 @@ onMounted(() => {
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-    }
-
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      opacity: 0.9;
-    }
-  }
-
-  .header-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: var(--td-text-white);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // 表格卡片
@@ -602,10 +562,5 @@ onMounted(() => {
 
 // 响应式
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
 }
 </style>

@@ -11,3 +11,7 @@ export { default as ComponentSelectField } from './fields/ComponentSelectField.v
 export { default as LabelSelectField } from './fields/LabelSelectField.vue'
 export { default as EpicLinkField } from './fields/EpicLinkField.vue'
 export { default as TimeEstimateField } from './fields/TimeEstimateField.vue'
+export { default as DateTimeField } from './fields/DateTimeField.vue'
+export { default as UrlField } from './fields/UrlField.vue'
+export { default as MultiUserSelectField } from './fields/MultiUserSelectField.vue'
+export { default as CheckboxField } from './fields/CheckboxField.vue'

@@ -1,0 +1,28 @@
+// 字体标度 — 字号 / 行高 / 字重 / 字间距
+:root {
+  // 字号
+  --td-font-xs: 11px;
+  --td-font-sm: 12px;
+  --td-font-base: 13px;
+  --td-font-md: 14px;
+  --td-font-lg: 15px;
+  --td-font-xl: 17px;
+  --td-font-2xl: 20px;
+  --td-font-3xl: 24px;
+
+  // 行高
+  --td-leading-tight: 1.25;
+  --td-leading-normal: 1.5;
+  --td-leading-relaxed: 1.7;
+
+  // 字重
+  --td-weight-regular: 400;
+  --td-weight-medium: 500;
+  --td-weight-semibold: 600;
+  --td-weight-bold: 700;
+
+  // 字间距
+  --td-tracking-tight: -0.01em;
+  --td-tracking-normal: 0;
+  --td-tracking-wide: 0.02em;
+}

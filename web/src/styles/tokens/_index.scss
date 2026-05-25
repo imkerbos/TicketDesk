@@ -1,0 +1,7 @@
+// 汇总入口 — 在 main.ts 中 import 即可一次性加载全部 token
+@use './spacing';
+@use './typography';
+@use './radius';
+@use './shadow';
+@use './motion';
+@use './z-index';

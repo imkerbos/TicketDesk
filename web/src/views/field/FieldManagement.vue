@@ -1,33 +1,15 @@
 <template>
   <div class="field-management-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><Grid /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Grid /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">字段管理</h1>
-          <p class="header-desc">管理全局字段定义和方案模板</p>
-        </div>
-      </div>
-      <div class="header-stats">
-        <div class="stat-item">
-          <div class="stat-value">{{ allFields.filter(f => f.is_system).length }}</div>
-          <div class="stat-label">系统字段</div>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <div class="stat-value">{{ allFields.filter(f => !f.is_system).length }}</div>
-          <div class="stat-label">自定义字段</div>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <div class="stat-value">{{ templates.length }}</div>
-          <div class="stat-label">方案模板</div>
-        </div>
-      </div>
-    </div>
+      </template>
+      <template #title>字段管理</template>
+      <template #subtitle>管理全局字段定义和方案模板</template>
+    </TdPageHeader>
 
     <!-- Tab 切换 -->
     <el-card shadow="never" class="content-card">
@@ -106,7 +88,7 @@
                       </div>
                     </div>
                   </div>
-                  <el-empty v-if="!fieldsLoading && filteredSystemFields.length === 0" description="无匹配的系统字段" :image-size="80" />
+                  <TdEmptyState v-if="!fieldsLoading && filteredSystemFields.length === 0" preset="no-result" title="无匹配的系统字段" />
                 </div>
               </div>
             </transition>
@@ -155,14 +137,14 @@
                 </div>
               </div>
               <div v-if="!fieldsLoading && filteredCustomFields.length === 0 && !fieldSearchText" class="empty-custom">
-                <el-empty description="暂无自定义字段" :image-size="100">
+                <TdEmptyState preset="first-time" title="暂无自定义字段" description="创建自定义字段，为工单添加更多属性">
                   <el-button type="primary" @click="openCreateFieldDialog">
                     <el-icon><Plus /></el-icon>
                     创建第一个字段
                   </el-button>
-                </el-empty>
+                </TdEmptyState>
               </div>
-              <el-empty v-if="!fieldsLoading && filteredCustomFields.length === 0 && fieldSearchText" description="无匹配的自定义字段" :image-size="80" />
+              <TdEmptyState v-if="!fieldsLoading && filteredCustomFields.length === 0 && fieldSearchText" preset="no-result" title="无匹配的自定义字段" />
             </div>
           </div>
         </el-tab-pane>
@@ -240,12 +222,12 @@
                 </div>
               </div>
             </div>
-            <el-empty v-if="!templatesLoading && templates.length === 0" description="暂无方案模板" :image-size="120">
+            <TdEmptyState v-if="!templatesLoading && templates.length === 0" preset="first-time" title="暂无方案模板" description="方案模板可快速套用到项目的工单类型字段配置">
               <el-button type="primary" @click="openCreateTemplateDialog">
                 <el-icon><Plus /></el-icon>
                 创建第一个模板
               </el-button>
-            </el-empty>
+            </TdEmptyState>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -408,7 +390,7 @@
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="templateItems.length === 0" description="暂无字段，点击上方按钮添加" :image-size="80" />
+        <TdEmptyState v-if="templateItems.length === 0" preset="no-data" title="暂无字段，点击上方按钮添加" />
       </div>
       <template #footer>
         <el-button @click="templateDetailVisible = false">取消</el-button>
@@ -507,7 +489,7 @@ import type {
   FieldUsage,
   TemplateItemInput,
 } from '@/types/field'
-import { getFieldTypeLabel } from '@/types/field'
+import { getFieldTypeLabel, FieldType } from '@/types/field'
 
 // ============ 路由 & Tab 持久化 ============
 
@@ -635,15 +617,20 @@ const fieldFormRules: FormRules = {
   field_type: [{ required: true, message: '请选择字段类型', trigger: 'change' }],
 }
 
+// 字段类型下拉选项 (与 FieldType 常量同源, 避免类型遗漏)
 const fieldTypeOptions: Record<string, string> = {
-  text: '单行文本',
-  textarea: '多行文本',
-  number: '数字',
-  date: '日期',
-  select: '单选',
-  multiselect: '多选',
-  user: '用户',
-  label: '标签',
+  [FieldType.TEXT]: getFieldTypeLabel(FieldType.TEXT),
+  [FieldType.TEXTAREA]: getFieldTypeLabel(FieldType.TEXTAREA),
+  [FieldType.NUMBER]: getFieldTypeLabel(FieldType.NUMBER),
+  [FieldType.DATE]: getFieldTypeLabel(FieldType.DATE),
+  [FieldType.DATETIME]: getFieldTypeLabel(FieldType.DATETIME),
+  [FieldType.SELECT]: getFieldTypeLabel(FieldType.SELECT),
+  [FieldType.MULTISELECT]: getFieldTypeLabel(FieldType.MULTISELECT),
+  [FieldType.USER]: getFieldTypeLabel(FieldType.USER),
+  [FieldType.MULTIUSER]: getFieldTypeLabel(FieldType.MULTIUSER),
+  [FieldType.LABEL]: getFieldTypeLabel(FieldType.LABEL),
+  [FieldType.URL]: getFieldTypeLabel(FieldType.URL),
+  [FieldType.CHECKBOX]: getFieldTypeLabel(FieldType.CHECKBOX),
 }
 
 const openCreateFieldDialog = () => {
@@ -997,87 +984,27 @@ onMounted(async () => {
   width: 100%;
 }
 
-// ============ 页面头部 ============
-.page-header {
+// ============ 页面头部 icon (TdPageHeader leading slot) ============
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 28px 32px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 52px;
-    height: 52px;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin: 0 0 2px 0;
-      letter-spacing: 0.5px;
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      opacity: 0.85;
-    }
-  }
-
-  .header-stats {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    padding: 12px 24px;
-  }
-
-  .stat-item {
-    text-align: center;
-    min-width: 60px;
-  }
-
-  .stat-value {
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  .stat-label {
-    font-size: 12px;
-    opacity: 0.8;
-    margin-top: 2px;
-  }
-
-  .stat-divider {
-    width: 1px;
-    height: 32px;
-    background: rgba(255, 255, 255, 0.2);
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // ============ 内容卡片 ============
 .content-card {
-  border-radius: 12px;
-  border: 1px solid var(--td-border-color);
+  border: none;
+  box-shadow: var(--td-elevation-1);
+  transition: var(--td-transition-shadow);
+  border-radius: var(--td-radius-lg);
+
+  &:hover { box-shadow: var(--td-elevation-2); }
 
   :deep(.el-card__body) {
     padding: 0;
