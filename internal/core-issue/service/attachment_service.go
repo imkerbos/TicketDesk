@@ -279,8 +279,10 @@ func (s *attachmentService) SaveFile(fileHeader *multipart.FileHeader) (string, 
 	}
 	defer file.Close()
 
+	// 用 filepath.Base 剥离任何路径成分, 防止伪造文件名导致目录穿越 (../etc/passwd 等)
+	safeName := filepath.Base(fileHeader.Filename)
 	timestamp := time.Now().Format("20060102150405")
-	uniqueFilename := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+	uniqueFilename := fmt.Sprintf("%s_%s", timestamp, safeName)
 
 	relPath, err := s.storage.Save(file, uniqueFilename)
 	if err != nil {
