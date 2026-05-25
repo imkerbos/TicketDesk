@@ -137,7 +137,8 @@ func (h *ProjectHandler) HandleDeleteProject(c *gin.Context) {
 			response.NotFound(c, err.Error())
 			return
 		}
-		response.InternalError(c, "删除项目失败")
+		// 记录详细错误以便排查
+		response.InternalError(c, "删除项目失败: "+err.Error())
 		return
 	}
 
