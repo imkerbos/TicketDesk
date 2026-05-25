@@ -104,6 +104,7 @@ func (h *FieldHandler) HandleUpdateField(c *gin.Context) {
 // @Param id path int true "字段ID"
 // @Success 200 {object} response.Response
 // @Failure 400 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse "不能删除系统字段"
 // @Router /api/v1/projects/{key}/fields/{id} [delete]
 // @Security BearerAuth
 func (h *FieldHandler) HandleDeleteField(c *gin.Context) {
@@ -571,6 +572,7 @@ func (h *FieldHandler) HandleListLabels(c *gin.Context) {
 // @Param issue_id path int true "工单ID"
 // @Success 200 {object} response.Response{data=[]dto.FieldValueResponse}
 // @Failure 400 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse "工单不存在"
 // @Router /api/v1/issues/{issue_id}/field-values [get]
 // @Security BearerAuth
 func (h *FieldHandler) HandleGetIssueFieldValues(c *gin.Context) {

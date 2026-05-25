@@ -1343,6 +1343,12 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "401": {
                         "description": "未认证",
                         "schema": {
@@ -2612,6 +2618,12 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "401": {
                         "description": "未认证",
                         "schema": {
@@ -2725,6 +2737,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "工单不存在",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -3149,6 +3167,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Response"
                         }
                     },
+                    "400": {
+                        "description": "无效的附件 ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "401": {
                         "description": "未认证",
                         "schema": {
@@ -3205,6 +3229,12 @@ const docTemplate = `{
                         "description": "文件内容",
                         "schema": {
                             "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的附件 ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "401": {
@@ -4240,6 +4270,12 @@ const docTemplate = `{
                         "description": "删除成功",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的工作日志 ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "401": {
@@ -5279,6 +5315,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "不能删除系统字段",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -6322,6 +6364,12 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "400": {
+                        "description": "无效的渠道 ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -6439,6 +6487,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Response"
                         }
                     },
+                    "400": {
+                        "description": "无效的渠道 ID",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -6481,6 +6535,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "无效的渠道 ID 或发送失败",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "404": {

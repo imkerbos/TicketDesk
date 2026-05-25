@@ -319,6 +319,7 @@ func (h *IssueHandler) HandleGetIssueListStats(c *gin.Context) {
 // @Security BearerAuth
 // @Param project_key query string true "项目 Key"
 // @Success 200 {object} response.Response{data=dto.ProjectOverviewStatsResponse} "获取成功"
+// @Failure 400 {object} response.ErrorResponse "请求参数错误"
 // @Failure 401 {object} response.ErrorResponse "未认证"
 // @Failure 404 {object} response.ErrorResponse "项目不存在"
 // @Router /api/v1/issues/project-overview-stats [get]
@@ -799,6 +800,7 @@ func (h *IssueHandler) HandleUpdateWorklog(c *gin.Context) {
 // @Param key path string true "工单 Key"
 // @Param worklog_id path int true "工作日志 ID"
 // @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.ErrorResponse "无效的工作日志 ID"
 // @Failure 401 {object} response.ErrorResponse "未认证"
 // @Failure 403 {object} response.ErrorResponse "无权限"
 // @Failure 404 {object} response.ErrorResponse "工作日志不存在"

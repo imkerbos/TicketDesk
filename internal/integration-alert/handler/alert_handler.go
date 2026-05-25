@@ -437,6 +437,7 @@ func (h *AlertHandler) HandleGetAlertLabelKeys(c *gin.Context) {
 // @Security BearerAuth
 // @Param group_by query string false "分组字段（标签 key）"
 // @Success 200 {object} response.Response{data=[]dto.AlertGroupResponse} "获取成功"
+// @Failure 400 {object} response.ErrorResponse "请求参数错误"
 // @Failure 401 {object} response.ErrorResponse "未认证"
 // @Router /api/v1/alerts/group [get]
 func (h *AlertHandler) HandleGroupAlerts(c *gin.Context) {

@@ -100,6 +100,7 @@ func (h *AttachmentHandler) HandleListAttachments(c *gin.Context) {
 // @Param key path string true "工单 Key"
 // @Param id path int true "附件 ID"
 // @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.ErrorResponse "无效的附件 ID"
 // @Failure 401 {object} response.ErrorResponse "未认证"
 // @Failure 403 {object} response.ErrorResponse "无权限"
 // @Failure 404 {object} response.ErrorResponse "附件不存在"
@@ -141,6 +142,7 @@ func (h *AttachmentHandler) HandleDeleteAttachment(c *gin.Context) {
 // @Param key path string true "工单 Key"
 // @Param id path int true "附件 ID"
 // @Success 200 {file} binary "文件内容"
+// @Failure 400 {object} response.ErrorResponse "无效的附件 ID"
 // @Failure 401 {object} response.ErrorResponse "未认证"
 // @Failure 404 {object} response.ErrorResponse "附件不存在"
 // @Router /api/v1/issues/{key}/attachments/{id}/download [get]

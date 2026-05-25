@@ -116,6 +116,7 @@ func (h *NotificationChannelHandler) HandleCreateChannel(c *gin.Context) {
 // @Param key path string true "项目 Key"
 // @Param id path int true "渠道 ID"
 // @Success 200 {object} response.Response{data=dto.NotificationChannelResponse}
+// @Failure 400 {object} response.ErrorResponse "无效的渠道 ID"
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/notification-channels/{id} [get]
 // @Security BearerAuth
@@ -200,6 +201,7 @@ func (h *NotificationChannelHandler) HandleUpdateChannel(c *gin.Context) {
 // @Param key path string true "项目 Key"
 // @Param id path int true "渠道 ID"
 // @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse "无效的渠道 ID"
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/notification-channels/{id} [delete]
 // @Security BearerAuth
@@ -234,6 +236,7 @@ func (h *NotificationChannelHandler) HandleDeleteChannel(c *gin.Context) {
 // @Param key path string true "项目 Key"
 // @Param id path int true "渠道 ID"
 // @Success 200 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse "无效的渠道 ID 或发送失败"
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/notification-channels/{id}/test [post]
 // @Security BearerAuth
