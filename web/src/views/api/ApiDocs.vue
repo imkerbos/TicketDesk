@@ -18,12 +18,13 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 const router = useRouter()
 const ready = ref(false)
 const swaggerUrl = ref('')
 
-onMounted(() => {
+onMounted(async () => {
   const token = localStorage.getItem('token')
   if (!token) {
     ElMessage.warning('请先登录')
@@ -31,12 +32,14 @@ onMounted(() => {
     return
   }
 
-  // 设 cookie 让 backend SwaggerAuthMiddleware 能读到 (同源, path 限制到 /api/v1/swagger)
-  // SameSite=Strict 防 CSRF; 不加 Secure 因内网/HTTP 也用
-  document.cookie = `td_swagger_token=${encodeURIComponent(token)}; path=/api/v1/swagger; SameSite=Strict; max-age=7200`
-
-  swaggerUrl.value = '/api/v1/swagger/index.html'
-  ready.value = true
+  try {
+    // 调后端用 JWT 鉴权设 HttpOnly cookie (path=/api/v1/swagger), 后续 swagger UI 静态资源请求自动带 cookie
+    await request.post('/auth/swagger-session')
+    swaggerUrl.value = '/api/v1/swagger/index.html'
+    ready.value = true
+  } catch {
+    ElMessage.error('初始化 API 文档失败, 请重试')
+  }
 })
 </script>
 

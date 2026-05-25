@@ -4,6 +4,8 @@ package router
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -600,6 +602,28 @@ func (r *Router) registerProtectedRoutes(rg *gin.RouterGroup) {
 	}))
 	protected.Use(middleware.AuthMiddleware(r.jwtManager, r.apiTokenSvc))
 	protected.Use(r.rbac.LoadUserRoles())
+
+	// Swagger 会话: 已通过 JWT 鉴权, 设 HttpOnly cookie 供后续 swagger UI 资源请求 (doc.json/css/js) 使用
+	// 前端 /api-docs 页 iframe 加载前先调此端点
+	protected.POST("/auth/swagger-session", func(c *gin.Context) {
+		raw := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			response.BadRequest(c, "需 Bearer token")
+			return
+		}
+		c.SetSameSite(http.SameSiteStrictMode)
+		c.SetCookie(
+			"td_swagger_token", // name
+			raw,                // value
+			7200,               // max-age 2h
+			"/api/v1/swagger",  // path
+			"",                 // domain (空 = 当前)
+			false,              // secure (内网 http 也用; 生产 HTTPS 时浏览器会自动加 Secure 属性)
+			true,               // HttpOnly
+		)
+		response.Success(c, gin.H{"expires_in": 7200})
+	})
 	// 用户相关
 	r.registerUserRoutes(protected)
 
