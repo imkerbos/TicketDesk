@@ -28,6 +28,41 @@ var (
 	ErrInvalidFileType    = errors.New("不支持的文件类型")
 )
 
+// 附件校验常量（包级，供 issue_service 与 attachment_service 共享）
+const MaxAttachmentSize int64 = 10 * 1024 * 1024 // 10MB
+
+// AllowedAttachmentExts 允许的附件扩展名（小写）
+var AllowedAttachmentExts = []string{
+	".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
+	".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+	".txt", ".md", ".csv",
+	".zip", ".rar", ".7z", ".tar", ".gz",
+	".log", ".json", ".xml", ".yaml", ".yml",
+}
+
+// ImageAttachmentExts 图片扩展名（小写）
+var ImageAttachmentExts = []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+
+// IsAllowedAttachmentExt 判断扩展名是否允许（参数应为小写带点格式，如 ".png"）
+func IsAllowedAttachmentExt(ext string) bool {
+	for _, allowed := range AllowedAttachmentExts {
+		if ext == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+// IsImageAttachmentExt 判断扩展名是否为图片
+func IsImageAttachmentExt(ext string) bool {
+	for _, imgExt := range ImageAttachmentExts {
+		if ext == imgExt {
+			return true
+		}
+	}
+	return false
+}
+
 // AttachmentService 附件服务接口
 type AttachmentService interface {
 	UploadAttachment(ctx context.Context, issueKey string, file *multipart.FileHeader, userID uint64) (*dto.AttachmentResponse, error)
@@ -43,8 +78,6 @@ type attachmentService struct {
 	issueRepo      repository.IssueRepository
 	userRepo       userRepo.UserRepository
 	storage        *storage.LocalStorage
-	maxFileSize    int64
-	allowedTypes   []string
 	activityLogger ActivityLogger // 活动日志记录器
 }
 
@@ -60,14 +93,6 @@ func NewAttachmentService(
 		issueRepo:      issueRepo,
 		userRepo:       userRepo,
 		storage:        storage,
-		maxFileSize:    10 * 1024 * 1024, // 10MB
-		allowedTypes: []string{
-			".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", // 图片
-			".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", // 文档
-			".txt", ".md", ".csv", // 文本
-			".zip", ".rar", ".7z", ".tar", ".gz", // 压缩包
-			".log", ".json", ".xml", ".yaml", ".yml", // 配置文件
-		},
 		activityLogger: nil, // 默认为 nil，可通过 SetActivityLogger 设置
 	}
 }
@@ -89,13 +114,13 @@ func (s *attachmentService) UploadAttachment(ctx context.Context, issueKey strin
 	}
 
 	// 验证文件大小
-	if fileHeader.Size > s.maxFileSize {
+	if fileHeader.Size > MaxAttachmentSize {
 		return nil, ErrFileTooLarge
 	}
 
 	// 验证文件类型
 	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-	if !s.isAllowedType(ext) {
+	if !IsAllowedAttachmentExt(ext) {
 		return nil, ErrInvalidFileType
 	}
 
@@ -118,7 +143,7 @@ func (s *attachmentService) UploadAttachment(ctx context.Context, issueKey strin
 	}
 
 	// 判断是否为图片
-	isImage := s.isImageType(ext)
+	isImage := IsImageAttachmentExt(ext)
 
 	// 创建附件记录
 	attachment := &model.IssueAttachment{
@@ -288,25 +313,4 @@ func (s *attachmentService) toAttachmentResponse(ctx context.Context, attachment
 	}
 
 	return resp
-}
-
-// isAllowedType 检查文件类型是否允许
-func (s *attachmentService) isAllowedType(ext string) bool {
-	for _, allowed := range s.allowedTypes {
-		if ext == allowed {
-			return true
-		}
-	}
-	return false
-}
-
-// isImageType 判断是否为图片类型
-func (s *attachmentService) isImageType(ext string) bool {
-	imageTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
-	for _, imgType := range imageTypes {
-		if ext == imgType {
-			return true
-		}
-	}
-	return false
 }
