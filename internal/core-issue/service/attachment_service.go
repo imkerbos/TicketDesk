@@ -61,6 +61,15 @@ type AttachmentService interface {
 	DeleteAttachment(ctx context.Context, issueKey string, attachmentID, userID uint64) error
 	GetAttachmentPath(ctx context.Context, attachmentID uint64) (string, error)
 	SetActivityLogger(activityLogger ActivityLogger)
+
+	// SaveFile 仅落盘, 不写数据库; 返回相对路径
+	SaveFile(fileHeader *multipart.FileHeader) (string, error)
+
+	// CreateRecordInTx 在传入事务中写入 issue_attachments 记录
+	CreateRecordInTx(ctx context.Context, tx *gorm.DB, issueID uint64, fileHeader *multipart.FileHeader, relPath string, userID uint64) (*model.IssueAttachment, error)
+
+	// DeletePath 删除存储中的文件 (用于事务回滚清理)
+	DeletePath(relPath string) error
 }
 
 // attachmentService 附件服务实现
@@ -277,6 +286,64 @@ func (s *attachmentService) GetAttachmentPath(ctx context.Context, attachmentID 
 	}
 
 	return s.storage.GetFullPath(attachment.FilePath), nil
+}
+
+// SaveFile 校验并落盘文件, 返回相对路径; 不写数据库
+func (s *attachmentService) SaveFile(fileHeader *multipart.FileHeader) (string, error) {
+	if fileHeader.Size > MaxAttachmentSize {
+		return "", ErrFileTooLarge
+	}
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	if !IsAllowedAttachmentExt(ext) {
+		return "", ErrInvalidFileType
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return "", fmt.Errorf("打开文件失败: %w", err)
+	}
+	defer file.Close()
+
+	timestamp := time.Now().Format("20060102150405")
+	uniqueFilename := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+
+	relPath, err := s.storage.Save(file, uniqueFilename)
+	if err != nil {
+		logger.Error("failed to save file", zap.Error(err))
+		return "", fmt.Errorf("保存文件失败: %w", err)
+	}
+	return relPath, nil
+}
+
+// CreateRecordInTx 在传入事务中创建 issue_attachments 记录
+// 调用方负责 SaveFile 已成功
+func (s *attachmentService) CreateRecordInTx(
+	ctx context.Context,
+	tx *gorm.DB,
+	issueID uint64,
+	fileHeader *multipart.FileHeader,
+	relPath string,
+	userID uint64,
+) (*model.IssueAttachment, error) {
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	attachment := &model.IssueAttachment{
+		IssueID:    issueID,
+		FileName:   fileHeader.Filename,
+		FilePath:   relPath,
+		FileSize:   fileHeader.Size,
+		FileType:   ext,
+		IsImage:    IsImageAttachmentExt(ext),
+		UploadedBy: userID,
+	}
+	if err := tx.WithContext(ctx).Create(attachment).Error; err != nil {
+		return nil, fmt.Errorf("创建附件记录失败: %w", err)
+	}
+	return attachment, nil
+}
+
+// DeletePath 删除存储中的文件 (用于事务回滚清理)
+func (s *attachmentService) DeletePath(relPath string) error {
+	return s.storage.Delete(relPath)
 }
 
 // toAttachmentResponse 转换为响应格式
