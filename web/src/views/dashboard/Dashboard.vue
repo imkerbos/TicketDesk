@@ -1,77 +1,66 @@
 <template>
   <div class="dashboard-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><DataBoard /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><DataBoard /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">工作台</h1>
-          <p class="header-desc">欢迎回来，这里是你的工作概览</p>
-        </div>
-      </div>
-      <div class="header-actions">
+      </template>
+      <template #title>工作台</template>
+      <template #subtitle>欢迎回来，这里是你的工作概览</template>
+      <template #actions>
         <el-button @click="$router.push('/alerts')">
-          <el-icon><Bell /></el-icon>
-          查看告警
+          <el-icon><Bell /></el-icon>查看告警
         </el-button>
         <el-button @click="$router.push('/issues')">
-          <el-icon><Tickets /></el-icon>
-          所有工单
+          <el-icon><Tickets /></el-icon>所有工单
         </el-button>
         <el-button type="primary" @click="handleCreateIssue">
-          <el-icon><Plus /></el-icon>
-          创建工单
+          <el-icon><Plus /></el-icon>创建工单
         </el-button>
-      </div>
-    </div>
+      </template>
+    </TdPageHeader>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-row">
+    <el-row :gutter="16" class="stat-row">
       <el-col :xs="12" :sm="6">
-        <div class="stat-card todo" @click="$router.push('/issues?filter=my-todo')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><Tickets /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ animatedStats.myTodo }}</div>
-            <div class="stat-label">我的待办</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="我的待办"
+          :value="animatedStats.myTodo"
+          tone="primary"
+          :icon-component="Tickets"
+          interactive
+          @click="$router.push('/issues?filter=my-todo')"
+        />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card created" @click="$router.push('/issues?filter=my-created')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><Edit /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ animatedStats.myCreated }}</div>
-            <div class="stat-label">我创建的</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="我创建的"
+          :value="animatedStats.myCreated"
+          tone="info"
+          :icon-component="Edit"
+          interactive
+          @click="$router.push('/issues?filter=my-created')"
+        />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card alert" @click="$router.push('/alerts?status=firing')">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><Bell /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ animatedStats.pendingAlerts }}</div>
-            <div class="stat-label">待确认告警</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="待确认告警"
+          :value="animatedStats.pendingAlerts"
+          tone="danger"
+          :icon-component="Bell"
+          interactive
+          @click="$router.push('/alerts?status=firing')"
+        />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card done">
-          <div class="stat-icon-wrapper">
-            <el-icon :size="22"><CircleCheck /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ animatedStats.weekDone }}</div>
-            <div class="stat-label">本周已完成</div>
-          </div>
-        </div>
+        <TdStatTile
+          label="本周已完成"
+          :value="animatedStats.weekDone"
+          tone="success"
+          :icon-component="CircleCheck"
+        />
       </el-col>
     </el-row>
 
@@ -469,127 +458,22 @@ onMounted(() => {
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 28px;
-  background: var(--td-bg-card);
-  border-radius: 8px;
-  border: 1px solid var(--td-border-color);
-  border-left: 4px solid #3b82f6;
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--td-tag-primary-bg);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: var(--td-color-primary);
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin: 0 0 4px 0;
-      color: var(--td-text-primary);
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      color: var(--td-text-secondary);
-    }
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 10px;
-
-    .el-button--primary {
-      transition: box-shadow 150ms ease-out;
-      &:hover { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
-      &:active { background-color: var(--td-color-primary-active); border-color: var(--td-color-primary-active); }
-    }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
-// 统计卡片
+// 统计卡片网格
 .stat-row {
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 20px 24px;
-  border-radius: 8px;
-  background: var(--td-bg-card);
-  border: 1px solid var(--td-border-color);
-  cursor: pointer;
-  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
-
-  .stat-icon-wrapper {
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    margin-right: 16px;
-    flex-shrink: 0;
-  }
-
-  .stat-content {
-    .stat-value {
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 1.2;
-      color: var(--td-text-primary);
-    }
-    .stat-label {
-      font-size: 13px;
-      color: var(--td-text-secondary);
-      margin-top: 2px;
-    }
-  }
-
-  &.todo {
-    border-left: 4px solid #3b82f6;
-    .stat-icon-wrapper { background: var(--td-tag-primary-bg); color: var(--td-color-primary); }
-    &:hover { border-color: var(--td-color-primary); box-shadow: 0 1px 4px rgba(59, 130, 246, 0.1); }
-    &:active { background-color: var(--td-bg-page); }
-  }
-  &.created {
-    border-left: 4px solid #10b981;
-    .stat-icon-wrapper { background: var(--td-tag-success-bg); color: var(--td-color-success); }
-    &:hover { border-color: var(--td-color-success); box-shadow: 0 1px 4px rgba(16, 185, 129, 0.1); }
-    &:active { background-color: var(--td-bg-page); }
-  }
-  &.alert {
-    border-left: 4px solid #ef4444;
-    .stat-icon-wrapper { background: var(--td-tag-danger-bg); color: var(--td-color-danger); }
-    &:hover { border-color: var(--td-color-danger); box-shadow: 0 1px 4px rgba(239, 68, 68, 0.1); }
-    &:active { background-color: var(--td-bg-page); }
-  }
-  &.done {
-    border-left: 4px solid #3b82f6;
-    .stat-icon-wrapper { background: var(--td-tag-primary-bg); color: var(--td-color-primary); }
-    &:hover { border-color: var(--td-color-primary); box-shadow: 0 1px 4px rgba(59, 130, 246, 0.1); }
-    &:active { background-color: var(--td-bg-page); }
-  }
+  margin-bottom: var(--td-space-5);
 }
 
 // 内容卡片
@@ -835,24 +719,8 @@ onMounted(() => {
 
 // 响应式
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 20px;
-
-    .header-actions {
-      flex-wrap: wrap;
-    }
-  }
-
-  .stat-card {
-    padding: 16px;
-    margin-bottom: 12px;
-
-    .stat-content .stat-value {
-      font-size: 24px;
-    }
+  .stat-row {
+    margin-bottom: var(--td-space-3);
   }
 }
 </style>

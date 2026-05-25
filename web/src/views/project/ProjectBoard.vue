@@ -60,13 +60,16 @@
           :on-deleted="handleDeleted"
         />
         <div v-else class="empty-detail">
-          <div class="empty-inner">
-            <div class="empty-icon">
-              <el-icon :size="48"><Tickets /></el-icon>
-            </div>
-            <p class="empty-text">从左侧列表选择一个工单</p>
-            <p class="empty-hint">或者创建一个新工单开始工作</p>
-          </div>
+          <TdEmptyState
+            preset="first-time"
+            tone="primary"
+            title="从左侧列表选择一个工单"
+            description="或点击「创建」开始一个新工单"
+          >
+            <el-button type="primary" @click="handleCreateIssue">
+              <el-icon><Plus /></el-icon>创建工单
+            </el-button>
+          </TdEmptyState>
         </div>
       </div>
     </div>
@@ -83,7 +86,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, DataAnalysis, Grid, Setting, Tickets } from '@element-plus/icons-vue'
+import { ArrowLeft, DataAnalysis, Grid, Setting, Plus } from '@element-plus/icons-vue'
 import BoardIssueList from './components/BoardIssueList.vue'
 import IssueDetail from '@/views/issue/IssueDetail.vue'
 import { getProjectDetail } from '@/api/project'
@@ -306,42 +309,13 @@ onMounted(() => {
   background: var(--td-bg-section);
 }
 
-// ---- 空状态 ----
+// ---- 空状态容器 (TdEmptyState 在内) ----
 .empty-detail {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100%;
   background: var(--td-bg-section);
-}
-
-.empty-inner {
-  text-align: center;
-}
-
-.empty-icon {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 20px;
-  background: var(--td-color-primary-light);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-color-primary);
-}
-
-.empty-text {
-  font-size: 15px;
-  color: var(--td-text-regular);
-  margin: 0 0 6px;
-  font-weight: 500;
-}
-
-.empty-hint {
-  font-size: 13px;
-  color: var(--td-text-placeholder);
-  margin: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

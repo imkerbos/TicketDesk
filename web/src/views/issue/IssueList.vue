@@ -1,21 +1,20 @@
 <template>
   <div class="issue-list-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><Tickets /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Tickets /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">工单管理</h1>
-          <p class="header-desc">跟踪和管理所有工单任务</p>
-        </div>
-      </div>
-      <el-button type="primary" class="header-btn" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建工单
-      </el-button>
-    </div>
+      </template>
+      <template #title>工单管理</template>
+      <template #subtitle>跟踪和管理所有工单任务</template>
+      <template #actions>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>创建工单
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 分类 Tab -->
     <el-tabs v-model="queryParams.category" class="category-tabs" @tab-change="handleCategoryChange">
@@ -870,55 +869,17 @@ onMounted(async () => {
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 28px;
-  background: var(--td-bg-card);
-  border-radius: 8px;
-  border: 1px solid var(--td-border-color);
-  border-left: 4px solid #3b82f6;
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 48px;
-    height: 48px;
-    background: var(--td-tag-primary-bg);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: var(--td-color-primary);
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin: 0 0 4px 0;
-      color: var(--td-text-primary);
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      color: var(--td-text-secondary);
-    }
-  }
-
-  .header-btn {
-    transition: box-shadow 150ms ease-out;
-    &:hover { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
-    &:active { background-color: var(--td-color-primary-active); border-color: var(--td-color-primary-active); }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // 分类 Tab
