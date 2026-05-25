@@ -125,22 +125,10 @@
 
     <!-- KPI 统计卡片 -->
     <div class="stats-row">
-      <div class="stat-card stat-total">
-        <div class="stat-value">{{ issueStats.total }}</div>
-        <div class="stat-label">工单总数</div>
-      </div>
-      <div class="stat-card stat-resolved">
-        <div class="stat-value">{{ issueStats.resolved }}</div>
-        <div class="stat-label">已完成</div>
-      </div>
-      <div class="stat-card stat-rate">
-        <div class="stat-value">{{ issueStats.completion_rate }}%</div>
-        <div class="stat-label">完成率</div>
-      </div>
-      <div class="stat-card stat-hours">
-        <div class="stat-value">{{ issueStats.avg_resolve_hours }}h</div>
-        <div class="stat-label">平均解决时长</div>
-      </div>
+      <TdStatTile label="工单总数" :value="issueStats.total" tone="info" :icon-component="Tickets" />
+      <TdStatTile label="已完成" :value="issueStats.resolved" tone="success" :icon-component="CircleCheck" />
+      <TdStatTile label="完成率" :value="`${issueStats.completion_rate}%`" tone="primary" :icon-component="TrendCharts" />
+      <TdStatTile label="平均解决时长" :value="`${issueStats.avg_resolve_hours}h`" tone="warning" :icon-component="Clock" />
     </div>
 
     <!-- 工具栏 + 内容 -->
@@ -321,7 +309,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, List, Grid, Tickets, Clock, Delete, CircleCheck, TrendCharts } from '@element-plus/icons-vue'
 import { getIssueList, getIssueListStats, deleteIssue } from '@/api/issue'
 import { getAllProjects, getAllIssueTypes, getProjectIssueTypes } from '@/api/project'
 import { getAllUsers } from '@/api/user'
@@ -1277,47 +1265,8 @@ onMounted(async () => {
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  padding: 16px 20px;
-  border-radius: 10px;
-  background: var(--td-bg-card);
-  border: 1px solid var(--td-border-color);
-
-  .stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1.2;
-    margin-bottom: 4px;
-  }
-
-  .stat-label {
-    font-size: 13px;
-    color: var(--td-text-secondary);
-  }
-
-  &.stat-total {
-    border-left: 3px solid #3b82f6;
-    .stat-value { color: #3b82f6; }
-  }
-
-  &.stat-resolved {
-    border-left: 3px solid #10b981;
-    .stat-value { color: #10b981; }
-  }
-
-  &.stat-rate {
-    border-left: 3px solid #f59e0b;
-    .stat-value { color: #f59e0b; }
-  }
-
-  &.stat-hours {
-    border-left: 3px solid #6b7280;
-    .stat-value { color: #6b7280; }
-  }
+  gap: var(--td-space-4);
+  margin-bottom: var(--td-space-5);
 }
 
 // 响应式

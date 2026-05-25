@@ -1,5 +1,5 @@
 <template>
-  <div class="td-stat-tile" :class="[`td-stat-tile--${tone}`, { 'td-stat-tile--interactive': interactive }]">
+  <div class="td-stat-tile" :class="[`td-stat-tile--${tone}`, { 'td-stat-tile--interactive': interactive, 'td-stat-tile--active': active }]">
     <div v-if="iconComponent || $slots.icon" class="td-stat-tile__icon">
       <slot name="icon">
         <component :is="iconComponent" />
@@ -34,9 +34,11 @@ withDefaults(defineProps<{
   iconComponent?: Component
   tone?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
   interactive?: boolean
+  active?: boolean
 }>(), {
   tone: 'info',
   interactive: false,
+  active: false,
   deltaUnit: '',
   delta: null,
   hint: '',
@@ -63,6 +65,24 @@ withDefaults(defineProps<{
       background: var(--td-bg-card-hover);
     }
   }
+
+  // 激活态 (作为筛选器被选中)
+  &--active {
+    box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-color-primary);
+    background: var(--td-tag-primary-bg);
+
+    &.td-stat-tile--interactive:hover {
+      box-shadow: var(--td-elevation-3), inset 3px 0 0 var(--td-color-primary);
+      background: var(--td-tag-primary-bg);
+    }
+  }
+
+  // 各色调激活态边条用对应颜色
+  &--primary.td-stat-tile--active { box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-color-primary); }
+  &--success.td-stat-tile--active { box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-color-success); background: var(--td-tag-success-bg); }
+  &--warning.td-stat-tile--active { box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-color-warning); background: var(--td-tag-warning-bg); }
+  &--danger.td-stat-tile--active  { box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-color-danger);  background: var(--td-tag-danger-bg); }
+  &--info.td-stat-tile--active    { box-shadow: var(--td-elevation-2), inset 3px 0 0 var(--td-text-secondary); background: var(--td-tag-info-bg); }
 
   &__icon {
     width: 40px;

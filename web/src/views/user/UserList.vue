@@ -18,50 +18,18 @@
     </TdPageHeader>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stats-row">
+    <el-row :gutter="16" class="stats-row">
       <el-col :xs="12" :sm="6">
-        <div class="stat-card total">
-          <div class="stat-icon">
-            <el-icon><User /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">总用户数</div>
-          </div>
-        </div>
+        <TdStatTile label="总用户数" :value="stats.total" tone="info" :icon-component="User" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card active">
-          <div class="stat-icon">
-            <el-icon><CircleCheck /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.active }}</div>
-            <div class="stat-label">活跃用户</div>
-          </div>
-        </div>
+        <TdStatTile label="活跃用户" :value="stats.active" tone="success" :icon-component="CircleCheck" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card admin">
-          <div class="stat-icon">
-            <el-icon><Avatar /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.admin }}</div>
-            <div class="stat-label">管理员</div>
-          </div>
-        </div>
+        <TdStatTile label="管理员" :value="stats.admin" tone="primary" :icon-component="Avatar" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="stat-card disabled">
-          <div class="stat-icon">
-            <el-icon><CircleClose /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.disabled }}</div>
-            <div class="stat-label">已禁用</div>
-          </div>
-        </div>
+        <TdStatTile label="已禁用" :value="stats.disabled" tone="danger" :icon-component="CircleClose" />
       </el-col>
     </el-row>
 
@@ -688,86 +656,7 @@ onMounted(() => {
 
 // 统计卡片
 .stats-row {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: var(--td-bg-card);
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 150ms ease-out;
-
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  }
-
-  .stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-  }
-
-  .stat-content {
-    .stat-value {
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-
-    .stat-label {
-      font-size: 13px;
-      color: var(--td-color-info);
-      margin-top: 2px;
-    }
-  }
-
-  &.total {
-    .stat-icon {
-      background: var(--td-color-primary);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-color-primary);
-    }
-  }
-
-  &.active {
-    .stat-icon {
-      background: var(--td-color-success);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-color-success);
-    }
-  }
-
-  &.admin {
-    .stat-icon {
-      background: var(--td-color-danger);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-color-danger);
-    }
-  }
-
-  &.disabled {
-    .stat-icon {
-      background: var(--td-text-secondary);
-      color: var(--td-text-white);
-    }
-    .stat-value {
-      color: var(--td-text-secondary);
-    }
-  }
+  margin-bottom: var(--td-space-5);
 }
 
 // 筛选卡片
@@ -1150,16 +1039,6 @@ onMounted(() => {
     .search-input,
     .filter-select {
       width: 100%;
-    }
-  }
-
-  .stat-card {
-    padding: 16px;
-
-    .stat-content {
-      .stat-value {
-        font-size: 22px;
-      }
     }
   }
 
