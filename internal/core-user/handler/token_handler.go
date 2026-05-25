@@ -24,6 +24,18 @@ func NewAPITokenHandler(tokenSvc service.APITokenService) *APITokenHandler {
 
 // HandleCreate 创建 API token
 // 注意：不允许用 PAT 创建新 PAT，避免权限提升
+// @Summary 创建 API Token
+// @Description 为当前用户创建新的 API Token，不允许用 PAT 自身调用
+// @Tags Token
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.CreateTokenRequest true "创建 Token 请求体"
+// @Success 201 {object} response.Response{data=dto.CreateTokenResponse} "创建成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 403 {object} response.ErrorResponse "不能用 API token 创建新 token"
+// @Router /api/v1/users/me/tokens [post]
 func (h *APITokenHandler) HandleCreate(c *gin.Context) {
 	// 拒绝用 PAT 自己创建 PAT
 	if isPAT, _ := c.Get("is_pat"); isPAT == true {
@@ -51,6 +63,14 @@ func (h *APITokenHandler) HandleCreate(c *gin.Context) {
 }
 
 // HandleList 列出当前用户所有 token
+// @Summary 列出 API Token
+// @Description 列出当前用户的所有 API Token
+// @Tags Token
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=[]dto.TokenResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/users/me/tokens [get]
 func (h *APITokenHandler) HandleList(c *gin.Context) {
 	userID := c.GetUint64("user_id")
 	tokens, err := h.tokenSvc.List(c.Request.Context(), userID)
@@ -62,6 +82,16 @@ func (h *APITokenHandler) HandleList(c *gin.Context) {
 }
 
 // HandleDelete 撤销指定 token
+// @Summary 撤销 API Token
+// @Description 撤销并删除指定的 API Token
+// @Tags Token
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Token ID"
+// @Success 200 {object} response.Response "撤销成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "Token 不存在"
+// @Router /api/v1/users/me/tokens/{id} [delete]
 func (h *APITokenHandler) HandleDelete(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
