@@ -111,7 +111,12 @@ func (h *AlertHandler) HandleNightingaleWebhook(c *gin.Context) {
 // @Security BearerAuth
 // @Param page query int false "页码"
 // @Param page_size query int false "每页数量"
-// @Param status query string false "告警状态"
+// @Param status query string false "告警状态 (firing/resolved)"
+// @Param severity query string false "严重级别 (critical/warning/info)"
+// @Param source query string false "来源"
+// @Param alert_name query string false "告警名称"
+// @Param issue_id query int false "关联工单 ID"
+// @Param label_filters query string false "标签筛选，格式: key==value,key!=value"
 // @Success 200 {object} response.Response{data=dto.AlertListResponse} "获取成功"
 // @Failure 401 {object} response.ErrorResponse "未认证"
 // @Router /api/v1/alerts [get]

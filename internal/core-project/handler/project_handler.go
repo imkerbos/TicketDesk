@@ -30,8 +30,10 @@ func NewProjectHandler(projectService service.ProjectService) *ProjectHandler {
 // @Accept json
 // @Produce json
 // @Param request body dto.CreateProjectRequest true "创建项目请求"
-// @Success 201 {object} dto.ProjectResponse
+// @Success 201 {object} response.Response{data=dto.ProjectResponse}
 // @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 403 {object} response.ErrorResponse "需项目管理员"
 // @Router /api/v1/projects [post]
 // @Security BearerAuth
 func (h *ProjectHandler) HandleCreateProject(c *gin.Context) {
@@ -61,7 +63,7 @@ func (h *ProjectHandler) HandleCreateProject(c *gin.Context) {
 // @Tags Project
 // @Produce json
 // @Param key path string true "项目 Key"
-// @Success 200 {object} dto.ProjectResponse
+// @Success 200 {object} response.Response{data=dto.ProjectResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key} [get]
 // @Security BearerAuth
@@ -89,7 +91,7 @@ func (h *ProjectHandler) HandleGetProject(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param request body dto.UpdateProjectRequest true "更新项目请求"
-// @Success 200 {object} dto.ProjectResponse
+// @Success 200 {object} response.Response{data=dto.ProjectResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key} [put]
@@ -151,7 +153,7 @@ func (h *ProjectHandler) HandleDeleteProject(c *gin.Context) {
 // @Param page_size query int false "每页数量" default(20)
 // @Param keyword query string false "搜索关键字"
 // @Param status query int false "项目状态 (0-归档, 1-活跃)"
-// @Success 200 {object} response.PageData
+// @Success 200 {object} response.Response{data=response.PageData}
 // @Router /api/v1/projects [get]
 // @Security BearerAuth
 func (h *ProjectHandler) HandleListProjects(c *gin.Context) {
@@ -181,7 +183,7 @@ func (h *ProjectHandler) HandleListProjects(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param request body dto.AddMemberRequest true "添加成员请求"
-// @Success 201 {object} dto.ProjectMemberResponse
+// @Success 201 {object} response.Response{data=dto.ProjectMemberResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/members [post]
@@ -220,7 +222,7 @@ func (h *ProjectHandler) HandleAddMember(c *gin.Context) {
 // @Param key path string true "项目 Key"
 // @Param user_id path int true "用户 ID"
 // @Param request body dto.UpdateMemberRequest true "更新成员请求"
-// @Success 200 {object} dto.ProjectMemberResponse
+// @Success 200 {object} response.Response{data=dto.ProjectMemberResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/members/{user_id} [put]
@@ -299,7 +301,7 @@ func (h *ProjectHandler) HandleRemoveMember(c *gin.Context) {
 // @Tags Project
 // @Produce json
 // @Param key path string true "项目 Key"
-// @Success 200 {array} dto.ProjectMemberResponse
+// @Success 200 {object} response.Response{data=[]dto.ProjectMemberResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/members [get]
 // @Security BearerAuth
@@ -327,7 +329,7 @@ func (h *ProjectHandler) HandleListMembers(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param request body dto.CreateIssueTypeRequest true "创建工单类型请求"
-// @Success 201 {object} dto.IssueTypeResponse
+// @Success 201 {object} response.Response{data=dto.IssueTypeResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/issue-types [post]
@@ -363,7 +365,7 @@ func (h *ProjectHandler) HandleCreateIssueType(c *gin.Context) {
 // @Param key path string true "项目 Key"
 // @Param id path int true "工单类型 ID"
 // @Param request body dto.UpdateIssueTypeRequest true "更新工单类型请求"
-// @Success 200 {object} dto.IssueTypeResponse
+// @Success 200 {object} response.Response{data=dto.IssueTypeResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/issue-types/{id} [put]
@@ -432,7 +434,7 @@ func (h *ProjectHandler) HandleDeleteIssueType(c *gin.Context) {
 // @Tags Project
 // @Produce json
 // @Param key path string true "项目 Key"
-// @Success 200 {array} dto.IssueTypeResponse
+// @Success 200 {object} response.Response{data=[]dto.IssueTypeResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/issue-types [get]
 // @Security BearerAuth
@@ -457,7 +459,7 @@ func (h *ProjectHandler) HandleListIssueTypes(c *gin.Context) {
 // @Description 获取所有工单类型列表（全局 + 项目自定义，用于筛选器）
 // @Tags IssueType
 // @Produce json
-// @Success 200 {array} dto.IssueTypeResponse
+// @Success 200 {object} response.Response{data=[]dto.IssueTypeResponse}
 // @Router /api/v1/issue-types [get]
 // @Security BearerAuth
 func (h *ProjectHandler) HandleListAllIssueTypes(c *gin.Context) {
@@ -475,7 +477,7 @@ func (h *ProjectHandler) HandleListAllIssueTypes(c *gin.Context) {
 // @Description 获取所有项目列表（不分页，用于选择器）
 // @Tags Project
 // @Produce json
-// @Success 200 {array} dto.ProjectResponse
+// @Success 200 {object} response.Response{data=[]dto.ProjectResponse}
 // @Router /api/v1/projects/all [get]
 // @Security BearerAuth
 func (h *ProjectHandler) HandleListAllProjects(c *gin.Context) {
@@ -507,7 +509,7 @@ func (h *ProjectHandler) HandleListAllProjects(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param request body dto.CreateProjectRoleRequest true "创建角色请求"
-// @Success 201 {object} dto.ProjectRoleResponse
+// @Success 201 {object} response.Response{data=dto.ProjectRoleResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/roles [post]
@@ -546,7 +548,7 @@ func (h *ProjectHandler) HandleCreateRole(c *gin.Context) {
 // @Param key path string true "项目 Key"
 // @Param id path int true "角色 ID"
 // @Param request body dto.UpdateProjectRoleRequest true "更新角色请求"
-// @Success 200 {object} dto.ProjectRoleResponse
+// @Success 200 {object} response.Response{data=dto.ProjectRoleResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/roles/{id} [put]
@@ -625,7 +627,7 @@ func (h *ProjectHandler) HandleDeleteRole(c *gin.Context) {
 // @Tags Project
 // @Produce json
 // @Param key path string true "项目 Key"
-// @Success 200 {array} dto.ProjectRoleResponse
+// @Success 200 {object} response.Response{data=[]dto.ProjectRoleResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/roles [get]
 // @Security BearerAuth
@@ -654,7 +656,7 @@ func (h *ProjectHandler) HandleListRoles(c *gin.Context) {
 // @Param key path string true "项目 Key"
 // @Param id path int true "角色 ID"
 // @Param request body dto.AddRoleMemberRequest true "添加成员请求"
-// @Success 201 {object} dto.ProjectRoleMemberResponse
+// @Success 201 {object} response.Response{data=dto.ProjectRoleMemberResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/roles/{id}/members [post]
@@ -742,7 +744,7 @@ func (h *ProjectHandler) HandleRemoveRoleMember(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param id path int true "角色 ID"
-// @Success 200 {array} dto.ProjectRoleMemberResponse
+// @Success 200 {object} response.Response{data=[]dto.ProjectRoleMemberResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/roles/{id}/members [get]
 // @Security BearerAuth
@@ -777,7 +779,7 @@ func (h *ProjectHandler) HandleListRoleMembers(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param user_id path int true "用户 ID"
-// @Success 200 {array} dto.ProjectRoleResponse
+// @Success 200 {object} response.Response{data=[]dto.ProjectRoleResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/users/{user_id}/roles [get]
 // @Security BearerAuth

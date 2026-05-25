@@ -58,10 +58,12 @@ func ctxWithUser(c *gin.Context) context.Context {
 // @Summary 创建工单
 // @Description 支持 application/json 和 multipart/form-data 两种方式，后者可同时上传附件
 // @Tags Issue
-// @Accept json
+// @Accept json,multipart/form-data
 // @Produce json
 // @Security BearerAuth
-// @Param body body dto.CreateIssueRequest true "创建工单请求体"
+// @Param body body dto.CreateIssueRequest false "application/json 模式: 创建工单请求体"
+// @Param data formData string false "multipart 模式: JSON 字符串（与 body 二选一）"
+// @Param files formData file false "multipart 模式: 附件文件（可多个）"
 // @Success 201 {object} response.Response{data=dto.IssueResponse} "创建成功"
 // @Failure 400 {object} response.ErrorResponse "参数错误"
 // @Failure 401 {object} response.ErrorResponse "未认证"
@@ -230,7 +232,19 @@ func (h *IssueHandler) HandleDeleteIssue(c *gin.Context) {
 // @Param project_key query string false "项目 Key"
 // @Param page query int false "页码"
 // @Param page_size query int false "每页数量"
-// @Success 200 {object} response.Response{data=[]dto.IssueResponse} "获取成功"
+// @Param status query string false "状态，支持逗号分隔多值，如 open,in_progress"
+// @Param priority query string false "优先级 (P0/P1/P2/P3)"
+// @Param assignee_id query int false "经办人 ID"
+// @Param reporter_id query int false "报告人 ID"
+// @Param issue_type_id query int false "工单类型 ID"
+// @Param epic_id query int false "Epic ID"
+// @Param keyword query string false "关键字搜索"
+// @Param category query string false "分类 (normal/alert)"
+// @Param sort_by query string false "排序字段 (id/priority/status/issue_type_id/created_at/updated_at)"
+// @Param order query string false "排序方向 (asc/desc)"
+// @Param start_date query string false "开始日期 (YYYY-MM-DD)"
+// @Param end_date query string false "结束日期 (YYYY-MM-DD)"
+// @Success 200 {object} response.Response{data=response.PageData} "获取成功"
 // @Failure 401 {object} response.ErrorResponse "未认证"
 // @Failure 404 {object} response.ErrorResponse "项目不存在"
 // @Router /api/v1/issues [get]

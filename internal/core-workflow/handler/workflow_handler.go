@@ -413,7 +413,7 @@ func (h *WorkflowHandler) HandleListEdges(c *gin.Context) {
 // @Tags Workflow
 // @Produce json
 // @Param key path string true "工单 Key"
-// @Success 200 {object} dto.WorkflowInstanceResponse
+// @Success 200 {object} response.Response{data=dto.WorkflowInstanceResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/issues/{key}/workflow [get]
 // @Security BearerAuth
@@ -724,7 +724,7 @@ func (h *WorkflowHandler) HandleComplete(c *gin.Context) {
 // @Tags Workflow
 // @Produce json
 // @Param key path string true "工单 Key"
-// @Success 200 {array} dto.WorkflowHistoryResponse
+// @Success 200 {object} response.Response{data=[]dto.WorkflowHistoryResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/issues/{key}/workflow/history [get]
 // @Security BearerAuth
@@ -777,7 +777,7 @@ func (h *WorkflowHandler) HandleGetHistory(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目 Key"
 // @Param request body dto.CreateWorkflowSchemeRequest true "创建方案请求"
-// @Success 201 {object} dto.WorkflowSchemeResponse
+// @Success 201 {object} response.Response{data=dto.WorkflowSchemeResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/workflow-schemes [post]
@@ -831,7 +831,7 @@ func (h *WorkflowHandler) HandleCreateScheme(c *gin.Context) {
 // @Tags Workflow
 // @Produce json
 // @Param key path string true "项目 Key"
-// @Success 200 {array} dto.WorkflowSchemeResponse
+// @Success 200 {object} response.Response{data=[]dto.WorkflowSchemeResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/workflow-schemes [get]
 // @Security BearerAuth

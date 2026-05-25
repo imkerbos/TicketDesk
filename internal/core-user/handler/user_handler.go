@@ -33,9 +33,10 @@ func NewUserHandler(userService service.UserService, mfaService service.MFAServi
 // @Accept json
 // @Produce json
 // @Param request body dto.LoginRequest true "登录请求"
-// @Success 200 {object} dto.LoginResponse
+// @Success 200 {object} response.Response{data=dto.LoginResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 401 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse "账号已禁用"
 // @Router /api/v1/auth/login [post]
 func (h *UserHandler) HandleLogin(c *gin.Context) {
 	var req dto.LoginRequest
@@ -67,7 +68,7 @@ func (h *UserHandler) HandleLogin(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body dto.RegisterRequest true "注册请求"
-// @Success 201 {object} dto.UserResponse
+// @Success 201 {object} response.Response{data=dto.UserResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/auth/register [post]
 func (h *UserHandler) HandleRegister(c *gin.Context) {
@@ -100,7 +101,7 @@ func (h *UserHandler) HandleRegister(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body dto.RefreshTokenRequest true "刷新 Token 请求"
-// @Success 200 {object} dto.LoginResponse
+// @Success 200 {object} response.Response{data=dto.LoginResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 401 {object} response.ErrorResponse
 // @Router /api/v1/auth/refresh [post]
@@ -132,7 +133,7 @@ func (h *UserHandler) HandleRefreshToken(c *gin.Context) {
 // @Description 获取当前登录用户的详细信息
 // @Tags User
 // @Produce json
-// @Success 200 {object} dto.UserResponse
+// @Success 200 {object} response.Response{data=dto.UserResponse}
 // @Failure 401 {object} response.ErrorResponse
 // @Router /api/v1/users/me [get]
 // @Security BearerAuth
@@ -162,7 +163,7 @@ func (h *UserHandler) HandleGetCurrentUser(c *gin.Context) {
 // @Tags User
 // @Produce json
 // @Param id path int true "用户 ID"
-// @Success 200 {object} dto.UserResponse
+// @Success 200 {object} response.Response{data=dto.UserResponse}
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/users/{id} [get]
 // @Security BearerAuth
@@ -193,7 +194,7 @@ func (h *UserHandler) HandleGetUser(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body dto.CreateUserRequest true "创建用户请求"
-// @Success 201 {object} dto.UserResponse
+// @Success 201 {object} response.Response{data=dto.UserResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/users [post]
 // @Security BearerAuth
@@ -228,7 +229,7 @@ func (h *UserHandler) HandleCreateUser(c *gin.Context) {
 // @Produce json
 // @Param id path int true "用户 ID"
 // @Param request body dto.UpdateUserRequest true "更新用户请求"
-// @Success 200 {object} dto.UserResponse
+// @Success 200 {object} response.Response{data=dto.UserResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 404 {object} response.ErrorResponse
 // @Router /api/v1/users/{id} [put]
@@ -440,7 +441,7 @@ func (h *UserHandler) HandleDeleteUser(c *gin.Context) {
 // @Param page_size query int false "每页数量" default(20)
 // @Param keyword query string false "搜索关键字"
 // @Param status query int false "用户状态 (0-禁用, 1-启用)"
-// @Success 200 {object} response.PageData
+// @Success 200 {object} response.Response{data=response.PageData}
 // @Router /api/v1/users [get]
 // @Security BearerAuth
 func (h *UserHandler) HandleListUsers(c *gin.Context) {
@@ -464,7 +465,7 @@ func (h *UserHandler) HandleListUsers(c *gin.Context) {
 // @Description 获取所有启用的用户列表（不分页，用于选择器）
 // @Tags User
 // @Produce json
-// @Success 200 {array} dto.UserResponse
+// @Success 200 {object} response.Response{data=[]dto.UserResponse}
 // @Router /api/v1/users/all [get]
 // @Security BearerAuth
 func (h *UserHandler) HandleListAllUsers(c *gin.Context) {
@@ -502,7 +503,7 @@ func (h *UserHandler) HandleListAllUsers(c *gin.Context) {
 // @Description 获取当前用户的 MFA 状态
 // @Tags MFA
 // @Produce json
-// @Success 200 {object} dto.MFAStatusResponse
+// @Success 200 {object} response.Response{data=dto.MFAStatusResponse}
 // @Router /api/v1/users/me/mfa [get]
 // @Security BearerAuth
 func (h *UserHandler) HandleGetMFAStatus(c *gin.Context) {
@@ -530,7 +531,7 @@ func (h *UserHandler) HandleGetMFAStatus(c *gin.Context) {
 // @Description 生成 MFA 密钥和二维码 URL
 // @Tags MFA
 // @Produce json
-// @Success 200 {object} dto.MFASetupResponse
+// @Success 200 {object} response.Response{data=dto.MFASetupResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/users/me/mfa/setup [post]
 // @Security BearerAuth
@@ -650,7 +651,7 @@ func (h *UserHandler) HandleDisableMFA(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body dto.MFALoginRequest true "MFA 登录请求"
-// @Success 200 {object} dto.LoginResponse
+// @Success 200 {object} response.Response{data=dto.LoginResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/auth/mfa/verify [post]
 func (h *UserHandler) HandleVerifyMFA(c *gin.Context) {

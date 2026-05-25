@@ -36,7 +36,9 @@ func NewFieldHandler(fieldService service.FieldService) *FieldHandler {
 // @Param key path string true "项目Key"
 // @Param request body dto.CreateFieldRequest true "创建字段请求"
 // @Success 201 {object} response.Response{data=dto.FieldDefinitionResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 403 {object} response.ErrorResponse "需项目管理员"
 // @Router /api/v1/projects/{key}/fields [post]
 // @Security BearerAuth
 func (h *FieldHandler) HandleCreateField(c *gin.Context) {
@@ -67,7 +69,7 @@ func (h *FieldHandler) HandleCreateField(c *gin.Context) {
 // @Param id path int true "字段ID"
 // @Param request body dto.UpdateFieldRequest true "更新字段请求"
 // @Success 200 {object} response.Response{data=dto.FieldDefinitionResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/fields/{id} [put]
 // @Security BearerAuth
 func (h *FieldHandler) HandleUpdateField(c *gin.Context) {
@@ -101,7 +103,7 @@ func (h *FieldHandler) HandleUpdateField(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param id path int true "字段ID"
 // @Success 200 {object} response.Response
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/fields/{id} [delete]
 // @Security BearerAuth
 func (h *FieldHandler) HandleDeleteField(c *gin.Context) {
@@ -127,7 +129,7 @@ func (h *FieldHandler) HandleDeleteField(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目Key"
 // @Success 200 {object} response.Response{data=[]dto.FieldDefinitionResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/fields [get]
 // @Security BearerAuth
 func (h *FieldHandler) HandleListFields(c *gin.Context) {
@@ -152,7 +154,7 @@ func (h *FieldHandler) HandleListFields(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param id path int true "工单类型ID"
 // @Success 200 {object} response.Response{data=[]dto.FieldSchemeResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/issue-types/{id}/field-scheme [get]
 // @Security BearerAuth
 func (h *FieldHandler) HandleGetFieldScheme(c *gin.Context) {
@@ -182,7 +184,7 @@ func (h *FieldHandler) HandleGetFieldScheme(c *gin.Context) {
 // @Param id path int true "工单类型ID"
 // @Param request body dto.UpdateFieldSchemeRequest true "更新字段方案请求"
 // @Success 200 {object} response.Response{data=[]dto.FieldSchemeResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/issue-types/{id}/field-scheme [put]
 // @Security BearerAuth
 func (h *FieldHandler) HandleUpdateFieldScheme(c *gin.Context) {
@@ -219,7 +221,7 @@ func (h *FieldHandler) HandleUpdateFieldScheme(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param request body dto.CreateVersionRequest true "创建版本请求"
 // @Success 201 {object} response.Response{data=dto.VersionResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/versions [post]
 // @Security BearerAuth
 func (h *FieldHandler) HandleCreateVersion(c *gin.Context) {
@@ -250,7 +252,7 @@ func (h *FieldHandler) HandleCreateVersion(c *gin.Context) {
 // @Param id path int true "版本ID"
 // @Param request body dto.UpdateVersionRequest true "更新版本请求"
 // @Success 200 {object} response.Response{data=dto.VersionResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/versions/{id} [put]
 // @Security BearerAuth
 func (h *FieldHandler) HandleUpdateVersion(c *gin.Context) {
@@ -284,7 +286,7 @@ func (h *FieldHandler) HandleUpdateVersion(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param id path int true "版本ID"
 // @Success 200 {object} response.Response
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/versions/{id} [delete]
 // @Security BearerAuth
 func (h *FieldHandler) HandleDeleteVersion(c *gin.Context) {
@@ -310,7 +312,7 @@ func (h *FieldHandler) HandleDeleteVersion(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目Key"
 // @Success 200 {object} response.Response{data=[]dto.VersionResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/versions [get]
 // @Security BearerAuth
 func (h *FieldHandler) HandleListVersions(c *gin.Context) {
@@ -336,7 +338,7 @@ func (h *FieldHandler) HandleListVersions(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param request body dto.CreateComponentRequest true "创建组件请求"
 // @Success 201 {object} response.Response{data=dto.ComponentResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/components [post]
 // @Security BearerAuth
 func (h *FieldHandler) HandleCreateComponent(c *gin.Context) {
@@ -367,7 +369,7 @@ func (h *FieldHandler) HandleCreateComponent(c *gin.Context) {
 // @Param id path int true "组件ID"
 // @Param request body dto.UpdateComponentRequest true "更新组件请求"
 // @Success 200 {object} response.Response{data=dto.ComponentResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/components/{id} [put]
 // @Security BearerAuth
 func (h *FieldHandler) HandleUpdateComponent(c *gin.Context) {
@@ -401,7 +403,7 @@ func (h *FieldHandler) HandleUpdateComponent(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param id path int true "组件ID"
 // @Success 200 {object} response.Response
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/components/{id} [delete]
 // @Security BearerAuth
 func (h *FieldHandler) HandleDeleteComponent(c *gin.Context) {
@@ -427,7 +429,7 @@ func (h *FieldHandler) HandleDeleteComponent(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目Key"
 // @Success 200 {object} response.Response{data=[]dto.ComponentResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/components [get]
 // @Security BearerAuth
 func (h *FieldHandler) HandleListComponents(c *gin.Context) {
@@ -453,7 +455,7 @@ func (h *FieldHandler) HandleListComponents(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param request body dto.CreateLabelRequest true "创建标签请求"
 // @Success 201 {object} response.Response{data=dto.LabelResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/labels [post]
 // @Security BearerAuth
 func (h *FieldHandler) HandleCreateLabel(c *gin.Context) {
@@ -484,7 +486,7 @@ func (h *FieldHandler) HandleCreateLabel(c *gin.Context) {
 // @Param id path int true "标签ID"
 // @Param request body dto.UpdateLabelRequest true "更新标签请求"
 // @Success 200 {object} response.Response{data=dto.LabelResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/labels/{id} [put]
 // @Security BearerAuth
 func (h *FieldHandler) HandleUpdateLabel(c *gin.Context) {
@@ -518,7 +520,7 @@ func (h *FieldHandler) HandleUpdateLabel(c *gin.Context) {
 // @Param key path string true "项目Key"
 // @Param id path int true "标签ID"
 // @Success 200 {object} response.Response
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/labels/{id} [delete]
 // @Security BearerAuth
 func (h *FieldHandler) HandleDeleteLabel(c *gin.Context) {
@@ -544,7 +546,7 @@ func (h *FieldHandler) HandleDeleteLabel(c *gin.Context) {
 // @Produce json
 // @Param key path string true "项目Key"
 // @Success 200 {object} response.Response{data=[]dto.LabelResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/projects/{key}/labels [get]
 // @Security BearerAuth
 func (h *FieldHandler) HandleListLabels(c *gin.Context) {
@@ -568,7 +570,7 @@ func (h *FieldHandler) HandleListLabels(c *gin.Context) {
 // @Produce json
 // @Param issue_id path int true "工单ID"
 // @Success 200 {object} response.Response{data=[]dto.FieldValueResponse}
-// @Failure 400 {object} response.Response
+// @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/issues/{issue_id}/field-values [get]
 // @Security BearerAuth
 func (h *FieldHandler) HandleGetIssueFieldValues(c *gin.Context) {
