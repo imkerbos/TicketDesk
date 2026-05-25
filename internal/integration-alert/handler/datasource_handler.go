@@ -30,6 +30,15 @@ func NewDatasourceHandler(datasourceService service.DatasourceService, alertServ
 }
 
 // HandleListDatasources 获取数据源列表
+// @Summary 获取告警数据源列表
+// @Tags Datasource
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Success 200 {object} response.Response{data=dto.DatasourceListResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-datasources [get]
 func (h *DatasourceHandler) HandleListDatasources(c *gin.Context) {
 	var req dto.DatasourceListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -48,6 +57,15 @@ func (h *DatasourceHandler) HandleListDatasources(c *gin.Context) {
 }
 
 // HandleGetDatasource 获取数据源详情
+// @Summary 获取告警数据源详情
+// @Tags Datasource
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "数据源 ID"
+// @Success 200 {object} response.Response{data=dto.DatasourceResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "数据源不存在"
+// @Router /api/v1/alert-datasources/{id} [get]
 func (h *DatasourceHandler) HandleGetDatasource(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -67,6 +85,16 @@ func (h *DatasourceHandler) HandleGetDatasource(c *gin.Context) {
 }
 
 // HandleCreateDatasource 创建数据源
+// @Summary 创建告警数据源
+// @Tags Datasource
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.CreateDatasourceRequest true "创建数据源请求体"
+// @Success 201 {object} response.Response{data=dto.DatasourceResponse} "创建成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-datasources [post]
 func (h *DatasourceHandler) HandleCreateDatasource(c *gin.Context) {
 	var req dto.CreateDatasourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -90,6 +118,17 @@ func (h *DatasourceHandler) HandleCreateDatasource(c *gin.Context) {
 }
 
 // HandleUpdateDatasource 更新数据源
+// @Summary 更新告警数据源
+// @Tags Datasource
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "数据源 ID"
+// @Param body body dto.UpdateDatasourceRequest true "更新数据源请求体"
+// @Success 200 {object} response.Response{data=dto.DatasourceResponse} "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-datasources/{id} [put]
 func (h *DatasourceHandler) HandleUpdateDatasource(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -115,6 +154,15 @@ func (h *DatasourceHandler) HandleUpdateDatasource(c *gin.Context) {
 }
 
 // HandleDeleteDatasource 删除数据源
+// @Summary 删除告警数据源
+// @Tags Datasource
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "数据源 ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-datasources/{id} [delete]
 func (h *DatasourceHandler) HandleDeleteDatasource(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -133,6 +181,17 @@ func (h *DatasourceHandler) HandleDeleteDatasource(c *gin.Context) {
 }
 
 // HandleTestConnection 测试数据源连接（创建前）
+// @Summary 测试数据源连接
+// @Description 在保存数据源之前测试连接是否可用
+// @Tags Datasource
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.TestDatasourceRequest true "测试连接请求体"
+// @Success 200 {object} response.Response{data=dto.TestDatasourceResponse} "测试结果"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-datasources/test [post]
 func (h *DatasourceHandler) HandleTestConnection(c *gin.Context) {
 	var req dto.TestDatasourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -151,6 +210,15 @@ func (h *DatasourceHandler) HandleTestConnection(c *gin.Context) {
 }
 
 // HandleTestConnectionByID 测试已保存数据源的连接
+// @Summary 测试已保存数据源连接
+// @Tags Datasource
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "数据源 ID"
+// @Success 200 {object} response.Response{data=dto.TestDatasourceResponse} "测试结果"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "数据源不存在"
+// @Router /api/v1/alert-datasources/{id}/test [post]
 func (h *DatasourceHandler) HandleTestConnectionByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -170,6 +238,16 @@ func (h *DatasourceHandler) HandleTestConnectionByID(c *gin.Context) {
 }
 
 // HandleDatasourceWebhook 通用数据源 Webhook 入口
+// @Summary 数据源 Webhook 接收
+// @Description 通过数据源名称路由处理 Prometheus 或夜莺告警 Webhook
+// @Tags Datasource
+// @Accept json
+// @Produce json
+// @Param name path string true "数据源名称"
+// @Success 200 {object} response.Response "处理成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 404 {object} response.ErrorResponse "数据源不存在"
+// @Router /api/v1/alerts/datasource/{name}/webhook [post]
 func (h *DatasourceHandler) HandleDatasourceWebhook(c *gin.Context) {
 	name := c.Param("name")
 
