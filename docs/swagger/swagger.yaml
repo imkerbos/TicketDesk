@@ -38,6 +38,217 @@ definitions:
     required:
     - user_id
     type: object
+  dto.AddWatcherRequest:
+    properties:
+      user_id:
+        type: integer
+    required:
+    - user_id
+    type: object
+  dto.AlertAckRequest:
+    properties:
+      comment:
+        maxLength: 500
+        type: string
+    type: object
+  dto.AlertGroupItem:
+    properties:
+      count:
+        description: 告警数量
+        type: integer
+      group_value:
+        description: 分组值
+        type: string
+      severity:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: 按严重程度统计
+        type: object
+      status:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: 按状态统计
+        type: object
+    type: object
+  dto.AlertGroupResponse:
+    properties:
+      group_by:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/dto.AlertGroupItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  dto.AlertListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.AlertResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dto.AlertResolveRequest:
+    properties:
+      comment:
+        maxLength: 500
+        type: string
+    type: object
+  dto.AlertResponse:
+    properties:
+      ack_at:
+        type: string
+      ack_by:
+        type: integer
+      ack_by_name:
+        type: string
+      alert_name:
+        type: string
+      annotations:
+        additionalProperties:
+          type: string
+        type: object
+      created_at:
+        type: string
+      ends_at:
+        type: string
+      fingerprint:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      issue_key:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      resolved_at:
+        type: string
+      resolved_by:
+        type: integer
+      resolved_by_name:
+        type: string
+      severity:
+        type: string
+      source:
+        type: string
+      starts_at:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.AlertRuleListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.AlertRuleResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dto.AlertRuleResponse:
+    properties:
+      assignee_id:
+        type: integer
+      assignee_name:
+        type: string
+      auto_resolve:
+        type: boolean
+      created_at:
+        type: string
+      datasource_id:
+        type: integer
+      datasource_name:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      issue_type_id:
+        type: integer
+      issue_type_name:
+        type: string
+      label_matchers:
+        items:
+          $ref: '#/definitions/dto.LabelMatcher'
+        type: array
+      merge_window:
+        type: integer
+      name:
+        type: string
+      priority:
+        type: string
+      project_id:
+        type: integer
+      project_key:
+        type: string
+      project_name:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.AlertSilenceListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.AlertSilenceResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dto.AlertSilenceResponse:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_by_name:
+        type: string
+      description:
+        type: string
+      ends_at:
+        type: string
+      id:
+        type: integer
+      label_matchers:
+        items:
+          $ref: '#/definitions/dto.LabelMatcher'
+        type: array
+      name:
+        type: string
+      silence_type:
+        type: integer
+      starts_at:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
   dto.AlertTimelineItem:
     properties:
       date:
@@ -49,6 +260,60 @@ definitions:
       resolved:
         description: 恢复数量
         type: integer
+    type: object
+  dto.AlertWebhookAlertItem:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        type: object
+      endsAt:
+        type: string
+      fingerprint:
+        type: string
+      generatorURL:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      startsAt:
+        type: string
+      status:
+        description: firing, resolved
+        type: string
+    type: object
+  dto.AlertWebhookRequest:
+    properties:
+      alerts:
+        items:
+          $ref: '#/definitions/dto.AlertWebhookAlertItem'
+        type: array
+      commonAnnotations:
+        additionalProperties:
+          type: string
+        type: object
+      commonLabels:
+        additionalProperties:
+          type: string
+        type: object
+      externalURL:
+        type: string
+      groupKey:
+        type: string
+      groupLabels:
+        additionalProperties:
+          type: string
+        type: object
+      receiver:
+        type: string
+      status:
+        description: firing, resolved
+        type: string
+      truncatedAlerts:
+        type: integer
+      version:
+        type: string
     type: object
   dto.ApprovalRecordResponse:
     properties:
@@ -79,6 +344,13 @@ definitions:
         maxLength: 1000
         type: string
     type: object
+  dto.AssignIssueRequest:
+    properties:
+      assignee_id:
+        type: integer
+    required:
+    - assignee_id
+    type: object
   dto.AssigneeSummary:
     properties:
       assignee_id:
@@ -91,6 +363,55 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  dto.AttachmentResponse:
+    properties:
+      created_at:
+        type: string
+      file_name:
+        type: string
+      file_path:
+        type: string
+      file_size:
+        type: integer
+      file_type:
+        type: string
+      id:
+        type: integer
+      is_image:
+        type: boolean
+      issue_id:
+        type: integer
+      uploaded_by:
+        type: integer
+      uploader:
+        $ref: '#/definitions/internal_core-issue_dto.UserBrief'
+    type: object
+  dto.BatchUpdateConfigRequest:
+    properties:
+      configs:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - configs
+    type: object
+  dto.BrandConfig:
+    properties:
+      copyright_text:
+        type: string
+      favicon_url:
+        type: string
+      login_description:
+        type: string
+      login_title:
+        type: string
+      logo_url:
+        type: string
+      system_description:
+        type: string
+      system_name:
+        type: string
     type: object
   dto.CategoryResponse:
     properties:
@@ -107,6 +428,23 @@ definitions:
       name:
         type: string
       sort_order:
+        type: integer
+    type: object
+  dto.CommentResponse:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      updated_at:
+        type: string
+      user:
+        $ref: '#/definitions/internal_core-issue_dto.UserBrief'
+      user_id:
         type: integer
     type: object
   dto.ComponentResponse:
@@ -128,6 +466,28 @@ definitions:
       updated_at:
         type: string
     type: object
+  dto.ConfigResponse:
+    properties:
+      category:
+        type: string
+      config_key:
+        type: string
+      config_type:
+        type: string
+      config_value:
+        description: 敏感配置会隐藏值
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_secret:
+        type: boolean
+      updated_at:
+        type: string
+      updated_by:
+        type: integer
+    type: object
   dto.ConvertToIssueRequest:
     properties:
       assignee_id:
@@ -139,6 +499,83 @@ definitions:
     required:
     - issue_type_id
     - project_key
+    type: object
+  dto.CreateAlertRuleRequest:
+    properties:
+      assignee_id:
+        type: integer
+      auto_resolve:
+        type: boolean
+      datasource_id:
+        type: integer
+      description:
+        maxLength: 500
+        type: string
+      issue_type_id:
+        type: integer
+      label_matchers:
+        items:
+          $ref: '#/definitions/dto.LabelMatcher'
+        minItems: 1
+        type: array
+      merge_window:
+        description: 合并窗口（秒），0表示不合并
+        minimum: 0
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      priority:
+        enum:
+        - P0
+        - P1
+        - P2
+        - P3
+        type: string
+      project_id:
+        type: integer
+    required:
+    - datasource_id
+    - issue_type_id
+    - label_matchers
+    - name
+    - priority
+    - project_id
+    type: object
+  dto.CreateAlertSilenceRequest:
+    properties:
+      comment:
+        maxLength: 500
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      ends_at:
+        description: 预约静默必填
+        type: string
+      label_matchers:
+        items:
+          $ref: '#/definitions/dto.LabelMatcher'
+        minItems: 1
+        type: array
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      silence_type:
+        description: 1-即时静默, 2-预约静默
+        enum:
+        - 1
+        - 2
+        type: integer
+      starts_at:
+        description: 预约静默必填
+        type: string
+    required:
+    - label_matchers
+    - name
+    - silence_type
     type: object
   dto.CreateCategoryRequest:
     properties:
@@ -163,6 +600,15 @@ definitions:
     - label
     - name
     type: object
+  dto.CreateCommentRequest:
+    properties:
+      content:
+        maxLength: 5000
+        minLength: 1
+        type: string
+    required:
+    - content
+    type: object
   dto.CreateComponentRequest:
     properties:
       description:
@@ -176,6 +622,34 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  dto.CreateDatasourceRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      poll_interval:
+        maximum: 3600
+        minimum: 5
+        type: integer
+      push_mode:
+        type: boolean
+      type:
+        enum:
+        - prometheus
+        - nightingale
+        type: string
+    required:
+    - config
+    - name
+    - type
     type: object
   dto.CreateFieldRequest:
     properties:
@@ -222,6 +696,51 @@ definitions:
     - field_key
     - field_name
     - field_type
+    type: object
+  dto.CreateIssueRequest:
+    properties:
+      assignee_id:
+        type: integer
+      custom_fields:
+        items:
+          $ref: '#/definitions/internal_core-issue_dto.CustomFieldValue'
+        type: array
+      description:
+        maxLength: 10000
+        type: string
+      due_date:
+        description: '格式: 2006-01-02'
+        type: string
+      epic_id:
+        type: integer
+      issue_type_id:
+        type: integer
+      parent_id:
+        type: integer
+      planned_end_date:
+        description: '格式: 2006-01-02'
+        type: string
+      planned_start_date:
+        description: '格式: 2006-01-02'
+        type: string
+      priority:
+        enum:
+        - P0
+        - P1
+        - P2
+        - P3
+        type: string
+      project_key:
+        maxLength: 20
+        type: string
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+    required:
+    - issue_type_id
+    - project_key
+    - title
     type: object
   dto.CreateIssueTypeRequest:
     properties:
@@ -386,6 +905,34 @@ definitions:
     - priority
     - title
     type: object
+  dto.CreateTokenRequest:
+    properties:
+      expires_in:
+        description: 秒数, 0 = 永久
+        minimum: 0
+        type: integer
+      name:
+        maxLength: 100
+        type: string
+    required:
+    - name
+    type: object
+  dto.CreateTokenResponse:
+    properties:
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      prefix:
+        type: string
+      token:
+        description: 一次性明文，只在创建时返回
+        type: string
+    type: object
   dto.CreateUserRequest:
     properties:
       display_name:
@@ -431,6 +978,32 @@ definitions:
     required:
     - name
     type: object
+  dto.CreateWebhookRequest:
+    properties:
+      description:
+        type: string
+      events:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        maxLength: 100
+        type: string
+      secret:
+        type: string
+      url:
+        maxLength: 500
+        type: string
+    required:
+    - events
+    - name
+    - url
+    type: object
   dto.CreateWorkflowSchemeRequest:
     properties:
       issue_type_id:
@@ -440,6 +1013,40 @@ definitions:
     required:
     - issue_type_id
     - workflow_id
+    type: object
+  dto.CreateWorklogRequest:
+    properties:
+      description:
+        maxLength: 5000
+        minLength: 1
+        type: string
+      time_spent:
+        description: 格式：2h 30m, 1d 4h, 30m
+        type: string
+      work_type:
+        maxLength: 30
+        type: string
+      worked_at:
+        description: ISO 8601 格式
+        type: string
+    required:
+    - description
+    - time_spent
+    - worked_at
+    type: object
+  dto.CustomFieldResponse:
+    properties:
+      display_value:
+        type: string
+      field_id:
+        type: integer
+      field_key:
+        type: string
+      field_name:
+        type: string
+      field_type:
+        type: string
+      value: {}
     type: object
   dto.DailyWorklogStat:
     properties:
@@ -507,6 +1114,53 @@ definitions:
             type: integer
         type: object
     type: object
+  dto.DatasourceListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.DatasourceResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dto.DatasourceResponse:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      last_check_at:
+        type: string
+      last_check_msg:
+        type: string
+      last_check_ok:
+        type: boolean
+      name:
+        type: string
+      poll_interval:
+        type: integer
+      push_mode:
+        type: boolean
+      status:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+      webhook_url:
+        type: string
+    type: object
   dto.DistributionItem:
     properties:
       name:
@@ -518,6 +1172,26 @@ definitions:
       value:
         description: 数量
         type: integer
+    type: object
+  dto.EmailConfig:
+    properties:
+      enabled:
+        type: boolean
+      from_address:
+        type: string
+      from_name:
+        type: string
+      smtp_host:
+        type: string
+      smtp_password:
+        description: 返回时隐藏
+        type: string
+      smtp_port:
+        type: integer
+      smtp_username:
+        type: string
+      use_tls:
+        type: boolean
     type: object
   dto.FieldDefinitionResponse:
     properties:
@@ -620,6 +1294,99 @@ definitions:
     required:
     - email
     type: object
+  dto.IssueListStatsResponse:
+    properties:
+      avg_resolve_hours:
+        type: number
+      completion_rate:
+        type: number
+      resolved:
+        type: integer
+      total:
+        type: integer
+    type: object
+  dto.IssueResponse:
+    properties:
+      actual_end_date:
+        type: string
+      actual_start_date:
+        type: string
+      assignee:
+        $ref: '#/definitions/internal_core-issue_dto.UserBrief'
+      assignee_id:
+        type: integer
+      closed_at:
+        type: string
+      comments:
+        items:
+          $ref: '#/definitions/dto.CommentResponse'
+        type: array
+      created_at:
+        type: string
+      custom_fields:
+        items:
+          $ref: '#/definitions/dto.CustomFieldResponse'
+        type: array
+      description:
+        type: string
+      due_date:
+        type: string
+      epic_id:
+        type: integer
+      epic_key:
+        type: string
+      epic_title:
+        type: string
+      id:
+        type: integer
+      issue_key:
+        type: string
+      issue_type:
+        $ref: '#/definitions/dto.IssueTypeBrief'
+      issue_type_id:
+        type: integer
+      merged_from_issue_keys:
+        description: 合并来源工单 Key 列表
+        items:
+          type: string
+        type: array
+      merged_into_issue_id:
+        type: integer
+      merged_into_issue_key:
+        type: string
+      parent_id:
+        type: integer
+      parent_key:
+        type: string
+      planned_end_date:
+        type: string
+      planned_start_date:
+        type: string
+      priority:
+        type: string
+      project_id:
+        type: integer
+      project_key:
+        type: string
+      reporter:
+        $ref: '#/definitions/internal_core-issue_dto.UserBrief'
+      reporter_id:
+        type: integer
+      resolution:
+        type: string
+      resolved_at:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      watchers:
+        items:
+          $ref: '#/definitions/internal_core-issue_dto.UserBrief'
+        type: array
+    type: object
   dto.IssueStatsResponse:
     properties:
       assignee_distribution:
@@ -674,6 +1441,19 @@ definitions:
           $ref: '#/definitions/dto.DistributionItem'
         type: array
     type: object
+  dto.IssueTypeBrief:
+    properties:
+      color:
+        type: string
+      display_name:
+        type: string
+      icon:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   dto.IssueTypeResponse:
     properties:
       color:
@@ -719,6 +1499,20 @@ definitions:
       total:
         type: integer
     type: object
+  dto.LabelMatcher:
+    properties:
+      key:
+        type: string
+      operator:
+        description: ==, !=, =~(regex), !~(not regex)
+        type: string
+      value:
+        type: string
+    required:
+    - key
+    - operator
+    - value
+    type: object
   dto.LabelResponse:
     properties:
       color:
@@ -734,6 +1528,18 @@ definitions:
       project_id:
         type: integer
       updated_at:
+        type: string
+    type: object
+  dto.LarkConfig:
+    properties:
+      enabled:
+        description: 是否启用飞书通知
+        type: boolean
+      secret:
+        description: 签名密钥（返回时隐藏）
+        type: string
+      webhook_url:
+        description: 飞书机器人 Webhook URL
         type: string
     type: object
   dto.LoginRequest:
@@ -802,6 +1608,52 @@ definitions:
         type: string
     required:
     - code
+    type: object
+  dto.N9eAlertEvent:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        type: object
+      group_name:
+        type: string
+      hash:
+        type: string
+      id:
+        type: integer
+      is_recovered:
+        type: boolean
+      prom_ql:
+        type: string
+      recover_time:
+        type: integer
+      rule_id:
+        type: integer
+      rule_name:
+        type: string
+      rule_note:
+        type: string
+      runbook_url:
+        type: string
+      severity:
+        description: 1=紧急 2=警告 3=提醒
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      tags_map:
+        additionalProperties:
+          type: string
+        type: object
+      target_ident:
+        type: string
+      target_note:
+        type: string
+      trigger_time:
+        type: integer
+      trigger_value:
+        type: string
     type: object
   dto.NodeConfig:
     properties:
@@ -886,6 +1738,35 @@ definitions:
       updated_at:
         type: string
     type: object
+  dto.NotificationResponse:
+    properties:
+      actor_id:
+        type: integer
+      actor_name:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      entity_id:
+        type: integer
+      entity_key:
+        type: string
+      entity_type:
+        type: string
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      read_at:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      user_id:
+        type: integer
+    type: object
   dto.PrioritySummary:
     properties:
       count:
@@ -908,6 +1789,24 @@ definitions:
       user:
         $ref: '#/definitions/internal_core-project_dto.UserBrief'
       user_id:
+        type: integer
+    type: object
+  dto.ProjectOverviewStatsResponse:
+    properties:
+      completed:
+        description: 已完成（resolved + closed）
+        type: integer
+      in_progress:
+        description: 进行中
+        type: integer
+      pending:
+        description: 待处理（open + reopened）
+        type: integer
+      pending_review:
+        description: 待确认
+        type: integer
+      total:
+        description: 总数
         type: integer
     type: object
   dto.ProjectResponse:
@@ -974,6 +1873,18 @@ definitions:
         type: integer
       updated_at:
         type: string
+    type: object
+  dto.RateLimitConfig:
+    properties:
+      api_limit:
+        description: 全局 API 每 IP 每分钟最大请求数
+        type: integer
+      auth_limit:
+        description: 认证接口每 IP 每分钟最大请求数
+        type: integer
+      webhook_limit:
+        description: Webhook 接口每 IP 每分钟最大请求数
+        type: integer
     type: object
   dto.RefreshTokenRequest:
     properties:
@@ -1307,6 +2218,42 @@ definitions:
     - code
     - state
     type: object
+  dto.SSOClaimMapping:
+    properties:
+      claim_name:
+        description: OIDC claim 名称
+        type: string
+      local_field:
+        description: 本地字段名（username/email/display_name/avatar 或自定义扩展属性名）
+        type: string
+    type: object
+  dto.SSOConfig:
+    properties:
+      auto_create_user:
+        type: boolean
+      claim_mappings:
+        description: 动态 claim 映射列表
+        items:
+          $ref: '#/definitions/dto.SSOClaimMapping'
+        type: array
+      client_id:
+        type: string
+      client_secret:
+        description: 返回时隐藏
+        type: string
+      default_role:
+        type: string
+      enabled:
+        type: boolean
+      issuer_url:
+        type: string
+      provider_name:
+        type: string
+      redirect_uri:
+        type: string
+      scopes:
+        type: string
+    type: object
   dto.SSOConfigResponse:
     properties:
       enabled:
@@ -1314,12 +2261,68 @@ definitions:
       provider_name:
         type: string
     type: object
+  dto.SecurityConfig:
+    properties:
+      mfa_enabled:
+        description: 是否启用 MFA
+        type: boolean
+      mfa_required:
+        description: 是否强制要求 MFA
+        type: boolean
+      password_min_length:
+        description: 密码最小长度
+        type: integer
+      password_require_number:
+        description: 密码是否需要数字
+        type: boolean
+      password_require_upper:
+        description: 密码是否需要大写字母
+        type: boolean
+      session_timeout:
+        description: 会话超时时间（分钟）
+        type: integer
+    type: object
   dto.StatusSummary:
     properties:
       count:
         type: integer
       status:
         $ref: '#/definitions/model.RequirementStatus'
+    type: object
+  dto.TelegramConfig:
+    properties:
+      bot_token:
+        description: Bot Token（返回时隐藏）
+        type: string
+      chat_id:
+        description: Chat ID
+        type: string
+      enabled:
+        description: 是否启用 Telegram 通知
+        type: boolean
+    type: object
+  dto.TestDatasourceRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      type:
+        enum:
+        - prometheus
+        - nightingale
+        type: string
+    required:
+    - config
+    - type
+    type: object
+  dto.TestDatasourceResponse:
+    properties:
+      latency_ms:
+        type: integer
+      message:
+        type: string
+      success:
+        type: boolean
     type: object
   dto.TimelineItem:
     properties:
@@ -1338,6 +2341,23 @@ definitions:
       resolved:
         description: 解决数量
         type: integer
+    type: object
+  dto.TokenResponse:
+    properties:
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: integer
+      is_expired:
+        type: boolean
+      last_used_at:
+        type: string
+      name:
+        type: string
+      prefix:
+        type: string
     type: object
   dto.TopAlertItem:
     properties:
@@ -1359,6 +2379,99 @@ definitions:
         type: integer
       date:
         type: string
+    type: object
+  dto.UnreadCountResponse:
+    properties:
+      count:
+        type: integer
+    type: object
+  dto.UpdateAlertRuleRequest:
+    properties:
+      assignee_id:
+        type: integer
+      auto_resolve:
+        type: boolean
+      datasource_id:
+        type: integer
+      description:
+        maxLength: 500
+        type: string
+      label_matchers:
+        items:
+          $ref: '#/definitions/dto.LabelMatcher'
+        minItems: 1
+        type: array
+      merge_window:
+        minimum: 0
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      priority:
+        enum:
+        - P0
+        - P1
+        - P2
+        - P3
+        type: string
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+    type: object
+  dto.UpdateAlertSilenceRequest:
+    properties:
+      comment:
+        maxLength: 500
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      ends_at:
+        type: string
+      label_matchers:
+        items:
+          $ref: '#/definitions/dto.LabelMatcher'
+        minItems: 1
+        type: array
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      silence_type:
+        enum:
+        - 1
+        - 2
+        type: integer
+      starts_at:
+        type: string
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+    type: object
+  dto.UpdateBrandConfigRequest:
+    properties:
+      copyright_text:
+        maxLength: 200
+        type: string
+      login_description:
+        maxLength: 500
+        type: string
+      login_title:
+        maxLength: 100
+        type: string
+      system_description:
+        maxLength: 200
+        type: string
+      system_name:
+        maxLength: 50
+        type: string
+    required:
+    - system_name
     type: object
   dto.UpdateCategoryRequest:
     properties:
@@ -1392,6 +2505,60 @@ definitions:
         minLength: 1
         type: string
     type: object
+  dto.UpdateConfigRequest:
+    properties:
+      config_value:
+        type: string
+    type: object
+  dto.UpdateDatasourceRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      poll_interval:
+        maximum: 3600
+        minimum: 5
+        type: integer
+      push_mode:
+        type: boolean
+      status:
+        enum:
+        - 0
+        - 1
+        type: integer
+    type: object
+  dto.UpdateEmailConfigRequest:
+    properties:
+      enabled:
+        type: boolean
+      from_address:
+        type: string
+      from_name:
+        type: string
+      smtp_host:
+        type: string
+      smtp_password:
+        type: string
+      smtp_port:
+        maximum: 65535
+        minimum: 1
+        type: integer
+      smtp_username:
+        type: string
+      use_tls:
+        type: boolean
+    required:
+    - from_address
+    - smtp_host
+    - smtp_port
+    type: object
   dto.UpdateFieldRequest:
     properties:
       default_value:
@@ -1422,6 +2589,48 @@ definitions:
     required:
     - items
     type: object
+  dto.UpdateIssueRequest:
+    properties:
+      assignee_id:
+        type: integer
+      custom_fields:
+        items:
+          $ref: '#/definitions/internal_core-issue_dto.CustomFieldValue'
+        type: array
+      description:
+        type: string
+      due_date:
+        type: string
+      epic_id:
+        type: integer
+      issue_type_id:
+        type: integer
+      planned_end_date:
+        type: string
+      planned_start_date:
+        type: string
+      priority:
+        enum:
+        - P0
+        - P1
+        - P2
+        - P3
+        type: string
+      resolution:
+        enum:
+        - fixed
+        - wont_fix
+        - duplicate
+        - cannot_reproduce
+        - works_as_designed
+        - incomplete
+        - done
+        type: string
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+    type: object
   dto.UpdateIssueTypeRequest:
     properties:
       color:
@@ -1449,6 +2658,16 @@ definitions:
       name:
         maxLength: 50
         minLength: 1
+        type: string
+    type: object
+  dto.UpdateLarkConfigRequest:
+    properties:
+      enabled:
+        type: boolean
+      secret:
+        description: 为空时不更新
+        type: string
+      webhook_url:
         type: string
     type: object
   dto.UpdateMemberRequest:
@@ -1507,6 +2726,21 @@ definitions:
         maxLength: 100
         minLength: 1
         type: string
+    type: object
+  dto.UpdateRateLimitConfigRequest:
+    properties:
+      api_limit:
+        maximum: 50000
+        minimum: 50
+        type: integer
+      auth_limit:
+        maximum: 1000
+        minimum: 5
+        type: integer
+      webhook_limit:
+        maximum: 10000
+        minimum: 10
+        type: integer
     type: object
   dto.UpdateRequirementPoolRequest:
     properties:
@@ -1578,6 +2812,61 @@ definitions:
         minLength: 1
         type: string
     type: object
+  dto.UpdateSSOConfigRequest:
+    properties:
+      auto_create_user:
+        type: boolean
+      claim_mappings:
+        items:
+          $ref: '#/definitions/dto.SSOClaimMapping'
+        type: array
+      client_id:
+        type: string
+      client_secret:
+        description: 为空时不更新
+        type: string
+      default_role:
+        type: string
+      enabled:
+        type: boolean
+      issuer_url:
+        type: string
+      provider_name:
+        type: string
+      redirect_uri:
+        type: string
+      scopes:
+        type: string
+    type: object
+  dto.UpdateSecurityConfigRequest:
+    properties:
+      mfa_enabled:
+        type: boolean
+      mfa_required:
+        type: boolean
+      password_min_length:
+        maximum: 32
+        minimum: 6
+        type: integer
+      password_require_number:
+        type: boolean
+      password_require_upper:
+        type: boolean
+      session_timeout:
+        maximum: 1440
+        minimum: 5
+        type: integer
+    type: object
+  dto.UpdateTelegramConfigRequest:
+    properties:
+      bot_token:
+        description: 为空时不更新
+        type: string
+      chat_id:
+        type: string
+      enabled:
+        type: boolean
+    type: object
   dto.UpdateUserRequest:
     properties:
       avatar_url:
@@ -1607,6 +2896,47 @@ definitions:
         - released
         - archived
         type: string
+    type: object
+  dto.UpdateWebhookRequest:
+    properties:
+      description:
+        type: string
+      events:
+        items:
+          type: string
+        type: array
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        maxLength: 100
+        type: string
+      secret:
+        type: string
+      status:
+        type: integer
+      url:
+        maxLength: 500
+        type: string
+    type: object
+  dto.UpdateWorklogRequest:
+    properties:
+      description:
+        maxLength: 5000
+        minLength: 1
+        type: string
+      time_spent:
+        type: string
+      work_type:
+        maxLength: 30
+        type: string
+      worked_at:
+        type: string
+    required:
+    - description
+    - time_spent
+    - worked_at
     type: object
   dto.UserPerformanceResponse:
     properties:
@@ -1689,6 +3019,69 @@ definitions:
       status:
         type: string
       updated_at:
+        type: string
+    type: object
+  dto.WatcherResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      user:
+        $ref: '#/definitions/internal_core-issue_dto.UserBrief'
+      user_id:
+        type: integer
+    type: object
+  dto.WebhookLogResponse:
+    properties:
+      created_at:
+        type: string
+      error_message:
+        type: string
+      event:
+        type: string
+      id:
+        type: integer
+      payload:
+        type: string
+      response_body:
+        type: string
+      response_code:
+        type: integer
+      retry_count:
+        type: integer
+      status:
+        type: integer
+      webhook_id:
+        type: integer
+    type: object
+  dto.WebhookResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      description:
+        type: string
+      events:
+        items:
+          type: string
+        type: array
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+      url:
         type: string
     type: object
   dto.WorkflowHistoryResponse:
@@ -1800,6 +3193,31 @@ definitions:
       user_id:
         type: integer
     type: object
+  dto.WorklogResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      time_spent:
+        type: string
+      time_spent_sec:
+        type: integer
+      updated_at:
+        type: string
+      user:
+        $ref: '#/definitions/internal_core-issue_dto.UserBrief'
+      user_id:
+        type: integer
+      work_type:
+        type: string
+      worked_at:
+        type: string
+    type: object
   dto.WorklogStatsResponse:
     properties:
       daily_stats:
@@ -1854,6 +3272,23 @@ definitions:
         type: string
     type: object
   internal_core-field_dto.UserBrief:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+  internal_core-issue_dto.CustomFieldValue:
+    properties:
+      field_id:
+        type: integer
+      value: {}
+    type: object
+  internal_core-issue_dto.UserBrief:
     properties:
       avatar_url:
         type: string
@@ -2159,6 +3594,890 @@ paths:
       summary: 获取最近活动
       tags:
       - Activity
+  /api/v1/alert-datasources:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DatasourceListResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警数据源列表
+      tags:
+      - Datasource
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建数据源请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateDatasourceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DatasourceResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建告警数据源
+      tags:
+      - Datasource
+  /api/v1/alert-datasources/{id}:
+    delete:
+      parameters:
+      - description: 数据源 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除告警数据源
+      tags:
+      - Datasource
+    get:
+      parameters:
+      - description: 数据源 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DatasourceResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 数据源不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警数据源详情
+      tags:
+      - Datasource
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 数据源 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新数据源请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateDatasourceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.DatasourceResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新告警数据源
+      tags:
+      - Datasource
+  /api/v1/alert-datasources/{id}/test:
+    post:
+      parameters:
+      - description: 数据源 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 测试结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TestDatasourceResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 数据源不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试已保存数据源连接
+      tags:
+      - Datasource
+  /api/v1/alert-datasources/test:
+    post:
+      consumes:
+      - application/json
+      description: 在保存数据源之前测试连接是否可用
+      parameters:
+      - description: 测试连接请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TestDatasourceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 测试结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TestDatasourceResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试数据源连接
+      tags:
+      - Datasource
+  /api/v1/alert-rules:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertRuleListResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警规则列表
+      tags:
+      - Alert
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建告警规则请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateAlertRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertRuleResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建告警规则
+      tags:
+      - Alert
+  /api/v1/alert-rules/{id}:
+    delete:
+      parameters:
+      - description: 规则 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除告警规则
+      tags:
+      - Alert
+    get:
+      parameters:
+      - description: 规则 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertRuleResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 规则不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警规则详情
+      tags:
+      - Alert
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 规则 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新告警规则请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateAlertRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertRuleResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新告警规则
+      tags:
+      - Alert
+  /api/v1/alert-silences:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertSilenceListResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警静默列表
+      tags:
+      - Alert
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建静默请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateAlertSilenceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertSilenceResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建告警静默
+      tags:
+      - Alert
+  /api/v1/alert-silences/{id}:
+    delete:
+      parameters:
+      - description: 静默 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除告警静默
+      tags:
+      - Alert
+    get:
+      parameters:
+      - description: 静默 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertSilenceResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 静默不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警静默详情
+      tags:
+      - Alert
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 静默 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新静默请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateAlertSilenceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertSilenceResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新告警静默
+      tags:
+      - Alert
+  /api/v1/alert-silences/{id}/cancel:
+    post:
+      parameters:
+      - description: 静默 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取消成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 取消告警静默
+      tags:
+      - Alert
+  /api/v1/alerts:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 告警状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertListResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警列表
+      tags:
+      - Alert
+  /api/v1/alerts/{id}:
+    get:
+      parameters:
+      - description: 告警 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AlertResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 告警不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警详情
+      tags:
+      - Alert
+  /api/v1/alerts/{id}/ack:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 告警 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 确认告警请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AlertAckRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 确认成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 确认告警
+      tags:
+      - Alert
+  /api/v1/alerts/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 告警 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 解决告警请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AlertResolveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解决成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 解决告警
+      tags:
+      - Alert
+  /api/v1/alerts/datasource/{name}/webhook:
+    post:
+      consumes:
+      - application/json
+      description: 通过数据源名称路由处理 Prometheus 或夜莺告警 Webhook
+      parameters:
+      - description: 数据源名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 处理成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 数据源不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 数据源 Webhook 接收
+      tags:
+      - Datasource
+  /api/v1/alerts/group:
+    get:
+      parameters:
+      - description: 分组字段（标签 key）
+        in: query
+        name: group_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.AlertGroupResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 按标签分组统计告警
+      tags:
+      - Alert
+  /api/v1/alerts/label-keys:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警标签键列表
+      tags:
+      - Alert
+  /api/v1/alerts/nightingale:
+    post:
+      consumes:
+      - application/json
+      description: 接收来自夜莺监控系统的告警推送，支持单个或数组格式，无需认证
+      parameters:
+      - description: 夜莺告警事件（数组或单个对象）
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/dto.N9eAlertEvent'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 处理成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 接收夜莺告警 Webhook
+      tags:
+      - Alert
+  /api/v1/alerts/stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功（data 为 AlertStatsResponse）
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警统计数据
+      tags:
+      - Alert
+  /api/v1/alerts/webhook:
+    post:
+      consumes:
+      - application/json
+      description: 接收来自 Alertmanager 的告警推送，无需认证
+      parameters:
+      - description: 告警 Webhook 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AlertWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 处理成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 接收 Prometheus 告警 Webhook
+      tags:
+      - Alert
   /api/v1/auth/forgot-password:
     post:
       consumes:
@@ -2410,6 +4729,24 @@ paths:
       summary: 验证重置密码令牌
       tags:
       - Auth
+  /api/v1/brand:
+    get:
+      description: 无需认证，用于前端加载自定义 Logo、Favicon 等品牌信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.BrandConfig'
+              type: object
+      summary: 获取品牌配置
+      tags:
+      - Config
   /api/v1/issue-types:
     get:
       description: 获取所有工单类型列表（全局 + 项目自定义，用于筛选器）
@@ -2427,6 +4764,88 @@ paths:
       summary: 获取所有工单类型
       tags:
       - IssueType
+  /api/v1/issues:
+    get:
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.IssueResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单列表
+      tags:
+      - Issue
+    post:
+      consumes:
+      - application/json
+      description: 支持 application/json 和 multipart/form-data 两种方式，后者可同时上传附件
+      parameters:
+      - description: 创建工单请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateIssueRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建工单
+      tags:
+      - Issue
   /api/v1/issues/{issue_id}/field-values:
     get:
       description: 获取指定工单的所有自定义字段值
@@ -2459,6 +4878,592 @@ paths:
       summary: 获取工单字段值
       tags:
       - FieldValue
+  /api/v1/issues/{key}:
+    delete:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工单
+      tags:
+      - Issue
+    get:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单详情
+      tags:
+      - Issue
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 更新工单请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateIssueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新工单
+      tags:
+      - Issue
+  /api/v1/issues/{key}/assign:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 指派请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AssignIssueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 指派成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 指派工单负责人
+      tags:
+      - Issue
+  /api/v1/issues/{key}/attachments:
+    get:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.AttachmentResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 列出工单附件
+      tags:
+      - Attachment
+    post:
+      consumes:
+      - multipart/form-data
+      description: 为指定工单上传附件文件，最大 10MB
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 上传文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 上传成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.AttachmentResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 上传附件
+      tags:
+      - Attachment
+  /api/v1/issues/{key}/attachments/{id}:
+    delete:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 附件 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 附件不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除附件
+      tags:
+      - Attachment
+  /api/v1/issues/{key}/attachments/{id}/download:
+    get:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 附件 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 文件内容
+          schema:
+            type: file
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 附件不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 下载附件
+      tags:
+      - Attachment
+  /api/v1/issues/{key}/comments:
+    get:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.CommentResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单评论列表
+      tags:
+      - Issue
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 评论请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 添加成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CommentResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 添加工单评论
+      tags:
+      - Issue
+  /api/v1/issues/{key}/comments/{comment_id}:
+    delete:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 评论 ID
+        in: path
+        name: comment_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 评论不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工单评论
+      tags:
+      - Issue
+  /api/v1/issues/{key}/epic-issues:
+    get:
+      parameters:
+      - description: Epic 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.IssueResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Epic 不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 Epic 下的关联工单
+      tags:
+      - Issue
+  /api/v1/issues/{key}/subtasks:
+    get:
+      parameters:
+      - description: 父工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.IssueResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 父工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单子任务列表
+      tags:
+      - Issue
+  /api/v1/issues/{key}/watchers:
+    get:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.WatcherResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单关注人列表
+      tags:
+      - Issue
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 关注请求体（不传则关注自己）
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/dto.AddWatcherRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 关注成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 添加工单关注人
+      tags:
+      - Issue
+  /api/v1/issues/{key}/watchers/{user_id}:
+    delete:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取消关注成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 移除工单关注人
+      tags:
+      - Issue
   /api/v1/issues/{key}/workflow:
     get:
       description: 根据工单 Key 获取工作流实例
@@ -2585,6 +5590,436 @@ paths:
       summary: 审批拒绝
       tags:
       - Workflow
+  /api/v1/issues/{key}/worklogs:
+    get:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.WorklogResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工作日志列表
+      tags:
+      - Issue
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工作日志请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateWorklogRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 添加成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorklogResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工单不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 添加工作日志
+      tags:
+      - Issue
+  /api/v1/issues/{key}/worklogs/{worklog_id}:
+    delete:
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工作日志 ID
+        in: path
+        name: worklog_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工作日志不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除工作日志
+      tags:
+      - Issue
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 工单 Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 工作日志 ID
+        in: path
+        name: worklog_id
+        required: true
+        type: integer
+      - description: 更新工作日志请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateWorklogRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WorklogResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 工作日志不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新工作日志
+      tags:
+      - Issue
+  /api/v1/issues/my-created:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.IssueResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取我创建的工单
+      tags:
+      - Issue
+  /api/v1/issues/my-todo:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.IssueResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取我的待办工单
+      tags:
+      - Issue
+  /api/v1/issues/project-overview-stats:
+    get:
+      description: 按状态分组聚合工单数量，用于项目概述页面
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ProjectOverviewStatsResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 项目不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取项目概述统计
+      tags:
+      - Issue
+  /api/v1/issues/stats:
+    get:
+      parameters:
+      - description: 项目 Key
+        in: query
+        name: project_key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.IssueListStatsResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取工单列表统计数据
+      tags:
+      - Issue
+  /api/v1/notifications:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 只看未读
+        in: query
+        name: unread
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.NotificationResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取站内通知列表
+      tags:
+      - Notification
+  /api/v1/notifications/{id}:
+    delete:
+      parameters:
+      - description: 通知 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除通知
+      tags:
+      - Notification
+  /api/v1/notifications/{id}/read:
+    put:
+      parameters:
+      - description: 通知 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 标记通知为已读
+      tags:
+      - Notification
+  /api/v1/notifications/read-all:
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 全部通知标记为已读
+      tags:
+      - Notification
+  /api/v1/notifications/unread-count:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UnreadCountResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取未读通知数量
+      tags:
+      - Notification
   /api/v1/projects:
     get:
       description: 分页获取项目列表
@@ -5181,6 +8616,838 @@ paths:
       summary: 获取报告数据
       tags:
       - Requirement
+  /api/v1/system/brand:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新品牌配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateBrandConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新品牌配置
+      tags:
+      - Config
+  /api/v1/system/brand/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传 Logo 或 Favicon，最大 2MB，支持 SVG/PNG/ICO/JPG/WEBP
+      parameters:
+      - description: 资源类型（logo 或 favicon）
+        in: formData
+        name: type
+        required: true
+        type: string
+      - description: 上传文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功（data 包含 url 字段）
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 上传品牌资源
+      tags:
+      - Config
+  /api/v1/system/configs:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ConfigResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取所有系统配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 批量更新配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BatchUpdateConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 批量更新系统配置
+      tags:
+      - Config
+  /api/v1/system/configs/{key}:
+    get:
+      parameters:
+      - description: 配置键
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ConfigResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 配置不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取单个系统配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 配置键
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 更新配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新单个系统配置
+      tags:
+      - Config
+  /api/v1/system/configs/category:
+    get:
+      parameters:
+      - description: 配置分类
+        in: query
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.ConfigResponse'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 按分类获取系统配置
+      tags:
+      - Config
+  /api/v1/system/configs/public/{key}:
+    get:
+      description: 普通认证用户可访问，受白名单限制
+      parameters:
+      - description: 配置键
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.ConfigResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 无权访问该配置
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: 配置不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取公共配置
+      tags:
+      - Config
+  /api/v1/system/email:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.EmailConfig'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取邮件配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新邮件配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateEmailConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新邮件配置
+      tags:
+      - Config
+  /api/v1/system/lark:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LarkConfig'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取飞书通知配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新飞书配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateLarkConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新飞书通知配置
+      tags:
+      - Config
+  /api/v1/system/lark/test:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 发送成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: 发送失败
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试飞书通知发送
+      tags:
+      - Config
+  /api/v1/system/ratelimit:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RateLimitConfig'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取限流配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新限流配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateRateLimitConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新限流配置
+      tags:
+      - Config
+  /api/v1/system/security:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SecurityConfig'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取安全配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新安全配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateSecurityConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新安全配置
+      tags:
+      - Config
+  /api/v1/system/sso:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SSOConfig'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 SSO 配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新 SSO 配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateSSOConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新 SSO 配置
+      tags:
+      - Config
+  /api/v1/system/telegram:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TelegramConfig'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 Telegram 通知配置
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新 Telegram 配置请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateTelegramConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新 Telegram 通知配置
+      tags:
+      - Config
+  /api/v1/system/telegram/test:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 发送成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: 发送失败
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试 Telegram 通知发送
+      tags:
+      - Config
+  /api/v1/system/webhook-logs:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.WebhookLogResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 Webhook 日志
+      tags:
+      - Config
+  /api/v1/system/webhooks:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.WebhookResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 Webhook 列表
+      tags:
+      - Config
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建 Webhook 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WebhookResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建 Webhook
+      tags:
+      - Config
+  /api/v1/system/webhooks/{id}:
+    delete:
+      parameters:
+      - description: Webhook ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Webhook 不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除 Webhook
+      tags:
+      - Config
+    get:
+      parameters:
+      - description: Webhook ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WebhookResponse'
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Webhook 不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 Webhook 详情
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Webhook ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新 Webhook 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.WebhookResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Webhook 不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新 Webhook
+      tags:
+      - Config
   /api/v1/users:
     get:
       description: 分页获取用户列表
@@ -5568,6 +9835,122 @@ paths:
       summary: 修改密码
       tags:
       - User
+  /api/v1/users/me/tokens:
+    get:
+      description: 列出当前用户的所有 API Token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.TokenResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 列出 API Token
+      tags:
+      - Token
+    post:
+      consumes:
+      - application/json
+      description: 为当前用户创建新的 API Token，不允许用 PAT 自身调用
+      parameters:
+      - description: 创建 Token 请求体
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CreateTokenResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: 不能用 API token 创建新 token
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建 API Token
+      tags:
+      - Token
+  /api/v1/users/me/tokens/{id}:
+    delete:
+      description: 撤销并删除指定的 API Token
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 撤销成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Token 不存在
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 撤销 API Token
+      tags:
+      - Token
+  /ws:
+    get:
+      description: 通过 token 查询参数进行认证后升级为 WebSocket 连接，用于接收实时站内通知
+      parameters:
+      - description: JWT Token
+        in: query
+        name: token
+        required: true
+        type: string
+      responses:
+        "101":
+          description: WebSocket 连接升级成功
+          schema:
+            type: string
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: 建立 WebSocket 连接
+      tags:
+      - WebSocket
 securityDefinitions:
   BearerAuth:
     description: JWT Bearer 令牌 (`Bearer <jwt>`) 或 Personal Access Token (`Bearer td_pat_xxx`)
