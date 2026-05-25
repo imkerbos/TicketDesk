@@ -71,6 +71,16 @@ spec:
           port: {{ .Values.backend.port }}
       timeouts:
         request: 120s
+    # Swagger UI
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /swagger
+      backendRefs:
+        - name: {{ .Release.Name }}-backend
+          port: {{ .Values.backend.port }}
+      timeouts:
+        request: 30s
     # 前端静态资源（catch-all）
     - matches:
         - path:
