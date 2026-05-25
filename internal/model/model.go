@@ -729,3 +729,17 @@ const (
 	VersionStatusReleased   = "released"
 	VersionStatusArchived   = "archived"
 )
+
+// APIToken 用户 API 访问令牌 (Personal Access Token)
+type APIToken struct {
+	BaseModel
+	UserID     uint64     `gorm:"not null;index" json:"user_id"`
+	Name       string     `gorm:"size:100;not null" json:"name"`
+	TokenHash  string     `gorm:"size:64;not null;uniqueIndex" json:"-"`
+	Prefix     string     `gorm:"size:16;not null" json:"prefix"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+}
+
+// TableName 指定表名
+func (APIToken) TableName() string { return "api_tokens" }

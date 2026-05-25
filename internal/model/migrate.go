@@ -61,6 +61,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&ProjectNotificationChannel{},
 		&ProjectRolePermission{},
 		&RequirementCategoryDef{},
+		&APIToken{},
 	}
 
 	for _, model := range models {
