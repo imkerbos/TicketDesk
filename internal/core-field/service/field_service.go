@@ -515,7 +515,12 @@ func (s *fieldService) GetFieldValues(ctx context.Context, issueID uint64) ([]*d
 				resp.Value = v.ValueDate.Format("2006-01-02")
 				resp.DisplayValue = v.ValueDate.Format("2006-01-02")
 			}
-		case model.FieldTypeMultiSelect, model.FieldTypeLabel, model.FieldTypeComponent:
+		case model.FieldTypeDateTime:
+			if v.ValueDate != nil {
+				resp.Value = v.ValueDate.Format("2006-01-02T15:04")
+				resp.DisplayValue = v.ValueDate.Format("2006-01-02 15:04")
+			}
+		case model.FieldTypeMultiSelect, model.FieldTypeLabel, model.FieldTypeComponent, model.FieldTypeMultiUser:
 			if v.ValueJSON != nil && *v.ValueJSON != "" {
 				var arr []any
 				if err := json.Unmarshal([]byte(*v.ValueJSON), &arr); err == nil {
@@ -538,6 +543,21 @@ func (s *fieldService) GetFieldValues(ctx context.Context, issueID uint64) ([]*d
 				} else {
 					resp.Value = epicID
 					resp.DisplayValue = fmt.Sprintf("%d", epicID)
+				}
+			}
+		case model.FieldTypeURL:
+			if v.ValueText != nil {
+				resp.Value = *v.ValueText
+				resp.DisplayValue = *v.ValueText
+			}
+		case model.FieldTypeCheckbox:
+			if v.ValueNumber != nil {
+				boolVal := *v.ValueNumber != 0
+				resp.Value = boolVal
+				if boolVal {
+					resp.DisplayValue = "是"
+				} else {
+					resp.DisplayValue = "否"
 				}
 			}
 		default:
