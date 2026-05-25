@@ -31,7 +31,7 @@ spec:
             port:
               number: {{ .Values.backend.port }}
       timeout: 10s
-    # API
+    # API (含 /api/v1/swagger UI)
     - match:
         - uri:
             prefix: /api

@@ -25,7 +25,7 @@ func NewReportHandler(reportService service.ReportService) *ReportHandler {
 // @Tags Report
 // @Produce json
 // @Param project_key query string false "项目 Key"
-// @Success 200 {object} dto.DashboardStatsResponse
+// @Success 200 {object} response.Response{data=dto.DashboardStatsResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/reports/dashboard [get]
 // @Security BearerAuth
@@ -54,7 +54,7 @@ func (h *ReportHandler) HandleGetDashboardStats(c *gin.Context) {
 // @Param start_date query string false "开始日期 (YYYY-MM-DD)"
 // @Param end_date query string false "结束日期 (YYYY-MM-DD)"
 // @Param group_by query string false "分组方式 (day/week/month)"
-// @Success 200 {object} dto.IssueStatsResponse
+// @Success 200 {object} response.Response{data=dto.IssueStatsResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/reports/issues [get]
 // @Security BearerAuth
@@ -82,7 +82,7 @@ func (h *ReportHandler) HandleGetIssueStats(c *gin.Context) {
 // @Param project_key query string false "项目 Key"
 // @Param start_date query string true "开始日期 (YYYY-MM-DD)"
 // @Param end_date query string true "结束日期 (YYYY-MM-DD)"
-// @Success 200 {object} dto.SLAReportResponse
+// @Success 200 {object} response.Response{data=dto.SLAReportResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/reports/sla [get]
 // @Security BearerAuth
@@ -111,7 +111,7 @@ func (h *ReportHandler) HandleGetSLAReport(c *gin.Context) {
 // @Param start_date query string false "开始日期 (YYYY-MM-DD)"
 // @Param end_date query string false "结束日期 (YYYY-MM-DD)"
 // @Param group_by query string false "分组方式 (day/week/month)"
-// @Success 200 {object} dto.AlertStatsResponse
+// @Success 200 {object} internal_reporting_dto.AlertStatsResponse
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/reports/alerts [get]
 // @Security BearerAuth
@@ -139,7 +139,7 @@ func (h *ReportHandler) HandleGetAlertStats(c *gin.Context) {
 // @Param project_key query string false "项目 Key"
 // @Param start_date query string false "开始日期 (YYYY-MM-DD)"
 // @Param end_date query string false "结束日期 (YYYY-MM-DD)"
-// @Success 200 {object} dto.WorklogStatsResponse
+// @Success 200 {object} response.Response{data=dto.WorklogStatsResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/reports/worklogs [get]
 // @Security BearerAuth
@@ -167,7 +167,7 @@ func (h *ReportHandler) HandleGetWorklogStats(c *gin.Context) {
 // @Param project_key query string false "项目 Key"
 // @Param start_date query string false "开始日期 (YYYY-MM-DD)"
 // @Param end_date query string false "结束日期 (YYYY-MM-DD)"
-// @Success 200 {array} dto.UserPerformanceResponse
+// @Success 200 {object} response.Response{data=[]dto.UserPerformanceResponse}
 // @Failure 400 {object} response.ErrorResponse
 // @Router /api/v1/reports/user-performance [get]
 // @Security BearerAuth

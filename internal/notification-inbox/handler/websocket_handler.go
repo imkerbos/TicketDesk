@@ -37,6 +37,13 @@ func NewWebSocketHandler(wsManager *ws.Manager, jwtManager *jwt.Manager) *WebSoc
 }
 
 // HandleWebSocket 处理 WebSocket 连接
+// @Summary 建立 WebSocket 连接
+// @Description 通过 token 查询参数进行认证后升级为 WebSocket 连接，用于接收实时站内通知
+// @Tags WebSocket
+// @Param token query string true "JWT Token"
+// @Success 101 {string} string "WebSocket 连接升级成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /ws [get]
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// 从查询参数获取 token
 	token := c.Query("token")

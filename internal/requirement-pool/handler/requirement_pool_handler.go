@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -168,8 +169,14 @@ func (h *RequirementPoolHandler) HandleDelete(c *gin.Context) {
 	userID := h.getUserID(c)
 
 	if err := h.service.Delete(c.Request.Context(), id, userID); err != nil {
-		if err.Error() == "需求池不存在" {
-			response.NotFound(c, err.Error())
+		msg := err.Error()
+		if msg == "需求池不存在" {
+			response.NotFound(c, msg)
+			return
+		}
+		// 业务约束错误 (例如池中有未完成需求) → 400 而非 500
+		if strings.Contains(msg, "无法删除") || strings.Contains(msg, "未完成") {
+			response.BadRequest(c, msg)
 			return
 		}
 		h.logger.Error("failed to delete requirement pool",
@@ -177,7 +184,7 @@ func (h *RequirementPoolHandler) HandleDelete(c *gin.Context) {
 			zap.Uint64("pool_id", id),
 			zap.Uint64("user_id", userID),
 		)
-		response.InternalError(c, err.Error())
+		response.InternalError(c, msg)
 		return
 	}
 

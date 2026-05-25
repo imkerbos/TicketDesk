@@ -14,6 +14,9 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
+// PageResponse 分页响应别名 (供 Swagger 注释引用, 等价于 PageData)
+type PageResponse = PageData
+
 // PageData 分页数据结构
 type PageData struct {
 	Items    interface{} `json:"items"`

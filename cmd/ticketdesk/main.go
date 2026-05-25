@@ -1,4 +1,24 @@
 // Package main 应用入口
+//
+// @title           TicketDesk API
+// @version         1.0
+// @description     项目化工单与告警联动系统 API. 一切问题都是工单, 一切告警都必须被跟进.
+// @description     **统一响应格式**: `{code, message, data}`. 错误响应 `{code, message, details?}` (code 为字符串如 "BAD_REQUEST" / "UNAUTHORIZED").
+// @description     **速率限制**: 全站默认 300 req/min/IP, /auth/* 端点 20 req/min/IP, /webhook/* 100 req/min/IP. 超出返回 **429 Too Many Requests**, 此状态码在所有端点皆可能出现, 单独 endpoint 文档不重复声明.
+// @termsOfService  https://github.com/kerbos/ticketdesk
+//
+// @contact.name   TicketDesk
+// @contact.url    https://github.com/kerbos/ticketdesk
+//
+// @license.name  MIT
+//
+// @host      localhost:10010
+// @BasePath  /api/v1
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description JWT Bearer 令牌 (`Bearer <jwt>`) 或 Personal Access Token (`Bearer td_pat_xxx`)
 package main
 
 import (

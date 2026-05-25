@@ -41,6 +41,15 @@ func resolveUserID(c *gin.Context) (uint64, bool) {
 }
 
 // HandleWebhook 处理告警 Webhook
+// @Summary 接收 Prometheus 告警 Webhook
+// @Description 接收来自 Alertmanager 的告警推送，无需认证
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Param body body dto.AlertWebhookRequest true "告警 Webhook 请求体"
+// @Success 200 {object} response.Response "处理成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Router /api/v1/alerts/webhook [post]
 func (h *AlertHandler) HandleWebhook(c *gin.Context) {
 	var req dto.AlertWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,6 +67,15 @@ func (h *AlertHandler) HandleWebhook(c *gin.Context) {
 }
 
 // HandleNightingaleWebhook 处理夜莺告警 Webhook
+// @Summary 接收夜莺告警 Webhook
+// @Description 接收来自夜莺监控系统的告警推送，支持单个或数组格式，无需认证
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Param body body []dto.N9eAlertEvent true "夜莺告警事件（数组或单个对象）"
+// @Success 200 {object} response.Response "处理成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Router /api/v1/alerts/nightingale [post]
 func (h *AlertHandler) HandleNightingaleWebhook(c *gin.Context) {
 	body, err := c.GetRawData()
 	if err != nil {
@@ -87,6 +105,21 @@ func (h *AlertHandler) HandleNightingaleWebhook(c *gin.Context) {
 }
 
 // HandleListAlerts 获取告警列表
+// @Summary 获取告警列表
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Param status query string false "告警状态 (firing/resolved)"
+// @Param severity query string false "严重级别 (critical/warning/info)"
+// @Param source query string false "来源"
+// @Param alert_name query string false "告警名称"
+// @Param issue_id query int false "关联工单 ID"
+// @Param label_filters query string false "标签筛选，格式: key==value,key!=value"
+// @Success 200 {object} response.Response{data=dto.AlertListResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alerts [get]
 func (h *AlertHandler) HandleListAlerts(c *gin.Context) {
 	var req dto.AlertListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -105,6 +138,13 @@ func (h *AlertHandler) HandleListAlerts(c *gin.Context) {
 }
 
 // HandleGetAlertStats 获取告警统计数据
+// @Summary 获取告警统计数据
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response "获取成功（data 为 AlertStatsResponse）"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alerts/stats [get]
 func (h *AlertHandler) HandleGetAlertStats(c *gin.Context) {
 	stats, err := h.alertService.GetAlertStats(c.Request.Context())
 	if err != nil {
@@ -117,6 +157,15 @@ func (h *AlertHandler) HandleGetAlertStats(c *gin.Context) {
 }
 
 // HandleGetAlert 获取告警详情
+// @Summary 获取告警详情
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "告警 ID"
+// @Success 200 {object} response.Response{data=dto.AlertResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "告警不存在"
+// @Router /api/v1/alerts/{id} [get]
 func (h *AlertHandler) HandleGetAlert(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -136,6 +185,17 @@ func (h *AlertHandler) HandleGetAlert(c *gin.Context) {
 }
 
 // HandleAckAlert 确认告警
+// @Summary 确认告警
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "告警 ID"
+// @Param body body dto.AlertAckRequest true "确认告警请求体"
+// @Success 200 {object} response.Response "确认成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alerts/{id}/ack [post]
 func (h *AlertHandler) HandleAckAlert(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -165,6 +225,17 @@ func (h *AlertHandler) HandleAckAlert(c *gin.Context) {
 }
 
 // HandleResolveAlert 解决告警
+// @Summary 解决告警
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "告警 ID"
+// @Param body body dto.AlertResolveRequest true "解决告警请求体"
+// @Success 200 {object} response.Response "解决成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alerts/{id}/resolve [post]
 func (h *AlertHandler) HandleResolveAlert(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -196,6 +267,16 @@ func (h *AlertHandler) HandleResolveAlert(c *gin.Context) {
 // ============ 告警规则管理 ============
 
 // HandleCreateAlertRule 创建告警规则
+// @Summary 创建告警规则
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.CreateAlertRuleRequest true "创建告警规则请求体"
+// @Success 201 {object} response.Response{data=dto.AlertRuleResponse} "创建成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-rules [post]
 func (h *AlertHandler) HandleCreateAlertRule(c *gin.Context) {
 	var req dto.CreateAlertRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -214,6 +295,15 @@ func (h *AlertHandler) HandleCreateAlertRule(c *gin.Context) {
 }
 
 // HandleGetAlertRule 获取告警规则详情
+// @Summary 获取告警规则详情
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "规则 ID"
+// @Success 200 {object} response.Response{data=dto.AlertRuleResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "规则不存在"
+// @Router /api/v1/alert-rules/{id} [get]
 func (h *AlertHandler) HandleGetAlertRule(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -233,6 +323,17 @@ func (h *AlertHandler) HandleGetAlertRule(c *gin.Context) {
 }
 
 // HandleUpdateAlertRule 更新告警规则
+// @Summary 更新告警规则
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "规则 ID"
+// @Param body body dto.UpdateAlertRuleRequest true "更新告警规则请求体"
+// @Success 200 {object} response.Response{data=dto.AlertRuleResponse} "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-rules/{id} [put]
 func (h *AlertHandler) HandleUpdateAlertRule(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -258,6 +359,14 @@ func (h *AlertHandler) HandleUpdateAlertRule(c *gin.Context) {
 }
 
 // HandleDeleteAlertRule 删除告警规则
+// @Summary 删除告警规则
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "规则 ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-rules/{id} [delete]
 func (h *AlertHandler) HandleDeleteAlertRule(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -276,6 +385,15 @@ func (h *AlertHandler) HandleDeleteAlertRule(c *gin.Context) {
 }
 
 // HandleListAlertRules 获取告警规则列表
+// @Summary 获取告警规则列表
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Success 200 {object} response.Response{data=dto.AlertRuleListResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-rules [get]
 func (h *AlertHandler) HandleListAlertRules(c *gin.Context) {
 	var req dto.AlertRuleListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -294,6 +412,13 @@ func (h *AlertHandler) HandleListAlertRules(c *gin.Context) {
 }
 
 // HandleGetAlertLabelKeys 获取所有告警标签 key 列表
+// @Summary 获取告警标签键列表
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=[]string} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alerts/label-keys [get]
 func (h *AlertHandler) HandleGetAlertLabelKeys(c *gin.Context) {
 	keys, err := h.alertService.GetAlertLabelKeys(c.Request.Context())
 	if err != nil {
@@ -306,6 +431,15 @@ func (h *AlertHandler) HandleGetAlertLabelKeys(c *gin.Context) {
 }
 
 // HandleGroupAlerts 按标签分组统计告警
+// @Summary 按标签分组统计告警
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param group_by query string false "分组字段（标签 key）"
+// @Success 200 {object} response.Response{data=[]dto.AlertGroupResponse} "获取成功"
+// @Failure 400 {object} response.ErrorResponse "请求参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alerts/group [get]
 func (h *AlertHandler) HandleGroupAlerts(c *gin.Context) {
 	var req dto.AlertGroupRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -326,6 +460,16 @@ func (h *AlertHandler) HandleGroupAlerts(c *gin.Context) {
 // ============ 告警静默管理 ============
 
 // HandleCreateAlertSilence 创建告警静默
+// @Summary 创建告警静默
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.CreateAlertSilenceRequest true "创建静默请求体"
+// @Success 201 {object} response.Response{data=dto.AlertSilenceResponse} "创建成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-silences [post]
 func (h *AlertHandler) HandleCreateAlertSilence(c *gin.Context) {
 	var req dto.CreateAlertSilenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -349,6 +493,15 @@ func (h *AlertHandler) HandleCreateAlertSilence(c *gin.Context) {
 }
 
 // HandleGetAlertSilence 获取告警静默详情
+// @Summary 获取告警静默详情
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "静默 ID"
+// @Success 200 {object} response.Response{data=dto.AlertSilenceResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "静默不存在"
+// @Router /api/v1/alert-silences/{id} [get]
 func (h *AlertHandler) HandleGetAlertSilence(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -368,6 +521,17 @@ func (h *AlertHandler) HandleGetAlertSilence(c *gin.Context) {
 }
 
 // HandleUpdateAlertSilence 更新告警静默
+// @Summary 更新告警静默
+// @Tags Alert
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "静默 ID"
+// @Param body body dto.UpdateAlertSilenceRequest true "更新静默请求体"
+// @Success 200 {object} response.Response{data=dto.AlertSilenceResponse} "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-silences/{id} [put]
 func (h *AlertHandler) HandleUpdateAlertSilence(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -393,6 +557,14 @@ func (h *AlertHandler) HandleUpdateAlertSilence(c *gin.Context) {
 }
 
 // HandleDeleteAlertSilence 删除告警静默
+// @Summary 删除告警静默
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "静默 ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-silences/{id} [delete]
 func (h *AlertHandler) HandleDeleteAlertSilence(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -411,6 +583,14 @@ func (h *AlertHandler) HandleDeleteAlertSilence(c *gin.Context) {
 }
 
 // HandleCancelAlertSilence 取消告警静默
+// @Summary 取消告警静默
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "静默 ID"
+// @Success 200 {object} response.Response "取消成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-silences/{id}/cancel [post]
 func (h *AlertHandler) HandleCancelAlertSilence(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -429,6 +609,15 @@ func (h *AlertHandler) HandleCancelAlertSilence(c *gin.Context) {
 }
 
 // HandleListAlertSilences 获取告警静默列表
+// @Summary 获取告警静默列表
+// @Tags Alert
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Success 200 {object} response.Response{data=dto.AlertSilenceListResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/alert-silences [get]
 func (h *AlertHandler) HandleListAlertSilences(c *gin.Context) {
 	var req dto.AlertSilenceListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {

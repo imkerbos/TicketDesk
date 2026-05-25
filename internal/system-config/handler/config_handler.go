@@ -52,6 +52,17 @@ var publicConfigWhitelist = map[string]bool{
 }
 
 // HandleGetPublicConfig 获取公共配置（普通用户可访问，受白名单限制）
+// @Summary 获取公共配置
+// @Description 普通认证用户可访问，受白名单限制
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "配置键"
+// @Success 200 {object} response.Response{data=dto.ConfigResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 403 {object} response.ErrorResponse "无权访问该配置"
+// @Failure 404 {object} response.ErrorResponse "配置不存在"
+// @Router /api/v1/system/configs/public/{key} [get]
 func (h *ConfigHandler) HandleGetPublicConfig(c *gin.Context) {
 	key := c.Param("key")
 	if key == "" {
@@ -80,6 +91,15 @@ func (h *ConfigHandler) HandleGetPublicConfig(c *gin.Context) {
 // ============ 配置管理 ============
 
 // HandleGetConfig 获取单个配置
+// @Summary 获取单个系统配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "配置键"
+// @Success 200 {object} response.Response{data=dto.ConfigResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "配置不存在"
+// @Router /api/v1/system/configs/{key} [get]
 func (h *ConfigHandler) HandleGetConfig(c *gin.Context) {
 	key := c.Param("key")
 	if key == "" {
@@ -101,6 +121,15 @@ func (h *ConfigHandler) HandleGetConfig(c *gin.Context) {
 }
 
 // HandleGetConfigsByCategory 获取分类下的所有配置
+// @Summary 按分类获取系统配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Param category query string true "配置分类"
+// @Success 200 {object} response.Response{data=[]dto.ConfigResponse} "获取成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/configs/category [get]
 func (h *ConfigHandler) HandleGetConfigsByCategory(c *gin.Context) {
 	category := c.Query("category")
 	if category == "" {
@@ -118,6 +147,13 @@ func (h *ConfigHandler) HandleGetConfigsByCategory(c *gin.Context) {
 }
 
 // HandleGetAllConfigs 获取所有配置
+// @Summary 获取所有系统配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=[]dto.ConfigResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/configs [get]
 func (h *ConfigHandler) HandleGetAllConfigs(c *gin.Context) {
 	configs, err := h.configService.GetAllConfigs(c.Request.Context())
 	if err != nil {
@@ -129,6 +165,17 @@ func (h *ConfigHandler) HandleGetAllConfigs(c *gin.Context) {
 }
 
 // HandleUpdateConfig 更新单个配置
+// @Summary 更新单个系统配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "配置键"
+// @Param body body dto.UpdateConfigRequest true "更新配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/configs/{key} [put]
 func (h *ConfigHandler) HandleUpdateConfig(c *gin.Context) {
 	key := c.Param("key")
 	if key == "" {
@@ -152,6 +199,16 @@ func (h *ConfigHandler) HandleUpdateConfig(c *gin.Context) {
 }
 
 // HandleBatchUpdateConfigs 批量更新配置
+// @Summary 批量更新系统配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.BatchUpdateConfigRequest true "批量更新配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/configs [put]
 func (h *ConfigHandler) HandleBatchUpdateConfigs(c *gin.Context) {
 	var req dto.BatchUpdateConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -171,6 +228,13 @@ func (h *ConfigHandler) HandleBatchUpdateConfigs(c *gin.Context) {
 // ============ 邮件配置 ============
 
 // HandleGetEmailConfig 获取邮件配置
+// @Summary 获取邮件配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=dto.EmailConfig} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/email [get]
 func (h *ConfigHandler) HandleGetEmailConfig(c *gin.Context) {
 	config, err := h.configService.GetEmailConfig(c.Request.Context())
 	if err != nil {
@@ -182,6 +246,16 @@ func (h *ConfigHandler) HandleGetEmailConfig(c *gin.Context) {
 }
 
 // HandleUpdateEmailConfig 更新邮件配置
+// @Summary 更新邮件配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.UpdateEmailConfigRequest true "更新邮件配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/email [put]
 func (h *ConfigHandler) HandleUpdateEmailConfig(c *gin.Context) {
 	var req dto.UpdateEmailConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -201,6 +275,13 @@ func (h *ConfigHandler) HandleUpdateEmailConfig(c *gin.Context) {
 // ============ 安全配置 ============
 
 // HandleGetSecurityConfig 获取安全配置
+// @Summary 获取安全配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=dto.SecurityConfig} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/security [get]
 func (h *ConfigHandler) HandleGetSecurityConfig(c *gin.Context) {
 	config, err := h.configService.GetSecurityConfig(c.Request.Context())
 	if err != nil {
@@ -212,6 +293,16 @@ func (h *ConfigHandler) HandleGetSecurityConfig(c *gin.Context) {
 }
 
 // HandleUpdateSecurityConfig 更新安全配置
+// @Summary 更新安全配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.UpdateSecurityConfigRequest true "更新安全配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/security [put]
 func (h *ConfigHandler) HandleUpdateSecurityConfig(c *gin.Context) {
 	var req dto.UpdateSecurityConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -231,6 +322,13 @@ func (h *ConfigHandler) HandleUpdateSecurityConfig(c *gin.Context) {
 // ============ 限流配置 ============
 
 // HandleGetRateLimitConfig 获取限流配置
+// @Summary 获取限流配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=dto.RateLimitConfig} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/ratelimit [get]
 func (h *ConfigHandler) HandleGetRateLimitConfig(c *gin.Context) {
 	config, err := h.configService.GetRateLimitConfig(c.Request.Context())
 	if err != nil {
@@ -242,6 +340,16 @@ func (h *ConfigHandler) HandleGetRateLimitConfig(c *gin.Context) {
 }
 
 // HandleUpdateRateLimitConfig 更新限流配置
+// @Summary 更新限流配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.UpdateRateLimitConfigRequest true "更新限流配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/ratelimit [put]
 func (h *ConfigHandler) HandleUpdateRateLimitConfig(c *gin.Context) {
 	var req dto.UpdateRateLimitConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -261,6 +369,16 @@ func (h *ConfigHandler) HandleUpdateRateLimitConfig(c *gin.Context) {
 // ============ Webhook 管理 ============
 
 // HandleCreateWebhook 创建 Webhook
+// @Summary 创建 Webhook
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.CreateWebhookRequest true "创建 Webhook 请求体"
+// @Success 201 {object} response.Response{data=dto.WebhookResponse} "创建成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/webhooks [post]
 func (h *ConfigHandler) HandleCreateWebhook(c *gin.Context) {
 	var req dto.CreateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -279,6 +397,15 @@ func (h *ConfigHandler) HandleCreateWebhook(c *gin.Context) {
 }
 
 // HandleGetWebhook 获取 Webhook
+// @Summary 获取 Webhook 详情
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Webhook ID"
+// @Success 200 {object} response.Response{data=dto.WebhookResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "Webhook 不存在"
+// @Router /api/v1/system/webhooks/{id} [get]
 func (h *ConfigHandler) HandleGetWebhook(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -301,6 +428,18 @@ func (h *ConfigHandler) HandleGetWebhook(c *gin.Context) {
 }
 
 // HandleUpdateWebhook 更新 Webhook
+// @Summary 更新 Webhook
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Webhook ID"
+// @Param body body dto.UpdateWebhookRequest true "更新 Webhook 请求体"
+// @Success 200 {object} response.Response{data=dto.WebhookResponse} "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "Webhook 不存在"
+// @Router /api/v1/system/webhooks/{id} [put]
 func (h *ConfigHandler) HandleUpdateWebhook(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -329,6 +468,15 @@ func (h *ConfigHandler) HandleUpdateWebhook(c *gin.Context) {
 }
 
 // HandleDeleteWebhook 删除 Webhook
+// @Summary 删除 Webhook
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Webhook ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 404 {object} response.ErrorResponse "Webhook 不存在"
+// @Router /api/v1/system/webhooks/{id} [delete]
 func (h *ConfigHandler) HandleDeleteWebhook(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -350,6 +498,15 @@ func (h *ConfigHandler) HandleDeleteWebhook(c *gin.Context) {
 }
 
 // HandleListWebhooks 查询 Webhook 列表
+// @Summary 获取 Webhook 列表
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Success 200 {object} response.Response{data=[]dto.WebhookResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/webhooks [get]
 func (h *ConfigHandler) HandleListWebhooks(c *gin.Context) {
 	var req dto.ListWebhooksRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -369,6 +526,15 @@ func (h *ConfigHandler) HandleListWebhooks(c *gin.Context) {
 // ============ Webhook 日志 ============
 
 // HandleListWebhookLogs 查询 Webhook 日志
+// @Summary 获取 Webhook 日志
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Success 200 {object} response.Response{data=[]dto.WebhookLogResponse} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/webhook-logs [get]
 func (h *ConfigHandler) HandleListWebhookLogs(c *gin.Context) {
 	var req dto.ListWebhookLogsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -388,6 +554,13 @@ func (h *ConfigHandler) HandleListWebhookLogs(c *gin.Context) {
 // ============ 飞书配置 ============
 
 // HandleGetLarkConfig 获取飞书配置
+// @Summary 获取飞书通知配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=dto.LarkConfig} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/lark [get]
 func (h *ConfigHandler) HandleGetLarkConfig(c *gin.Context) {
 	config, err := h.configService.GetLarkConfig(c.Request.Context())
 	if err != nil {
@@ -399,6 +572,16 @@ func (h *ConfigHandler) HandleGetLarkConfig(c *gin.Context) {
 }
 
 // HandleUpdateLarkConfig 更新飞书配置
+// @Summary 更新飞书通知配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.UpdateLarkConfigRequest true "更新飞书配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/lark [put]
 func (h *ConfigHandler) HandleUpdateLarkConfig(c *gin.Context) {
 	var req dto.UpdateLarkConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -416,6 +599,14 @@ func (h *ConfigHandler) HandleUpdateLarkConfig(c *gin.Context) {
 }
 
 // HandleTestLark 测试飞书通知
+// @Summary 测试飞书通知发送
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response "发送成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 500 {object} response.ErrorResponse "发送失败"
+// @Router /api/v1/system/lark/test [post]
 func (h *ConfigHandler) HandleTestLark(c *gin.Context) {
 	if h.larkService == nil {
 		response.InternalError(c, "飞书服务未初始化")
@@ -433,6 +624,13 @@ func (h *ConfigHandler) HandleTestLark(c *gin.Context) {
 // ============ Telegram 配置 ============
 
 // HandleGetTelegramConfig 获取 Telegram 配置
+// @Summary 获取 Telegram 通知配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=dto.TelegramConfig} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/telegram [get]
 func (h *ConfigHandler) HandleGetTelegramConfig(c *gin.Context) {
 	config, err := h.configService.GetTelegramConfig(c.Request.Context())
 	if err != nil {
@@ -444,6 +642,16 @@ func (h *ConfigHandler) HandleGetTelegramConfig(c *gin.Context) {
 }
 
 // HandleUpdateTelegramConfig 更新 Telegram 配置
+// @Summary 更新 Telegram 通知配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.UpdateTelegramConfigRequest true "更新 Telegram 配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/telegram [put]
 func (h *ConfigHandler) HandleUpdateTelegramConfig(c *gin.Context) {
 	var req dto.UpdateTelegramConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -461,6 +669,14 @@ func (h *ConfigHandler) HandleUpdateTelegramConfig(c *gin.Context) {
 }
 
 // HandleTestTelegram 测试 Telegram 通知
+// @Summary 测试 Telegram 通知发送
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response "发送成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Failure 500 {object} response.ErrorResponse "发送失败"
+// @Router /api/v1/system/telegram/test [post]
 func (h *ConfigHandler) HandleTestTelegram(c *gin.Context) {
 	if h.telegramService == nil {
 		response.InternalError(c, "Telegram 服务未初始化")
@@ -478,6 +694,13 @@ func (h *ConfigHandler) HandleTestTelegram(c *gin.Context) {
 // ============ SSO 配置 ============
 
 // HandleGetSSOConfig 获取 SSO 配置
+// @Summary 获取 SSO 配置
+// @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=dto.SSOConfig} "获取成功"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/sso [get]
 func (h *ConfigHandler) HandleGetSSOConfig(c *gin.Context) {
 	config, err := h.configService.GetSSOConfig(c.Request.Context())
 	if err != nil {
@@ -489,6 +712,16 @@ func (h *ConfigHandler) HandleGetSSOConfig(c *gin.Context) {
 }
 
 // HandleUpdateSSOConfig 更新 SSO 配置
+// @Summary 更新 SSO 配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.UpdateSSOConfigRequest true "更新 SSO 配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/sso [put]
 func (h *ConfigHandler) HandleUpdateSSOConfig(c *gin.Context) {
 	var req dto.UpdateSSOConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -508,6 +741,12 @@ func (h *ConfigHandler) HandleUpdateSSOConfig(c *gin.Context) {
 // ============ 品牌配置 ============
 
 // HandleGetBrandConfig 获取品牌配置（公开接口）
+// @Summary 获取品牌配置
+// @Description 无需认证，用于前端加载自定义 Logo、Favicon 等品牌信息
+// @Tags Config
+// @Produce json
+// @Success 200 {object} response.Response{data=dto.BrandConfig} "获取成功"
+// @Router /api/v1/brand [get]
 func (h *ConfigHandler) HandleGetBrandConfig(c *gin.Context) {
 	config, err := h.configService.GetBrandConfig(c.Request.Context())
 	if err != nil {
@@ -519,6 +758,16 @@ func (h *ConfigHandler) HandleGetBrandConfig(c *gin.Context) {
 }
 
 // HandleUpdateBrandConfig 更新品牌配置
+// @Summary 更新品牌配置
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body dto.UpdateBrandConfigRequest true "更新品牌配置请求体"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/brand [put]
 func (h *ConfigHandler) HandleUpdateBrandConfig(c *gin.Context) {
 	var req dto.UpdateBrandConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -546,6 +795,18 @@ var brandAssetAllowedExts = map[string]bool{
 }
 
 // HandleUploadBrandAsset 上传品牌资源（Logo/Favicon）
+// @Summary 上传品牌资源
+// @Description 上传 Logo 或 Favicon，最大 2MB，支持 SVG/PNG/ICO/JPG/WEBP
+// @Tags Config
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param type formData string true "资源类型（logo 或 favicon）"
+// @Param file formData file true "上传文件"
+// @Success 200 {object} response.Response "上传成功（data 包含 url 字段）"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 401 {object} response.ErrorResponse "未认证"
+// @Router /api/v1/system/brand/upload [post]
 func (h *ConfigHandler) HandleUploadBrandAsset(c *gin.Context) {
 	if h.localStorage == nil {
 		response.InternalError(c, "文件存储服务未初始化")
