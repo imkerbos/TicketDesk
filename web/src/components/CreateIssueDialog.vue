@@ -7,6 +7,7 @@
     class="create-issue-dialog"
     @update:model-value="$emit('update:modelValue', $event)"
     @open="handleDialogOpen"
+    @closed="handleDialogClose"
   >
     <el-form
       ref="createFormRef"
@@ -94,6 +95,13 @@
           </el-col>
         </el-row>
       </div>
+
+      <el-form-item label="附件">
+        <PendingAttachmentList
+          ref="pendingListRef"
+          v-model="pendingFiles"
+        />
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -107,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, nextTick } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Check, QuestionFilled } from '@element-plus/icons-vue'
 import { createIssue } from '@/api/issue'
@@ -118,6 +126,7 @@ import type { Project, ProjectIssueType } from '@/types/project'
 import type { FieldSchemeItem } from '@/types/field'
 import { FieldRenderer } from '@/components/field'
 import { extractBuiltinFields } from '@/utils/builtin-fields'
+import PendingAttachmentList from '@/components/attachment/PendingAttachmentList.vue'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -147,6 +156,8 @@ const issueTypes = ref<ProjectIssueType[]>([])
 const fieldScheme = ref<FieldSchemeItem[]>([])
 const customFieldValues = ref<Record<number, any>>({})
 const fieldSchemeLoading = ref(false)
+const pendingFiles = ref<File[]>([])
+const pendingListRef = ref<InstanceType<typeof PendingAttachmentList> | null>(null)
 
 const createForm = reactive({
   project_key: '',
@@ -168,6 +179,35 @@ const createRules = computed<FormRules>(() => {
 const projectList = computed(() => props.projects ?? internalProjects.value)
 const effectiveProjectKey = computed(() => props.fixedProjectKey || createForm.project_key)
 
+// 粘贴监听：在对话框内监听粘贴事件，将文件传递给附件组件
+const handlePaste = (e: ClipboardEvent) => {
+  const files = e.clipboardData?.files
+  if (!files || files.length === 0) return
+
+  // 命中输入框/textarea 时仅处理纯图片，避免抢占文本粘贴
+  const target = e.target as HTMLElement | null
+  const inEditable =
+    target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable)
+  if (inEditable) {
+    const allImages = Array.from(files).every(f => f.type.startsWith('image/'))
+    if (!allImages) return
+    e.preventDefault()
+  }
+
+  pendingListRef.value?.addFiles(Array.from(files))
+}
+
+const bindPasteListener = () => {
+  document.querySelector('.create-issue-dialog')?.addEventListener('paste', handlePaste)
+}
+
+const unbindPasteListener = () => {
+  document.querySelector('.create-issue-dialog')?.removeEventListener('paste', handlePaste)
+}
+
 // 对话框打开时重置状态
 const handleDialogOpen = async () => {
   createForm.project_key = props.defaultProjectKey || ''
@@ -176,6 +216,7 @@ const handleDialogOpen = async () => {
   fieldScheme.value = []
   customFieldValues.value = {}
   issueTypes.value = []
+  pendingFiles.value = []
 
   // 加载项目列表（仅当外部未传入且非固定项目时）
   if (!props.fixedProjectKey && !props.projects) {
@@ -192,6 +233,15 @@ const handleDialogOpen = async () => {
   if (initialProject) {
     await handleProjectChange(initialProject)
   }
+
+  await nextTick()
+  bindPasteListener()
+}
+
+// 对话框关闭时解绑监听并清理附件
+const handleDialogClose = () => {
+  unbindPasteListener()
+  pendingFiles.value = []
 }
 
 // 项目变更
@@ -255,6 +305,17 @@ const getFieldColSpan = (fieldType?: string): number => {
   return 12
 }
 
+// 根据是否有附件构造请求体（JSON 或 multipart/form-data）
+function buildPayload(req: CreateIssueRequest, files: File[]): CreateIssueRequest | FormData {
+  if (files.length === 0) return req
+  const fd = new FormData()
+  fd.append('data', JSON.stringify(req))
+  for (const f of files) {
+    fd.append('files', f, f.name)
+  }
+  return fd
+}
+
 // 提交创建
 const submitCreate = async () => {
   if (!createFormRef.value) return
@@ -297,7 +358,7 @@ const submitCreate = async () => {
         parent_id: props.parentId || undefined,
         custom_fields: customFields.length > 0 ? customFields : undefined,
       }
-      const { data } = await createIssue(requestData)
+      const { data } = await createIssue(buildPayload(requestData, pendingFiles.value))
       ElMessage.success(props.parentId ? '子任务创建成功' : '创建成功')
       emit('update:modelValue', false)
       emit('created', data.data.issue_key)
