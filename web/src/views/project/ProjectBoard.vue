@@ -40,6 +40,7 @@
       <!-- 左侧工单列表 -->
       <div class="board-left">
         <BoardIssueList
+          ref="boardListRef"
           :project-key="projectKey"
           :selected-key="selectedIssueKey"
           :initial-status="initialStatus"
@@ -74,7 +75,7 @@
     <CreateIssueDialog
       v-model="createDialogVisible"
       :fixed-project-key="projectKey"
-      @created="handleSelectIssue"
+      @created="handleIssueCreated"
     />
   </div>
 </template>
@@ -96,6 +97,7 @@ const projectKey = computed(() => route.params.key as string)
 const initialStatus = computed(() => (route.query.status as string) || '')
 const selectedIssueKey = ref('')
 const project = ref<Project | null>(null)
+const boardListRef = ref<InstanceType<typeof BoardIssueList> | null>(null)
 
 // 创建工单
 const createDialogVisible = ref(false)
@@ -118,6 +120,12 @@ const loadProject = async () => {
 const handleSelectIssue = (issueKey: string) => {
   selectedIssueKey.value = issueKey
   router.replace(`/projects/${projectKey.value}/board/${issueKey}`)
+}
+
+// 创建工单后: 刷新列表并选中新工单
+const handleIssueCreated = async (issueKey: string) => {
+  await boardListRef.value?.reload()
+  handleSelectIssue(issueKey)
 }
 
 const handleNavigateIssue = (issueKey: string) => {

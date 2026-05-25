@@ -26,6 +26,17 @@
         <template #prefix>
           <el-icon><Search /></el-icon>
         </template>
+        <template #suffix>
+          <el-button
+            link
+            size="small"
+            class="search-btn"
+            :title="'搜索 (Enter)'"
+            @click="handleSearch"
+          >
+            <el-icon><Search /></el-icon>
+          </el-button>
+        </template>
       </el-input>
       <div class="filter-row">
         <el-select
@@ -321,6 +332,14 @@ onMounted(() => {
   loadIssues()
   loadFilterOptions()
 })
+
+// 暴露 reload 给父组件 (例如创建工单后刷新列表)
+defineExpose({
+  reload: () => {
+    page.value = 1
+    return loadIssues()
+  },
+})
 </script>
 
 <style scoped lang="scss">
@@ -385,6 +404,16 @@ onMounted(() => {
 
       &:focus-within {
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+      }
+    }
+
+    .search-btn {
+      padding: 0 4px;
+      color: var(--td-text-placeholder, #9ca3af);
+      transition: color 150ms ease-out;
+
+      &:hover {
+        color: var(--td-color-primary, #3b82f6);
       }
     }
   }
