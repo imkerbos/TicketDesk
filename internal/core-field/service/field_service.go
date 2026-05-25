@@ -609,7 +609,7 @@ func (s *fieldService) SaveFieldValues(ctx context.Context, issueID uint64, valu
 					fv.ValueDate = &t
 				}
 			}
-		case model.FieldTypeMultiSelect, model.FieldTypeLabel, model.FieldTypeComponent:
+		case model.FieldTypeMultiSelect, model.FieldTypeLabel, model.FieldTypeComponent, model.FieldTypeMultiUser:
 			switch val := v.Value.(type) {
 			case []any:
 				if jsonBytes, err := json.Marshal(val); err == nil {
@@ -623,6 +623,25 @@ func (s *fieldService) SaveFieldValues(ctx context.Context, issueID uint64, valu
 					fv.ValueJSON = &val
 				}
 			}
+		case model.FieldTypeDateTime:
+			// 支持多种时间格式，依次尝试解析
+			if str, ok := v.Value.(string); ok && str != "" {
+				for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02 15:04"} {
+					if t, err := time.Parse(layout, str); err == nil {
+						fv.ValueDate = &t
+						break
+					}
+				}
+			}
+		case model.FieldTypeURL:
+			// URL 宽松校验，仅要求非空（前端负责格式校验）
+			if str, ok := v.Value.(string); ok && str != "" {
+				fv.ValueText = &str
+			}
+		case model.FieldTypeCheckbox:
+			// checkbox 存储为 0/1 数值
+			num := parseCheckboxValue(v.Value)
+			fv.ValueNumber = &num
 		case model.FieldTypeEpicLink:
 			// Epic Link 保存为 number 类型（Issue ID）
 			switch val := v.Value.(type) {
@@ -1786,4 +1805,23 @@ func (s *fieldService) ApplyTemplate(ctx context.Context, projectKey string, iss
 	)
 
 	return s.GetFieldScheme(ctx, projectKey, issueTypeID)
+}
+
+// parseCheckboxValue 把任意输入解析为 0 / 1，容忍 bool / float64 / string 三种前端类型
+func parseCheckboxValue(v any) float64 {
+	switch val := v.(type) {
+	case bool:
+		if val {
+			return 1
+		}
+	case float64:
+		if val != 0 {
+			return 1
+		}
+	case string:
+		if val == "true" || val == "1" {
+			return 1
+		}
+	}
+	return 0
 }
