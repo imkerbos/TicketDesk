@@ -1,27 +1,15 @@
 <template>
   <div class="notification-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><Bell /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Bell /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">通知中心</h1>
-          <p class="header-desc">查看和管理您的所有通知消息</p>
-        </div>
-      </div>
-      <div class="header-stats">
-        <div class="stat-item">
-          <span class="stat-value">{{ total }}</span>
-          <span class="stat-label">全部通知</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">{{ notificationStore.unreadCount }}</span>
-          <span class="stat-label">未读消息</span>
-        </div>
-      </div>
-    </div>
+      </template>
+      <template #title>通知中心</template>
+      <template #subtitle>查看和管理您的所有通知消息</template>
+    </TdPageHeader>
 
     <!-- 筛选卡片 -->
     <el-card class="filter-card" shadow="never">
@@ -302,67 +290,17 @@ onMounted(() => {
   width: 100%;
 }
 
-// 页面头部
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 32px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      opacity: 0.9;
-    }
-  }
-
-  .header-stats {
-    display: flex;
-    gap: 32px;
-
-    .stat-item {
-      text-align: center;
-
-      .stat-value {
-        display: block;
-        font-size: 28px;
-        font-weight: 700;
-        line-height: 1.2;
-      }
-
-      .stat-label {
-        font-size: 13px;
-        opacity: 0.85;
-      }
-    }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // 筛选卡片

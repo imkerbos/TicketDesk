@@ -1,21 +1,21 @@
 <template>
   <div class="workflow-list-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><Connection /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Connection /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">工作流管理</h1>
-          <p class="header-desc">配置和管理工作流程</p>
-        </div>
-      </div>
-      <el-button type="primary" class="header-btn" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建工作流
-      </el-button>
-    </div>
+      </template>
+      <template #title>工作流管理</template>
+      <template #subtitle>配置和管理工作流程</template>
+      <template #actions>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建工作流
+        </el-button>
+      </template>
+    </TdPageHeader>
 
     <!-- 工作流列表 -->
     <el-card shadow="never" class="workflows-card">
@@ -660,54 +660,17 @@ onMounted(() => {
   width: 100%;
 }
 
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 32px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      opacity: 0.9;
-    }
-  }
-
-  .header-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: var(--td-text-white);
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 .workflows-card {

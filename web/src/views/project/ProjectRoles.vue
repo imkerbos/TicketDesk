@@ -1,27 +1,25 @@
 <template>
   <div class="project-roles-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><UserFilled /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><UserFilled /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">项目角色管理</h1>
-          <p class="header-desc">{{ projectKey }} - 管理项目角色和成员分配</p>
-        </div>
-      </div>
-      <div class="header-actions">
+      </template>
+      <template #title>项目角色管理</template>
+      <template #subtitle>{{ projectKey }} - 管理项目角色和成员分配</template>
+      <template #actions>
         <el-button @click="$router.push('/projects')">
           <el-icon><Back /></el-icon>
           返回项目
         </el-button>
-        <el-button type="primary" class="header-btn" @click="handleCreateRole">
+        <el-button type="primary" @click="handleCreateRole">
           <el-icon><Plus /></el-icon>
           创建角色
         </el-button>
-      </div>
-    </div>
+      </template>
+    </TdPageHeader>
 
     <!-- 角色列表 -->
     <el-card shadow="never" class="roles-card">
@@ -331,59 +329,17 @@ onMounted(() => {
   width: 100%;
 }
 
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 32px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      opacity: 0.9;
-    }
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 12px;
-  }
-
-  .header-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: var(--td-text-white);
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 .roles-card {

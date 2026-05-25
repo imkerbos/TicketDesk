@@ -1,22 +1,18 @@
 <template>
   <div class="project-settings-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-left">
+    <TdPageHeader>
+      <template #leading>
         <el-button class="back-btn" circle @click="$router.push(`/projects/${projectKey}`)">
           <el-icon><ArrowLeft /></el-icon>
         </el-button>
-        <div class="header-info">
-          <div class="header-icon">
-            <el-icon><Setting /></el-icon>
-          </div>
-          <div class="header-text">
-            <h1 class="header-title">项目设置</h1>
-            <p class="header-desc">{{ projectKey }} - 配置项目信息和权限</p>
-          </div>
+        <div class="page-header-icon">
+          <el-icon :size="20"><Setting /></el-icon>
         </div>
-      </div>
-    </div>
+      </template>
+      <template #title>项目设置</template>
+      <template #subtitle>{{ projectKey }} - 配置项目信息和权限</template>
+    </TdPageHeader>
 
     <!-- 标签页 -->
     <el-card shadow="never" class="settings-card">
@@ -1963,62 +1959,19 @@ onMounted(async () => {
   width: 100%;
 }
 
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 32px;
-  background: var(--td-color-primary);
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .back-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: var(--td-text-white);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-  }
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 56px;
-    height: 56px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  }
-
-  .header-text {
-    .header-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-    }
-    .header-desc {
-      font-size: 14px;
-      margin: 0;
-      opacity: 0.9;
-    }
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
+
 
 .settings-card {
   border-radius: 12px;

@@ -1,17 +1,15 @@
 <template>
   <div class="reports-container">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-info">
-        <div class="header-icon">
-          <el-icon><DataAnalysis /></el-icon>
+    <TdPageHeader>
+      <template #leading>
+        <div class="page-header-icon">
+          <el-icon :size="20"><DataAnalysis /></el-icon>
         </div>
-        <div class="header-text">
-          <h1 class="header-title">报表统计</h1>
-          <p class="header-desc">查看工单和告警的统计数据</p>
-        </div>
-      </div>
-      <div class="header-actions">
+      </template>
+      <template #title>报表统计</template>
+      <template #subtitle>查看工单和告警的统计数据</template>
+      <template #actions>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -26,8 +24,8 @@
         <el-select v-model="selectedProject" placeholder="全部项目" clearable style="width: 200px" filterable @change="handleProjectChange">
           <el-option v-for="p in projects" :key="p.project_key" :label="`${p.project_key} - ${p.name}`" :value="p.project_key" />
         </el-select>
-      </div>
-    </div>
+      </template>
+    </TdPageHeader>
 
     <!-- Tab 切换 -->
     <el-tabs v-model="activeTab" class="report-tabs" @tab-change="handleTabChange">
@@ -1197,49 +1195,17 @@ onMounted(() => {
   width: 100%;
 }
 
-.page-header {
+// 页面头部 icon (TdPageHeader leading slot)
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--td-tag-primary-bg);
+  border-radius: var(--td-radius-md);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 28px;
-  background: #8b5cf6;
-  border-radius: 12px;
-  color: var(--td-text-white);
-
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .header-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-  }
-
-  .header-title {
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 4px;
-  }
-
-  .header-desc {
-    font-size: 14px;
-    margin: 0;
-    opacity: 0.85;
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 12px;
-  }
+  justify-content: center;
+  color: var(--td-color-primary);
+  flex-shrink: 0;
 }
 
 // Tabs
@@ -1534,17 +1500,6 @@ onMounted(() => {
 
 // ========== 响应式 ==========
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px;
-
-    .header-actions {
-      width: 100%;
-      flex-direction: column;
-    }
-  }
-
   .summary-card {
     padding: 14px;
 
