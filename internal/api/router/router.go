@@ -513,8 +513,11 @@ func (r *Router) Setup() *gin.Engine {
 	// 健康检查
 	engine.GET("/health", healthCheck)
 
-	// Swagger UI: http://localhost:10010/swagger/index.html
-	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger UI: 需登录 (Authorization / cookie / query token 三选一)
+	engine.GET("/swagger/*any",
+		middleware.SwaggerAuthMiddleware(r.jwtManager, r.apiTokenSvc),
+		ginSwagger.WrapHandler(swaggerFiles.Handler),
+	)
 
 	// API v1 路由组
 	v1 := engine.Group("/api/v1")

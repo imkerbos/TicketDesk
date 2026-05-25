@@ -112,6 +112,12 @@
             <span>报表统计</span>
           </el-menu-item>
 
+          <!-- API 文档 (Swagger UI) -->
+          <el-menu-item index="/api-docs">
+            <el-icon><Document /></el-icon>
+            <span>API 文档</span>
+          </el-menu-item>
+
           <!-- 系统管理（仅管理员可见） -->
           <el-sub-menu v-if="userStore.isAdmin" index="system">
             <template #title>
