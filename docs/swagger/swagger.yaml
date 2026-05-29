@@ -836,12 +836,18 @@ definitions:
       config: {}
       enabled:
         type: boolean
+      event_types:
+        items:
+          type: string
+        minItems: 1
+        type: array
       name:
         maxLength: 100
         type: string
     required:
     - channel_type
     - config
+    - event_types
     - name
     type: object
   dto.CreateProjectRequest:
@@ -1806,6 +1812,10 @@ definitions:
         type: integer
       enabled:
         type: boolean
+      event_types:
+        items:
+          type: string
+        type: array
       id:
         type: integer
       name:
@@ -2778,6 +2788,11 @@ definitions:
       config: {}
       enabled:
         type: boolean
+      event_types:
+        items:
+          type: string
+        minItems: 1
+        type: array
       name:
         maxLength: 100
         type: string
@@ -3638,14 +3653,14 @@ host: localhost:10010
 info:
   contact:
     name: TicketDesk
-    url: https://github.com/kerbos/ticketdesk
+    url: https://github.com/imkerbos/TicketDesk
   description: |-
     项目化工单与告警联动系统 API. 一切问题都是工单, 一切告警都必须被跟进.
     **统一响应格式**: `{code, message, data}`. 错误响应 `{code, message, details?}` (code 为字符串如 "BAD_REQUEST" / "UNAUTHORIZED").
     **速率限制**: 全站默认 300 req/min/IP, /auth/* 端点 20 req/min/IP, /webhook/* 100 req/min/IP. 超出返回 **429 Too Many Requests**, 此状态码在所有端点皆可能出现, 单独 endpoint 文档不重复声明.
   license:
     name: MIT
-  termsOfService: https://github.com/kerbos/ticketdesk
+  termsOfService: https://github.com/imkerbos/TicketDesk
   title: TicketDesk API
   version: "1.0"
 paths:

@@ -9,10 +9,10 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "https://github.com/kerbos/ticketdesk",
+        "termsOfService": "https://github.com/imkerbos/TicketDesk",
         "contact": {
             "name": "TicketDesk",
-            "url": "https://github.com/kerbos/ticketdesk"
+            "url": "https://github.com/imkerbos/TicketDesk"
         },
         "license": {
             "name": "MIT"
@@ -13594,6 +13594,7 @@ const docTemplate = `{
             "required": [
                 "channel_type",
                 "config",
+                "event_types",
                 "name"
             ],
             "properties": {
@@ -13607,6 +13608,13 @@ const docTemplate = `{
                 "config": {},
                 "enabled": {
                     "type": "boolean"
+                },
+                "event_types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string",
@@ -15020,6 +15028,12 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
+                "event_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -16429,6 +16443,13 @@ const docTemplate = `{
                 "config": {},
                 "enabled": {
                     "type": "boolean"
+                },
+                "event_types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string",

@@ -3,10 +3,10 @@
     "info": {
         "description": "项目化工单与告警联动系统 API. 一切问题都是工单, 一切告警都必须被跟进.\n**统一响应格式**: `{code, message, data}`. 错误响应 `{code, message, details?}` (code 为字符串如 \"BAD_REQUEST\" / \"UNAUTHORIZED\").\n**速率限制**: 全站默认 300 req/min/IP, /auth/* 端点 20 req/min/IP, /webhook/* 100 req/min/IP. 超出返回 **429 Too Many Requests**, 此状态码在所有端点皆可能出现, 单独 endpoint 文档不重复声明.",
         "title": "TicketDesk API",
-        "termsOfService": "https://github.com/kerbos/ticketdesk",
+        "termsOfService": "https://github.com/imkerbos/TicketDesk",
         "contact": {
             "name": "TicketDesk",
-            "url": "https://github.com/kerbos/ticketdesk"
+            "url": "https://github.com/imkerbos/TicketDesk"
         },
         "license": {
             "name": "MIT"
@@ -13588,6 +13588,7 @@
             "required": [
                 "channel_type",
                 "config",
+                "event_types",
                 "name"
             ],
             "properties": {
@@ -13601,6 +13602,13 @@
                 "config": {},
                 "enabled": {
                     "type": "boolean"
+                },
+                "event_types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string",
@@ -15014,6 +15022,12 @@
                 "enabled": {
                     "type": "boolean"
                 },
+                "event_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -16423,6 +16437,13 @@
                 "config": {},
                 "enabled": {
                     "type": "boolean"
+                },
+                "event_types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string",
