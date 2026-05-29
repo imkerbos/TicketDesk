@@ -1,9 +1,16 @@
 <template>
   <div id="app">
     <!-- 版本更新提示：固定在浏览器顶部 -->
-    <div v-if="hasNewVersion" class="update-banner" @click="reloadPage">
+    <div v-if="hasNewVersion" class="update-banner">
       <el-icon><RefreshRight /></el-icon>
-      <span>系统已更新，点击刷新获取最新版本</span>
+      <span v-if="dismissed">系统已更新，</span>
+      <span v-else>检测到新版本，{{ countdown }}s 后自动刷新（</span>
+      <a class="update-banner-action" @click.stop="reloadPage">立即刷新</a>
+      <template v-if="!dismissed">
+        <span>或</span>
+        <a class="update-banner-action update-banner-dismiss" @click.stop="dismiss">先不刷新</a>
+        <span>）</span>
+      </template>
     </div>
 
     <!-- 登录页面：独立全屏显示 -->
@@ -200,7 +207,7 @@ const userStore = useUserStore()
 const notificationStore = useNotificationStore()
 const themeStore = useThemeStore()
 const brandStore = useBrandStore()
-const { hasNewVersion, reload: reloadPage } = useVersionCheck()
+const { hasNewVersion, countdown, dismissed, reload: reloadPage, dismiss } = useVersionCheck()
 
 // 登录后连接 WebSocket
 onMounted(() => {
@@ -523,18 +530,30 @@ const handleMenuSelect = (index: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--td-space-2);
+  gap: var(--td-space-1);
   background-color: var(--td-color-primary);
   color: #fff;
   font-size: var(--td-font-md);
   font-weight: var(--td-weight-medium);
-  cursor: pointer;
   transition: var(--td-transition-bg);
   box-shadow: var(--td-elevation-2);
 }
 
-.update-banner:hover {
-  background-color: var(--td-color-primary-hover);
+.update-banner-action {
+  color: #fff;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: var(--td-weight-bold);
+  margin: 0 4px;
+}
+
+.update-banner-action:hover {
+  opacity: 0.85;
+}
+
+.update-banner-dismiss {
+  opacity: 0.85;
+  font-weight: var(--td-weight-medium);
 }
 
 .has-update-banner .sidebar {

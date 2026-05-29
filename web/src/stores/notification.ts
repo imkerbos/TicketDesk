@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import { ElNotification } from 'element-plus'
+import { triggerVersionCheck } from '@/composables/useVersionCheck'
 import type { NotificationItem, WSMessage } from '@/types/notification'
 import {
   getNotificationList,
@@ -278,8 +279,13 @@ export const useNotificationStore = defineStore('notification', () => {
       stopHeartbeat()
       ws.value = null
 
-      // 连接从未建立（如 401）→ 视为认证失败
+      // 连接从未建立（如 404 路径变更 / 401 认证失败）→ 视为认证失败 + 触发版本检查
       const authFailed = !opened
+      if (authFailed) {
+        // WS 连不上常见原因：前端 bundle 旧，后端 WS 路径已变更（如 /api/v1/ws → /ws）
+        // 立即触发 version.json 检测，命中 mismatch 会自动倒计时刷新页面
+        triggerVersionCheck()
+      }
 
       reconnectAttempts++
 
