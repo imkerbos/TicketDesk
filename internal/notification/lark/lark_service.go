@@ -574,6 +574,7 @@ func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, d
 	}
 
 	contentLines := sharedBuildContentLines(event, dataMap)
+	contentLines = appendLarkMentions(contentLines, dataMap)
 
 	siteURL := d.siteURL
 	if siteURL == "" {
@@ -768,6 +769,52 @@ func getStatusDisplayName(data map[string]interface{}, statusKey, nameKey string
 		return status
 	}
 	return ""
+}
+
+// appendLarkMentions 在飞书卡片内容尾部追加 @ 提及段落
+// 期望 data["mentions"] 为 []any 或 []map[string]any，每项含 display_name / lark_open_id
+// 缺 lark_open_id 时退化为纯文本 @display_name
+func appendLarkMentions(content string, data map[string]interface{}) string {
+	mentions := extractMentionList(data)
+	if len(mentions) == 0 {
+		return content
+	}
+
+	var parts []string
+	for _, m := range mentions {
+		name, _ := m["display_name"].(string)
+		openID, _ := m["lark_open_id"].(string)
+		if openID != "" {
+			parts = append(parts, fmt.Sprintf("<at user_id=%q>%s</at>", openID, name))
+		} else if name != "" {
+			parts = append(parts, fmt.Sprintf("@%s", name))
+		}
+	}
+	if len(parts) == 0 {
+		return content
+	}
+	return content + "\n\n" + strings.Join(parts, " ")
+}
+
+// extractMentionList 兼容 []any 与 []map[string]any 两种形态
+func extractMentionList(data map[string]interface{}) []map[string]interface{} {
+	raw, ok := data["mentions"]
+	if !ok || raw == nil {
+		return nil
+	}
+	switch v := raw.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 // toMap 将 interface{} 转换为 map[string]interface{}

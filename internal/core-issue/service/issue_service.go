@@ -218,6 +218,30 @@ func (s *issueService) SetAttachmentService(svc AttachmentService) {
 	s.attachmentService = svc
 }
 
+// buildAssigneeMention 根据指派人 ID 构造 mentions 列表
+// 用户填写了 lark_open_id 或 telegram_user_id 才会被加入提及；否则返回 nil
+func (s *issueService) buildAssigneeMention(ctx context.Context, assigneeID *uint64) []map[string]interface{} {
+	if assigneeID == nil || *assigneeID == 0 {
+		return nil
+	}
+	user, err := s.userRepo.GetByID(ctx, *assigneeID)
+	if err != nil || user == nil {
+		return nil
+	}
+	if user.LarkOpenID == "" && user.TelegramUserID == "" {
+		return nil
+	}
+	name := user.DisplayName
+	if name == "" {
+		name = user.Username
+	}
+	return []map[string]interface{}{{
+		"display_name":     name,
+		"lark_open_id":     user.LarkOpenID,
+		"telegram_user_id": user.TelegramUserID,
+	}}
+}
+
 // notifyProjectChannels 向项目的外部通知渠道发送通知（异步不阻塞主流程）
 func (s *issueService) notifyProjectChannels(projectID uint64, event string, data map[string]interface{}) {
 	if s.projectNotifier == nil {
@@ -470,13 +494,17 @@ func (s *issueService) afterIssueCreated(ctx context.Context, issue *model.Issue
 	}
 
 	// 通知项目外部渠道（飞书/Telegram）
-	s.notifyProjectChannels(project.ID, "issue.created", map[string]interface{}{
+	createdData := map[string]interface{}{
 		"issue_key":    issue.IssueKey,
 		"issue_title":  issue.Title,
 		"project_name": project.Name,
 		"status":       issue.Status,
 		"priority":     issue.Priority,
-	})
+	}
+	if mentions := s.buildAssigneeMention(ctx, issue.AssigneeID); mentions != nil {
+		createdData["mentions"] = mentions
+	}
+	s.notifyProjectChannels(project.ID, "issue.created", createdData)
 
 	// 创建工作流实例（根据项目+工单类型查找工作流方案）
 	if s.workflowEngine != nil {
@@ -1256,6 +1284,9 @@ func (s *issueService) AssignIssue(ctx context.Context, key string, assigneeID u
 		}
 		if issue.DueDate != nil {
 			notifData["due_date"] = issue.DueDate.Format("2006-01-02 15:04")
+		}
+		if mentions := s.buildAssigneeMention(ctx, &assigneeID); mentions != nil {
+			notifData["mentions"] = mentions
 		}
 		s.notifyProjectChannels(project.ID, "issue.assigned", notifData)
 	}

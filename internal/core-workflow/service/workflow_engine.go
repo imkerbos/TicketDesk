@@ -1159,15 +1159,20 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, fr
 				projectName = proj.Name
 			}
 		}
-		// 查询指派人名称
+		// 查询指派人（用于显示名称 + 通知 @ 提及）
 		var assigneeName string
+		var assigneeLarkID, assigneeTelegramID string
 		if oldIssue.AssigneeID != nil {
 			var user model.User
-			if err := e.db.WithContext(ctx).Select("id, display_name, username").Where("id = ?", *oldIssue.AssigneeID).First(&user).Error; err == nil {
+			if err := e.db.WithContext(ctx).
+				Select("id, display_name, username, lark_open_id, telegram_user_id").
+				Where("id = ?", *oldIssue.AssigneeID).First(&user).Error; err == nil {
 				assigneeName = user.DisplayName
 				if assigneeName == "" {
 					assigneeName = user.Username
 				}
+				assigneeLarkID = user.LarkOpenID
+				assigneeTelegramID = user.TelegramUserID
 			}
 		}
 
@@ -1189,6 +1194,13 @@ func (e *workflowEngine) syncIssueStatus(ctx context.Context, issueID uint64, fr
 			}
 			if oldIssue.DueDate != nil {
 				notifData["due_date"] = oldIssue.DueDate.Format("2006-01-02 15:04")
+			}
+			if assigneeLarkID != "" || assigneeTelegramID != "" {
+				notifData["mentions"] = []map[string]any{{
+					"display_name":     assigneeName,
+					"lark_open_id":     assigneeLarkID,
+					"telegram_user_id": assigneeTelegramID,
+				}}
 			}
 			_ = e.projectNotifier.NotifyProject(notifCtx, oldIssue.ProjectID, "issue.transitioned", notifData)
 		}()

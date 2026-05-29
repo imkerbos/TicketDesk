@@ -97,6 +97,7 @@ func (s *telegramService) SendNotification(ctx context.Context, event string, da
 
 	// 构建消息
 	text, replyMarkup := s.buildMessage(event, data)
+	text = appendTelegramMentions(text, toMap(data))
 
 	return s.doSend(ctx, botToken, chatID, text, replyMarkup)
 }
@@ -805,6 +806,53 @@ func buildTelegramIssueButton(siteURL, issueKey string) *telegramInlineKeyboard 
 			},
 		},
 	}
+}
+
+// appendTelegramMentions 在消息尾部追加 @ 提及行
+// 期望 data["mentions"] 为 []any 或 []map[string]any，每项含 display_name / telegram_user_id
+// 缺 telegram_user_id 时退化为纯文本 @display_name（HTML 转义）
+func appendTelegramMentions(text string, data map[string]interface{}) string {
+	mentions := extractMentionList(data)
+	if len(mentions) == 0 {
+		return text
+	}
+
+	var parts []string
+	for _, m := range mentions {
+		name, _ := m["display_name"].(string)
+		tgID, _ := m["telegram_user_id"].(string)
+		escName := html.EscapeString(name)
+		if tgID != "" {
+			parts = append(parts, fmt.Sprintf("<a href=\"tg://user?id=%s\">@%s</a>", html.EscapeString(tgID), escName))
+		} else if name != "" {
+			parts = append(parts, "@"+escName)
+		}
+	}
+	if len(parts) == 0 {
+		return text
+	}
+	return text + "\n" + strings.Join(parts, " ")
+}
+
+// extractMentionList 兼容 []any 与 []map[string]any 两种形态
+func extractMentionList(data map[string]interface{}) []map[string]interface{} {
+	raw, ok := data["mentions"]
+	if !ok || raw == nil {
+		return nil
+	}
+	switch v := raw.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 // toMap 将 interface{} 转换为 map[string]interface{}
