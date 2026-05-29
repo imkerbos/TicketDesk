@@ -352,8 +352,9 @@ func (s *notificationChannelService) sendLarkNotification(ctx context.Context, c
 		return fmt.Errorf("解析飞书配置失败: %w", err)
 	}
 
-	// 注入渠道级 mention_all 标志（飞书 lark_md 卡片支持 <at id="all">）
-	if channel.MentionAll {
+	// 注入渠道级 mention_all 标志：仅对 issue.daily_digest 事件生效
+	// 其他事件（创建/流转/指派/告警合并）只 @ 指派人，避免群消息过度打扰
+	if channel.MentionAll && event == "issue.daily_digest" {
 		if m, ok := data.(map[string]any); ok {
 			m["mention_all"] = true
 			data = m

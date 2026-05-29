@@ -932,7 +932,7 @@
               </div>
             </div>
           </el-form-item>
-          <el-form-item v-if="channelForm.channel_type === 'lark'" label="@ 全员">
+          <el-form-item v-if="channelForm.channel_type === 'lark'" label="日报 @ 全员">
             <div class="enable-switch-row">
               <el-switch
                 v-model="channelForm.mention_all"
@@ -940,12 +940,12 @@
                 inactive-color="#d1d5db"
               />
               <span class="enable-switch-label" :class="{ active: channelForm.mention_all }">
-                {{ channelForm.mention_all ? '通知时 @ 群内所有成员' : '不 @ 全员' }}
+                {{ channelForm.mention_all ? '日报通知时 @ 群内所有成员' : '日报不 @ 全员' }}
               </span>
             </div>
             <div class="form-tip-small">
               <el-icon><InfoFilled /></el-icon>
-              <span>开启后飞书卡片末尾会追加 @ 所有人；Telegram 不支持 @ 全员，此开关对 Telegram 渠道无效</span>
+              <span>仅对「每日日报」事件生效；创建/流转/指派等普通通知只 @ 对应指派人，不打扰整个群。Telegram 不支持 @ 全员</span>
             </div>
           </el-form-item>
         </div>
