@@ -560,9 +560,41 @@ func NewDirectLarkSender(webhookURL, secret string, siteURL ...string) *DirectLa
 	}
 }
 
-// SendNotification 发送飞书通知
+// SendNotification 发送飞书通知（自动 retry-on-invalid-at：
+// 卡片含的 <at email|id> 在飞书侧无效时会被整张拒收 errcode=11246，
+// 这种情况下去掉所有 mention 再发一次，保证消息至少不丢，只是不响铃）
 func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, data interface{}) error {
 	dataMap := toMap(data)
+
+	siteURL := d.siteURL
+	if siteURL == "" {
+		siteURL = "https://ticketdesk.example.com"
+	}
+	siteURL = strings.TrimRight(siteURL, "/")
+
+	send := func(dm map[string]interface{}) error {
+		if event == "issue.daily_digest" {
+			return d.sendDigest(ctx, dm, siteURL)
+		}
+		return d.sendRegular(ctx, event, dm, siteURL)
+	}
+
+	if err := send(dataMap); err != nil {
+		if isInvalidAtError(err) {
+			stripAllMentions(dataMap)
+			logger.Warn("飞书 @ 用户无效，去掉 mention 重试",
+				zap.String("event", event),
+				zap.Error(err),
+			)
+			return send(dataMap)
+		}
+		return err
+	}
+	return nil
+}
+
+// sendRegular 发送非日报事件的飞书卡片
+func (d *DirectLarkSender) sendRegular(ctx context.Context, event string, dataMap map[string]interface{}, siteURL string) error {
 	title, template := directGetEventMeta(event)
 
 	// 告警来源的工单创建，使用独立标题和颜色
@@ -571,17 +603,6 @@ func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, d
 			title = "🚨 告警建单"
 			template = "red"
 		}
-	}
-
-	siteURL := d.siteURL
-	if siteURL == "" {
-		siteURL = "https://ticketdesk.example.com"
-	}
-	siteURL = strings.TrimRight(siteURL, "/")
-
-	// 每日日报有独立模板：标题 + 多组列表 + 项目看板按钮
-	if event == "issue.daily_digest" {
-		return d.sendDigest(ctx, dataMap, siteURL)
 	}
 
 	contentLines := sharedBuildContentLines(event, dataMap)
@@ -766,6 +787,30 @@ func (d *DirectLarkSender) sendDigest(ctx context.Context, dataMap map[string]in
 		body["sign"] = sign
 	}
 	return d.doSend(ctx, body)
+}
+
+// isInvalidAtError 判断飞书返回是否为「@ 用户无效」错误（errcode 11246）
+// 卡片中的 <at email="..."> 对应的邮箱不是飞书账号时，飞书直接拒收整张卡片
+func isInvalidAtError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "code=11246")
+}
+
+// stripAllMentions 清掉 data 内所有 @ 相关字段，用于重试时退化为无 @ 卡片
+// 涉及：顶层 mentions/mention_all，以及日报 groups[].mention 和 groups[].items[].mention
+func stripAllMentions(data map[string]interface{}) {
+	delete(data, "mentions")
+	delete(data, "mention_all")
+	groups := extractGroupList(data)
+	for _, g := range groups {
+		delete(g, "mention")
+		items := extractItemList(g["items"])
+		for _, it := range items {
+			delete(it, "mention")
+		}
+	}
 }
 
 // larkMentionFromMap 把单个 mention map 渲染为 <at> 标签（飞书 lark_md 用 id 而非 user_id）
