@@ -686,24 +686,11 @@ func (d *DirectLarkSender) sendDigest(ctx context.Context, dataMap map[string]in
 	groups := extractGroupList(dataMap)
 	for _, g := range groups {
 		var sb strings.Builder
-		// 分组标题：@ 指派人 或 「未指派」
+		// 分组标题：纯文本指派人名称（每行末尾会单独 @ 对应人）
 		assigneeName, _ := g["assignee_name"].(string)
-		if m, ok := g["mention"].(map[string]interface{}); ok {
-			openID, _ := m["lark_open_id"].(string)
-			email, _ := m["email"].(string)
-			switch {
-			case openID != "":
-				sb.WriteString(fmt.Sprintf("**<at id=%q>%s</at>**\n", openID, assigneeName))
-			case email != "":
-				sb.WriteString(fmt.Sprintf("**<at email=%q>%s</at>**\n", email, assigneeName))
-			default:
-				sb.WriteString(fmt.Sprintf("**%s**\n", assigneeName))
-			}
-		} else {
-			sb.WriteString(fmt.Sprintf("**%s**\n", assigneeName))
-		}
+		sb.WriteString(fmt.Sprintf("**%s**\n", assigneeName))
 
-		// 每条 issue
+		// 每条 issue 单独渲染，末尾追加 @ 对应指派人（缺 mention 时仅纯文本）
 		items := extractItemList(g["items"])
 		for _, it := range items {
 			key, _ := it["issue_key"].(string)
@@ -717,8 +704,12 @@ func (d *DirectLarkSender) sendDigest(ctx context.Context, dataMap map[string]in
 				display = nodeName
 			}
 			meta := joinNonEmpty([]string{typ, priority, display}, " | ")
-			sb.WriteString(fmt.Sprintf("• [%s](%s/issues/%s) [%s] %s\n",
-				key, siteURL, key, meta, title))
+			line := fmt.Sprintf("• [%s](%s/issues/%s) [%s] %s",
+				key, siteURL, key, meta, title)
+			if m, ok := it["mention"].(map[string]interface{}); ok {
+				line += " " + larkMentionFromMap(m)
+			}
+			sb.WriteString(line + "\n")
 		}
 
 		elements = append(elements,
@@ -775,6 +766,23 @@ func (d *DirectLarkSender) sendDigest(ctx context.Context, dataMap map[string]in
 		body["sign"] = sign
 	}
 	return d.doSend(ctx, body)
+}
+
+// larkMentionFromMap 把单个 mention map 渲染为 <at> 标签（飞书 lark_md 用 id 而非 user_id）
+// 优先 lark_open_id -> email -> 纯文本
+func larkMentionFromMap(m map[string]interface{}) string {
+	name, _ := m["display_name"].(string)
+	openID, _ := m["lark_open_id"].(string)
+	email, _ := m["email"].(string)
+	switch {
+	case openID != "":
+		return fmt.Sprintf("<at id=%q>%s</at>", openID, name)
+	case email != "":
+		return fmt.Sprintf("<at email=%q>%s</at>", email, name)
+	case name != "":
+		return "@" + name
+	}
+	return ""
 }
 
 // extractGroupList 兼容 []map[string]any / []any

@@ -835,18 +835,8 @@ func buildTelegramDigest(data map[string]interface{}, siteURL string) (string, *
 	for _, g := range groups {
 		sb.WriteString("\n")
 		assigneeName, _ := g["assignee_name"].(string)
-		// Telegram @：有 telegram_user_id 用深链；否则纯文本
-		if m, ok := g["mention"].(map[string]interface{}); ok {
-			tgID, _ := m["telegram_user_id"].(string)
-			if tgID != "" {
-				sb.WriteString(fmt.Sprintf("<b><a href=\"tg://user?id=%s\">@%s</a></b>\n",
-					html.EscapeString(tgID), html.EscapeString(assigneeName)))
-			} else {
-				sb.WriteString(fmt.Sprintf("<b>%s</b>\n", html.EscapeString(assigneeName)))
-			}
-		} else {
-			sb.WriteString(fmt.Sprintf("<b>%s</b>\n", html.EscapeString(assigneeName)))
-		}
+		// 分组标题：纯文本指派人名称（每行末尾会单独 @ 对应人）
+		sb.WriteString(fmt.Sprintf("<b>%s</b>\n", html.EscapeString(assigneeName)))
 
 		items := tgExtractItemList(g["items"])
 		for _, it := range items {
@@ -861,8 +851,14 @@ func buildTelegramDigest(data map[string]interface{}, siteURL string) (string, *
 				display = nodeName
 			}
 			meta := tgJoinNonEmpty([]string{typ, priority, display}, " | ")
-			sb.WriteString(fmt.Sprintf("• <a href=\"%s/issues/%s\">%s</a> [%s] %s\n",
-				siteURL, key, html.EscapeString(key), html.EscapeString(meta), html.EscapeString(title)))
+			line := fmt.Sprintf("• <a href=\"%s/issues/%s\">%s</a> [%s] %s",
+				siteURL, key, html.EscapeString(key), html.EscapeString(meta), html.EscapeString(title))
+			if m, ok := it["mention"].(map[string]interface{}); ok {
+				if at := telegramMentionFromMap(m); at != "" {
+					line += " " + at
+				}
+			}
+			sb.WriteString(line + "\n")
 		}
 	}
 
@@ -874,6 +870,21 @@ func buildTelegramDigest(data map[string]interface{}, siteURL string) (string, *
 		},
 	}
 	return sb.String(), replyMarkup
+}
+
+// telegramMentionFromMap 把单个 mention map 渲染为 @ 段
+// 有 telegram_user_id 用 tg://user?id=xxx 深链；否则纯文本 @display_name
+func telegramMentionFromMap(m map[string]interface{}) string {
+	name, _ := m["display_name"].(string)
+	tgID, _ := m["telegram_user_id"].(string)
+	escName := html.EscapeString(name)
+	if tgID != "" {
+		return fmt.Sprintf("<a href=\"tg://user?id=%s\">@%s</a>", html.EscapeString(tgID), escName)
+	}
+	if name != "" {
+		return "@" + escName
+	}
+	return ""
 }
 
 // tgExtractGroupList 兼容 []map[string]any / []any

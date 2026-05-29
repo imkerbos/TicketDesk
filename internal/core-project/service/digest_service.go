@@ -155,6 +155,20 @@ func buildDigestData(project *model.Project, rows []digestIssueRow) map[string]a
 			"status":     r.Status,
 			"node_name":  r.NodeName,
 		}
+		// 每条 issue 自带 mention，sender 渲染时每行末尾 @ 对应指派人
+		if r.AssigneeID != nil && *r.AssigneeID != 0 &&
+			(r.AssigneeLarkID != "" || r.AssigneeEmail != "" || r.AssigneeTelegram != "") {
+			itemName := r.AssigneeName
+			if itemName == "" {
+				itemName = fmt.Sprintf("用户#%d", *r.AssigneeID)
+			}
+			item["mention"] = map[string]any{
+				"display_name":     itemName,
+				"lark_open_id":     r.AssigneeLarkID,
+				"email":            r.AssigneeEmail,
+				"telegram_user_id": r.AssigneeTelegram,
+			}
+		}
 		if r.AssigneeID == nil || *r.AssigneeID == 0 {
 			if unassigned == nil {
 				unassigned = &group{AssigneeName: "未指派"}
