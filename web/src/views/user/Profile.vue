@@ -95,6 +95,31 @@
                 type="email"
               />
             </el-form-item>
+            <el-form-item label="飞书 Open ID" prop="lark_open_id">
+              <el-input
+                v-model="profileForm.lark_open_id"
+                placeholder="ou_xxx，填写后通知卡片会 @ 你"
+                maxlength="64"
+                clearable
+              />
+              <div class="form-tip-inline">
+                飞书企业管理后台「通讯录」搜索本人 → 详情页可获取 open_id，或参考
+                <a href="https://open.feishu.cn/document/server-docs/contact-v3/user/get" target="_blank" rel="noopener">飞书开发者文档</a>
+              </div>
+            </el-form-item>
+            <el-form-item label="Telegram ID" prop="telegram_user_id">
+              <el-input
+                v-model="profileForm.telegram_user_id"
+                placeholder="数字 user id（非 @username），如 123456789"
+                maxlength="32"
+                clearable
+              />
+              <div class="form-tip-inline">
+                在 Telegram 中向
+                <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a>
+                发送任意消息即可获取本人数字 ID（必须本人主动与对应 Bot 互动过才能被 @）
+              </div>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="profileLoading" @click="submitProfile">
                 保存修改
@@ -315,6 +340,8 @@ const profileLoading = ref(false)
 const profileForm = reactive({
   display_name: '',
   email: '',
+  lark_open_id: '',
+  telegram_user_id: '',
 })
 
 const profileRules: FormRules = {
@@ -324,6 +351,13 @@ const profileRules: FormRules = {
   ],
   email: [
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' },
+  ],
+  lark_open_id: [
+    { max: 64, message: '最多64个字符', trigger: 'blur' },
+  ],
+  telegram_user_id: [
+    { pattern: /^\d*$/, message: 'Telegram ID 必须为纯数字', trigger: 'blur' },
+    { max: 32, message: '最多32位', trigger: 'blur' },
   ],
 }
 
@@ -365,6 +399,8 @@ const loadProfile = async () => {
     profile.value = data.data
     profileForm.display_name = data.data.display_name || ''
     profileForm.email = data.data.email || ''
+    profileForm.lark_open_id = data.data.lark_open_id || ''
+    profileForm.telegram_user_id = data.data.telegram_user_id || ''
   } catch {
     // ignored
   }
@@ -382,6 +418,8 @@ const submitProfile = async () => {
       await updateCurrentUser({
         display_name: profileForm.display_name,
         email: profileForm.email,
+        lark_open_id: profileForm.lark_open_id,
+        telegram_user_id: profileForm.telegram_user_id,
       })
       ElMessage.success('保存成功')
       loadProfile()
@@ -637,6 +675,22 @@ onMounted(() => {
 
   .settings-form {
     max-width: 500px;
+  }
+}
+
+.form-tip-inline {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--td-text-placeholder);
+
+  a {
+    color: var(--td-color-primary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 

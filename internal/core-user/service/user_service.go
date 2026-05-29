@@ -368,6 +368,12 @@ func (s *userService) UpdateUser(ctx context.Context, id uint64, req *dto.Update
 		}
 		user.Email = *req.Email
 	}
+	if req.LarkOpenID != nil {
+		user.LarkOpenID = *req.LarkOpenID
+	}
+	if req.TelegramUserID != nil {
+		user.TelegramUserID = *req.TelegramUserID
+	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		logger.Error("failed to update user", zap.Uint64("id", id), zap.Error(err))
@@ -567,18 +573,20 @@ func (s *userService) toUserResponse(ctx context.Context, user *model.User) *dto
 	}
 
 	resp := &dto.UserResponse{
-		ID:          user.ID,
-		Username:    user.Username,
-		Email:       user.Email,
-		DisplayName: user.DisplayName,
-		AvatarURL:   user.AvatarURL,
-		Status:      user.Status,
-		MFAEnabled:  user.MFAEnabled,
-		AuthSource:  authSource,
-		SSOProvider: user.SSOProvider,
-		LastLoginAt: user.LastLoginAt,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+		ID:             user.ID,
+		Username:       user.Username,
+		Email:          user.Email,
+		DisplayName:    user.DisplayName,
+		AvatarURL:      user.AvatarURL,
+		Status:         user.Status,
+		MFAEnabled:     user.MFAEnabled,
+		AuthSource:     authSource,
+		SSOProvider:    user.SSOProvider,
+		LarkOpenID:     user.LarkOpenID,
+		TelegramUserID: user.TelegramUserID,
+		LastLoginAt:    user.LastLoginAt,
+		CreatedAt:      user.CreatedAt,
+		UpdatedAt:      user.UpdatedAt,
 	}
 
 	// 获取用户角色

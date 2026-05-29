@@ -157,6 +157,47 @@ func (h *UserHandler) HandleGetCurrentUser(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// HandleUpdateCurrentUser 更新当前用户资料（自助）
+// @Summary 更新当前用户资料
+// @Description 当前登录用户更新自己的基本资料（display_name / email / avatar / lark_open_id / telegram_user_id）
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param request body dto.UpdateUserRequest true "更新当前用户资料请求"
+// @Success 200 {object} response.Response{data=dto.UserResponse}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Router /api/v1/users/me [put]
+// @Security BearerAuth
+func (h *UserHandler) HandleUpdateCurrentUser(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+	if userID == 0 {
+		response.Unauthorized(c, "未获取到用户信息")
+		return
+	}
+
+	var req dto.UpdateUserRequest
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		response.BadRequest(c, "请求参数错误: "+bindErr.Error())
+		return
+	}
+
+	result, err := h.userService.UpdateUser(c.Request.Context(), userID, &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUserNotFound):
+			response.NotFound(c, err.Error())
+		case errors.Is(err, service.ErrEmailExists):
+			response.BadRequest(c, err.Error())
+		default:
+			response.InternalError(c, "更新用户资料失败")
+		}
+		return
+	}
+
+	response.Success(c, result)
+}
+
 // HandleGetUser 获取用户详情
 // @Summary 获取用户详情
 // @Description 根据用户 ID 获取用户详细信息

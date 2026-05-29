@@ -11,6 +11,8 @@ export interface User {
   mfa_enabled: boolean // MFA 是否启用
   auth_source: string // "local" 或 "sso"
   sso_provider?: string // SSO 提供方名称
+  lark_open_id?: string // 飞书 open_id（用于通知 @）
+  telegram_user_id?: string // Telegram 数字 user ID（用于通知 @）
   last_login_at?: string // 最后登录时间
   created_at: string
   updated_at: string
@@ -44,6 +46,8 @@ export interface UpdateUserRequest {
   display_name?: string
   avatar_url?: string
   roles?: string[]
+  lark_open_id?: string
+  telegram_user_id?: string
 }
 
 export interface UpdatePasswordRequest {
@@ -61,6 +65,8 @@ export interface UserProfile {
   status: number
   auth_source: string // "local" 或 "sso"
   sso_provider?: string // SSO 提供方名称
+  lark_open_id?: string
+  telegram_user_id?: string
   created_at: string
   updated_at: string
 }

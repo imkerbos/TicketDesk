@@ -32,6 +32,8 @@ type User struct {
 	SSOProvider          string     `gorm:"size:50;index:idx_sso_subject" json:"sso_provider,omitempty"` // SSO 提供方标识（如 "eiam"）
 	SSOSubject           string     `gorm:"size:255;index:idx_sso_subject" json:"sso_subject,omitempty"` // OIDC sub claim
 	ExtraAttributes      string     `gorm:"type:json" json:"extra_attributes,omitempty"`                 // SSO 扩展属性（JSON）
+	LarkOpenID           string     `gorm:"size:64" json:"lark_open_id,omitempty"`                       // 飞书 open_id（用于 webhook @ 用户）
+	TelegramUserID       string     `gorm:"size:32" json:"telegram_user_id,omitempty"`                   // Telegram 数字 user ID（用于 tg://user?id=xxx 深链）
 }
 
 // TableName 指定表名

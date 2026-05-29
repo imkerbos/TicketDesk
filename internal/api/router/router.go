@@ -663,6 +663,7 @@ func (r *Router) registerUserRoutes(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
 	// 当前用户相关
 	users.GET("/me", r.userHandler.HandleGetCurrentUser)
+	users.PUT("/me", r.userHandler.HandleUpdateCurrentUser)
 	users.PUT("/me/password", r.userHandler.HandleUpdatePassword)
 
 	// MFA 相关

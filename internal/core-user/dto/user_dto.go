@@ -26,9 +26,11 @@ type RefreshTokenRequest struct {
 
 // UpdateUserRequest 更新用户请求
 type UpdateUserRequest struct {
-	DisplayName *string `json:"display_name" binding:"omitempty,max=100"`
-	AvatarURL   *string `json:"avatar_url" binding:"omitempty,max=255,url"`
-	Email       *string `json:"email" binding:"omitempty,email,max=100"`
+	DisplayName    *string `json:"display_name" binding:"omitempty,max=100"`
+	AvatarURL      *string `json:"avatar_url" binding:"omitempty,max=255,url"`
+	Email          *string `json:"email" binding:"omitempty,email,max=100"`
+	LarkOpenID     *string `json:"lark_open_id" binding:"omitempty,max=64"`
+	TelegramUserID *string `json:"telegram_user_id" binding:"omitempty,max=32"`
 }
 
 // CreateUserRequest 创建用户请求（管理员）
@@ -104,19 +106,21 @@ type LoginResponse struct {
 
 // UserResponse 用户信息响应
 type UserResponse struct {
-	ID          uint64     `json:"id"`
-	Username    string     `json:"username"`
-	Email       string     `json:"email"`
-	DisplayName string     `json:"display_name"`
-	AvatarURL   string     `json:"avatar_url"`
-	Status      int8       `json:"status"`
-	Roles       []string   `json:"roles,omitempty"`
-	MFAEnabled  bool       `json:"mfa_enabled"`
-	AuthSource  string     `json:"auth_source"`            // "local" 或 "sso"
-	SSOProvider string     `json:"sso_provider,omitempty"` // SSO 提供方名称（仅 SSO 用户）
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID             uint64     `json:"id"`
+	Username       string     `json:"username"`
+	Email          string     `json:"email"`
+	DisplayName    string     `json:"display_name"`
+	AvatarURL      string     `json:"avatar_url"`
+	Status         int8       `json:"status"`
+	Roles          []string   `json:"roles,omitempty"`
+	MFAEnabled     bool       `json:"mfa_enabled"`
+	AuthSource     string     `json:"auth_source"`            // "local" 或 "sso"
+	SSOProvider    string     `json:"sso_provider,omitempty"` // SSO 提供方名称（仅 SSO 用户）
+	LarkOpenID     string     `json:"lark_open_id,omitempty"`
+	TelegramUserID string     `json:"telegram_user_id,omitempty"`
+	LastLoginAt    *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // RoleResponse 角色信息响应
