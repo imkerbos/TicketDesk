@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -300,6 +301,17 @@ func (s *projectService) UpdateProject(ctx context.Context, key string, req *dto
 	}
 	if req.DailyDigestScope != nil {
 		project.DailyDigestScope = *req.DailyDigestScope
+	}
+	if req.DailyDigestIssueTypeIDs != nil {
+		if len(*req.DailyDigestIssueTypeIDs) == 0 {
+			project.DailyDigestIssueTypeIDs = ""
+		} else {
+			ids, err := json.Marshal(*req.DailyDigestIssueTypeIDs)
+			if err != nil {
+				return nil, fmt.Errorf("序列化工单类型过滤失败: %w", err)
+			}
+			project.DailyDigestIssueTypeIDs = string(ids)
+		}
 	}
 
 	if err := s.projectRepo.Update(ctx, project); err != nil {
@@ -944,6 +956,16 @@ func (s *projectService) toProjectResponse(ctx context.Context, project *model.P
 		DailyDigestScope:   project.DailyDigestScope,
 		CreatedAt:          project.CreatedAt,
 		UpdatedAt:          project.UpdatedAt,
+	}
+	// 反序列化日报工单类型过滤
+	if project.DailyDigestIssueTypeIDs != "" {
+		var ids []uint64
+		if err := json.Unmarshal([]byte(project.DailyDigestIssueTypeIDs), &ids); err == nil {
+			resp.DailyDigestIssueTypeIDs = ids
+		}
+	}
+	if resp.DailyDigestIssueTypeIDs == nil {
+		resp.DailyDigestIssueTypeIDs = []uint64{}
 	}
 
 	// 获取负责人信息

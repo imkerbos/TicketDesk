@@ -529,7 +529,66 @@ func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 			return fmt.Errorf("删除通知失败: %w", err)
 		}
 
-		// 5. 删除用户本身
+		// 5. 工单：nullable assignee 置 NULL；reporter NOT NULL 但无 FK，悬挂引用前端做兜底
+		if err := tx.Exec("UPDATE issues SET assignee_id = NULL WHERE assignee_id = ?", id).Error; err != nil {
+			return fmt.Errorf("解绑工单指派人失败: %w", err)
+		}
+
+		// 6. 该用户产生的工单内容：评论/附件/关注/工时/审批，全删
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.IssueComment{}).Error; err != nil {
+			return fmt.Errorf("删除工单评论失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("uploaded_by = ?", id).Delete(&model.IssueAttachment{}).Error; err != nil {
+			return fmt.Errorf("删除工单附件失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.IssueWatcher{}).Error; err != nil {
+			return fmt.Errorf("删除工单关注关系失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.IssueWorklog{}).Error; err != nil {
+			return fmt.Errorf("删除工单工时失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("approver_id = ?", id).Delete(&model.ApprovalRecord{}).Error; err != nil {
+			return fmt.Errorf("删除审批记录失败: %w", err)
+		}
+
+		// 7. 需求：assignee/reporter 置 NULL，created_by NOT NULL 且有 FK 约束 → 转给系统管理员（id=1）保留历史
+		if err := tx.Exec("UPDATE requirements SET assignee_id = NULL WHERE assignee_id = ?", id).Error; err != nil {
+			return fmt.Errorf("解绑需求指派人失败: %w", err)
+		}
+		if err := tx.Exec("UPDATE requirements SET reporter_id = NULL WHERE reporter_id = ?", id).Error; err != nil {
+			return fmt.Errorf("解绑需求报告人失败: %w", err)
+		}
+		// 不转移自己（避免 admin 被删时把 created_by 设回 admin 自身）
+		if id != 1 {
+			if err := tx.Exec("UPDATE requirements SET created_by = 1 WHERE created_by = ?", id).Error; err != nil {
+				return fmt.Errorf("转移需求创建人失败: %w", err)
+			}
+		}
+
+		// 8. 需求评论/附件：用户产生的内容，删
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.RequirementComment{}).Error; err != nil {
+			return fmt.Errorf("删除需求评论失败: %w", err)
+		}
+		if err := tx.Unscoped().Where("uploaded_by = ?", id).Delete(&model.RequirementAttachment{}).Error; err != nil {
+			return fmt.Errorf("删除需求附件失败: %w", err)
+		}
+
+		// 9. 项目元数据：通知渠道 created_by / 项目 lead_user_id 转给 admin
+		if id != 1 {
+			if err := tx.Exec("UPDATE project_notification_channels SET created_by = 1 WHERE created_by = ?", id).Error; err != nil {
+				return fmt.Errorf("转移通知渠道创建人失败: %w", err)
+			}
+			if err := tx.Exec("UPDATE projects SET lead_user_id = 1 WHERE lead_user_id = ?", id).Error; err != nil {
+				return fmt.Errorf("转移项目负责人失败: %w", err)
+			}
+		}
+
+		// 10. API Token 全删
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&model.APIToken{}).Error; err != nil {
+			return fmt.Errorf("删除 API Token 失败: %w", err)
+		}
+
+		// 11. 删除用户本身
 		if err := tx.Unscoped().Delete(&model.User{}, id).Error; err != nil {
 			return fmt.Errorf("删除用户失败: %w", err)
 		}

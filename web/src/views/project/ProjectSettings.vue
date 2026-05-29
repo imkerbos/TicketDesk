@@ -386,6 +386,23 @@
                       <el-radio value="assigned_only">仅含已指派</el-radio>
                     </el-radio-group>
                   </el-form-item>
+                  <el-form-item label="包含的工单类型">
+                    <div class="digest-types-wrapper">
+                      <el-checkbox-group v-model="digestForm.issueTypeIds" class="digest-types-group">
+                        <el-checkbox
+                          v-for="t in issueTypes"
+                          :key="t.id"
+                          :value="t.id"
+                          class="digest-type-checkbox"
+                        >
+                          {{ t.display_name }}
+                        </el-checkbox>
+                      </el-checkbox-group>
+                      <div class="digest-form-tip">
+                        留空 = 包含所有类型；勾选后仅推送被勾选类型的未完结工单（用于过滤掉 Epic 等容器型类型）
+                      </div>
+                    </div>
+                  </el-form-item>
                   <el-form-item>
                     <el-button type="primary" :loading="digestSaving" @click="saveDigestConfig">
                       <el-icon><Check /></el-icon>
@@ -1404,6 +1421,7 @@ const digestForm = reactive({
   cron: '0 9 * * *',
   tz: 'Asia/Shanghai',
   scope: 'all_open' as 'all_open' | 'assigned_only',
+  issueTypeIds: [] as number[],
 })
 const digestSaving = ref(false)
 const digestRunning = ref(false)
@@ -1428,6 +1446,7 @@ const saveDigestConfig = async () => {
       daily_digest_cron: timeToCron(digestForm.timeValue),
       daily_digest_tz: digestForm.tz,
       daily_digest_scope: digestForm.scope,
+      daily_digest_issue_type_ids: digestForm.issueTypeIds,
     })
     ElMessage.success('日报设置已保存')
     loadProjectDetail()
@@ -1468,6 +1487,9 @@ const loadProjectDetail = async () => {
     digestForm.timeValue = cronToTime(digestForm.cron)
     digestForm.tz = project.daily_digest_tz || 'Asia/Shanghai'
     digestForm.scope = (project.daily_digest_scope as 'all_open' | 'assigned_only') || 'all_open'
+    digestForm.issueTypeIds = Array.isArray(project.daily_digest_issue_type_ids)
+      ? [...project.daily_digest_issue_type_ids]
+      : []
   } catch {
     // ignored
   } finally {
@@ -2966,6 +2988,25 @@ onMounted(async () => {
     font-size: 12px;
     color: var(--td-text-placeholder);
     margin-left: 12px;
+  }
+
+  .digest-types-wrapper {
+    width: 100%;
+
+    .digest-form-tip {
+      margin-left: 0;
+      margin-top: 6px;
+    }
+  }
+
+  .digest-types-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+
+  .digest-type-checkbox {
+    margin-right: 0;
   }
 }
 

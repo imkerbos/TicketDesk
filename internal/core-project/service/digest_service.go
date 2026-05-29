@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -122,6 +123,22 @@ func (s *digestService) hasDigestSubscriber(ctx context.Context, projectID uint6
 	return false, nil
 }
 
+// parseDigestIssueTypeFilter 解析项目配置的工单类型白名单
+// 返回 nil 表示「不过滤」（包含所有类型）
+func parseDigestIssueTypeFilter(raw string) []uint64 {
+	if raw == "" {
+		return nil
+	}
+	var ids []uint64
+	if err := json.Unmarshal([]byte(raw), &ids); err != nil {
+		return nil
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	return ids
+}
+
 // queryOpenIssues 查询项目未完结工单（含 workflow 节点判断 + status fallback）
 func (s *digestService) queryOpenIssues(ctx context.Context, project *model.Project) ([]digestIssueRow, error) {
 	q := s.db.WithContext(ctx).Table("issues i").
@@ -147,6 +164,11 @@ func (s *digestService) queryOpenIssues(ctx context.Context, project *model.Proj
 
 	if project.DailyDigestScope == DigestScopeAssignedOnly {
 		q = q.Where("i.assignee_id IS NOT NULL")
+	}
+
+	// 工单类型白名单：项目配置非空时只查这些类型；空表示全部
+	if typeIDs := parseDigestIssueTypeFilter(project.DailyDigestIssueTypeIDs); len(typeIDs) > 0 {
+		q = q.Where("i.issue_type_id IN ?", typeIDs)
 	}
 
 	var rows []digestIssueRow
@@ -180,26 +202,24 @@ func buildDigestData(project *model.Project, rows []digestIssueRow) map[string]a
 			"status":     r.Status,
 			"node_name":  r.NodeName,
 		}
-		// 每条 issue 自带 mention，sender 渲染时每行末尾 @ 对应指派人
-		if r.AssigneeID != nil && *r.AssigneeID != 0 &&
-			(r.AssigneeLarkID != "" || r.AssigneeEmail != "" || r.AssigneeTelegram != "") {
-			itemName := r.AssigneeName
-			if itemName == "" {
-				itemName = fmt.Sprintf("用户#%d", *r.AssigneeID)
-			}
-			item["mention"] = map[string]any{
-				"display_name":     itemName,
-				"lark_open_id":     r.AssigneeLarkID,
-				"email":            r.AssigneeEmail,
-				"telegram_user_id": r.AssigneeTelegram,
-			}
-		}
-		if r.AssigneeID == nil || *r.AssigneeID == 0 {
+		// assignee_name 为空意味着 user 已被删除（LEFT JOIN users 未命中）
+		// 此时不再造「用户#X」分组，直接归到「未指派」组
+		userMissing := r.AssigneeID != nil && *r.AssigneeID != 0 && r.AssigneeName == ""
+		if r.AssigneeID == nil || *r.AssigneeID == 0 || userMissing {
 			if unassigned == nil {
 				unassigned = &group{AssigneeName: "未指派"}
 			}
 			unassigned.Items = append(unassigned.Items, item)
 			continue
+		}
+		// 每条 issue 自带 mention，sender 渲染时每行末尾 @ 对应指派人
+		if r.AssigneeLarkID != "" || r.AssigneeEmail != "" || r.AssigneeTelegram != "" {
+			item["mention"] = map[string]any{
+				"display_name":     r.AssigneeName,
+				"lark_open_id":     r.AssigneeLarkID,
+				"email":            r.AssigneeEmail,
+				"telegram_user_id": r.AssigneeTelegram,
+			}
 		}
 		g, ok := groupMap[*r.AssigneeID]
 		if !ok {

@@ -314,7 +314,14 @@ func (s *ssoService) HandleCallback(ctx context.Context, req *dto.SSOCallbackReq
 		}
 	}
 	if err := s.userRepo.Update(ctx, user); err != nil {
-		logger.Warn("failed to update SSO user info", zap.Uint64("user_id", user.ID), zap.Error(err))
+		// 之前这里只 warn 不 return，导致 Save 失败时用户拿到 token 但 DB 没写入登录状态，
+		// 表现为「SSO 登录成功但仍显本地用户 / 从未登录」。改为返回错误，让前端立刻看到具体 mysql 错误
+		logger.Error("failed to update SSO user info",
+			zap.Uint64("user_id", user.ID),
+			zap.String("username", user.Username),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("更新 SSO 用户登录信息失败: %w", err)
 	}
 
 	// 10. 生成 TicketDesk JWT
@@ -426,10 +433,13 @@ func (s *ssoService) matchOrCreateUser(ctx context.Context, info *dto.SSOUserInf
 			user.SSOProvider = providerName
 			user.SSOSubject = info.Subject
 			if err := s.userRepo.Update(ctx, user); err != nil {
-				logger.Warn("failed to link SSO to existing user by email",
+				// 关键 link 写入失败必须直接报错，避免静默漏数据导致下次登录又走本地分支
+				logger.Error("failed to link SSO to existing user by email",
 					zap.Uint64("user_id", user.ID),
+					zap.String("email", info.Email),
 					zap.Error(err),
 				)
+				return nil, fmt.Errorf("将本地账号关联到 SSO 失败: %w", err)
 			}
 			logger.Info("SSO linked to existing user by email",
 				zap.Uint64("user_id", user.ID),
@@ -448,10 +458,12 @@ func (s *ssoService) matchOrCreateUser(ctx context.Context, info *dto.SSOUserInf
 		user.SSOProvider = providerName
 		user.SSOSubject = info.Subject
 		if err := s.userRepo.Update(ctx, user); err != nil {
-			logger.Warn("failed to link SSO to existing user by username",
+			logger.Error("failed to link SSO to existing user by username",
 				zap.Uint64("user_id", user.ID),
+				zap.String("username", info.Username),
 				zap.Error(err),
 			)
+			return nil, fmt.Errorf("将本地账号关联到 SSO 失败: %w", err)
 		}
 		logger.Info("SSO linked to existing user by username",
 			zap.Uint64("user_id", user.ID),

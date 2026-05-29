@@ -20,6 +20,7 @@ export interface Project {
   daily_digest_cron?: string // 5 段 cron 表达式
   daily_digest_tz?: string // IANA 时区
   daily_digest_scope?: 'all_open' | 'assigned_only'
+  daily_digest_issue_type_ids?: number[] // 仅推送这些工单类型；空数组 = 全部类型
   member_count?: number
   created_at: string
   updated_at: string
@@ -56,6 +57,7 @@ export interface UpdateProjectRequest {
   daily_digest_cron?: string
   daily_digest_tz?: string
   daily_digest_scope?: 'all_open' | 'assigned_only'
+  daily_digest_issue_type_ids?: number[]
 }
 
 export interface ProjectMember {

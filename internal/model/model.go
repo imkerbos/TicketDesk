@@ -41,8 +41,11 @@ func (User) TableName() string {
 	return "users"
 }
 
-// BeforeCreate GORM 钩子：确保 JSON 字段不为空字符串
-func (u *User) BeforeCreate(tx *gorm.DB) error {
+// BeforeSave GORM 钩子：确保 JSON 字段不为空字符串
+// 适用 Create 与 Update，避免 SSO 登录 / 用户更新时把 "" 写入 mysql json 列被拒
+// （之前只有 BeforeCreate，导致旧用户 update 时若 ExtraAttributes 为空写不进去，
+// SSO callback 的 Update 静默失败 → user 看到「SSO 登录但 DB 仍是本地」的现象）
+func (u *User) BeforeSave(tx *gorm.DB) error {
 	if u.ExtraAttributes == "" {
 		u.ExtraAttributes = "{}"
 	}
@@ -78,15 +81,16 @@ func (UserRole) TableName() string {
 // Project 项目模型
 type Project struct {
 	BaseModel
-	ProjectKey         string `gorm:"size:20;uniqueIndex;not null" json:"project_key"`
-	Name               string `gorm:"size:100;not null" json:"name"`
-	Description        string `gorm:"type:text" json:"description"`
-	LeadUserID         uint64 `gorm:"index" json:"lead_user_id"`
-	Status             int8   `gorm:"default:1;index" json:"status"` // 0-归档, 1-活跃
-	DailyDigestEnabled bool   `gorm:"default:false" json:"daily_digest_enabled"`
-	DailyDigestCron    string `gorm:"size:64;default:'0 9 * * *'" json:"daily_digest_cron"`   // 5 段 cron 表达式
-	DailyDigestTZ      string `gorm:"size:64;default:'Asia/Shanghai'" json:"daily_digest_tz"` // IANA 时区
-	DailyDigestScope   string `gorm:"size:32;default:'all_open'" json:"daily_digest_scope"`   // all_open / assigned_only
+	ProjectKey              string `gorm:"size:20;uniqueIndex;not null" json:"project_key"`
+	Name                    string `gorm:"size:100;not null" json:"name"`
+	Description             string `gorm:"type:text" json:"description"`
+	LeadUserID              uint64 `gorm:"index" json:"lead_user_id"`
+	Status                  int8   `gorm:"default:1;index" json:"status"` // 0-归档, 1-活跃
+	DailyDigestEnabled      bool   `gorm:"default:false" json:"daily_digest_enabled"`
+	DailyDigestCron         string `gorm:"size:64;default:'0 9 * * *'" json:"daily_digest_cron"`   // 5 段 cron 表达式
+	DailyDigestTZ           string `gorm:"size:64;default:'Asia/Shanghai'" json:"daily_digest_tz"` // IANA 时区
+	DailyDigestScope        string `gorm:"size:32;default:'all_open'" json:"daily_digest_scope"`   // all_open / assigned_only
+	DailyDigestIssueTypeIDs string `gorm:"type:json" json:"daily_digest_issue_type_ids"`           // JSON 数组：仅包含这些工单类型 ID；空/NULL = 全部
 }
 
 // TableName 指定表名
