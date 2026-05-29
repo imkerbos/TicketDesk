@@ -219,7 +219,7 @@ func (s *issueService) SetAttachmentService(svc AttachmentService) {
 }
 
 // buildAssigneeMention 根据指派人 ID 构造 mentions 列表
-// 用户填写了 lark_open_id 或 telegram_user_id 才会被加入提及；否则返回 nil
+// 用于 lark/telegram sender 渲染 @ 提及；email 作为 lark @ 的兜底（邮箱与飞书账号一致时有效）
 func (s *issueService) buildAssigneeMention(ctx context.Context, assigneeID *uint64) []map[string]interface{} {
 	if assigneeID == nil || *assigneeID == 0 {
 		return nil
@@ -228,7 +228,8 @@ func (s *issueService) buildAssigneeMention(ctx context.Context, assigneeID *uin
 	if err != nil || user == nil {
 		return nil
 	}
-	if user.LarkOpenID == "" && user.TelegramUserID == "" {
+	// 三种 @ 方式都没有可用通道时跳过；email 在 lark sender 作为 open_id 兜底
+	if user.LarkOpenID == "" && user.TelegramUserID == "" && user.Email == "" {
 		return nil
 	}
 	name := user.DisplayName
@@ -238,6 +239,7 @@ func (s *issueService) buildAssigneeMention(ctx context.Context, assigneeID *uin
 	return []map[string]interface{}{{
 		"display_name":     name,
 		"lark_open_id":     user.LarkOpenID,
+		"email":            user.Email,
 		"telegram_user_id": user.TelegramUserID,
 	}}
 }

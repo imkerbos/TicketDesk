@@ -651,7 +651,8 @@ type ProjectNotificationChannel struct {
 	ChannelType string `gorm:"size:20;not null;index" json:"channel_type"` // lark, telegram
 	Name        string `gorm:"size:100;not null" json:"name"`              // 渠道名称，如"运维飞书群"
 	Config      string `gorm:"type:json;not null" json:"config"`           // JSON 配置
-	EventTypes  string `gorm:"type:json" json:"event_types"`               // 订阅的事件类型 JSON 数组，如 ["issue.created","issue.transitioned"]
+	EventTypes  string `gorm:"type:json" json:"event_types"`               // 订阅的事件类型 JSON 数组
+	MentionAll  bool   `gorm:"default:false" json:"mention_all"`           // 是否 @ 全员（仅飞书 lark_md 卡片有效；Telegram 不支持）
 	Enabled     bool   `gorm:"default:true" json:"enabled"`
 	CreatedBy   uint64 `gorm:"index" json:"created_by"`
 }

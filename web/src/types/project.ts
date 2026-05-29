@@ -147,6 +147,7 @@ export interface NotificationChannel {
   name: string
   config: LarkChannelConfig | TelegramChannelConfig | Record<string, any>
   event_types: NotificationEventType[]
+  mention_all: boolean
   enabled: boolean
   created_by: number
   created_at: string
@@ -168,6 +169,7 @@ export interface CreateNotificationChannelRequest {
   name: string
   config: LarkChannelConfig | TelegramChannelConfig
   event_types: NotificationEventType[]
+  mention_all?: boolean
   enabled: boolean
 }
 
@@ -175,6 +177,7 @@ export interface UpdateNotificationChannelRequest {
   name?: string
   config?: LarkChannelConfig | TelegramChannelConfig
   event_types?: NotificationEventType[]
+  mention_all?: boolean
   enabled?: boolean
 }
 

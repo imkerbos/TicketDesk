@@ -27,6 +27,7 @@ type NotificationChannelResponse struct {
 	Name        string    `json:"name"`
 	Config      any       `json:"config"`
 	EventTypes  []string  `json:"event_types"`
+	MentionAll  bool      `json:"mention_all"`
 	Enabled     bool      `json:"enabled"`
 	CreatedBy   uint64    `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -39,6 +40,7 @@ type CreateNotificationChannelRequest struct {
 	Name        string   `json:"name" binding:"required,max=100"`
 	Config      any      `json:"config" binding:"required"`
 	EventTypes  []string `json:"event_types" binding:"required,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged"`
+	MentionAll  bool     `json:"mention_all"`
 	Enabled     bool     `json:"enabled"`
 }
 
@@ -47,5 +49,6 @@ type UpdateNotificationChannelRequest struct {
 	Name       *string   `json:"name" binding:"omitempty,max=100"`
 	Config     any       `json:"config"`
 	EventTypes *[]string `json:"event_types" binding:"omitempty,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged"`
+	MentionAll *bool     `json:"mention_all"`
 	Enabled    *bool     `json:"enabled"`
 }

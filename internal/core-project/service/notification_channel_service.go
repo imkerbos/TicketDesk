@@ -81,6 +81,7 @@ func (s *notificationChannelService) CreateChannel(ctx context.Context, projectI
 		Name:        req.Name,
 		Config:      configJSON,
 		EventTypes:  eventTypesJSON,
+		MentionAll:  req.MentionAll,
 		Enabled:     req.Enabled,
 		CreatedBy:   userID,
 	}
@@ -139,6 +140,9 @@ func (s *notificationChannelService) UpdateChannel(ctx context.Context, id uint6
 			return nil, err
 		}
 		channel.EventTypes = eventTypesJSON
+	}
+	if req.MentionAll != nil {
+		channel.MentionAll = *req.MentionAll
 	}
 
 	if err := s.channelRepo.Update(ctx, channel); err != nil {
@@ -348,6 +352,14 @@ func (s *notificationChannelService) sendLarkNotification(ctx context.Context, c
 		return fmt.Errorf("解析飞书配置失败: %w", err)
 	}
 
+	// 注入渠道级 mention_all 标志（飞书 lark_md 卡片支持 <at id="all">）
+	if channel.MentionAll {
+		if m, ok := data.(map[string]any); ok {
+			m["mention_all"] = true
+			data = m
+		}
+	}
+
 	svc := lark.NewDirectLarkSender(config.WebhookURL, config.Secret, s.getSiteURL(ctx))
 	return svc.SendNotification(ctx, event, data)
 }
@@ -389,6 +401,7 @@ func (s *notificationChannelService) toResponse(ch *model.ProjectNotificationCha
 		Name:        ch.Name,
 		Config:      configObj,
 		EventTypes:  events,
+		MentionAll:  ch.MentionAll,
 		Enabled:     ch.Enabled,
 		CreatedBy:   ch.CreatedBy,
 		CreatedAt:   ch.CreatedAt,

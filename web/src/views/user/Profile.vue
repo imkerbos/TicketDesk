@@ -98,13 +98,13 @@
             <el-form-item label="飞书 Open ID" prop="lark_open_id">
               <el-input
                 v-model="profileForm.lark_open_id"
-                placeholder="ou_xxx，填写后通知卡片会 @ 你"
+                placeholder="留空即可，系统会用账号邮箱 @ 你"
                 maxlength="64"
                 clearable
               />
               <div class="form-tip-inline">
-                飞书企业管理后台「通讯录」搜索本人 → 详情页可获取 open_id，或参考
-                <a href="https://open.feishu.cn/document/server-docs/contact-v3/user/get" target="_blank" rel="noopener">飞书开发者文档</a>
+                推荐留空：当上方「邮箱地址」与你的飞书账号邮箱一致时，通知卡片会自动 @ 到你；
+                仅当邮箱与飞书账号不一致时才需要手填 open_id（ou_xxx）。
               </div>
             </el-form-item>
             <el-form-item label="Telegram ID" prop="telegram_user_id">

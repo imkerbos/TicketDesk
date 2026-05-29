@@ -781,12 +781,22 @@ func appendLarkMentions(content string, data map[string]interface{}) string {
 	}
 
 	var parts []string
+	// @ 全员（飞书 lark_md 卡片必须用 id="all"，user_id="all" 不触发）
+	if all, _ := data["mention_all"].(bool); all {
+		parts = append(parts, `<at id="all"></at>`)
+	}
 	for _, m := range mentions {
 		name, _ := m["display_name"].(string)
 		openID, _ := m["lark_open_id"].(string)
-		if openID != "" {
-			parts = append(parts, fmt.Sprintf("<at user_id=%q>%s</at>", openID, name))
-		} else if name != "" {
+		email, _ := m["email"].(string)
+		switch {
+		case openID != "":
+			// 注意：lark_md 卡片必须用 id 属性，user_id 不触发提醒
+			parts = append(parts, fmt.Sprintf("<at id=%q>%s</at>", openID, name))
+		case email != "":
+			// 飞书自定义机器人 webhook 卡片支持 <at email>，邮箱与飞书账号一致时可触发提醒
+			parts = append(parts, fmt.Sprintf("<at email=%q>%s</at>", email, name))
+		case name != "":
 			parts = append(parts, fmt.Sprintf("@%s", name))
 		}
 	}

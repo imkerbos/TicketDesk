@@ -867,6 +867,22 @@
               </div>
             </div>
           </el-form-item>
+          <el-form-item v-if="channelForm.channel_type === 'lark'" label="@ 全员">
+            <div class="enable-switch-row">
+              <el-switch
+                v-model="channelForm.mention_all"
+                active-color="#10b981"
+                inactive-color="#d1d5db"
+              />
+              <span class="enable-switch-label" :class="{ active: channelForm.mention_all }">
+                {{ channelForm.mention_all ? '通知时 @ 群内所有成员' : '不 @ 全员' }}
+              </span>
+            </div>
+            <div class="form-tip-small">
+              <el-icon><InfoFilled /></el-icon>
+              <span>开启后飞书卡片末尾会追加 @ 所有人；Telegram 不支持 @ 全员，此开关对 Telegram 渠道无效</span>
+            </div>
+          </el-form-item>
         </div>
 
         <!-- 飞书配置 -->
@@ -1285,6 +1301,7 @@ const channelForm = reactive({
   channel_type: 'lark' as 'lark' | 'telegram',
   name: '',
   enabled: true,
+  mention_all: false,
   event_types: [...DEFAULT_NOTIFICATION_EVENTS] as NotificationEventType[],
   lark_webhook_url: '',
   lark_secret: '',
@@ -1397,6 +1414,7 @@ const openChannelDialog = () => {
     channel_type: 'lark',
     name: '',
     enabled: true,
+    mention_all: false,
     event_types: [...DEFAULT_NOTIFICATION_EVENTS],
     lark_webhook_url: '',
     lark_secret: '',
@@ -1417,6 +1435,7 @@ const handleEditChannel = (channel: NotificationChannel) => {
     channel_type: channel.channel_type,
     name: channel.name,
     enabled: channel.enabled,
+    mention_all: channel.mention_all === true,
     event_types: existing,
     lark_webhook_url: channel.channel_type === 'lark' ? (config?.webhook_url || '') : '',
     lark_secret: '', // 密钥不回显
@@ -1482,6 +1501,7 @@ const submitChannel = async () => {
           name: channelForm.name,
           enabled: channelForm.enabled,
           event_types: channelForm.event_types,
+          mention_all: channelForm.mention_all,
         }
         // 只有填写了配置才更新 config
         const hasConfig = channelForm.channel_type === 'lark'
@@ -1498,6 +1518,7 @@ const submitChannel = async () => {
           name: channelForm.name,
           config,
           event_types: channelForm.event_types,
+          mention_all: channelForm.mention_all,
           enabled: channelForm.enabled,
         })
         ElMessage.success('创建成功')
