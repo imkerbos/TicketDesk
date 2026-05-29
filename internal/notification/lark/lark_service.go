@@ -573,14 +573,19 @@ func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, d
 		}
 	}
 
-	contentLines := sharedBuildContentLines(event, dataMap)
-	contentLines = appendLarkMentions(contentLines, dataMap)
-
 	siteURL := d.siteURL
 	if siteURL == "" {
 		siteURL = "https://ticketdesk.example.com"
 	}
 	siteURL = strings.TrimRight(siteURL, "/")
+
+	// 每日日报有独立模板：标题 + 多组列表 + 项目看板按钮
+	if event == "issue.daily_digest" {
+		return d.sendDigest(ctx, dataMap, siteURL)
+	}
+
+	contentLines := sharedBuildContentLines(event, dataMap)
+	contentLines = appendLarkMentions(contentLines, dataMap)
 
 	elements := []interface{}{
 		map[string]interface{}{
@@ -657,6 +662,181 @@ func (d *DirectLarkSender) SendNotification(ctx context.Context, event string, d
 	}
 
 	return d.doSend(ctx, body)
+}
+
+// sendDigest 发送每日日报卡片（按 assignee 分组 + 每组前 @ 对应人）
+// 期望 data 含：project_key, project_name, total, groups, mention_all
+func (d *DirectLarkSender) sendDigest(ctx context.Context, dataMap map[string]interface{}, siteURL string) error {
+	projectKey, _ := dataMap["project_key"].(string)
+	projectName, _ := dataMap["project_name"].(string)
+	total := toInt(dataMap["total"])
+
+	header := fmt.Sprintf("📋 **[%s] %s** 未完结工单共 **%d** 条", projectKey, projectName, total)
+	if all, _ := dataMap["mention_all"].(bool); all {
+		header = `<at id="all"></at>` + "\n" + header
+	}
+
+	elements := []interface{}{
+		map[string]interface{}{
+			"tag":  "div",
+			"text": map[string]interface{}{"tag": "lark_md", "content": header},
+		},
+	}
+
+	groups := extractGroupList(dataMap)
+	for _, g := range groups {
+		var sb strings.Builder
+		// 分组标题：@ 指派人 或 「未指派」
+		assigneeName, _ := g["assignee_name"].(string)
+		if m, ok := g["mention"].(map[string]interface{}); ok {
+			openID, _ := m["lark_open_id"].(string)
+			email, _ := m["email"].(string)
+			switch {
+			case openID != "":
+				sb.WriteString(fmt.Sprintf("**<at id=%q>%s</at>**\n", openID, assigneeName))
+			case email != "":
+				sb.WriteString(fmt.Sprintf("**<at email=%q>%s</at>**\n", email, assigneeName))
+			default:
+				sb.WriteString(fmt.Sprintf("**%s**\n", assigneeName))
+			}
+		} else {
+			sb.WriteString(fmt.Sprintf("**%s**\n", assigneeName))
+		}
+
+		// 每条 issue
+		items := extractItemList(g["items"])
+		for _, it := range items {
+			key, _ := it["issue_key"].(string)
+			title, _ := it["title"].(string)
+			typ, _ := it["issue_type"].(string)
+			priority, _ := it["priority"].(string)
+			status, _ := it["status"].(string)
+			nodeName, _ := it["node_name"].(string)
+			display := status
+			if nodeName != "" {
+				display = nodeName
+			}
+			meta := joinNonEmpty([]string{typ, priority, display}, " | ")
+			sb.WriteString(fmt.Sprintf("• [%s](%s/issues/%s) [%s] %s\n",
+				key, siteURL, key, meta, title))
+		}
+
+		elements = append(elements,
+			map[string]interface{}{"tag": "hr"},
+			map[string]interface{}{
+				"tag":  "div",
+				"text": map[string]interface{}{"tag": "lark_md", "content": sb.String()},
+			},
+		)
+	}
+
+	// 项目看板按钮
+	elements = append(elements,
+		map[string]interface{}{"tag": "hr"},
+		map[string]interface{}{
+			"tag": "action",
+			"actions": []interface{}{
+				map[string]interface{}{
+					"tag":  "button",
+					"text": map[string]interface{}{"tag": "plain_text", "content": "查看项目"},
+					"url":  fmt.Sprintf("%s/projects/%s", siteURL, projectKey),
+					"type": "primary",
+				},
+			},
+		},
+		map[string]interface{}{
+			"tag": "note",
+			"elements": []interface{}{
+				map[string]interface{}{
+					"tag":     "plain_text",
+					"content": fmt.Sprintf("TicketDesk · %s", time.Now().Format("2006-01-02 15:04:05")),
+				},
+			},
+		},
+	)
+
+	card := map[string]interface{}{
+		"config": map[string]interface{}{"wide_screen_mode": true},
+		"header": map[string]interface{}{
+			"title":    map[string]interface{}{"tag": "plain_text", "content": "📋 每日工单日报"},
+			"template": "blue",
+		},
+		"elements": elements,
+	}
+
+	body := map[string]interface{}{"msg_type": "interactive", "card": card}
+	if d.secret != "" {
+		timestamp := time.Now().Unix()
+		sign, signErr := directGenerateSign(d.secret, timestamp)
+		if signErr != nil {
+			return fmt.Errorf("生成飞书签名失败: %w", signErr)
+		}
+		body["timestamp"] = fmt.Sprintf("%d", timestamp)
+		body["sign"] = sign
+	}
+	return d.doSend(ctx, body)
+}
+
+// extractGroupList 兼容 []map[string]any / []any
+func extractGroupList(data map[string]interface{}) []map[string]interface{} {
+	raw, ok := data["groups"]
+	if !ok {
+		return nil
+	}
+	switch v := raw.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// extractItemList 兼容 []map[string]any / []any
+func extractItemList(raw interface{}) []map[string]interface{} {
+	switch v := raw.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// toInt 把 any 数字字段转 int
+func toInt(v interface{}) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	}
+	return 0
+}
+
+// joinNonEmpty 拼接非空字符串
+func joinNonEmpty(parts []string, sep string) string {
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, sep)
 }
 
 // SendTestMessage 发送测试消息（使用与真实通知相同的模板）

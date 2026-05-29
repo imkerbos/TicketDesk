@@ -16,6 +16,10 @@ export interface Project {
   lead_user_id: number
   lead_user?: UserBrief
   status: number // 0-禁用, 1-启用
+  daily_digest_enabled?: boolean
+  daily_digest_cron?: string // 5 段 cron 表达式
+  daily_digest_tz?: string // IANA 时区
+  daily_digest_scope?: 'all_open' | 'assigned_only'
   member_count?: number
   created_at: string
   updated_at: string
@@ -48,6 +52,10 @@ export interface UpdateProjectRequest {
   description?: string
   lead_user_id?: number
   status?: number
+  daily_digest_enabled?: boolean
+  daily_digest_cron?: string
+  daily_digest_tz?: string
+  daily_digest_scope?: 'all_open' | 'assigned_only'
 }
 
 export interface ProjectMember {
@@ -139,6 +147,7 @@ export type NotificationEventType =
   | 'issue.transitioned'
   | 'issue.assigned'
   | 'alert.merged'
+  | 'issue.daily_digest'
 
 export interface NotificationChannel {
   id: number

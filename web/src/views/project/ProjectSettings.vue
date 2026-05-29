@@ -338,6 +338,71 @@
               <el-tag type="success" size="small" effect="dark" class="builtin-tag">默认开启</el-tag>
             </div>
 
+            <!-- 每日日报配置区 -->
+            <div class="digest-card">
+              <div class="digest-card-header">
+                <div class="digest-card-title">
+                  <el-icon :size="18"><Bell /></el-icon>
+                  <span>定时日报</span>
+                  <el-tag v-if="digestForm.enabled" type="success" size="small" effect="dark" class="builtin-tag">已启用</el-tag>
+                  <el-tag v-else type="info" size="small" effect="plain" class="builtin-tag">未启用</el-tag>
+                </div>
+                <div class="digest-card-desc">每日定时推送项目「未完结工单」到订阅了「每日日报」事件的通知渠道，按指派人分组并 @ 对应人。</div>
+              </div>
+              <div class="digest-card-body">
+                <el-form label-position="top" :model="digestForm" class="digest-form">
+                  <el-form-item label="启用定时日报">
+                    <el-switch
+                      v-model="digestForm.enabled"
+                      active-color="#10b981"
+                      inactive-color="#d1d5db"
+                    />
+                  </el-form-item>
+                  <el-form-item label="推送时间">
+                    <el-time-picker
+                      v-model="digestForm.timeValue"
+                      format="HH:mm"
+                      value-format="HH:mm"
+                      placeholder="选择时间"
+                      :clearable="false"
+                      style="width: 160px"
+                    />
+                    <span class="digest-form-tip">每日固定时间推送（按下方时区计算）</span>
+                  </el-form-item>
+                  <el-form-item label="时区">
+                    <el-select v-model="digestForm.tz" style="width: 240px">
+                      <el-option label="Asia/Shanghai (UTC+8)" value="Asia/Shanghai" />
+                      <el-option label="Asia/Tokyo (UTC+9)" value="Asia/Tokyo" />
+                      <el-option label="Asia/Singapore (UTC+8)" value="Asia/Singapore" />
+                      <el-option label="UTC" value="UTC" />
+                      <el-option label="America/Los_Angeles" value="America/Los_Angeles" />
+                      <el-option label="America/New_York" value="America/New_York" />
+                      <el-option label="Europe/London" value="Europe/London" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="覆盖范围">
+                    <el-radio-group v-model="digestForm.scope">
+                      <el-radio value="all_open">全部未完结（含未指派单独分组）</el-radio>
+                      <el-radio value="assigned_only">仅含已指派</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" :loading="digestSaving" @click="saveDigestConfig">
+                      <el-icon><Check /></el-icon>
+                      保存日报设置
+                    </el-button>
+                    <el-button :loading="digestRunning" :disabled="!digestForm.enabled" @click="triggerDigestNow">
+                      <el-icon><Promotion /></el-icon>
+                      立即触发一次
+                    </el-button>
+                    <div class="digest-form-tip" style="margin-top: 8px">
+                      还需在下方至少一个通知渠道勾选「每日日报」事件才能收到推送
+                    </div>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+
             <!-- 外部渠道说明 -->
             <div class="notification-section-label">
               <span class="section-label-text">外部通知渠道</span>
@@ -1063,6 +1128,7 @@ import {
   updateNotificationChannel,
   deleteNotificationChannel,
   testNotificationChannel,
+  runDailyDigest,
   getRoleMembers,
   addRoleMember,
   removeRoleMember,
@@ -1331,6 +1397,59 @@ const channelRules: FormRules = {
   telegram_chat_id: [{ required: true, message: '请输入 Telegram Chat ID', trigger: 'blur' }],
 }
 
+// 定时日报配置
+const digestForm = reactive({
+  enabled: false,
+  timeValue: '09:00',
+  cron: '0 9 * * *',
+  tz: 'Asia/Shanghai',
+  scope: 'all_open' as 'all_open' | 'assigned_only',
+})
+const digestSaving = ref(false)
+const digestRunning = ref(false)
+
+const cronToTime = (cron: string): string => {
+  const parts = cron.trim().split(/\s+/)
+  if (parts.length < 2) return '09:00'
+  const mm = String(parts[0]).padStart(2, '0')
+  const hh = String(parts[1]).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+const timeToCron = (t: string): string => {
+  const [hh, mm] = t.split(':').map((s) => parseInt(s, 10))
+  return `${isNaN(mm) ? 0 : mm} ${isNaN(hh) ? 9 : hh} * * *`
+}
+
+const saveDigestConfig = async () => {
+  digestSaving.value = true
+  try {
+    await updateProject(projectKey.value, {
+      daily_digest_enabled: digestForm.enabled,
+      daily_digest_cron: timeToCron(digestForm.timeValue),
+      daily_digest_tz: digestForm.tz,
+      daily_digest_scope: digestForm.scope,
+    })
+    ElMessage.success('日报设置已保存')
+    loadProjectDetail()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '保存失败')
+  } finally {
+    digestSaving.value = false
+  }
+}
+
+const triggerDigestNow = async () => {
+  digestRunning.value = true
+  try {
+    await runDailyDigest(projectKey.value)
+    ElMessage.success('日报已触发，请查看订阅了「每日日报」事件的渠道')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '触发失败')
+  } finally {
+    digestRunning.value = false
+  }
+}
+
 const loadProjectDetail = async () => {
   loading.value = true
   try {
@@ -1343,6 +1462,12 @@ const loadProjectDetail = async () => {
       lead_user_id: project.lead_user_id,
       status: project.status,
     })
+    // 回填日报配置
+    digestForm.enabled = project.daily_digest_enabled === true
+    digestForm.cron = project.daily_digest_cron || '0 9 * * *'
+    digestForm.timeValue = cronToTime(digestForm.cron)
+    digestForm.tz = project.daily_digest_tz || 'Asia/Shanghai'
+    digestForm.scope = (project.daily_digest_scope as 'all_open' | 'assigned_only') || 'all_open'
   } catch {
     // ignored
   } finally {
@@ -2794,6 +2919,53 @@ onMounted(async () => {
     flex-shrink: 0;
     margin-top: 2px;
     color: var(--td-color-primary);
+  }
+}
+
+// 定时日报配置卡片
+.digest-card {
+  border: 1px solid var(--td-border-color);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  background: var(--td-bg-page);
+
+  .digest-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--td-border-color);
+
+    .digest-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--td-text-primary);
+      margin-bottom: 4px;
+
+      .builtin-tag {
+        margin-left: 4px;
+      }
+    }
+
+    .digest-card-desc {
+      font-size: 12px;
+      color: var(--td-text-placeholder);
+      line-height: 1.6;
+    }
+  }
+
+  .digest-card-body {
+    padding: 16px 20px;
+  }
+
+  .digest-form {
+    max-width: 600px;
+  }
+
+  .digest-form-tip {
+    font-size: 12px;
+    color: var(--td-text-placeholder);
+    margin-left: 12px;
   }
 }
 

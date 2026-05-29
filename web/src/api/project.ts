@@ -174,3 +174,8 @@ export const testNotificationChannel = (key: string, channelId: number) => {
   return request.post(`/projects/${key}/notification-channels/${channelId}/test`)
 }
 
+// 立即触发项目每日日报
+export const runDailyDigest = (key: string) => {
+  return request.post(`/projects/${key}/daily-digest/run`)
+}
+

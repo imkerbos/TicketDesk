@@ -50,6 +50,7 @@ import (
 	reqPoolHandler "github.com/kerbos/ticketdesk/internal/requirement-pool/handler"
 	reqPoolRepo "github.com/kerbos/ticketdesk/internal/requirement-pool/repository"
 	reqPoolService "github.com/kerbos/ticketdesk/internal/requirement-pool/service"
+	"github.com/kerbos/ticketdesk/internal/scheduler"
 	configHandler "github.com/kerbos/ticketdesk/internal/system-config/handler"
 	configRepo "github.com/kerbos/ticketdesk/internal/system-config/repository"
 	configService "github.com/kerbos/ticketdesk/internal/system-config/service"
@@ -85,6 +86,7 @@ type Router struct {
 	datasourceHandler      *alertHandler.DatasourceHandler
 	datasourceService      alertService.DatasourceService
 	notifChannelHandler    *projectHandler.NotificationChannelHandler
+	digestHandler          *projectHandler.DigestHandler
 	configSvc              configService.ConfigService
 	ssoHandler             *userHandler.SSOHandler
 	apiTokenHandler        *userHandler.APITokenHandler
@@ -396,6 +398,24 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	notifChannelSvc := projectService.NewNotificationChannelService(notifChannelRepo, projectRepository, configSvc)
 	notifChannelHdl := projectHandler.NewNotificationChannelHandler(notifChannelSvc, projectSvc)
 
+	// ============ 初始化每日日报模块 ============
+	digestSvc := projectService.NewDigestService(db, projectRepository, notifChannelSvc)
+	digestHdl := projectHandler.NewDigestHandler(projectSvc, digestSvc)
+
+	// ============ 启动 cron 调度器 + 加载已启用日报项目 ============
+	cronSched := scheduler.NewScheduler()
+	digestScheduler := projectService.NewDailyDigestScheduler(cronSched, db, digestSvc)
+	if err := digestScheduler.LoadAll(context.Background()); err != nil {
+		logger.Warn("failed to load daily digest projects", zap.Error(err))
+	}
+	cronSched.Start()
+	// 注入到 projectService，UpdateProject 时同步 Reload
+	if projectSvcImpl, ok := projectSvc.(interface {
+		SetDigestScheduler(projectService.DigestScheduler)
+	}); ok {
+		projectSvcImpl.SetDigestScheduler(digestScheduler)
+	}
+
 	// ============ 设置项目通知服务（避免循环依赖）============
 	if issueServiceImpl, ok := issueSvc.(interface {
 		SetProjectNotifier(issueService.ProjectNotifier)
@@ -469,6 +489,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 		datasourceHandler:      datasourceHdl,
 		datasourceService:      datasourceSvc,
 		notifChannelHandler:    notifChannelHdl,
+		digestHandler:          digestHdl,
 		configSvc:              configSvc,
 		ssoHandler:             ssoHdl,
 		apiTokenHandler:        apiTokenHdl,
@@ -749,6 +770,9 @@ func (r *Router) registerProjectRoutes(rg *gin.RouterGroup) {
 		notifChannels.PUT("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleUpdateChannel)
 		notifChannels.DELETE("/:id", r.requirePerm("project:manage"), r.notifChannelHandler.HandleDeleteChannel)
 		notifChannels.POST("/:id/test", r.requirePerm("project:manage"), r.notifChannelHandler.HandleTestChannel)
+
+		// 每日日报手动触发
+		projects.POST("/:key/daily-digest/run", r.requirePerm("project:manage"), r.digestHandler.HandleRunDailyDigest)
 
 		// 工作流方案管理
 		projects.GET("/:key/workflow-schemes", r.requirePerm("workflow:view"), r.workflowHandler.HandleListSchemes)

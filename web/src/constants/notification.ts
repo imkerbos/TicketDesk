@@ -12,6 +12,7 @@ export const NOTIFICATION_EVENT_OPTIONS: NotificationEventOption[] = [
   { value: 'issue.transitioned', label: '工单流转', description: '工单状态变更/审批节点流转时通知' },
   { value: 'issue.assigned', label: '工单指派', description: '工单指派人变更时通知' },
   { value: 'alert.merged', label: '告警合并', description: '告警合并到已有工单时通知' },
+  { value: 'issue.daily_digest', label: '每日日报', description: '每日定时推送项目未完结工单（在「定时日报」区域配置时间）' },
 ]
 
 export const DEFAULT_NOTIFICATION_EVENTS: NotificationEventType[] =

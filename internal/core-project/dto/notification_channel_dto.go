@@ -39,7 +39,7 @@ type CreateNotificationChannelRequest struct {
 	ChannelType string   `json:"channel_type" binding:"required,oneof=lark telegram"`
 	Name        string   `json:"name" binding:"required,max=100"`
 	Config      any      `json:"config" binding:"required"`
-	EventTypes  []string `json:"event_types" binding:"required,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged"`
+	EventTypes  []string `json:"event_types" binding:"required,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged issue.daily_digest"`
 	MentionAll  bool     `json:"mention_all"`
 	Enabled     bool     `json:"enabled"`
 }
@@ -48,7 +48,7 @@ type CreateNotificationChannelRequest struct {
 type UpdateNotificationChannelRequest struct {
 	Name       *string   `json:"name" binding:"omitempty,max=100"`
 	Config     any       `json:"config"`
-	EventTypes *[]string `json:"event_types" binding:"omitempty,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged"`
+	EventTypes *[]string `json:"event_types" binding:"omitempty,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged issue.daily_digest"`
 	MentionAll *bool     `json:"mention_all"`
 	Enabled    *bool     `json:"enabled"`
 }

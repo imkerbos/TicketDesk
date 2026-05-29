@@ -16,10 +16,14 @@ type CreateProjectRequest struct {
 
 // UpdateProjectRequest 更新项目请求
 type UpdateProjectRequest struct {
-	Name        *string `json:"name" binding:"omitempty,min=1,max=100"`
-	Description *string `json:"description" binding:"omitempty,max=1000"`
-	LeadUserID  *uint64 `json:"lead_user_id"`
-	Status      *int8   `json:"status" binding:"omitempty,oneof=0 1"`
+	Name               *string `json:"name" binding:"omitempty,min=1,max=100"`
+	Description        *string `json:"description" binding:"omitempty,max=1000"`
+	LeadUserID         *uint64 `json:"lead_user_id"`
+	Status             *int8   `json:"status" binding:"omitempty,oneof=0 1"`
+	DailyDigestEnabled *bool   `json:"daily_digest_enabled"`
+	DailyDigestCron    *string `json:"daily_digest_cron" binding:"omitempty,max=64"`
+	DailyDigestTZ      *string `json:"daily_digest_tz" binding:"omitempty,max=64"`
+	DailyDigestScope   *string `json:"daily_digest_scope" binding:"omitempty,oneof=all_open assigned_only"`
 }
 
 // ListProjectsRequest 项目列表请求
@@ -78,16 +82,20 @@ type UpdateIssueTypeRequest struct {
 
 // ProjectResponse 项目响应
 type ProjectResponse struct {
-	ID          uint64     `json:"id"`
-	ProjectKey  string     `json:"project_key"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	LeadUserID  uint64     `json:"lead_user_id"`
-	LeadUser    *UserBrief `json:"lead_user,omitempty"`
-	Status      int8       `json:"status"`
-	MemberCount int        `json:"member_count,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID                 uint64     `json:"id"`
+	ProjectKey         string     `json:"project_key"`
+	Name               string     `json:"name"`
+	Description        string     `json:"description"`
+	LeadUserID         uint64     `json:"lead_user_id"`
+	LeadUser           *UserBrief `json:"lead_user,omitempty"`
+	Status             int8       `json:"status"`
+	DailyDigestEnabled bool       `json:"daily_digest_enabled"`
+	DailyDigestCron    string     `json:"daily_digest_cron,omitempty"`
+	DailyDigestTZ      string     `json:"daily_digest_tz,omitempty"`
+	DailyDigestScope   string     `json:"daily_digest_scope,omitempty"`
+	MemberCount        int        `json:"member_count,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 // UserBrief 用户简要信息

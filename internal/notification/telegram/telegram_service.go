@@ -95,6 +95,13 @@ func (s *telegramService) SendNotification(ctx context.Context, event string, da
 		return fmt.Errorf("Telegram Chat ID 未配置")
 	}
 
+	// 每日日报独立模板
+	if event == "issue.daily_digest" {
+		siteURL, _ := s.configSvc.GetConfigValue(ctx, configService.KeyGeneralSiteURL)
+		text, replyMarkup := buildTelegramDigest(toMap(data), siteURL)
+		return s.doSend(ctx, botToken, chatID, text, replyMarkup)
+	}
+
 	// 构建消息
 	text, replyMarkup := s.buildMessage(event, data)
 	text = appendTelegramMentions(text, toMap(data))
@@ -806,6 +813,129 @@ func buildTelegramIssueButton(siteURL, issueKey string) *telegramInlineKeyboard 
 			},
 		},
 	}
+}
+
+// buildTelegramDigest 构造每日日报 Telegram 消息（HTML 格式 + 按 assignee 分组）
+func buildTelegramDigest(data map[string]interface{}, siteURL string) (string, *telegramInlineKeyboard) {
+	if siteURL == "" {
+		siteURL = "https://ticketdesk.example.com"
+	}
+	siteURL = strings.TrimRight(siteURL, "/")
+
+	projectKey, _ := data["project_key"].(string)
+	projectName, _ := data["project_name"].(string)
+	total := tgToInt(data["total"])
+
+	var sb strings.Builder
+	sb.WriteString("📋 <b>每日工单日报</b>\n")
+	sb.WriteString(fmt.Sprintf("<b>[%s] %s</b> 未完结工单共 <b>%d</b> 条\n",
+		html.EscapeString(projectKey), html.EscapeString(projectName), total))
+
+	groups := tgExtractGroupList(data)
+	for _, g := range groups {
+		sb.WriteString("\n")
+		assigneeName, _ := g["assignee_name"].(string)
+		// Telegram @：有 telegram_user_id 用深链；否则纯文本
+		if m, ok := g["mention"].(map[string]interface{}); ok {
+			tgID, _ := m["telegram_user_id"].(string)
+			if tgID != "" {
+				sb.WriteString(fmt.Sprintf("<b><a href=\"tg://user?id=%s\">@%s</a></b>\n",
+					html.EscapeString(tgID), html.EscapeString(assigneeName)))
+			} else {
+				sb.WriteString(fmt.Sprintf("<b>%s</b>\n", html.EscapeString(assigneeName)))
+			}
+		} else {
+			sb.WriteString(fmt.Sprintf("<b>%s</b>\n", html.EscapeString(assigneeName)))
+		}
+
+		items := tgExtractItemList(g["items"])
+		for _, it := range items {
+			key, _ := it["issue_key"].(string)
+			title, _ := it["title"].(string)
+			typ, _ := it["issue_type"].(string)
+			priority, _ := it["priority"].(string)
+			status, _ := it["status"].(string)
+			nodeName, _ := it["node_name"].(string)
+			display := status
+			if nodeName != "" {
+				display = nodeName
+			}
+			meta := tgJoinNonEmpty([]string{typ, priority, display}, " | ")
+			sb.WriteString(fmt.Sprintf("• <a href=\"%s/issues/%s\">%s</a> [%s] %s\n",
+				siteURL, key, html.EscapeString(key), html.EscapeString(meta), html.EscapeString(title)))
+		}
+	}
+
+	replyMarkup := &telegramInlineKeyboard{
+		InlineKeyboard: [][]telegramInlineButton{
+			{
+				{Text: "📊 查看项目", URL: fmt.Sprintf("%s/projects/%s", siteURL, projectKey)},
+			},
+		},
+	}
+	return sb.String(), replyMarkup
+}
+
+// tgExtractGroupList 兼容 []map[string]any / []any
+func tgExtractGroupList(data map[string]interface{}) []map[string]interface{} {
+	raw, ok := data["groups"]
+	if !ok {
+		return nil
+	}
+	switch v := raw.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// tgExtractItemList 兼容 []map[string]any / []any
+func tgExtractItemList(raw interface{}) []map[string]interface{} {
+	switch v := raw.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// tgToInt 把 any 数字字段转 int
+func tgToInt(v interface{}) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	}
+	return 0
+}
+
+// tgJoinNonEmpty 拼接非空字符串
+func tgJoinNonEmpty(parts []string, sep string) string {
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, sep)
 }
 
 // appendTelegramMentions 在消息尾部追加 @ 提及行

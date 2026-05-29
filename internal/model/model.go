@@ -78,11 +78,15 @@ func (UserRole) TableName() string {
 // Project 项目模型
 type Project struct {
 	BaseModel
-	ProjectKey  string `gorm:"size:20;uniqueIndex;not null" json:"project_key"`
-	Name        string `gorm:"size:100;not null" json:"name"`
-	Description string `gorm:"type:text" json:"description"`
-	LeadUserID  uint64 `gorm:"index" json:"lead_user_id"`
-	Status      int8   `gorm:"default:1;index" json:"status"` // 0-归档, 1-活跃
+	ProjectKey         string `gorm:"size:20;uniqueIndex;not null" json:"project_key"`
+	Name               string `gorm:"size:100;not null" json:"name"`
+	Description        string `gorm:"type:text" json:"description"`
+	LeadUserID         uint64 `gorm:"index" json:"lead_user_id"`
+	Status             int8   `gorm:"default:1;index" json:"status"` // 0-归档, 1-活跃
+	DailyDigestEnabled bool   `gorm:"default:false" json:"daily_digest_enabled"`
+	DailyDigestCron    string `gorm:"size:64;default:'0 9 * * *'" json:"daily_digest_cron"`   // 5 段 cron 表达式
+	DailyDigestTZ      string `gorm:"size:64;default:'Asia/Shanghai'" json:"daily_digest_tz"` // IANA 时区
+	DailyDigestScope   string `gorm:"size:32;default:'all_open'" json:"daily_digest_scope"`   // all_open / assigned_only
 }
 
 // TableName 指定表名

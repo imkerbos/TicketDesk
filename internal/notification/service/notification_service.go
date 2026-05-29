@@ -25,6 +25,7 @@ const (
 	EventIssueTransitioned = "issue.transitioned"
 	EventIssueAssigned     = "issue.assigned"
 	EventIssueCommented    = "issue.commented"
+	EventIssueDailyDigest  = "issue.daily_digest"
 	EventAlertFiring       = "alert.firing"
 	EventAlertResolved     = "alert.resolved"
 	EventAlertAcked        = "alert.acked"

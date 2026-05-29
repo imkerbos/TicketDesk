@@ -73,16 +73,28 @@ type ProjectService interface {
 	CheckUserPermission(ctx context.Context, projectKey string, userID uint64, permission string) (bool, error)
 }
 
+// DigestScheduler 用于在项目配置更新后重新注册/注销 cron
+// 由 main.go 在 wire 阶段调用 SetDigestScheduler 注入，避免循环依赖
+type DigestScheduler interface {
+	Reload(project *model.Project)
+}
+
 // projectService 项目服务实现
 type projectService struct {
-	projectRepo    repository.ProjectRepository
-	memberRepo     repository.ProjectMemberRepository
-	issueTypeRepo  repository.IssueTypeRepository
-	roleRepo       repository.ProjectRoleRepository
-	roleMemberRepo repository.ProjectRoleMemberRepository
-	permissionRepo repository.ProjectRolePermissionRepository
-	userRepo       userRepo.UserRepository
-	db             *gorm.DB
+	projectRepo     repository.ProjectRepository
+	memberRepo      repository.ProjectMemberRepository
+	issueTypeRepo   repository.IssueTypeRepository
+	roleRepo        repository.ProjectRoleRepository
+	roleMemberRepo  repository.ProjectRoleMemberRepository
+	permissionRepo  repository.ProjectRolePermissionRepository
+	userRepo        userRepo.UserRepository
+	db              *gorm.DB
+	digestScheduler DigestScheduler
+}
+
+// SetDigestScheduler 注入日报调度器（可选）
+func (s *projectService) SetDigestScheduler(scheduler DigestScheduler) {
+	s.digestScheduler = scheduler
 }
 
 // NewProjectService 创建项目服务实例
@@ -277,10 +289,27 @@ func (s *projectService) UpdateProject(ctx context.Context, key string, req *dto
 	if req.Status != nil {
 		project.Status = *req.Status
 	}
+	if req.DailyDigestEnabled != nil {
+		project.DailyDigestEnabled = *req.DailyDigestEnabled
+	}
+	if req.DailyDigestCron != nil {
+		project.DailyDigestCron = *req.DailyDigestCron
+	}
+	if req.DailyDigestTZ != nil {
+		project.DailyDigestTZ = *req.DailyDigestTZ
+	}
+	if req.DailyDigestScope != nil {
+		project.DailyDigestScope = *req.DailyDigestScope
+	}
 
 	if err := s.projectRepo.Update(ctx, project); err != nil {
 		logger.Error("failed to update project", zap.String("key", key), zap.Error(err))
 		return nil, fmt.Errorf("更新项目失败: %w", err)
+	}
+
+	// 重新加载该项目的日报 cron（启用/cron/tz 变化都需要重注册）
+	if s.digestScheduler != nil {
+		s.digestScheduler.Reload(project)
 	}
 
 	logger.Info("project updated successfully", zap.String("project_key", key))
@@ -903,14 +932,18 @@ func (s *projectService) ListAllIssueTypes(ctx context.Context) ([]*dto.IssueTyp
 // toProjectResponse 将项目模型转换为响应 DTO
 func (s *projectService) toProjectResponse(ctx context.Context, project *model.Project) *dto.ProjectResponse {
 	resp := &dto.ProjectResponse{
-		ID:          project.ID,
-		ProjectKey:  project.ProjectKey,
-		Name:        project.Name,
-		Description: project.Description,
-		LeadUserID:  project.LeadUserID,
-		Status:      project.Status,
-		CreatedAt:   project.CreatedAt,
-		UpdatedAt:   project.UpdatedAt,
+		ID:                 project.ID,
+		ProjectKey:         project.ProjectKey,
+		Name:               project.Name,
+		Description:        project.Description,
+		LeadUserID:         project.LeadUserID,
+		Status:             project.Status,
+		DailyDigestEnabled: project.DailyDigestEnabled,
+		DailyDigestCron:    project.DailyDigestCron,
+		DailyDigestTZ:      project.DailyDigestTZ,
+		DailyDigestScope:   project.DailyDigestScope,
+		CreatedAt:          project.CreatedAt,
+		UpdatedAt:          project.UpdatedAt,
 	}
 
 	// 获取负责人信息
