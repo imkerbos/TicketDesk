@@ -34,14 +34,16 @@ type DigestService interface {
 type digestService struct {
 	db          *gorm.DB
 	projectRepo repository.ProjectRepository
+	channelRepo repository.NotificationChannelRepository
 	notifier    NotificationChannelService
 }
 
 // NewDigestService 创建日报服务实例
-func NewDigestService(db *gorm.DB, projectRepo repository.ProjectRepository, notifier NotificationChannelService) DigestService {
+func NewDigestService(db *gorm.DB, projectRepo repository.ProjectRepository, channelRepo repository.NotificationChannelRepository, notifier NotificationChannelService) DigestService {
 	return &digestService{
 		db:          db,
 		projectRepo: projectRepo,
+		channelRepo: channelRepo,
 		notifier:    notifier,
 	}
 }
@@ -71,6 +73,15 @@ func (s *digestService) RunForProject(ctx context.Context, projectID uint64) err
 		return fmt.Errorf("查询项目失败: %w", err)
 	}
 
+	// 前置检查：项目至少要有一个已启用且订阅了 issue.daily_digest 的渠道
+	hasSubscriber, err := s.hasDigestSubscriber(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	if !hasSubscriber {
+		return fmt.Errorf("项目尚未配置订阅「每日日报」事件的通知渠道；请先在「通知渠道」中添加渠道并勾选「每日日报」事件")
+	}
+
 	rows, err := s.queryOpenIssues(ctx, project)
 	if err != nil {
 		return err
@@ -81,7 +92,7 @@ func (s *digestService) RunForProject(ctx context.Context, projectID uint64) err
 			zap.Uint64("project_id", projectID),
 			zap.String("project_key", project.ProjectKey),
 		)
-		return nil
+		return fmt.Errorf("当前项目没有未完结工单，未发送日报")
 	}
 
 	data := buildDigestData(project, rows)
@@ -95,6 +106,20 @@ func (s *digestService) RunForProject(ctx context.Context, projectID uint64) err
 		zap.Int("issue_count", len(rows)),
 	)
 	return nil
+}
+
+// hasDigestSubscriber 判断项目是否存在已启用且订阅 issue.daily_digest 的渠道
+func (s *digestService) hasDigestSubscriber(ctx context.Context, projectID uint64) (bool, error) {
+	channels, err := s.channelRepo.ListEnabledByProject(ctx, projectID)
+	if err != nil {
+		return false, fmt.Errorf("查询项目通知渠道失败: %w", err)
+	}
+	for _, ch := range channels {
+		if channelSubscribesEvent(ch, "issue.daily_digest") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // queryOpenIssues 查询项目未完结工单（含 workflow 节点判断 + status fallback）

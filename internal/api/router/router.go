@@ -399,7 +399,7 @@ func NewRouter(cfg *config.Config, jwtManager *jwt.Manager, db *gorm.DB) *Router
 	notifChannelHdl := projectHandler.NewNotificationChannelHandler(notifChannelSvc, projectSvc)
 
 	// ============ 初始化每日日报模块 ============
-	digestSvc := projectService.NewDigestService(db, projectRepository, notifChannelSvc)
+	digestSvc := projectService.NewDigestService(db, projectRepository, notifChannelRepo, notifChannelSvc)
 	digestHdl := projectHandler.NewDigestHandler(projectSvc, digestSvc)
 
 	// ============ 启动 cron 调度器 + 加载已启用日报项目 ============
