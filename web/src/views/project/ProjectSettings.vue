@@ -374,6 +374,18 @@
                         </template>
                       </span>
                     </div>
+                    <div v-if="channel.event_types && channel.event_types.length > 0" class="channel-row-events">
+                      <el-tag
+                        v-for="ev in channel.event_types"
+                        :key="ev"
+                        size="small"
+                        type="info"
+                        effect="plain"
+                        class="channel-event-tag"
+                      >
+                        {{ getNotificationEventLabel(ev) }}
+                      </el-tag>
+                    </div>
                   </div>
                 </div>
                 <div class="channel-row-right">
@@ -836,6 +848,25 @@
               </span>
             </div>
           </el-form-item>
+          <el-form-item label="订阅的通知事件" prop="event_types">
+            <div class="event-types-wrapper">
+              <el-checkbox-group v-model="channelForm.event_types" class="event-types-group">
+                <el-checkbox
+                  v-for="opt in NOTIFICATION_EVENT_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                  class="event-type-checkbox"
+                >
+                  <span class="event-type-label">{{ opt.label }}</span>
+                  <span class="event-type-desc">{{ opt.description }}</span>
+                </el-checkbox>
+              </el-checkbox-group>
+              <div class="form-tip-small">
+                <el-icon><InfoFilled /></el-icon>
+                <span>勾选哪些事件就只会推送对应事件，至少需选择一项</span>
+              </div>
+            </div>
+          </el-form-item>
         </div>
 
         <!-- 飞书配置 -->
@@ -1033,8 +1064,14 @@ import type {
   CreateProjectRoleRequest,
   CreateIssueTypeRequest,
   NotificationChannel,
+  NotificationEventType,
   ProjectRoleMember,
 } from '@/types/project'
+import {
+  NOTIFICATION_EVENT_OPTIONS,
+  DEFAULT_NOTIFICATION_EVENTS,
+  getNotificationEventLabel,
+} from '@/constants/notification'
 import type { UserOption } from '@/types/user'
 
 const route = useRoute()
@@ -1248,6 +1285,7 @@ const channelForm = reactive({
   channel_type: 'lark' as 'lark' | 'telegram',
   name: '',
   enabled: true,
+  event_types: [...DEFAULT_NOTIFICATION_EVENTS] as NotificationEventType[],
   lark_webhook_url: '',
   lark_secret: '',
   telegram_bot_token: '',
@@ -1256,6 +1294,21 @@ const channelForm = reactive({
 const channelRules: FormRules = {
   channel_type: [{ required: true, message: '请选择渠道类型', trigger: 'change' }],
   name: [{ required: true, message: '请输入渠道名称', trigger: 'blur' }],
+  event_types: [
+    {
+      type: 'array',
+      required: true,
+      message: '请至少选择一种通知事件',
+      trigger: 'change',
+      validator: (_rule, value, callback) => {
+        if (!Array.isArray(value) || value.length === 0) {
+          callback(new Error('请至少选择一种通知事件'))
+          return
+        }
+        callback()
+      },
+    },
+  ],
   lark_webhook_url: [{ required: true, message: '请输入飞书 Webhook URL', trigger: 'blur' }],
   telegram_bot_token: [{ required: true, message: '请输入 Telegram Bot Token', trigger: 'blur' }],
   telegram_chat_id: [{ required: true, message: '请输入 Telegram Chat ID', trigger: 'blur' }],
@@ -1344,6 +1397,7 @@ const openChannelDialog = () => {
     channel_type: 'lark',
     name: '',
     enabled: true,
+    event_types: [...DEFAULT_NOTIFICATION_EVENTS],
     lark_webhook_url: '',
     lark_secret: '',
     telegram_bot_token: '',
@@ -1356,10 +1410,14 @@ const handleEditChannel = (channel: NotificationChannel) => {
   isEditingChannel.value = true
   editingChannelId.value = channel.id
   const config = channel.config as any
+  const existing = Array.isArray(channel.event_types) && channel.event_types.length > 0
+    ? [...channel.event_types]
+    : [...DEFAULT_NOTIFICATION_EVENTS]
   Object.assign(channelForm, {
     channel_type: channel.channel_type,
     name: channel.name,
     enabled: channel.enabled,
+    event_types: existing,
     lark_webhook_url: channel.channel_type === 'lark' ? (config?.webhook_url || '') : '',
     lark_secret: '', // 密钥不回显
     telegram_bot_token: '', // Token 不回显
@@ -1423,6 +1481,7 @@ const submitChannel = async () => {
         const updateData: any = {
           name: channelForm.name,
           enabled: channelForm.enabled,
+          event_types: channelForm.event_types,
         }
         // 只有填写了配置才更新 config
         const hasConfig = channelForm.channel_type === 'lark'
@@ -1438,6 +1497,7 @@ const submitChannel = async () => {
           channel_type: channelForm.channel_type,
           name: channelForm.name,
           config,
+          event_types: channelForm.event_types,
           enabled: channelForm.enabled,
         })
         ElMessage.success('创建成功')
@@ -2873,6 +2933,61 @@ onMounted(async () => {
     font-size: 12px;
     color: var(--td-text-placeholder);
     font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  }
+}
+
+.channel-row-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+
+  .channel-event-tag {
+    font-size: 11px;
+  }
+}
+
+.event-types-wrapper {
+  width: 100%;
+}
+
+.event-types-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  width: 100%;
+}
+
+.event-type-checkbox {
+  width: 100%;
+  margin-right: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--td-border-color);
+  border-radius: var(--td-radius-md);
+  transition: var(--td-transition-color);
+
+  &:hover {
+    border-color: var(--td-color-primary);
+    background: var(--td-tag-primary-bg);
+  }
+
+  :deep(.el-checkbox__label) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.4;
+  }
+
+  .event-type-label {
+    font-size: 13px;
+    color: var(--td-text-primary);
+    font-weight: 500;
+  }
+
+  .event-type-desc {
+    font-size: 11px;
+    color: var(--td-text-placeholder);
+    margin-top: 2px;
   }
 }
 

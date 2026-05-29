@@ -133,12 +133,20 @@ export interface UserRolesResponse {
 
 // ========== 项目通知渠道相关类型 ==========
 
+// 渠道支持的事件类型
+export type NotificationEventType =
+  | 'issue.created'
+  | 'issue.transitioned'
+  | 'issue.assigned'
+  | 'alert.merged'
+
 export interface NotificationChannel {
   id: number
   project_id: number
   channel_type: 'lark' | 'telegram'
   name: string
   config: LarkChannelConfig | TelegramChannelConfig | Record<string, any>
+  event_types: NotificationEventType[]
   enabled: boolean
   created_by: number
   created_at: string
@@ -159,12 +167,14 @@ export interface CreateNotificationChannelRequest {
   channel_type: 'lark' | 'telegram'
   name: string
   config: LarkChannelConfig | TelegramChannelConfig
+  event_types: NotificationEventType[]
   enabled: boolean
 }
 
 export interface UpdateNotificationChannelRequest {
   name?: string
   config?: LarkChannelConfig | TelegramChannelConfig
+  event_types?: NotificationEventType[]
   enabled?: boolean
 }
 

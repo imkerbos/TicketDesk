@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -69,11 +70,17 @@ func (s *notificationChannelService) CreateChannel(ctx context.Context, projectI
 		return nil, err
 	}
 
+	eventTypesJSON, err := marshalEventTypes(req.EventTypes)
+	if err != nil {
+		return nil, err
+	}
+
 	channel := &model.ProjectNotificationChannel{
 		ProjectID:   projectID,
 		ChannelType: req.ChannelType,
 		Name:        req.Name,
 		Config:      configJSON,
+		EventTypes:  eventTypesJSON,
 		Enabled:     req.Enabled,
 		CreatedBy:   userID,
 	}
@@ -125,6 +132,13 @@ func (s *notificationChannelService) UpdateChannel(ctx context.Context, id uint6
 			return nil, err
 		}
 		channel.Config = configJSON
+	}
+	if req.EventTypes != nil {
+		eventTypesJSON, err := marshalEventTypes(*req.EventTypes)
+		if err != nil {
+			return nil, err
+		}
+		channel.EventTypes = eventTypesJSON
 	}
 
 	if err := s.channelRepo.Update(ctx, channel); err != nil {
@@ -200,6 +214,10 @@ func (s *notificationChannelService) NotifyProject(ctx context.Context, projectI
 	}
 
 	for _, ch := range channels {
+		// 按渠道订阅的事件类型过滤
+		if !channelSubscribesEvent(ch, event) {
+			continue
+		}
 		go func(channel *model.ProjectNotificationChannel) {
 			var sendErr error
 			switch channel.ChannelType {
@@ -220,6 +238,40 @@ func (s *notificationChannelService) NotifyProject(ctx context.Context, projectI
 	}
 
 	return nil
+}
+
+// marshalEventTypes 将事件类型数组序列化为 JSON 字符串
+func marshalEventTypes(events []string) (string, error) {
+	if len(events) == 0 {
+		return "", fmt.Errorf("订阅的事件类型不能为空")
+	}
+	bytes, err := json.Marshal(events)
+	if err != nil {
+		return "", fmt.Errorf("序列化事件类型失败: %w", err)
+	}
+	return string(bytes), nil
+}
+
+// parseEventTypes 反序列化渠道订阅的事件类型；空值返回 nil
+func parseEventTypes(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var events []string
+	if err := json.Unmarshal([]byte(raw), &events); err != nil {
+		return nil
+	}
+	return events
+}
+
+// channelSubscribesEvent 判断渠道是否订阅指定事件
+// 旧数据 EventTypes 为空 → 视为全订阅，向后兼容（迁移会补默认值，但运行时仍保险）
+func channelSubscribesEvent(ch *model.ProjectNotificationChannel, event string) bool {
+	events := parseEventTypes(ch.EventTypes)
+	if len(events) == 0 {
+		return true
+	}
+	return slices.Contains(events, event)
 }
 
 // ============ 内部方法 ============
@@ -325,12 +377,18 @@ func (s *notificationChannelService) toResponse(ch *model.ProjectNotificationCha
 		configObj = ch.Config
 	}
 
+	events := parseEventTypes(ch.EventTypes)
+	if events == nil {
+		events = []string{}
+	}
+
 	return &dto.NotificationChannelResponse{
 		ID:          ch.ID,
 		ProjectID:   ch.ProjectID,
 		ChannelType: ch.ChannelType,
 		Name:        ch.Name,
 		Config:      configObj,
+		EventTypes:  events,
 		Enabled:     ch.Enabled,
 		CreatedBy:   ch.CreatedBy,
 		CreatedAt:   ch.CreatedAt,

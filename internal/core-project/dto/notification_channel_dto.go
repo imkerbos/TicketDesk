@@ -26,6 +26,7 @@ type NotificationChannelResponse struct {
 	ChannelType string    `json:"channel_type"`
 	Name        string    `json:"name"`
 	Config      any       `json:"config"`
+	EventTypes  []string  `json:"event_types"`
 	Enabled     bool      `json:"enabled"`
 	CreatedBy   uint64    `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -34,15 +35,17 @@ type NotificationChannelResponse struct {
 
 // CreateNotificationChannelRequest 创建通知渠道请求
 type CreateNotificationChannelRequest struct {
-	ChannelType string `json:"channel_type" binding:"required,oneof=lark telegram"`
-	Name        string `json:"name" binding:"required,max=100"`
-	Config      any    `json:"config" binding:"required"`
-	Enabled     bool   `json:"enabled"`
+	ChannelType string   `json:"channel_type" binding:"required,oneof=lark telegram"`
+	Name        string   `json:"name" binding:"required,max=100"`
+	Config      any      `json:"config" binding:"required"`
+	EventTypes  []string `json:"event_types" binding:"required,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged"`
+	Enabled     bool     `json:"enabled"`
 }
 
 // UpdateNotificationChannelRequest 更新通知渠道请求
 type UpdateNotificationChannelRequest struct {
-	Name    *string `json:"name" binding:"omitempty,max=100"`
-	Config  any     `json:"config"`
-	Enabled *bool   `json:"enabled"`
+	Name       *string   `json:"name" binding:"omitempty,max=100"`
+	Config     any       `json:"config"`
+	EventTypes *[]string `json:"event_types" binding:"omitempty,min=1,dive,oneof=issue.created issue.transitioned issue.assigned alert.merged"`
+	Enabled    *bool     `json:"enabled"`
 }

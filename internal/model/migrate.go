@@ -88,6 +88,32 @@ func AutoMigrate(db *gorm.DB) error {
 		return err
 	}
 
+	// 为旧的项目通知渠道补齐订阅事件（默认全订阅）
+	if err := migrateNotificationChannelEventTypes(db); err != nil {
+		logger.Error("failed to migrate notification channel event types", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+// migrateNotificationChannelEventTypes 为旧的通知渠道补默认订阅事件
+// 仅影响 event_types 为 NULL 或空字符串的旧数据，新建渠道由 service 层显式写入
+func migrateNotificationChannelEventTypes(db *gorm.DB) error {
+	const defaultEvents = `["issue.created","issue.transitioned","issue.assigned","alert.merged"]`
+	result := db.Exec(
+		"UPDATE project_notification_channels SET event_types = ? WHERE event_types IS NULL OR event_types = ''",
+		defaultEvents,
+	)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		logger.Info("migrated notification channel event types",
+			zap.Int64("count", result.RowsAffected),
+			zap.String("default_events", defaultEvents),
+		)
+	}
 	return nil
 }
 
