@@ -68,7 +68,7 @@ func (d *DailyDigestScheduler) Reload(project *model.Project) {
 
 	projectID := project.ID
 	if err := d.sched.Register(jobID, spec, tz, func(ctx context.Context) {
-		if err := d.digestSvc.RunForProject(ctx, projectID); err != nil {
+		if err := d.digestSvc.RunForProjectScheduled(ctx, projectID); err != nil {
 			logger.Warn("daily digest execution failed",
 				zap.Uint64("project_id", projectID),
 				zap.Error(err),

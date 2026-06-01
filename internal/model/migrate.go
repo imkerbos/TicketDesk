@@ -62,6 +62,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&ProjectRolePermission{},
 		&RequirementCategoryDef{},
 		&APIToken{},
+		&DailyDigestRun{},
 	}
 
 	for _, model := range models {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -27,8 +28,11 @@ var terminalIssueStatuses = []string{"done", "closed", "resolved", "cancelled"} 
 
 // DigestService 每日日报服务
 type DigestService interface {
-	// RunForProject 立即对指定项目跑一次日报；空 issues 不发送
+	// RunForProject 立即对指定项目跑一次日报（手动触发，不做去重）；空 issues 不发送
 	RunForProject(ctx context.Context, projectID uint64) error
+	// RunForProjectScheduled cron 触发入口；通过 daily_digest_runs 表做多副本去重，
+	// 同一 (project_id, run_date) 只有一个实例能抢到发送权
+	RunForProjectScheduled(ctx context.Context, projectID uint64) error
 }
 
 // digestService 实现
@@ -36,15 +40,23 @@ type digestService struct {
 	db          *gorm.DB
 	projectRepo repository.ProjectRepository
 	channelRepo repository.NotificationChannelRepository
+	runRepo     repository.DigestRunRepository
 	notifier    NotificationChannelService
 }
 
 // NewDigestService 创建日报服务实例
-func NewDigestService(db *gorm.DB, projectRepo repository.ProjectRepository, channelRepo repository.NotificationChannelRepository, notifier NotificationChannelService) DigestService {
+func NewDigestService(
+	db *gorm.DB,
+	projectRepo repository.ProjectRepository,
+	channelRepo repository.NotificationChannelRepository,
+	runRepo repository.DigestRunRepository,
+	notifier NotificationChannelService,
+) DigestService {
 	return &digestService{
 		db:          db,
 		projectRepo: projectRepo,
 		channelRepo: channelRepo,
+		runRepo:     runRepo,
 		notifier:    notifier,
 	}
 }
@@ -64,7 +76,7 @@ type digestIssueRow struct {
 	AssigneeTelegram string
 }
 
-// RunForProject 立即执行项目日报
+// RunForProject 立即执行项目日报（手动触发；不做多副本去重）
 func (s *digestService) RunForProject(ctx context.Context, projectID uint64) error {
 	project, err := s.projectRepo.GetByID(ctx, projectID)
 	if err != nil {
@@ -73,19 +85,77 @@ func (s *digestService) RunForProject(ctx context.Context, projectID uint64) err
 		}
 		return fmt.Errorf("查询项目失败: %w", err)
 	}
+	_, err = s.runForProject(ctx, project)
+	return err
+}
+
+// RunForProjectScheduled cron 触发入口；先在 daily_digest_runs 表抢占，再执行发送
+// 多副本部署下同一 (project_id, run_date) 只有一个实例能抢到；其他实例直接 skip
+func (s *digestService) RunForProjectScheduled(ctx context.Context, projectID uint64) error {
+	project, err := s.projectRepo.GetByID(ctx, projectID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("项目不存在")
+		}
+		return fmt.Errorf("查询项目失败: %w", err)
+	}
+
+	runDate := projectLocalDate(project)
+
+	claimed, err := s.runRepo.TryClaim(ctx, projectID, runDate)
+	if err != nil {
+		return fmt.Errorf("日报去重占位失败: %w", err)
+	}
+	if !claimed {
+		logger.Info("daily digest skipped (another instance already claimed)",
+			zap.Uint64("project_id", projectID),
+			zap.String("project_key", project.ProjectKey),
+			zap.String("run_date", runDate),
+		)
+		return nil
+	}
+
+	count, err := s.runForProject(ctx, project)
+	if err != nil {
+		// 发送失败：释放占位，下次 cron 或手动重试可继续
+		if relErr := s.runRepo.Release(context.Background(), projectID, runDate); relErr != nil {
+			logger.Warn("release daily digest claim failed",
+				zap.Uint64("project_id", projectID),
+				zap.String("run_date", runDate),
+				zap.Error(relErr),
+			)
+		}
+		return err
+	}
+
+	// 回写工单数（审计字段；失败仅记日志，不影响主流程）
+	if err := s.runRepo.UpdateIssueCount(context.Background(), projectID, runDate, count); err != nil {
+		logger.Warn("update daily digest issue_count failed",
+			zap.Uint64("project_id", projectID),
+			zap.String("run_date", runDate),
+			zap.Error(err),
+		)
+	}
+	return nil
+}
+
+// runForProject 内部实现：执行一次日报，返回发送的工单数
+// 不做去重；手动触发与 cron 触发都复用此方法
+func (s *digestService) runForProject(ctx context.Context, project *model.Project) (int, error) {
+	projectID := project.ID
 
 	// 前置检查：项目至少要有一个已启用且订阅了 issue.daily_digest 的渠道
 	hasSubscriber, err := s.hasDigestSubscriber(ctx, projectID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if !hasSubscriber {
-		return fmt.Errorf("项目尚未配置订阅「每日日报」事件的通知渠道；请先在「通知渠道」中添加渠道并勾选「每日日报」事件")
+		return 0, fmt.Errorf("项目尚未配置订阅「每日日报」事件的通知渠道；请先在「通知渠道」中添加渠道并勾选「每日日报」事件")
 	}
 
 	rows, err := s.queryOpenIssues(ctx, project)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if len(rows) == 0 {
@@ -93,12 +163,12 @@ func (s *digestService) RunForProject(ctx context.Context, projectID uint64) err
 			zap.Uint64("project_id", projectID),
 			zap.String("project_key", project.ProjectKey),
 		)
-		return fmt.Errorf("当前项目没有未完结工单，未发送日报")
+		return 0, fmt.Errorf("当前项目没有未完结工单，未发送日报")
 	}
 
 	data := buildDigestData(project, rows)
 	if err := s.notifier.NotifyProject(ctx, projectID, "issue.daily_digest", data); err != nil {
-		return fmt.Errorf("发送日报通知失败: %w", err)
+		return 0, fmt.Errorf("发送日报通知失败: %w", err)
 	}
 
 	logger.Info("daily digest sent",
@@ -106,7 +176,21 @@ func (s *digestService) RunForProject(ctx context.Context, projectID uint64) err
 		zap.String("project_key", project.ProjectKey),
 		zap.Int("issue_count", len(rows)),
 	)
-	return nil
+	return len(rows), nil
+}
+
+// projectLocalDate 按项目时区计算「今天」字符串（YYYY-MM-DD）
+// 用作 daily_digest_runs 表去重键的一部分
+func projectLocalDate(project *model.Project) string {
+	tz := project.DailyDigestTZ
+	if tz == "" {
+		tz = defaultDigestTZ
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		loc = time.Local
+	}
+	return time.Now().In(loc).Format("2006-01-02")
 }
 
 // hasDigestSubscriber 判断项目是否存在已启用且订阅 issue.daily_digest 的渠道
