@@ -139,6 +139,9 @@ export const useNotificationStore = defineStore('notification', () => {
   }
 
   // 显示浏览器通知
+  // 不设 requireInteraction，让浏览器默认行为自动消失（通常几秒），
+  // 避免后台累积多条 OS 通知导致回到 tab 后需要逐个手动关闭。
+  // 错过的消息可在系统通知中心或站内未读列表回看。
   const showBrowserNotification = (notif: NotificationItem) => {
     if (!('Notification' in window)) {
       return
@@ -154,36 +157,17 @@ export const useNotificationStore = defineStore('notification', () => {
         icon: '/favicon.ico',
         badge: '/favicon.ico',
         tag: `notification-${notif.id}`,
-        requireInteraction: true, // 持续显示，不自动关闭
         silent: false,
       })
 
       // 点击通知时跳转到对应页面并标记为已读
       browserNotif.onclick = () => {
-        markAsRead(notif.id) // 标记为已读
+        markAsRead(notif.id)
         window.focus()
         if (notif.entity_type === 'issue' && notif.entity_key) {
           window.location.href = `/issues/${notif.entity_key}`
         }
         browserNotif.close()
-      }
-
-      // 监听页面可见性变化，当用户切换回标签页时，5秒后自动关闭通知
-      const handleVisibilityChange = () => {
-        if (!document.hidden) {
-          // 用户切换回标签页，5秒后关闭通知
-          setTimeout(() => {
-            browserNotif.close()
-            document.removeEventListener('visibilitychange', handleVisibilityChange)
-          }, 5000)
-        }
-      }
-
-      document.addEventListener('visibilitychange', handleVisibilityChange)
-
-      // 通知关闭时清理事件监听
-      browserNotif.onclose = () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange)
       }
     } catch {
       // 静默处理
