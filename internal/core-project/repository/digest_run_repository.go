@@ -13,13 +13,12 @@ import (
 
 // DigestRunRepository 每日日报执行记录数据访问接口
 // 用于多副本部署下的去重：唯一键 (project_id, run_date) + INSERT IGNORE 抢占
+// 故意不提供 Release：抢到即发，发送失败不释放也不补发，避免渠道半成功后重发
 type DigestRunRepository interface {
 	// TryClaim 原子占位：返回 true 表示当前实例抢到了发送权，false 表示已被其他实例抢占
 	TryClaim(ctx context.Context, projectID uint64, runDate string) (bool, error)
 	// UpdateIssueCount 抢占后回写工单数（审计字段，幂等）
 	UpdateIssueCount(ctx context.Context, projectID uint64, runDate string, count int) error
-	// Release 释放占位（发送失败时调用，允许下次重试）
-	Release(ctx context.Context, projectID uint64, runDate string) error
 }
 
 // digestRunRepository 实现
@@ -55,16 +54,6 @@ func (r *digestRunRepository) UpdateIssueCount(ctx context.Context, projectID ui
 		Where("project_id = ? AND run_date = ?", projectID, runDate).
 		Update("issue_count", count).Error; err != nil {
 		return fmt.Errorf("更新日报工单数失败: %w", err)
-	}
-	return nil
-}
-
-// Release 删除占位记录，允许下次重试
-func (r *digestRunRepository) Release(ctx context.Context, projectID uint64, runDate string) error {
-	if err := r.db.WithContext(ctx).
-		Where("project_id = ? AND run_date = ?", projectID, runDate).
-		Delete(&model.DailyDigestRun{}).Error; err != nil {
-		return fmt.Errorf("释放日报执行记录失败: %w", err)
 	}
 	return nil
 }

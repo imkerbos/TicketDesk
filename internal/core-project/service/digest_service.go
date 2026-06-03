@@ -117,14 +117,13 @@ func (s *digestService) RunForProjectScheduled(ctx context.Context, projectID ui
 
 	count, err := s.runForProject(ctx, project)
 	if err != nil {
-		// 发送失败：释放占位，下次 cron 或手动重试可继续
-		if relErr := s.runRepo.Release(context.Background(), projectID, runDate); relErr != nil {
-			logger.Warn("release daily digest claim failed",
-				zap.Uint64("project_id", projectID),
-				zap.String("run_date", runDate),
-				zap.Error(relErr),
-			)
-		}
+		// 抢到即认定本窗口已被处理；发送失败不释放占位，避免渠道半成功后重发。
+		// 需要补发时走手动触发入口（RunForProject）。
+		logger.Error("daily digest send failed after claim; not releasing to avoid resend",
+			zap.Uint64("project_id", projectID),
+			zap.String("run_date", runDate),
+			zap.Error(err),
+		)
 		return err
 	}
 

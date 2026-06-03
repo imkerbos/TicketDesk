@@ -759,11 +759,13 @@ func (APIToken) TableName() string { return "api_tokens" }
 // DailyDigestRun 每日日报执行记录
 // 多副本部署去重：唯一键 (project_id, run_date) + INSERT IGNORE 抢占
 // 兼审计：记录每次实际发送的日期、工单数、时间
+// 注意：不嵌 BaseModel，避免软删除残留行导致唯一键永远冲突
 type DailyDigestRun struct {
-	BaseModel
-	ProjectID  uint64 `gorm:"not null;uniqueIndex:uk_digest_project_run_date,priority:1" json:"project_id"`
-	RunDate    string `gorm:"size:10;not null;uniqueIndex:uk_digest_project_run_date,priority:2" json:"run_date"` // YYYY-MM-DD（按项目 TZ）
-	IssueCount int    `gorm:"not null;default:0" json:"issue_count"`
+	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ProjectID  uint64    `gorm:"not null;uniqueIndex:uk_digest_project_run_date,priority:1" json:"project_id"`
+	RunDate    string    `gorm:"size:10;not null;uniqueIndex:uk_digest_project_run_date,priority:2" json:"run_date"` // YYYY-MM-DD（按项目 TZ）
+	IssueCount int       `gorm:"not null;default:0" json:"issue_count"`
+	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`
 }
 
 // TableName 指定表名
